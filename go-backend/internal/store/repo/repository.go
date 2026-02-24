@@ -1270,6 +1270,98 @@ func (r *Repository) ListActivePeerShareRuntimePorts(shareID int64, nodeID int64
 	return ports, nil
 }
 
+func (r *Repository) ListActiveForwardPeerShareRuntimesByServiceName(serviceName string) ([]model.PeerShareRuntime, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var items []model.PeerShareRuntime
+	err := r.db.Where("service_name = ? AND status = 1 AND role = ?", serviceName, "forward").
+		Order("id ASC").
+		Find(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = make([]model.PeerShareRuntime, 0)
+	}
+	return items, nil
+}
+
+func (r *Repository) ListActiveForwardPeerShareRuntimeServiceNamesByNode(nodeID int64) ([]string, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var names []string
+	err := r.db.Model(&model.PeerShareRuntime{}).
+		Where("node_id = ? AND status = 1 AND role = ? AND service_name <> ''", nodeID, "forward").
+		Pluck("service_name", &names).Error
+	if err != nil {
+		return nil, err
+	}
+	if names == nil {
+		names = make([]string, 0)
+	}
+	return names, nil
+}
+
+func (r *Repository) GetActiveForwardPeerShareRuntimeByPort(shareID int64, port int) (*model.PeerShareRuntime, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var item model.PeerShareRuntime
+	err := r.db.Where("share_id = ? AND port = ? AND status = 1 AND role = ?", shareID, port, "forward").First(&item).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *Repository) ExistsActivePeerShareRuntimeOnNodePort(nodeID int64, port int) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, errors.New("repository not initialized")
+	}
+	var count int64
+	err := r.db.Model(&model.PeerShareRuntime{}).
+		Where("node_id = ? AND port = ? AND status = 1", nodeID, port).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *Repository) UpdatePeerShareRuntimeServiceName(id int64, serviceName string, updatedTime int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Model(&model.PeerShareRuntime{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"service_name": serviceName,
+		"applied":      1,
+		"updated_time": updatedTime,
+	}).Error
+}
+
+func (r *Repository) MarkPeerShareRuntimeReleasedByPort(shareID int64, port int, updatedTime int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	if shareID <= 0 || port <= 0 {
+		return nil
+	}
+	if updatedTime <= 0 {
+		updatedTime = unixMilliNow()
+	}
+	return r.db.Model(&model.PeerShareRuntime{}).Where("share_id = ? AND port = ? AND status = 1", shareID, port).Updates(map[string]interface{}{
+		"status":       0,
+		"applied":      0,
+		"service_name": "",
+		"updated_time": updatedTime,
+	}).Error
+}
+
 // ─── FederationTunnelBinding ─────────────────────────────────────────
 
 func (r *Repository) UpsertFederationTunnelBinding(item *model.FederationTunnelBinding) error {

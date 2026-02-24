@@ -766,6 +766,37 @@ func (h *Handler) federationTunnelCreate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	usedPorts, err := h.repo.ListUsedPortsOnNode(share.NodeID)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	for _, port := range usedPorts {
+		if port == req.RemotePort {
+			response.WriteJSON(w, response.Err(403, "Port already in use"))
+			return
+		}
+	}
+
+	runtimeOnPort, err := h.repo.GetActiveForwardPeerShareRuntimeByPort(share.ID, req.RemotePort)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if runtimeOnPort != nil {
+		response.WriteJSON(w, response.Err(403, "Port already in use"))
+		return
+	}
+	existsOnNodePort, err := h.repo.ExistsActivePeerShareRuntimeOnNodePort(share.NodeID, req.RemotePort)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if existsOnNodePort {
+		response.WriteJSON(w, response.Err(403, "Port already in use"))
+		return
+	}
+
 	now := time.Now().UnixMilli()
 	tunnelID, err := h.repo.CreateFederationTunnel(
 		fmt.Sprintf("Share-%d-Port-%d", share.ID, req.RemotePort),
@@ -776,6 +807,30 @@ func (h *Handler) federationTunnelCreate(w http.ResponseWriter, r *http.Request)
 		req.RemotePort,
 	)
 	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	runtime := &repo.PeerShareRuntime{
+		ShareID:       share.ID,
+		NodeID:        share.NodeID,
+		ReservationID: randomToken(24),
+		ResourceKey:   fmt.Sprintf("federation-forward-%d-%d-%d", share.ID, tunnelID, req.RemotePort),
+		BindingID:     "",
+		Role:          "forward",
+		ChainName:     "",
+		ServiceName:   "",
+		Protocol:      defaultString(req.Protocol, "tcp"),
+		Strategy:      "fifo",
+		Port:          req.RemotePort,
+		Target:        strings.TrimSpace(req.Target),
+		Applied:       0,
+		Status:        1,
+		CreatedTime:   now,
+		UpdatedTime:   now,
+	}
+	if err := h.repo.CreatePeerShareRuntime(runtime); err != nil {
+		_ = h.deleteTunnelByID(tunnelID)
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -1211,7 +1266,81 @@ func (h *Handler) federationRuntimeCommand(w http.ResponseWriter, r *http.Reques
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
+	if strings.EqualFold(cmd, "addservice") || strings.EqualFold(cmd, "updateservice") {
+		h.bindPeerShareForwardRuntimeServices(share, req.Data)
+	}
 	response.WriteJSON(w, response.OK(res))
+}
+
+type federationForwardServiceBinding struct {
+	Name string
+	Port int
+}
+
+func parseFederationForwardServiceBindings(data interface{}) []federationForwardServiceBinding {
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	rawServices, ok := dataMap["services"]
+	if !ok {
+		return nil
+	}
+	serviceList, ok := rawServices.([]interface{})
+	if !ok {
+		return nil
+	}
+
+	bindings := make([]federationForwardServiceBinding, 0, len(serviceList))
+	for _, item := range serviceList {
+		svcMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name := normalizeForwardRuntimeServiceName(asString(svcMap["name"]))
+		if name == "" {
+			continue
+		}
+		if _, _, _, ok := parseFlowServiceIDs(name); !ok {
+			continue
+		}
+		addr := strings.TrimSpace(asString(svcMap["addr"]))
+		if addr == "" {
+			continue
+		}
+		_, portStr, err := net.SplitHostPort(addr)
+		if err != nil {
+			continue
+		}
+		port, err := strconv.Atoi(portStr)
+		if err != nil || port <= 0 {
+			continue
+		}
+		bindings = append(bindings, federationForwardServiceBinding{Name: name, Port: port})
+	}
+	return bindings
+}
+
+func (h *Handler) bindPeerShareForwardRuntimeServices(share *repo.PeerShare, data interface{}) {
+	if h == nil || h.repo == nil || share == nil {
+		return
+	}
+	bindings := parseFederationForwardServiceBindings(data)
+	if len(bindings) == 0 {
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	for _, binding := range bindings {
+		runtime, err := h.repo.GetActiveForwardPeerShareRuntimeByPort(share.ID, binding.Port)
+		if err != nil || runtime == nil || runtime.Status != 1 {
+			continue
+		}
+		if runtime.ServiceName == binding.Name && runtime.Applied == 1 {
+			continue
+		}
+		_ = h.repo.UpdatePeerShareRuntimeServiceName(runtime.ID, binding.Name, now)
+	}
 }
 
 func isFederationRuntimeCommandAllowed(commandType string) bool {

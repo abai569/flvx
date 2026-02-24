@@ -40,7 +40,7 @@ func (h *Handler) processFlowItem(item flowItem) {
 	if ok {
 		inFlow, outFlow := h.scaleFlowByTunnel(forwardID, item.D, item.U)
 		_ = h.repo.AddFlow(forwardID, userID, userTunnelID, inFlow, outFlow)
-		h.processPeerShareFlowFromForward(forwardID, item)
+		h.processPeerShareFlowFromForward(forwardID, serviceName, item)
 
 		if userTunnelID > 0 {
 			h.enforceFlowPolicies(userID, userTunnelID)
@@ -88,6 +88,28 @@ func parsePeerShareRuntimeServiceID(serviceName string) (int64, bool) {
 	return runtimeID, true
 }
 
+func parsePeerShareInfoFromFederationTunnelName(tunnelName string) (int64, int, bool) {
+	tunnelName = strings.TrimSpace(tunnelName)
+	if !strings.HasPrefix(tunnelName, "Share-") {
+		return 0, 0, false
+	}
+	raw := strings.TrimPrefix(tunnelName, "Share-")
+	idx := strings.Index(raw, "-Port-")
+	if idx <= 0 {
+		return 0, 0, false
+	}
+	shareID, err := strconv.ParseInt(raw[:idx], 10, 64)
+	if err != nil || shareID <= 0 {
+		return 0, 0, false
+	}
+	portValue := strings.TrimSpace(raw[idx+len("-Port-"):])
+	port, err := strconv.Atoi(portValue)
+	if err != nil || port <= 0 {
+		return 0, 0, false
+	}
+	return shareID, port, true
+}
+
 func parsePeerShareIDFromFederationTunnelName(tunnelName string) (int64, bool) {
 	tunnelName = strings.TrimSpace(tunnelName)
 	if !strings.HasPrefix(tunnelName, "Share-") {
@@ -131,12 +153,15 @@ func (h *Handler) processPeerShareFlow(runtimeID int64, item flowItem) {
 	h.enforcePeerShareFlowLimit(share.ID)
 }
 
-func (h *Handler) processPeerShareFlowFromForward(forwardID int64, item flowItem) {
+func (h *Handler) processPeerShareFlowFromForward(forwardID int64, serviceName string, item flowItem) {
 	if h == nil || h.repo == nil || forwardID <= 0 {
 		return
 	}
 	forward, err := h.getForwardRecord(forwardID)
 	if err != nil || forward == nil {
+		// Forward not found in local database - might be a federation port-forward
+		// Try to find by service name in peer_share_runtime
+		h.processPeerShareFlowByServiceName(serviceName, item)
 		return
 	}
 	tunnel, err := h.getTunnelRecord(forward.TunnelID)
@@ -167,6 +192,54 @@ func (h *Handler) processPeerShareFlowFromForward(forwardID int64, item flowItem
 		return
 	}
 	h.enforcePeerShareFlowLimit(share.ID)
+}
+
+func normalizeForwardRuntimeServiceName(serviceName string) string {
+	name := strings.TrimSpace(serviceName)
+	if strings.HasSuffix(name, "_tcp") {
+		return strings.TrimSuffix(name, "_tcp")
+	}
+	if strings.HasSuffix(name, "_udp") {
+		return strings.TrimSuffix(name, "_udp")
+	}
+	return name
+}
+
+func (h *Handler) processPeerShareFlowByServiceName(serviceName string, item flowItem) {
+	if h == nil || h.repo == nil || strings.TrimSpace(serviceName) == "" {
+		return
+	}
+
+	delta := item.D + item.U
+	if delta <= 0 {
+		return
+	}
+
+	normalized := normalizeForwardRuntimeServiceName(serviceName)
+	runtimes, err := h.repo.ListActiveForwardPeerShareRuntimesByServiceName(normalized)
+	if err != nil {
+		return
+	}
+	if len(runtimes) == 0 && normalized != serviceName {
+		runtimes, err = h.repo.ListActiveForwardPeerShareRuntimesByServiceName(serviceName)
+		if err != nil {
+			return
+		}
+	}
+	if len(runtimes) != 1 {
+		return
+	}
+	runtime := runtimes[0]
+
+	_ = h.repo.AddPeerShareCurrentFlow(runtime.ShareID, delta)
+
+	matchedShare, err := h.repo.GetPeerShare(runtime.ShareID)
+	if err != nil || matchedShare == nil {
+		return
+	}
+	if isPeerShareFlowExceeded(matchedShare) {
+		h.enforcePeerShareFlowLimit(matchedShare.ID)
+	}
 }
 
 func (h *Handler) enforcePeerShareFlowLimit(shareID int64) {
@@ -327,9 +400,32 @@ func (h *Handler) cleanNodeConfigs(nodeID int64, rawConfig string) {
 }
 
 func (h *Handler) cleanOrphanedServices(nodeID int64, services []namedConfigItem) {
+	runtimeServiceNames, err := h.repo.ListActiveForwardPeerShareRuntimeServiceNamesByNode(nodeID)
+	if err != nil {
+		return
+	}
+	runtimeServiceSet := make(map[string]struct{}, len(runtimeServiceNames))
+	for _, serviceName := range runtimeServiceNames {
+		serviceName = strings.TrimSpace(serviceName)
+		if serviceName == "" {
+			continue
+		}
+		runtimeServiceSet[serviceName] = struct{}{}
+	}
+
 	for _, item := range services {
 		name := strings.TrimSpace(item.Name)
 		if name == "" || name == "web_api" {
+			continue
+		}
+		if strings.HasPrefix(name, "fed_svc_") {
+			continue
+		}
+		normalizedName := normalizeForwardRuntimeServiceName(name)
+		if _, ok := runtimeServiceSet[normalizedName]; ok {
+			continue
+		}
+		if _, ok := runtimeServiceSet[name]; ok {
 			continue
 		}
 

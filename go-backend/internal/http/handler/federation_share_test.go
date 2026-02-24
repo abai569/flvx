@@ -414,6 +414,262 @@ func TestFederationShareResetFlow(t *testing.T) {
 	}
 }
 
+func TestFederationTunnelCreateCreatesPeerShareRuntime(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	h := New(r, "test-jwt-secret")
+	now := time.Now().UnixMilli()
+
+	if err := r.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "federation-forward-node", "federation-forward-secret", "10.90.80.70", "10.90.80.70", "", "24000-24020", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 0, "", "", "").Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	nodeID := mustLastInsertID(t, r, "federation-forward-node")
+
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "federation-forward-share",
+		NodeID:         nodeID,
+		Token:          "federation-forward-token",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 24000,
+		PortRangeEnd:   24020,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create share: %v", err)
+	}
+	share, err := r.GetPeerShareByToken("federation-forward-token")
+	if err != nil || share == nil {
+		t.Fatalf("load share: %v", err)
+	}
+
+	body, err := json.Marshal(federationTunnelRequest{
+		Protocol:   "tcp",
+		RemotePort: 24001,
+		Target:     "1.1.1.1:443",
+	})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/federation/tunnel/create", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+share.Token)
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+
+	h.federationTunnelCreate(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
+	}
+
+	var payload response.R
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Code != 0 {
+		t.Fatalf("expected response code 0, got %d (%s)", payload.Code, payload.Msg)
+	}
+
+	runtimeCount := mustQueryInt(t, r, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND port = ? AND status = 1`, share.ID, 24001)
+	if runtimeCount != 1 {
+		t.Fatalf("expected 1 runtime row for new federation forward tunnel, got %d", runtimeCount)
+	}
+}
+
+func TestFederationTunnelCreateRejectsOccupiedPort(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	h := New(r, "test-jwt-secret")
+	now := time.Now().UnixMilli()
+
+	if err := r.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "federation-port-check-node", "federation-port-check-secret", "10.91.80.70", "10.91.80.70", "", "24100-24120", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 0, "", "", "").Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	nodeID := mustLastInsertID(t, r, "federation-port-check-node")
+
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "federation-port-check-share",
+		NodeID:         nodeID,
+		Token:          "federation-port-check-token",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 24100,
+		PortRangeEnd:   24120,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create share: %v", err)
+	}
+
+	create := func() response.R {
+		body, err := json.Marshal(federationTunnelRequest{Protocol: "tcp", RemotePort: 24101, Target: "1.1.1.1:443"})
+		if err != nil {
+			t.Fatalf("marshal request: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/federation/tunnel/create", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer federation-port-check-token")
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		h.federationTunnelCreate(res, req)
+		if res.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
+		}
+		var payload response.R
+		if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		return payload
+	}
+
+	first := create()
+	if first.Code != 0 {
+		t.Fatalf("expected first create success, got %d (%s)", first.Code, first.Msg)
+	}
+
+	second := create()
+	if second.Code != 403 {
+		t.Fatalf("expected second create to be rejected with 403, got %d (%s)", second.Code, second.Msg)
+	}
+	if second.Msg != "Port already in use" {
+		t.Fatalf("expected occupied port message, got %q", second.Msg)
+	}
+}
+
+func TestDeleteTunnelReleasesFederationForwardRuntimeByPort(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	h := New(r, "test-jwt-secret")
+	now := time.Now().UnixMilli()
+
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "delete-forward-share",
+		NodeID:         1,
+		Token:          "delete-forward-token",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 25000,
+		PortRangeEnd:   25020,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create share: %v", err)
+	}
+	share, err := r.GetPeerShareByToken("delete-forward-token")
+	if err != nil || share == nil {
+		t.Fatalf("load share: %v", err)
+	}
+
+	tunnelName := fmt.Sprintf("Share-%d-Port-%d", share.ID, 25001)
+	if err := r.DB().Exec(`
+		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, 1, tunnelName, 1.0, 1, "tcp", 1, now, now, 1, nil, 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO peer_share_runtime(share_id, node_id, reservation_id, resource_key, binding_id, role, chain_name, service_name, protocol, strategy, port, target, applied, status, created_time, updated_time)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, share.ID, share.NodeID, "del-r1", "del-rk1", "", "forward", "", "20_2_10", "tcp", "fifo", 25001, "", 1, 1, now, now).Error; err != nil {
+		t.Fatalf("insert runtime: %v", err)
+	}
+
+	if err := h.deleteTunnelByID(1); err != nil {
+		t.Fatalf("delete tunnel: %v", err)
+	}
+
+	activeCount := mustQueryInt(t, r, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND port = ? AND status = 1`, share.ID, 25001)
+	if activeCount != 0 {
+		t.Fatalf("expected runtime released after tunnel delete, active rows=%d", activeCount)
+	}
+}
+
+func TestBindPeerShareForwardRuntimeServicesOnlyBindsForwardRole(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	h := New(r, "test-jwt-secret")
+	now := time.Now().UnixMilli()
+
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "bind-forward-role-share",
+		NodeID:         1,
+		Token:          "bind-forward-role-token",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 26000,
+		PortRangeEnd:   26020,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create share: %v", err)
+	}
+	share, err := r.GetPeerShareByToken("bind-forward-role-token")
+	if err != nil || share == nil {
+		t.Fatalf("load share: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO peer_share_runtime(id, share_id, node_id, reservation_id, resource_key, binding_id, role, chain_name, service_name, protocol, strategy, port, target, applied, status, created_time, updated_time)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),
+		      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		1, share.ID, share.NodeID, "bind-r1", "bind-rk1", "", "forward", "", "", "tcp", "fifo", 26001, "", 0, 1, now, now,
+		2, share.ID, share.NodeID, "bind-r2", "bind-rk2", "", "middle", "", "", "tcp", "round", 26002, "", 0, 1, now, now,
+	).Error; err != nil {
+		t.Fatalf("insert runtimes: %v", err)
+	}
+
+	h.bindPeerShareForwardRuntimeServices(share, map[string]interface{}{
+		"services": []interface{}{
+			map[string]interface{}{"name": "77_2_10_tcp", "addr": "[::]:26001"},
+			map[string]interface{}{"name": "88_2_10_tcp", "addr": "[::]:26002"},
+		},
+	})
+
+	forwardServiceName := ""
+	middleServiceName := ""
+	if err := r.DB().Raw(`SELECT service_name FROM peer_share_runtime WHERE id = 1`).Scan(&forwardServiceName).Error; err != nil {
+		t.Fatalf("load forward runtime service name: %v", err)
+	}
+	if err := r.DB().Raw(`SELECT service_name FROM peer_share_runtime WHERE id = 2`).Scan(&middleServiceName).Error; err != nil {
+		t.Fatalf("load middle runtime service name: %v", err)
+	}
+
+	if forwardServiceName != "77_2_10" {
+		t.Fatalf("expected forward runtime service name bound, got %q", forwardServiceName)
+	}
+	if middleServiceName != "" {
+		t.Fatalf("expected non-forward runtime unchanged, got %q", middleServiceName)
+	}
+}
+
 func TestFederationRemoteUsageList(t *testing.T) {
 	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
 	if err != nil {

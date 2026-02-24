@@ -2794,7 +2794,21 @@ func (h *Handler) deleteNodeByID(id int64) error {
 }
 
 func (h *Handler) deleteTunnelByID(id int64) error {
-	return h.repo.DeleteTunnelCascade(id)
+	if h == nil || h.repo == nil {
+		return errors.New("repository not initialized")
+	}
+
+	tunnelName, _ := h.repo.GetTunnelName(id)
+	if err := h.repo.DeleteTunnelCascade(id); err != nil {
+		return err
+	}
+
+	shareID, port, ok := parsePeerShareInfoFromFederationTunnelName(tunnelName)
+	if !ok {
+		return nil
+	}
+
+	return h.repo.MarkPeerShareRuntimeReleasedByPort(shareID, port, time.Now().UnixMilli())
 }
 
 func (h *Handler) deleteForwardByID(id int64) error {

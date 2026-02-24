@@ -130,3 +130,172 @@ func TestProcessFlowItemTracksPeerShareFlowForFederationPortForward(t *testing.T
 		t.Fatalf("expected current_flow=200, got %d", updatedShare.CurrentFlow)
 	}
 }
+
+func TestProcessFlowItemTracksPeerShareFlowByForwardServiceName(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel-forward-service.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now().UnixMilli()
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "forward-service-share",
+		NodeID:         1,
+		Token:          "forward-service-token",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 31000,
+		PortRangeEnd:   31010,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create peer share: %v", err)
+	}
+	share, err := r.GetPeerShareByToken("forward-service-token")
+	if err != nil || share == nil {
+		t.Fatalf("load peer share: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO peer_share_runtime(share_id, node_id, reservation_id, resource_key, binding_id, role, chain_name, service_name, protocol, strategy, port, target, applied, status, created_time, updated_time)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, share.ID, share.NodeID, "svc-r1", "svc-rk1", "", "forward", "", "20_2_10", "tcp", "fifo", 31001, "", 1, 1, now, now).Error; err != nil {
+		t.Fatalf("insert peer_share_runtime: %v", err)
+	}
+
+	h := &Handler{repo: r}
+	h.processFlowItem(flowItem{N: "20_2_10_tcp", U: 120, D: 80})
+
+	updatedShare, err := r.GetPeerShare(share.ID)
+	if err != nil || updatedShare == nil {
+		t.Fatalf("reload share: %v", err)
+	}
+	if updatedShare.CurrentFlow != 200 {
+		t.Fatalf("expected current_flow=200, got %d", updatedShare.CurrentFlow)
+	}
+}
+
+func TestProcessFlowItemSkipsPeerShareFlowWhenServiceNameIsAmbiguous(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel-forward-ambiguous.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now().UnixMilli()
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "ambiguous-share-a",
+		NodeID:         1,
+		Token:          "ambiguous-token-a",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 31100,
+		PortRangeEnd:   31110,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create share A: %v", err)
+	}
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "ambiguous-share-b",
+		NodeID:         1,
+		Token:          "ambiguous-token-b",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 31200,
+		PortRangeEnd:   31210,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create share B: %v", err)
+	}
+	shareA, _ := r.GetPeerShareByToken("ambiguous-token-a")
+	shareB, _ := r.GetPeerShareByToken("ambiguous-token-b")
+
+	if err := r.DB().Exec(`
+		INSERT INTO peer_share_runtime(share_id, node_id, reservation_id, resource_key, binding_id, role, chain_name, service_name, protocol, strategy, port, target, applied, status, created_time, updated_time)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),
+		      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		shareA.ID, 1, "amb-r1", "amb-rk1", "", "forward", "", "99_2_10", "tcp", "fifo", 31101, "", 1, 1, now, now,
+		shareB.ID, 1, "amb-r2", "amb-rk2", "", "forward", "", "99_2_10", "tcp", "fifo", 31201, "", 1, 1, now, now,
+	).Error; err != nil {
+		t.Fatalf("insert ambiguous runtimes: %v", err)
+	}
+
+	h := &Handler{repo: r}
+	h.processFlowItem(flowItem{N: "99_2_10_tcp", U: 120, D: 80})
+
+	updatedA, _ := r.GetPeerShare(shareA.ID)
+	updatedB, _ := r.GetPeerShare(shareB.ID)
+	if updatedA.CurrentFlow != 0 || updatedB.CurrentFlow != 0 {
+		t.Fatalf("expected ambiguous service flow to be skipped, got shareA=%d shareB=%d", updatedA.CurrentFlow, updatedB.CurrentFlow)
+	}
+}
+
+func TestCleanOrphanedServicesSkipsActiveSharedForwardRuntimeServices(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel-cleanup-runtime.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now().UnixMilli()
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "cleanup-runtime-share",
+		NodeID:         1,
+		Token:          "cleanup-runtime-token",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 31300,
+		PortRangeEnd:   31310,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create peer share: %v", err)
+	}
+	share, err := r.GetPeerShareByToken("cleanup-runtime-token")
+	if err != nil || share == nil {
+		t.Fatalf("load peer share: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO peer_share_runtime(share_id, node_id, reservation_id, resource_key, binding_id, role, chain_name, service_name, protocol, strategy, port, target, applied, status, created_time, updated_time)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, share.ID, share.NodeID, "cleanup-r1", "cleanup-rk1", "", "forward", "", "20_2_10", "tcp", "fifo", 31301, "", 1, 1, now, now).Error; err != nil {
+		t.Fatalf("insert peer_share_runtime: %v", err)
+	}
+
+	h := &Handler{repo: r}
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Fatalf("cleanOrphanedServices should skip active shared runtime service; got panic: %v", rec)
+		}
+	}()
+
+	h.cleanOrphanedServices(share.NodeID, []namedConfigItem{{Name: "20_2_10_tcp"}})
+}
+
+func TestCleanOrphanedServicesSkipsFederationServicePrefix(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel-cleanup-fed-svc.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	h := &Handler{repo: r}
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Fatalf("cleanOrphanedServices should skip fed_svc_ service names; got panic: %v", rec)
+		}
+	}()
+
+	h.cleanOrphanedServices(1, []namedConfigItem{{Name: "fed_svc_999_tcp"}})
+}
