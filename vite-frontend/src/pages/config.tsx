@@ -28,11 +28,7 @@ import {
 } from "@/api";
 import { SettingsIcon } from "@/components/icons";
 import { isAdmin } from "@/utils/auth";
-import {
-  getCachedConfigs,
-  configCache,
-  updateSiteConfig,
-} from "@/config/site";
+import { getCachedConfigs, configCache, updateSiteConfig } from "@/config/site";
 import {
   type UpdateReleaseChannel,
   getUpdateReleaseChannel,
@@ -112,15 +108,13 @@ const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: "app_logo",
     label: "网页角标 Logo",
-    description:
-      "用于页面左上角导航角标，上传后会自动转换为 PNG 并持久化保存",
+    description: "用于页面左上角导航角标，上传后会自动转换为 PNG 并持久化保存",
     type: "input",
   },
   {
     key: "app_favicon",
     label: "浏览器缩略图标",
-    description:
-      "用于浏览器标签页图标，上传后会自动转换为 PNG 并持久化保存",
+    description: "用于浏览器标签页图标，上传后会自动转换为 PNG 并持久化保存",
     type: "input",
   },
   {
@@ -293,8 +287,7 @@ export default function ConfigPage() {
       if (res.code === 0 && res.data) {
         setAnnouncement(res.data);
       }
-    } catch (error) {
-      console.error("Failed to load announcement:", error);
+    } catch {
     } finally {
       setAnnouncementLoading(false);
     }
@@ -534,7 +527,10 @@ export default function ConfigPage() {
     );
   };
 
-  const renderBrandAssetUploader = (key: BrandPreviewKey, isChanged: boolean) => {
+  const renderBrandAssetUploader = (
+    key: BrandPreviewKey,
+    isChanged: boolean,
+  ) => {
     const value = (configs[key] || "").trim();
     const uploading = brandUploading[key] === true;
     const isLogo = key === "app_logo";
@@ -548,9 +544,9 @@ export default function ConfigPage() {
         }`}
       >
         <input
+          ref={getBrandInputRef(key)}
           accept={BRAND_FILE_ACCEPT}
           className="hidden"
-          ref={getBrandInputRef(key)}
           type="file"
           onChange={(event) => {
             void handleBrandFileChange(key, event);
@@ -581,7 +577,9 @@ export default function ConfigPage() {
           >
             清除
           </Button>
-          <span className="text-xs text-default-500">仅支持图片文件，自动转换为 PNG</span>
+          <span className="text-xs text-default-500">
+            仅支持图片文件，自动转换为 PNG
+          </span>
         </div>
 
         <p className="mt-2 text-xs text-default-500">

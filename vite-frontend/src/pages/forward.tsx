@@ -2349,25 +2349,24 @@ export default function ForwardPage() {
 
                   <Select
                     label="限速规则"
+                    placeholder="不限速"
                     selectedKeys={
                       selectedSpeedId !== null
                         ? [selectedSpeedId.toString()]
-                        : ["null"]
+                        : []
                     }
                     variant="bordered"
                     onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as string;
+                      const selectedKey = Array.from(keys)[0] as
+                        | string
+                        | undefined;
 
                       setForm((prev) => ({
                         ...prev,
-                        speedId:
-                          selectedKey === "null" ? null : Number(selectedKey),
+                        speedId: selectedKey ? Number(selectedKey) : null,
                       }));
                     }}
                   >
-                    <SelectItem key="null" textValue="不限速">
-                      不限速
-                    </SelectItem>
                     {availableSpeedLimits.map((speedLimit) => (
                       <SelectItem
                         key={speedLimit.id.toString()}

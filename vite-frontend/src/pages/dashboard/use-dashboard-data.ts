@@ -197,9 +197,7 @@ export const useDashboardData = (): DashboardDataState => {
         if (res.code === 0 && res.data && res.data.enabled === 1) {
           setAnnouncement(res.data);
         }
-      } catch (error) {
-        console.error("Failed to load announcement:", error);
-      }
+      } catch {}
     };
 
     const loadPackageData = async () => {
