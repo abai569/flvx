@@ -610,6 +610,96 @@ func TestForwardSpeedIDWriteAndClearContracts(t *testing.T) {
 	}
 }
 
+func TestForwardCreateThenPauseResumeContract(t *testing.T) {
+	secret := "contract-jwt-secret"
+	router, repo := setupContractRouter(t, secret)
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	if err := repo.DB().Exec(`
+		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "forward-toggle-tunnel", 1.0, 1, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	tunnelID := mustLastInsertID(t, repo, "forward-toggle-tunnel")
+
+	if err := repo.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "forward-toggle-node", "forward-toggle-secret", "10.31.0.1", "10.31.0.1", "", "41000-41010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0).Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	nodeID := mustLastInsertID(t, repo, "forward-toggle-node")
+
+	if err := repo.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 41001, 'round', 1, 'tls')
+	`, tunnelID, nodeID).Error; err != nil {
+		t.Fatalf("insert chain_tunnel: %v", err)
+	}
+
+	server := httptest.NewServer(router)
+	defer server.Close()
+	stopNode := startMockNodeSession(t, server.URL, "forward-toggle-secret")
+	defer stopNode()
+
+	createPayload := map[string]interface{}{
+		"name":       "forward-toggle-target",
+		"tunnelId":   tunnelID,
+		"remoteAddr": "1.1.1.1:443",
+		"strategy":   "fifo",
+	}
+	createBody, err := json.Marshal(createPayload)
+	if err != nil {
+		t.Fatalf("marshal create payload: %v", err)
+	}
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(createBody))
+	createReq.Header.Set("Authorization", adminToken)
+	createReq.Header.Set("Content-Type", "application/json")
+	createRes := httptest.NewRecorder()
+	router.ServeHTTP(createRes, createReq)
+	assertCode(t, createRes, 0)
+
+	forwardID := mustLastInsertID(t, repo, "forward-toggle-target")
+
+	pauseBody, err := json.Marshal(map[string]interface{}{"id": forwardID})
+	if err != nil {
+		t.Fatalf("marshal pause payload: %v", err)
+	}
+	pauseReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/pause", bytes.NewReader(pauseBody))
+	pauseReq.Header.Set("Authorization", adminToken)
+	pauseReq.Header.Set("Content-Type", "application/json")
+	pauseRes := httptest.NewRecorder()
+	router.ServeHTTP(pauseRes, pauseReq)
+	assertCode(t, pauseRes, 0)
+
+	pausedStatus := mustQueryInt(t, repo, `SELECT status FROM forward WHERE id = ?`, forwardID)
+	if pausedStatus != 0 {
+		t.Fatalf("expected status=0 after pause, got %d", pausedStatus)
+	}
+
+	resumeBody, err := json.Marshal(map[string]interface{}{"id": forwardID})
+	if err != nil {
+		t.Fatalf("marshal resume payload: %v", err)
+	}
+	resumeReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/resume", bytes.NewReader(resumeBody))
+	resumeReq.Header.Set("Authorization", adminToken)
+	resumeReq.Header.Set("Content-Type", "application/json")
+	resumeRes := httptest.NewRecorder()
+	router.ServeHTTP(resumeRes, resumeReq)
+	assertCode(t, resumeRes, 0)
+
+	resumedStatus := mustQueryInt(t, repo, `SELECT status FROM forward WHERE id = ?`, forwardID)
+	if resumedStatus != 1 {
+		t.Fatalf("expected status=1 after resume, got %d", resumedStatus)
+	}
+}
+
 func jsonNumber(v int64) string {
 	return strconv.FormatInt(v, 10)
 }

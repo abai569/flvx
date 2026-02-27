@@ -311,7 +311,7 @@ func (h *Handler) sendNodeCommand(nodeID int64, commandType string, data interfa
 	}
 	msg := strings.ToLower(strings.TrimSpace(err.Error()))
 	if tolerateExists {
-		if strings.Contains(msg, "exists") || strings.Contains(msg, "already") || strings.Contains(msg, "已存在") {
+		if isAlreadyExistsMessage(msg) {
 			return result, nil
 		}
 	}
@@ -905,6 +905,17 @@ func isNotFoundError(err error) bool {
 	}
 	msg := strings.ToLower(strings.TrimSpace(err.Error()))
 	return strings.Contains(msg, "not found") || strings.Contains(msg, "不存在")
+}
+
+func isAlreadyExistsMessage(message string) bool {
+	msg := strings.ToLower(strings.TrimSpace(message))
+	if msg == "" {
+		return false
+	}
+	if strings.Contains(msg, "address already in use") {
+		return false
+	}
+	return strings.Contains(msg, "already exists") || strings.Contains(msg, "已存在")
 }
 
 func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel *tunnelRecord, node *nodeRecord, port int, limiterID *int64, tunnelTLSProtocol bool) []map[string]interface{} {

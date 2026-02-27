@@ -989,10 +989,27 @@ func (h *Handler) captchaEnabled() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if cfg == nil {
+	if cfg == nil || !strings.EqualFold(strings.TrimSpace(cfg.Value), "true") {
 		return false, nil
 	}
-	return strings.EqualFold(cfg.Value, "true"), nil
+
+	siteCfg, err := h.repo.GetConfigByName("cloudflare_site_key")
+	if err != nil {
+		return false, err
+	}
+	if siteCfg == nil || strings.TrimSpace(siteCfg.Value) == "" {
+		return false, nil
+	}
+
+	secretCfg, err := h.repo.GetConfigByName("cloudflare_secret_key")
+	if err != nil {
+		return false, err
+	}
+	if secretCfg == nil || strings.TrimSpace(secretCfg.Value) == "" {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (h *Handler) apiClientCaptchaBypassEnabled(r *http.Request) bool {

@@ -53,3 +53,15 @@ func TestShouldTryLegacySingleService(t *testing.T) {
 		t.Fatalf("DeleteService should not require legacy fallback")
 	}
 }
+
+func TestIsAlreadyExistsMessage(t *testing.T) {
+	if !isAlreadyExistsMessage("service demo already exists") {
+		t.Fatalf("expected already exists message to be tolerated")
+	}
+	if !isAlreadyExistsMessage("服务已存在") {
+		t.Fatalf("expected Chinese already exists message to be tolerated")
+	}
+	if isAlreadyExistsMessage("listen tcp [::]:10001: bind: address already in use") {
+		t.Fatalf("address already in use must not be treated as already exists")
+	}
+}

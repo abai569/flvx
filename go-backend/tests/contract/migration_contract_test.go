@@ -25,6 +25,7 @@ import (
 func TestCaptchaVerifyLoginContract(t *testing.T) {
 	secret := "contract-jwt-secret"
 	router, r := setupContractRouter(t, secret)
+	verifiedToken := ""
 
 	if err := r.DB().Exec(`
 		INSERT INTO vite_config(name, value, time)
@@ -32,6 +33,55 @@ func TestCaptchaVerifyLoginContract(t *testing.T) {
 		ON CONFLICT(name) DO UPDATE SET value = excluded.value, time = excluded.time
 	`, "captcha_enabled", "true", time.Now().UnixMilli()).Error; err != nil {
 		t.Fatalf("enable captcha: %v", err)
+	}
+
+	t.Run("login allowed when cloudflare keys are missing", func(t *testing.T) {
+		body := bytes.NewBufferString(`{"username":"admin_user","password":"admin_user","captchaId":""}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/user/login", body)
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+
+		router.ServeHTTP(resp, req)
+
+		assertCode(t, resp, 0)
+	})
+
+	t.Run("captcha verify remains compatible without cloudflare secret", func(t *testing.T) {
+		verifyReq := httptest.NewRequest(http.MethodPost, "/api/v1/captcha/verify", bytes.NewBufferString(`{"id":"captcha-token-1","data":"ok"}`))
+		verifyReq.Header.Set("Content-Type", "application/json")
+		verifyResp := httptest.NewRecorder()
+
+		router.ServeHTTP(verifyResp, verifyReq)
+
+		var verifyOut struct {
+			Success bool `json:"success"`
+			Data    struct {
+				ValidToken string `json:"validToken"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(verifyResp.Body).Decode(&verifyOut); err != nil {
+			t.Fatalf("decode captcha verify response: %v", err)
+		}
+		if !verifyOut.Success || verifyOut.Data.ValidToken != "captcha-token-1" {
+			t.Fatalf("unexpected captcha verify payload: success=%v token=%q", verifyOut.Success, verifyOut.Data.ValidToken)
+		}
+
+		verifiedToken = verifyOut.Data.ValidToken
+	})
+
+	if err := r.DB().Exec(`
+		INSERT INTO vite_config(name, value, time)
+		VALUES(?, ?, ?)
+		ON CONFLICT(name) DO UPDATE SET value = excluded.value, time = excluded.time
+	`, "cloudflare_site_key", "test-site-key", time.Now().UnixMilli()).Error; err != nil {
+		t.Fatalf("set cloudflare site key: %v", err)
+	}
+	if err := r.DB().Exec(`
+		INSERT INTO vite_config(name, value, time)
+		VALUES(?, ?, ?)
+		ON CONFLICT(name) DO UPDATE SET value = excluded.value, time = excluded.time
+	`, "cloudflare_secret_key", "test-secret-key", time.Now().UnixMilli()).Error; err != nil {
+		t.Fatalf("set cloudflare secret key: %v", err)
 	}
 
 	t.Run("login denied without verified captcha token", func(t *testing.T) {
@@ -58,33 +108,18 @@ func TestCaptchaVerifyLoginContract(t *testing.T) {
 	})
 
 	t.Run("captcha token is one-time and consumed by login", func(t *testing.T) {
-		verifyReq := httptest.NewRequest(http.MethodPost, "/api/v1/captcha/verify", bytes.NewBufferString(`{"id":"captcha-token-1","data":"ok"}`))
-		verifyReq.Header.Set("Content-Type", "application/json")
-		verifyResp := httptest.NewRecorder()
-
-		router.ServeHTTP(verifyResp, verifyReq)
-
-		var verifyOut struct {
-			Success bool `json:"success"`
-			Data    struct {
-				ValidToken string `json:"validToken"`
-			} `json:"data"`
-		}
-		if err := json.NewDecoder(verifyResp.Body).Decode(&verifyOut); err != nil {
-			t.Fatalf("decode captcha verify response: %v", err)
-		}
-		if !verifyOut.Success || verifyOut.Data.ValidToken != "captcha-token-1" {
-			t.Fatalf("unexpected captcha verify payload: success=%v token=%q", verifyOut.Success, verifyOut.Data.ValidToken)
+		if strings.TrimSpace(verifiedToken) == "" {
+			t.Fatalf("expected verified token from compatibility captcha verify")
 		}
 
-		loginBody := bytes.NewBufferString(`{"username":"admin_user","password":"admin_user","captchaId":"captcha-token-1"}`)
+		loginBody := bytes.NewBufferString(`{"username":"admin_user","password":"admin_user","captchaId":"` + verifiedToken + `"}`)
 		loginReq := httptest.NewRequest(http.MethodPost, "/api/v1/user/login", loginBody)
 		loginReq.Header.Set("Content-Type", "application/json")
 		loginResp := httptest.NewRecorder()
 		router.ServeHTTP(loginResp, loginReq)
 		assertCode(t, loginResp, 0)
 
-		replayBody := bytes.NewBufferString(`{"username":"admin_user","password":"admin_user","captchaId":"captcha-token-1"}`)
+		replayBody := bytes.NewBufferString(`{"username":"admin_user","password":"admin_user","captchaId":"` + verifiedToken + `"}`)
 		replayReq := httptest.NewRequest(http.MethodPost, "/api/v1/user/login", replayBody)
 		replayReq.Header.Set("Content-Type", "application/json")
 		replayResp := httptest.NewRecorder()

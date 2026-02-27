@@ -1183,7 +1183,7 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	if err := h.syncForwardServices(createdForward, "AddService", false); err != nil {
+	if err := h.syncForwardServices(createdForward, "UpdateService", true); err != nil {
 		_ = h.deleteForwardByID(forwardID)
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return

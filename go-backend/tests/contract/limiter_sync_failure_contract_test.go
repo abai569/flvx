@@ -99,6 +99,77 @@ func TestForwardCreateRollbackWhenLimiterDispatchFailsContract(t *testing.T) {
 	}
 }
 
+func TestForwardCreateRollbackWhenServiceDispatchReturnsAddressInUseContract(t *testing.T) {
+	secret := "contract-jwt-secret"
+	router, r := setupContractRouter(t, secret)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	if err := r.DB().Exec(`
+		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "addr-in-use-tunnel", 1.0, 1, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	tunnelID := mustLastInsertID(t, r, "addr-in-use-tunnel")
+
+	if err := r.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "addr-in-use-node", "addr-in-use-secret", "10.20.0.11", "10.20.0.11", "", "32100-32110", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0).Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	nodeID := mustLastInsertID(t, r, "addr-in-use-node")
+
+	if err := r.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 32101, 'round', 1, 'tls')
+	`, tunnelID, nodeID).Error; err != nil {
+		t.Fatalf("insert chain_tunnel: %v", err)
+	}
+
+	stopNode := startMockNodeSessionWithCommandFailures(t, server.URL, "addr-in-use-secret", map[string]string{
+		"updateservice": "listen tcp [::]:32101: bind: address already in use",
+		"addservice":    "listen tcp [::]:32101: bind: address already in use",
+	})
+	defer stopNode()
+
+	payload := map[string]interface{}{
+		"name":       "addr-in-use-forward",
+		"tunnelId":   tunnelID,
+		"remoteAddr": "1.1.1.1:443",
+		"strategy":   "fifo",
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(body))
+	req.Header.Set("Authorization", adminToken)
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	var out response.R
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code == 0 {
+		t.Fatalf("expected create failure on address-in-use service dispatch, got code=0")
+	}
+
+	forwardCount := mustQueryInt(t, r, `SELECT COUNT(1) FROM forward WHERE name = ?`, "addr-in-use-forward")
+	if forwardCount != 0 {
+		t.Fatalf("expected forward rollback delete on address-in-use failure, got count=%d", forwardCount)
+	}
+}
+
 func TestBatchAssignRollbackWhenLimiterDispatchFailsContract(t *testing.T) {
 	secret := "contract-jwt-secret"
 	router, r := setupContractRouter(t, secret)
