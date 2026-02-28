@@ -18,6 +18,7 @@
 - [安装部署](./install.md)
 - [使用指南](./usage.md)
 - [PostgreSQL 数据库指南](./postgresql.md)
+- [AI Skill 接入](./ai-skill.md) - 让大模型直接操作面板
 - [常见问题](./faq.md)
 
 ## 免责声明
