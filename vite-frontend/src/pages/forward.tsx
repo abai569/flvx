@@ -64,6 +64,7 @@ import {
   diagnoseForward,
   updateForwardOrder,
   getConfigByName,
+  updateConfig,
 } from "@/api";
 import {
   type ForwardAddressItem,
@@ -144,10 +145,19 @@ interface ForwardTunnelGroup {
   items: Forward[];
 }
 
+type ForwardGroupOrderMap = Record<string, string[]>;
+type ForwardGroupCollapsedMap = Record<string, boolean>;
+
 const UNKNOWN_FORWARD_USER_NAME = "未知用户";
 const UNCATEGORIZED_FORWARD_TUNNEL_NAME = "未分类";
 const FORWARD_COMPACT_MODE_CONFIG_KEY = "forward_compact_mode";
 const FORWARD_COMPACT_MODE_EVENT = "forwardCompactModeChanged";
+const FORWARD_GROUP_ORDER_CONFIG_KEY = "forward_group_order_map";
+const FORWARD_GROUP_COLLAPSED_CONFIG_KEY = "forward_group_collapsed_map";
+const FORWARD_GROUP_ORDER_LOCAL_STORAGE_PREFIX = "forward-group-order";
+const FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX =
+  "forward-group-collapsed";
+const FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX = "forward-tunnel-group";
 const FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS = "min-w-[1320px]";
 const FORWARD_GROUPED_TABLE_COLUMN_CLASS = {
   select: "w-14",
@@ -195,6 +205,257 @@ const compareForwardTunnelNameAsc = (a: string, b: string): number => {
     sensitivity: "base",
     numeric: true,
   });
+};
+
+const compareForwardTunnelGroupKeyAsc = (a: string, b: string): number => {
+  const aIsUncategorized = a === "__uncategorized__";
+  const bIsUncategorized = b === "__uncategorized__";
+
+  if (aIsUncategorized !== bIsUncategorized) {
+    return aIsUncategorized ? 1 : -1;
+  }
+
+  return compareForwardTunnelNameAsc(a, b);
+};
+
+const buildForwardGroupOrderLocalKey = (tokenUserId: number): string => {
+  return `${FORWARD_GROUP_ORDER_LOCAL_STORAGE_PREFIX}:u:${tokenUserId}`;
+};
+
+const buildForwardGroupCollapsedLocalKey = (tokenUserId: number): string => {
+  return `${FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX}:u:${tokenUserId}`;
+};
+
+const parsePreferenceMap = <T,>(raw: string | null): Record<string, T> | null => {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+
+    return parsed as Record<string, T>;
+  } catch {
+    return null;
+  }
+};
+
+const parseGroupOrderMap = (raw: string | null): ForwardGroupOrderMap => {
+  const parsed = parsePreferenceMap<unknown>(raw);
+
+  if (!parsed) {
+    return {};
+  }
+
+  const result: ForwardGroupOrderMap = {};
+
+  Object.entries(parsed).forEach(([userId, value]) => {
+    if (!Array.isArray(value)) {
+      return;
+    }
+
+    const keys = value
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter((item) => item !== "");
+
+    if (keys.length > 0) {
+      result[userId] = Array.from(new Set(keys));
+    }
+  });
+
+  return result;
+};
+
+const parseGroupCollapsedMap = (raw: string | null): ForwardGroupCollapsedMap => {
+  const parsed = parsePreferenceMap<unknown>(raw);
+
+  if (!parsed) {
+    return {};
+  }
+
+  const result: ForwardGroupCollapsedMap = {};
+
+  Object.entries(parsed).forEach(([key, value]) => {
+    if (typeof value === "boolean") {
+      result[key] = value;
+    }
+  });
+
+  return result;
+};
+
+const sanitizeGroupOrderMap = (
+  source: ForwardGroupOrderMap,
+  availableTunnelKeysByUser: Map<number, Set<string>>,
+): ForwardGroupOrderMap => {
+  const sanitized: ForwardGroupOrderMap = {};
+
+  availableTunnelKeysByUser.forEach((availableKeys, userId) => {
+    if (availableKeys.size === 0) {
+      return;
+    }
+
+    const orderFromSource = source[userId.toString()] || [];
+    const used = new Set<string>();
+    const merged: string[] = [];
+
+    orderFromSource.forEach((key) => {
+      if (!availableKeys.has(key) || used.has(key)) {
+        return;
+      }
+
+      used.add(key);
+      merged.push(key);
+    });
+
+    Array.from(availableKeys)
+      .sort(compareForwardTunnelGroupKeyAsc)
+      .forEach((key) => {
+        if (!used.has(key)) {
+          used.add(key);
+          merged.push(key);
+        }
+      });
+
+    if (merged.length > 0) {
+      sanitized[userId.toString()] = merged;
+    }
+  });
+
+  return sanitized;
+};
+
+const sanitizeGroupCollapsedMap = (
+  source: ForwardGroupCollapsedMap,
+  availableCollapseKeys: Set<string>,
+): ForwardGroupCollapsedMap => {
+  const sanitized: ForwardGroupCollapsedMap = {};
+
+  availableCollapseKeys.forEach((key) => {
+    if (source[key] === true) {
+      sanitized[key] = true;
+    }
+  });
+
+  return sanitized;
+};
+
+const buildTunnelGroupCollapseKey = (userId: number, tunnelKey: string): string => {
+  return `${userId}:${tunnelKey}`;
+};
+
+const buildTunnelGroupSortableId = (userId: number, tunnelKey: string): string => {
+  return `${FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX}:${userId}:${tunnelKey}`;
+};
+
+const parseTunnelGroupSortableId = (
+  value: unknown,
+): { userId: number; tunnelKey: string } | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  if (!value.startsWith(`${FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX}:`)) {
+    return null;
+  }
+
+  const parts = value.split(":");
+
+  if (parts.length < 3) {
+    return null;
+  }
+
+  const userId = Number(parts[1]);
+  const tunnelKey = parts.slice(2).join(":").trim();
+
+  if (!Number.isFinite(userId) || tunnelKey === "") {
+    return null;
+  }
+
+  return { userId, tunnelKey };
+};
+
+const buildAvailableGroupData = (forwards: Forward[]): {
+  availableTunnelKeysByUser: Map<number, Set<string>>;
+  availableCollapseKeys: Set<string>;
+} => {
+  const availableTunnelKeysByUser = new Map<number, Set<string>>();
+  const availableCollapseKeys = new Set<string>();
+
+  forwards.forEach((forward) => {
+    const userId = forward.userId ?? 0;
+    const tunnelKey = buildForwardTunnelGroupKey(forward.tunnelName);
+
+    let set = availableTunnelKeysByUser.get(userId);
+
+    if (!set) {
+      set = new Set<string>();
+      availableTunnelKeysByUser.set(userId, set);
+    }
+
+    set.add(tunnelKey);
+    availableCollapseKeys.add(buildTunnelGroupCollapseKey(userId, tunnelKey));
+  });
+
+  return { availableTunnelKeysByUser, availableCollapseKeys };
+};
+
+const isSameStringArray = (a: string[], b: string[]): boolean => {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const isSameGroupOrderMap = (
+  a: ForwardGroupOrderMap,
+  b: ForwardGroupOrderMap,
+): boolean => {
+  const aKeys = Object.keys(a).sort(compareForwardTunnelNameAsc);
+  const bKeys = Object.keys(b).sort(compareForwardTunnelNameAsc);
+
+  if (!isSameStringArray(aKeys, bKeys)) {
+    return false;
+  }
+
+  for (const key of aKeys) {
+    if (!isSameStringArray(a[key] || [], b[key] || [])) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const isSameGroupCollapsedMap = (
+  a: ForwardGroupCollapsedMap,
+  b: ForwardGroupCollapsedMap,
+): boolean => {
+  const aKeys = Object.keys(a).sort(compareForwardTunnelNameAsc);
+  const bKeys = Object.keys(b).sort(compareForwardTunnelNameAsc);
+
+  if (!isSameStringArray(aKeys, bKeys)) {
+    return false;
+  }
+
+  for (const key of aKeys) {
+    if (a[key] !== b[key]) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export default function ForwardPage() {
@@ -304,6 +565,13 @@ export default function ForwardPage() {
     null,
   );
   const [batchLoading, setBatchLoading] = useState(false);
+  const [groupOrderMap, setGroupOrderMap] = useState<ForwardGroupOrderMap>({});
+  const [collapsedTunnelGroups, setCollapsedTunnelGroups] =
+    useState<ForwardGroupCollapsedMap>({});
+  const [groupPreferenceHydrated, setGroupPreferenceHydrated] = useState(false);
+  const tokenUserId = JwtUtil.getUserIdFromToken();
+  const tokenRoleId = JwtUtil.getRoleIdFromToken();
+  const isAdmin = tokenRoleId === 0;
 
   useEffect(() => {
     return () => {
@@ -311,6 +579,192 @@ export default function ForwardPage() {
       diagnosisAbortRef.current = null;
     };
   }, []);
+
+  const persistGroupOrderToLocal = (nextOrderMap: ForwardGroupOrderMap) => {
+    if (tokenUserId === null) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        buildForwardGroupOrderLocalKey(tokenUserId),
+        JSON.stringify(nextOrderMap),
+      );
+    } catch {}
+  };
+
+  const persistGroupCollapsedToLocal = (
+    nextCollapsedMap: ForwardGroupCollapsedMap,
+  ) => {
+    if (tokenUserId === null) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        buildForwardGroupCollapsedLocalKey(tokenUserId),
+        JSON.stringify(nextCollapsedMap),
+      );
+    } catch {}
+  };
+
+  const persistGroupOrderToGlobal = async (
+    nextOrderMap: ForwardGroupOrderMap,
+  ): Promise<void> => {
+    if (!isAdmin || tokenUserId === null) {
+      return;
+    }
+
+    try {
+      const currentRes = await getConfigByName(FORWARD_GROUP_ORDER_CONFIG_KEY);
+      const globalMap =
+        parsePreferenceMap<ForwardGroupOrderMap>(
+          currentRes.code === 0 && typeof currentRes.data?.value === "string"
+            ? currentRes.data.value
+            : null,
+        ) || {};
+
+      globalMap[tokenUserId.toString()] = nextOrderMap;
+
+      const saveRes = await updateConfig(
+        FORWARD_GROUP_ORDER_CONFIG_KEY,
+        JSON.stringify(globalMap),
+      );
+
+      if (saveRes.code !== 0) {
+        toast.error(saveRes.msg || "保存分组排序失败");
+      }
+    } catch {
+      toast.error("保存分组排序失败");
+    }
+  };
+
+  const persistGroupCollapsedToGlobal = async (
+    nextCollapsedMap: ForwardGroupCollapsedMap,
+  ): Promise<void> => {
+    if (!isAdmin || tokenUserId === null) {
+      return;
+    }
+
+    try {
+      const currentRes = await getConfigByName(FORWARD_GROUP_COLLAPSED_CONFIG_KEY);
+      const globalMap =
+        parsePreferenceMap<ForwardGroupCollapsedMap>(
+          currentRes.code === 0 && typeof currentRes.data?.value === "string"
+            ? currentRes.data.value
+            : null,
+        ) || {};
+
+      globalMap[tokenUserId.toString()] = nextCollapsedMap;
+
+      const saveRes = await updateConfig(
+        FORWARD_GROUP_COLLAPSED_CONFIG_KEY,
+        JSON.stringify(globalMap),
+      );
+
+      if (saveRes.code !== 0) {
+        toast.error(saveRes.msg || "保存分组折叠状态失败");
+      }
+    } catch {
+      toast.error("保存分组折叠状态失败");
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadGroupPreferences = async () => {
+      if (tokenUserId === null) {
+        if (!cancelled) {
+          setGroupOrderMap({});
+          setCollapsedTunnelGroups({});
+          setGroupPreferenceHydrated(true);
+        }
+
+        return;
+      }
+
+      let localOrderMap: ForwardGroupOrderMap = {};
+      let localCollapsedMap: ForwardGroupCollapsedMap = {};
+
+      try {
+        localOrderMap = parseGroupOrderMap(
+          localStorage.getItem(buildForwardGroupOrderLocalKey(tokenUserId)),
+        );
+      } catch {
+        localOrderMap = {};
+      }
+
+      try {
+        localCollapsedMap = parseGroupCollapsedMap(
+          localStorage.getItem(buildForwardGroupCollapsedLocalKey(tokenUserId)),
+        );
+      } catch {
+        localCollapsedMap = {};
+      }
+
+      if (isAdmin) {
+        try {
+          const [globalOrderRes, globalCollapsedRes] = await Promise.all([
+            getConfigByName(FORWARD_GROUP_ORDER_CONFIG_KEY),
+            getConfigByName(FORWARD_GROUP_COLLAPSED_CONFIG_KEY),
+          ]);
+
+          const globalOrderMap = parsePreferenceMap<ForwardGroupOrderMap>(
+            globalOrderRes.code === 0 &&
+              typeof globalOrderRes.data?.value === "string"
+              ? globalOrderRes.data.value
+              : null,
+          );
+          const globalCollapsedMap = parsePreferenceMap<ForwardGroupCollapsedMap>(
+            globalCollapsedRes.code === 0 &&
+              typeof globalCollapsedRes.data?.value === "string"
+              ? globalCollapsedRes.data.value
+              : null,
+          );
+
+          const globalOrderBucket = globalOrderMap?.[tokenUserId.toString()];
+          const globalCollapsedBucket =
+            globalCollapsedMap?.[tokenUserId.toString()];
+
+          if (
+            globalOrderBucket &&
+            typeof globalOrderBucket === "object" &&
+            !Array.isArray(globalOrderBucket)
+          ) {
+            localOrderMap = parseGroupOrderMap(JSON.stringify(globalOrderBucket));
+          }
+
+          if (
+            globalCollapsedBucket &&
+            typeof globalCollapsedBucket === "object" &&
+            !Array.isArray(globalCollapsedBucket)
+          ) {
+            localCollapsedMap = parseGroupCollapsedMap(
+              JSON.stringify(globalCollapsedBucket),
+            );
+          }
+        } catch {}
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      setGroupOrderMap(localOrderMap);
+      setCollapsedTunnelGroups(localCollapsedMap);
+      persistGroupOrderToLocal(localOrderMap);
+      persistGroupCollapsedToLocal(localCollapsedMap);
+      setGroupPreferenceHydrated(true);
+    };
+
+    setGroupPreferenceHydrated(false);
+    loadGroupPreferences();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tokenUserId, isAdmin]);
 
   useEffect(() => {
     const loadForwardCompactMode = async () => {
@@ -1395,6 +1849,40 @@ export default function ForwardPage() {
 
     if (!active || !over || active.id === over.id) return;
 
+    const activeGroup = parseTunnelGroupSortableId(active.id);
+    const overGroup = parseTunnelGroupSortableId(over.id);
+
+    if (activeGroup && overGroup) {
+      if (compactMode || !groupPreferenceHydrated) {
+        return;
+      }
+
+      if (activeGroup.userId !== overGroup.userId) {
+        return;
+      }
+
+      const userIdKey = activeGroup.userId.toString();
+      const currentOrder = groupOrderMap[userIdKey] || [];
+      const oldIndex = currentOrder.indexOf(activeGroup.tunnelKey);
+      const newIndex = currentOrder.indexOf(overGroup.tunnelKey);
+
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
+        return;
+      }
+
+      const moved = arrayMove(currentOrder, oldIndex, newIndex);
+      const nextOrderMap: ForwardGroupOrderMap = {
+        ...groupOrderMap,
+        [userIdKey]: moved,
+      };
+
+      setGroupOrderMap(nextOrderMap);
+      persistGroupOrderToLocal(nextOrderMap);
+      void persistGroupOrderToGlobal(nextOrderMap);
+
+      return;
+    }
+
     // 确保 forwardOrder 存在且有效
     if (!forwardOrder || forwardOrder.length === 0) return;
 
@@ -1619,10 +2107,6 @@ export default function ForwardPage() {
     }),
   );
 
-  const tokenUserId = JwtUtil.getUserIdFromToken();
-  const tokenRoleId = JwtUtil.getRoleIdFromToken();
-  const isAdmin = tokenRoleId === 0;
-
   // 根据排序顺序获取转发列表
   const orderedForwards = useMemo((): Forward[] => {
     // 确保 forwards 数组存在且有效
@@ -1711,6 +2195,59 @@ export default function ForwardPage() {
     searchKeyword,
   ]);
 
+  const availableGroupData = useMemo(
+    () => buildAvailableGroupData(forwards),
+    [forwards],
+  );
+
+  const sanitizedGroupOrderMap = useMemo(
+    () =>
+      sanitizeGroupOrderMap(
+        groupOrderMap,
+        availableGroupData.availableTunnelKeysByUser,
+      ),
+    [groupOrderMap, availableGroupData],
+  );
+
+  const sanitizedCollapsedTunnelGroups = useMemo(
+    () =>
+      sanitizeGroupCollapsedMap(
+        collapsedTunnelGroups,
+        availableGroupData.availableCollapseKeys,
+      ),
+    [collapsedTunnelGroups, availableGroupData],
+  );
+
+  useEffect(() => {
+    if (!groupPreferenceHydrated || tokenUserId === null) {
+      return;
+    }
+
+    if (!isSameGroupOrderMap(groupOrderMap, sanitizedGroupOrderMap)) {
+      setGroupOrderMap(sanitizedGroupOrderMap);
+      persistGroupOrderToLocal(sanitizedGroupOrderMap);
+      void persistGroupOrderToGlobal(sanitizedGroupOrderMap);
+    }
+
+    if (
+      !isSameGroupCollapsedMap(
+        collapsedTunnelGroups,
+        sanitizedCollapsedTunnelGroups,
+      )
+    ) {
+      setCollapsedTunnelGroups(sanitizedCollapsedTunnelGroups);
+      persistGroupCollapsedToLocal(sanitizedCollapsedTunnelGroups);
+      void persistGroupCollapsedToGlobal(sanitizedCollapsedTunnelGroups);
+    }
+  }, [
+    groupPreferenceHydrated,
+    tokenUserId,
+    groupOrderMap,
+    sanitizedGroupOrderMap,
+    collapsedTunnelGroups,
+    sanitizedCollapsedTunnelGroups,
+  ]);
+
   const groupedForwards = useMemo((): ForwardUserGroup[] => {
     if (orderedForwards.length === 0) {
       return [];
@@ -1770,15 +2307,27 @@ export default function ForwardPage() {
 
     const groups = Array.from(userGroupMap.values()).map((group) => {
       const tunnels = Array.from(group.tunnelMap.values());
+      const tunnelOrder = sanitizedGroupOrderMap[group.userId.toString()] || [];
+      const tunnelOrderIndex = new Map<string, number>();
+
+      tunnelOrder.forEach((key, index) => {
+        tunnelOrderIndex.set(key, index);
+      });
 
       tunnels.sort((a, b) => {
-        const aIsUncategorized =
-          a.tunnelName === UNCATEGORIZED_FORWARD_TUNNEL_NAME;
-        const bIsUncategorized =
-          b.tunnelName === UNCATEGORIZED_FORWARD_TUNNEL_NAME;
+        const aIndex = tunnelOrderIndex.get(a.tunnelKey);
+        const bIndex = tunnelOrderIndex.get(b.tunnelKey);
 
-        if (aIsUncategorized !== bIsUncategorized) {
-          return aIsUncategorized ? 1 : -1;
+        if (aIndex !== undefined || bIndex !== undefined) {
+          if (aIndex === undefined) {
+            return 1;
+          }
+
+          if (bIndex === undefined) {
+            return -1;
+          }
+
+          return aIndex - bIndex;
         }
 
         const nameCompare = compareForwardTunnelNameAsc(a.tunnelName, b.tunnelName);
@@ -1817,7 +2366,7 @@ export default function ForwardPage() {
     });
 
     return groups;
-  }, [orderedForwards, isAdmin, tokenUserId]);
+  }, [orderedForwards, isAdmin, tokenUserId, sanitizedGroupOrderMap]);
 
   const sortedForwards = useMemo(() => {
     if (compactMode) {
@@ -1833,6 +2382,121 @@ export default function ForwardPage() {
     () => sortedForwards.map((f) => f.id).filter((id) => id > 0),
     [sortedForwards],
   );
+
+  const toggleTunnelGroupCollapsed = (userId: number, tunnelKey: string) => {
+    const collapseKey = buildTunnelGroupCollapseKey(userId, tunnelKey);
+    const nextCollapsedMap: ForwardGroupCollapsedMap = {
+      ...sanitizedCollapsedTunnelGroups,
+    };
+
+    if (nextCollapsedMap[collapseKey] === true) {
+      delete nextCollapsedMap[collapseKey];
+    } else {
+      nextCollapsedMap[collapseKey] = true;
+    }
+
+    setCollapsedTunnelGroups(nextCollapsedMap);
+    persistGroupCollapsedToLocal(nextCollapsedMap);
+    void persistGroupCollapsedToGlobal(nextCollapsedMap);
+  };
+
+  const SortableTunnelGroupContainer = ({
+    groupUserId,
+    tunnel,
+    collapsed,
+    onToggleCollapsed,
+    wrapperClassName,
+    headerClassName,
+    titleClassName,
+    countClassName,
+    bodyClassName,
+    children,
+  }: {
+    groupUserId: number;
+    tunnel: ForwardTunnelGroup;
+    collapsed: boolean;
+    onToggleCollapsed: () => void;
+    wrapperClassName: string;
+    headerClassName: string;
+    titleClassName: string;
+    countClassName: string;
+    bodyClassName: string;
+    children: React.ReactNode;
+  }) => {
+    const sortableId = buildTunnelGroupSortableId(groupUserId, tunnel.tunnelKey);
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: sortableId });
+
+    const style: React.CSSProperties = {
+      transform: transform
+        ? CSS.Transform.toString({
+            ...transform,
+            x: Math.round(transform.x),
+            y: Math.round(transform.y),
+          })
+        : undefined,
+      transition: isDragging ? undefined : transition || undefined,
+      opacity: isDragging ? 0.55 : 1,
+      willChange: isDragging ? "transform" : undefined,
+      zIndex: isDragging ? 1 : undefined,
+    };
+
+    return (
+      <div ref={setNodeRef} className={wrapperClassName} style={style}>
+        <div className={headerClassName}>
+          <div className="flex items-center gap-2 min-w-0">
+            <Button
+              isIconOnly
+              aria-label={collapsed ? "展开分组" : "折叠分组"}
+              className="h-7 w-7 min-w-7"
+              size="sm"
+              variant="light"
+              onPress={onToggleCollapsed}
+            >
+              <svg
+                aria-hidden="true"
+                className={`h-4 w-4 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </Button>
+            <span className={titleClassName}>{tunnel.tunnelName}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={countClassName}>{tunnel.items.length} 条转发</span>
+            <div
+              className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors"
+              title="拖拽分组排序"
+              {...attributes}
+              {...listeners}
+            >
+              <svg
+                aria-hidden="true"
+                className="w-4 h-4"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        {!collapsed && <div className={bodyClassName}>{children}</div>}
+      </div>
+    );
+  };
 
   // 可拖拽的转发卡片组件
   const SortableForwardCard = ({ forward }: { forward: Forward }) => {
@@ -2616,7 +3280,7 @@ export default function ForwardPage() {
     );
   };
 
-  if (loading) {
+  if (loading || !groupPreferenceHydrated) {
     return <PageLoadingState message="正在加载..." />;
   }
 
@@ -2972,130 +3636,154 @@ export default function ForwardPage() {
                   </div>
 
                   <div className="space-y-4 p-4">
-                    {group.tunnels.map((tunnel) => {
-                      const tunnelSortableForwardIds = tunnel.items
-                        .map((item) => item.id)
-                        .filter((id) => id > 0);
+                    <DndContext
+                      collisionDetection={closestCenter}
+                      sensors={sensors}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={group.tunnels.map((tunnel) =>
+                          buildTunnelGroupSortableId(group.userId, tunnel.tunnelKey),
+                        )}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {group.tunnels.map((tunnel) => {
+                          const tunnelSortableForwardIds = tunnel.items
+                            .map((item) => item.id)
+                            .filter((id) => id > 0);
+                          const collapsed =
+                            sanitizedCollapsedTunnelGroups[
+                              buildTunnelGroupCollapseKey(
+                                group.userId,
+                                tunnel.tunnelKey,
+                              )
+                            ] === true;
 
-                      return (
-                        <div
-                          key={`grouped-table-${group.userId}-${tunnel.tunnelKey}`}
-                          className="overflow-hidden rounded-lg border border-secondary/20 bg-secondary/5"
-                        >
-                          <div className="flex items-center justify-between border-b border-secondary/20 bg-secondary/10 px-4 py-2.5">
-                            <span className="text-sm font-semibold text-secondary-700">
-                              {tunnel.tunnelName}
-                            </span>
-                            <span className="text-xs text-secondary-700">
-                              {tunnel.items.length} 条转发
-                            </span>
-                          </div>
-
-                          <DndContext
-                            collisionDetection={closestCenter}
-                            sensors={sensors}
-                            onDragEnd={handleDragEnd}
-                          >
-                            <Table
-                              aria-label={`${group.userName}-${tunnel.tunnelName}转发列表`}
-                              className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
-                              classNames={{
-                                th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
-                                td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                                tr: "hover:bg-default-50/50 transition-colors",
-                              }}
+                          return (
+                            <SortableTunnelGroupContainer
+                              key={`grouped-table-${group.userId}-${tunnel.tunnelKey}`}
+                              bodyClassName=""
+                              collapsed={collapsed}
+                              countClassName="text-xs text-secondary-700"
+                              groupUserId={group.userId}
+                              headerClassName="flex items-center justify-between border-b border-secondary/20 bg-secondary/10 px-4 py-2.5"
+                              titleClassName="truncate text-sm font-semibold text-secondary-700"
+                              tunnel={tunnel}
+                              wrapperClassName="overflow-hidden rounded-lg border border-secondary/20 bg-secondary/5"
+                              onToggleCollapsed={() =>
+                                toggleTunnelGroupCollapsed(
+                                  group.userId,
+                                  tunnel.tunnelKey,
+                                )
+                              }
                             >
-                              <TableHeader>
-                                {selectMode && (
-                                  <TableColumn
-                                    className={
-                                      FORWARD_GROUPED_TABLE_COLUMN_CLASS.select
-                                    }
-                                  >
-                                    选择
-                                  </TableColumn>
-                                )}
-                                <TableColumn
-                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag}
-                                />
-                                <TableColumn
-                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.name}
-                                >
-                                  名称
-                                </TableColumn>
-                                <TableColumn
-                                  className={
-                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound
-                                  }
-                                >
-                                  入口
-                                </TableColumn>
-                                <TableColumn
-                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.target}
-                                >
-                                  目标
-                                </TableColumn>
-                                <TableColumn
-                                  className={
-                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy
-                                  }
-                                >
-                                  策略
-                                </TableColumn>
-                                <TableColumn
-                                  className={
-                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow
-                                  }
-                                >
-                                  总流量
-                                </TableColumn>
-                                <TableColumn
-                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status}
-                                >
-                                  状态
-                                </TableColumn>
-                                <TableColumn
-                                  className={
-                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions
-                                  }
-                                >
-                                  操作
-                                </TableColumn>
-                              </TableHeader>
-                              <TableBody
-                                emptyContent="暂无转发配置"
-                                items={tunnel.items}
+                              <DndContext
+                                collisionDetection={closestCenter}
+                                sensors={sensors}
+                                onDragEnd={handleDragEnd}
                               >
-                                {(forward) => (
-                                  <SortableContext
-                                    key={forward.id}
-                                    items={tunnelSortableForwardIds}
-                                    strategy={verticalListSortingStrategy}
-                                  >
-                                    <SortableTableRow
-                                      formatFlow={formatFlow}
-                                      formatInAddress={formatInAddress}
-                                      formatRemoteAddress={formatRemoteAddress}
-                                      forward={forward}
-                                      getStrategyDisplay={getStrategyDisplay}
-                                      handleDelete={handleDelete}
-                                      handleDiagnose={handleDiagnose}
-                                      handleEdit={handleEdit}
-                                      handleServiceToggle={handleServiceToggle}
-                                      hasMultipleAddresses={hasMultipleAddresses}
-                                      selectMode={selectMode}
-                                      selectedIds={selectedIds}
-                                      showAddressModal={showAddressModal}
-                                      toggleSelect={toggleSelect}
+                                <Table
+                                  aria-label={`${group.userName}-${tunnel.tunnelName}转发列表`}
+                                  className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
+                                  classNames={{
+                                    th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                                    td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                                    tr: "hover:bg-default-50/50 transition-colors",
+                                  }}
+                                >
+                                  <TableHeader>
+                                    {selectMode && (
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.select
+                                        }
+                                      >
+                                        选择
+                                      </TableColumn>
+                                    )}
+                                    <TableColumn
+                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag}
                                     />
-                                  </SortableContext>
-                                )}
-                              </TableBody>
-                            </Table>
-                          </DndContext>
-                        </div>
-                      );
-                    })}
+                                    <TableColumn
+                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.name}
+                                    >
+                                      名称
+                                    </TableColumn>
+                                    <TableColumn
+                                      className={
+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound
+                                      }
+                                    >
+                                      入口
+                                    </TableColumn>
+                                    <TableColumn
+                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.target}
+                                    >
+                                      目标
+                                    </TableColumn>
+                                    <TableColumn
+                                      className={
+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy
+                                      }
+                                    >
+                                      策略
+                                    </TableColumn>
+                                    <TableColumn
+                                      className={
+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow
+                                      }
+                                    >
+                                      总流量
+                                    </TableColumn>
+                                    <TableColumn
+                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status}
+                                    >
+                                      状态
+                                    </TableColumn>
+                                    <TableColumn
+                                      className={
+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions
+                                      }
+                                    >
+                                      操作
+                                    </TableColumn>
+                                  </TableHeader>
+                                  <TableBody
+                                    emptyContent="暂无转发配置"
+                                    items={tunnel.items}
+                                  >
+                                    {(forward) => (
+                                      <SortableContext
+                                        key={forward.id}
+                                        items={tunnelSortableForwardIds}
+                                        strategy={verticalListSortingStrategy}
+                                      >
+                                        <SortableTableRow
+                                          formatFlow={formatFlow}
+                                          formatInAddress={formatInAddress}
+                                          formatRemoteAddress={formatRemoteAddress}
+                                          forward={forward}
+                                          getStrategyDisplay={getStrategyDisplay}
+                                          handleDelete={handleDelete}
+                                          handleDiagnose={handleDiagnose}
+                                          handleEdit={handleEdit}
+                                          handleServiceToggle={handleServiceToggle}
+                                          hasMultipleAddresses={hasMultipleAddresses}
+                                          selectMode={selectMode}
+                                          selectedIds={selectedIds}
+                                          showAddressModal={showAddressModal}
+                                          toggleSelect={toggleSelect}
+                                        />
+                                      </SortableContext>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </DndContext>
+                            </SortableTunnelGroupContainer>
+                          );
+                        })}
+                      </SortableContext>
+                    </DndContext>
                   </div>
                 </div>
               );
@@ -3145,50 +3833,68 @@ export default function ForwardPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {group.tunnels.map((tunnel) => {
-                    const tunnelSortableForwardIds = tunnel.items
-                      .map((item) => item.id)
-                      .filter((id) => id > 0);
+                  <DndContext
+                    collisionDetection={closestCenter}
+                    sensors={sensors}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={group.tunnels.map((tunnel) =>
+                        buildTunnelGroupSortableId(group.userId, tunnel.tunnelKey),
+                      )}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {group.tunnels.map((tunnel) => {
+                        const tunnelSortableForwardIds = tunnel.items
+                          .map((item) => item.id)
+                          .filter((id) => id > 0);
+                        const collapsed =
+                          sanitizedCollapsedTunnelGroups[
+                            buildTunnelGroupCollapseKey(group.userId, tunnel.tunnelKey)
+                          ] === true;
 
-                    return (
-                      <div
-                        key={`direct-group-${group.userId}-${tunnel.tunnelKey}`}
-                        className="rounded-xl border border-secondary/20 bg-secondary/5 p-3 space-y-3"
-                      >
-                        <div className="flex items-center justify-between rounded-lg bg-secondary/10 px-3 py-2">
-                          <span className="text-sm font-semibold text-secondary-700">
-                            {tunnel.tunnelName}
-                          </span>
-                          <span className="text-xs text-secondary-700">
-                            {tunnel.items.length} 条转发
-                          </span>
-                        </div>
-
-                        <DndContext
-                          collisionDetection={closestCenter}
-                          sensors={sensors}
-                          onDragEnd={handleDragEnd}
-                          onDragStart={() => {}}
-                        >
-                          <SortableContext
-                            items={tunnelSortableForwardIds}
-                            strategy={rectSortingStrategy}
+                        return (
+                          <SortableTunnelGroupContainer
+                            key={`direct-group-${group.userId}-${tunnel.tunnelKey}`}
+                            bodyClassName="p-3"
+                            collapsed={collapsed}
+                            countClassName="text-xs text-secondary-700"
+                            groupUserId={group.userId}
+                            headerClassName="flex items-center justify-between rounded-lg bg-secondary/10 px-3 py-2"
+                            titleClassName="truncate text-sm font-semibold text-secondary-700"
+                            tunnel={tunnel}
+                            wrapperClassName="rounded-xl border border-secondary/20 bg-secondary/5 space-y-3"
+                            onToggleCollapsed={() =>
+                              toggleTunnelGroupCollapsed(group.userId, tunnel.tunnelKey)
+                            }
                           >
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                              {tunnel.items.map((forward) =>
-                                forward && forward.id ? (
-                                  <SortableForwardCard
-                                    key={forward.id}
-                                    forward={forward}
-                                  />
-                                ) : null,
-                              )}
-                            </div>
-                          </SortableContext>
-                        </DndContext>
-                      </div>
-                    );
-                  })}
+                            <DndContext
+                              collisionDetection={closestCenter}
+                              sensors={sensors}
+                              onDragEnd={handleDragEnd}
+                              onDragStart={() => {}}
+                            >
+                              <SortableContext
+                                items={tunnelSortableForwardIds}
+                                strategy={rectSortingStrategy}
+                              >
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                                  {tunnel.items.map((forward) =>
+                                    forward && forward.id ? (
+                                      <SortableForwardCard
+                                        key={forward.id}
+                                        forward={forward}
+                                      />
+                                    ) : null,
+                                  )}
+                                </div>
+                              </SortableContext>
+                            </DndContext>
+                          </SortableTunnelGroupContainer>
+                        );
+                      })}
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </div>
             );
