@@ -865,6 +865,9 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 		if c.Strategy.Valid {
 			nodeObj["strategy"] = c.Strategy.String
 		}
+		if c.ConnectIP.Valid {
+			nodeObj["connectIp"] = c.ConnectIP.String
+		}
 
 		switch chainTypeInt {
 		case 1:

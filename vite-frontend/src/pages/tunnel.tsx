@@ -95,6 +95,10 @@ interface Node {
   id: number;
   name: string;
   status: number; // 1: 在线, 0: 离线
+  serverIp?: string;
+  serverIpV4?: string;
+  serverIpV6?: string;
+  extraIPs?: string;
 }
 
 interface TunnelForm {
@@ -143,6 +147,46 @@ export default function TunnelPage() {
     timedOut: false,
   });
   const diagnosisAbortRef = useRef<AbortController | null>(null);
+
+  const getNodeIpOptions = (nodeId: number): string[] => {
+    const node = nodes.find((item) => item.id === nodeId);
+
+    if (!node) {
+      return [];
+    }
+
+    const values: string[] = [];
+    const push = (value?: string) => {
+      const trimmed = (value || "").trim();
+
+      if (trimmed) {
+        values.push(trimmed);
+      }
+    };
+
+    push(node.serverIpV4);
+    push(node.serverIpV6);
+    push(node.serverIp);
+
+    (node.extraIPs || "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter((v) => v)
+      .forEach((v) => values.push(v));
+
+    return Array.from(new Set(values));
+  };
+
+  const getCommonIpOptions = (nodeIds: number[]): string[] => {
+    if (nodeIds.length === 0) {
+      return [];
+    }
+
+    const optionSets = nodeIds.map((nodeId) => new Set(getNodeIpOptions(nodeId)));
+    const base = optionSets[0];
+
+    return Array.from(base).filter((ip) => optionSets.every((set) => set.has(ip)));
+  };
 
   // 表单状态
   const [form, setForm] = useState<TunnelForm>(createTunnelFormDefaults());
@@ -1545,6 +1589,15 @@ export default function TunnelPage() {
                               groupNodes.length > 0
                                 ? groupNodes[0].strategy || "round"
                                 : "round";
+                            const groupSelectedNodeIds = groupNodes
+                              .filter((ct) => ct.nodeId !== -1)
+                              .map((ct) => ct.nodeId);
+                            const groupIpOptions =
+                              getCommonIpOptions(groupSelectedNodeIds);
+                            const selectedGroupConnectIp =
+                              groupNodes.length > 0
+                                ? groupNodes[0].connectIp || ""
+                                : "";
 
                             return (
                               <div
@@ -1758,27 +1811,45 @@ export default function TunnelPage() {
                                 </div>
 
                                 {/* 连接IP - 转发链节点 */}
-                                <Input
+                                <Select
                                   classNames={{
                                     label: "text-xs",
+                                    value: "text-sm",
                                   }}
-                                  description="多IP节点可指定连接地址，留空使用默认"
-                                  label="连接IP"
-                                  placeholder="留空使用默认"
-                                  size="sm"
-                                  value={
-                                    groupNodes.length > 0
-                                      ? groupNodes[0].connectIp || ""
-                                      : ""
+                                  description="按当前跳所选节点的共有IP进行选择，留空使用默认"
+                                  isDisabled={
+                                    groupSelectedNodeIds.length === 0 ||
+                                    groupIpOptions.length === 0
                                   }
+                                  label="连接IP"
+                                  placeholder={
+                                    groupSelectedNodeIds.length === 0
+                                      ? "请先选择节点"
+                                      : groupIpOptions.length > 0
+                                        ? "选择连接IP"
+                                        : "所选节点无共同可选IP"
+                                  }
+                                  selectedKeys={[
+                                    selectedGroupConnectIp || "__default__",
+                                  ]}
+                                  size="sm"
                                   variant="bordered"
-                                  onChange={(e) => {
+                                  onSelectionChange={(keys) => {
+                                    const selectedKey = Array.from(keys)[0] as string;
+
                                     updateChainConnectIp(
                                       groupIndex,
-                                      e.target.value,
+                                      selectedKey === "__default__"
+                                        ? ""
+                                        : selectedKey,
                                     );
                                   }}
-                                />
+                                >
+                                  <SelectItem key="__default__">默认连接IP</SelectItem>
+                                  {groupIpOptions.map((ip) => (
+                                    <SelectItem key={ip}>{ip}</SelectItem>
+                                  ))}
+                                </Select>
                               </div>
                             );
                           })}
@@ -2042,22 +2113,45 @@ export default function TunnelPage() {
                       </div>
 
                       {/* 连接IP - 出口节点 */}
-                      <Input
+                      <Select
                         classNames={{
                           label: "text-xs",
+                          value: "text-sm",
                         }}
-                        description="多IP节点可指定连接地址，留空使用默认"
-                        label="连接IP"
-                        placeholder="留空使用默认"
-                        size="sm"
-                        value={
-                          form.outNodeId && form.outNodeId.length > 0
-                            ? form.outNodeId[0].connectIp || ""
-                            : ""
+                        description="按出口节点共同可用IP选择，留空使用默认"
+                        isDisabled={
+                          (form.outNodeId || []).filter((ct) => ct.nodeId !== -1)
+                            .length === 0 ||
+                          getCommonIpOptions(
+                            (form.outNodeId || [])
+                              .filter((ct) => ct.nodeId !== -1)
+                              .map((ct) => ct.nodeId),
+                          ).length === 0
                         }
+                        label="连接IP"
+                        placeholder={
+                          (form.outNodeId || []).filter((ct) => ct.nodeId !== -1)
+                            .length === 0
+                            ? "请先选择出口节点"
+                            : getCommonIpOptions(
+                                  (form.outNodeId || [])
+                                    .filter((ct) => ct.nodeId !== -1)
+                                    .map((ct) => ct.nodeId),
+                                ).length > 0
+                              ? "选择连接IP"
+                              : "所选节点无共同可选IP"
+                        }
+                        selectedKeys={[
+                          form.outNodeId && form.outNodeId.length > 0
+                            ? form.outNodeId[0].connectIp || "__default__"
+                            : "__default__",
+                        ]}
+                        size="sm"
                         variant="bordered"
-                        onChange={(e) => {
-                          const value = e.target.value;
+                        onSelectionChange={(keys) => {
+                          const selectedKey = Array.from(keys)[0] as string;
+                          const value =
+                            selectedKey === "__default__" ? "" : selectedKey;
                           setForm((prev) => {
                             const currentOutNodes = prev.outNodeId || [];
                             if (currentOutNodes.length === 0) {
@@ -2083,7 +2177,16 @@ export default function TunnelPage() {
                             };
                           });
                         }}
-                      />
+                      >
+                        <SelectItem key="__default__">默认连接IP</SelectItem>
+                        {getCommonIpOptions(
+                          (form.outNodeId || [])
+                            .filter((ct) => ct.nodeId !== -1)
+                            .map((ct) => ct.nodeId),
+                        ).map((ip) => (
+                          <SelectItem key={ip}>{ip}</SelectItem>
+                        ))}
+                      </Select>
                     </>
                   )}
                 </div>

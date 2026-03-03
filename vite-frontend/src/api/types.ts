@@ -217,6 +217,7 @@ export interface NodeMutationPayload {
   serverIp?: string;
   serverIpV4?: string;
   serverIpV6?: string;
+  extraIPs?: string;
   port?: string;
   tcpListenAddr?: string;
   udpListenAddr?: string;
@@ -230,6 +231,7 @@ export interface TunnelChainNodePayload {
   nodeId: number;
   protocol?: string;
   strategy?: string;
+  connectIp?: string;
   chainType?: number;
   inx?: number;
 }

@@ -59,6 +59,8 @@ import {
   deleteForward,
   forceDeleteForward,
   userTunnel,
+  getTunnelList,
+  getNodeList,
   pauseForwardService,
   resumeForwardService,
   diagnoseForward,
@@ -117,8 +119,18 @@ interface Forward {
 interface Tunnel {
   id: number;
   name: string;
+  inIp?: string;
+  inNodeId?: Array<{ nodeId: number }>;
   inNodePortSta?: number;
   inNodePortEnd?: number;
+}
+
+interface Node {
+  id: number;
+  serverIp?: string;
+  serverIpV4?: string;
+  serverIpV6?: string;
+  extraIPs?: string;
 }
 
 interface ForwardForm {
@@ -463,6 +475,8 @@ export default function ForwardPage() {
   const [loading, setLoading] = useState(true);
   const [forwards, setForwards] = useState<Forward[]>([]);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
+  const [allTunnels, setAllTunnels] = useState<Tunnel[]>([]);
+  const [nodes, setNodes] = useState<Node[]>([]);
   const [speedLimits, setSpeedLimits] = useState<SpeedLimitApiItem[]>([]);
   const isMobile = useMobileBreakpoint();
   const [searchKeyword, setSearchKeyword] = useLocalStorageState(
@@ -574,6 +588,67 @@ export default function ForwardPage() {
   const tokenUserId = JwtUtil.getUserIdFromToken();
   const tokenRoleId = JwtUtil.getRoleIdFromToken();
   const isAdmin = tokenRoleId === 0;
+
+  const parseNodeIPs = (node?: Node): string[] => {
+    if (!node) {
+      return [];
+    }
+
+    const ips: string[] = [];
+    const add = (value?: string) => {
+      const trimmed = (value || "").trim();
+
+      if (trimmed) {
+        ips.push(trimmed);
+      }
+    };
+
+    add(node.serverIpV4);
+    add(node.serverIpV6);
+    add(node.serverIp);
+
+    (node.extraIPs || "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter((v) => v)
+      .forEach((v) => ips.push(v));
+
+    return Array.from(new Set(ips));
+  };
+
+  const tunnelInIpOptionMap = useMemo(() => {
+    const map = new Map<number, string[]>();
+    const nodeMap = new Map<number, Node>(nodes.map((n) => [n.id, n]));
+
+    for (const tunnel of allTunnels) {
+      const collected: string[] = [];
+      const entryNodes = tunnel.inNodeId || [];
+
+      for (const entry of entryNodes) {
+        collected.push(...parseNodeIPs(nodeMap.get(entry.nodeId)));
+      }
+
+      if (collected.length === 0) {
+        (tunnel.inIp || "")
+          .split(",")
+          .map((v) => v.trim())
+          .filter((v) => v)
+          .forEach((v) => collected.push(v));
+      }
+
+      map.set(tunnel.id, Array.from(new Set(collected)));
+    }
+
+    return map;
+  }, [allTunnels, nodes]);
+
+  const currentTunnelIpOptions = useMemo(() => {
+    if (!form.tunnelId) {
+      return [];
+    }
+
+    return tunnelInIpOptionMap.get(form.tunnelId) || [];
+  }, [form.tunnelId, tunnelInIpOptionMap]);
 
   useEffect(() => {
     return () => {
@@ -1035,6 +1110,10 @@ export default function ForwardPage() {
         userTunnel(),
         getSpeedLimitList(),
       ]);
+      const [allTunnelsRes, nodesRes] = await Promise.allSettled([
+        getTunnelList(),
+        getNodeList(),
+      ]);
 
       if (forwardsRes.code === 0) {
         const forwardsData =
@@ -1066,6 +1145,14 @@ export default function ForwardPage() {
       if (tunnelsRes.code === 0) {
         setTunnels(tunnelsRes.data || []);
       } else {
+      }
+
+      if (allTunnelsRes.status === "fulfilled" && allTunnelsRes.value.code === 0) {
+        setAllTunnels((allTunnelsRes.value.data || []) as Tunnel[]);
+      }
+
+      if (nodesRes.status === "fulfilled" && nodesRes.value.code === 0) {
+        setNodes((nodesRes.value.data || []) as Node[]);
       }
 
       if (speedLimitsRes.code === 0) {
@@ -1240,7 +1327,14 @@ export default function ForwardPage() {
 
   // 处理隧道选择变化
   const handleTunnelChange = (tunnelId: string) => {
-    setForm((prev) => ({ ...prev, tunnelId: parseInt(tunnelId) }));
+    const nextTunnelId = parseInt(tunnelId);
+    const options = tunnelInIpOptionMap.get(nextTunnelId) || [];
+
+    setForm((prev) => ({
+      ...prev,
+      tunnelId: nextTunnelId,
+      inIp: options.includes(prev.inIp) ? prev.inIp : "",
+    }));
   };
 
   // 提交表单
@@ -1267,7 +1361,7 @@ export default function ForwardPage() {
           name: form.name,
           tunnelId: form.tunnelId,
           inPort: form.inPort,
-          inIp: form.inIp || null,
+          inIp: form.inIp || undefined,
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizeSpeedId(form.speedId),
@@ -1279,7 +1373,7 @@ export default function ForwardPage() {
           name: form.name,
           tunnelId: form.tunnelId,
           inPort: form.inPort,
-          inIp: form.inIp || null,
+          inIp: form.inIp || undefined,
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizeSpeedId(form.speedId),
@@ -4028,16 +4122,33 @@ export default function ForwardPage() {
                     }}
                   />
 
-                  <Input
-                    description="留空使用默认入口IP，多IP节点可指定监听地址"
+                  <Select
+                    description="从入口节点IP中选择，留空使用默认"
+                    isDisabled={!form.tunnelId || currentTunnelIpOptions.length === 0}
                     label="监听IP"
-                    placeholder="留空使用默认"
-                    value={form.inIp}
-                    variant="bordered"
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, inIp: e.target.value }))
+                    placeholder={
+                      form.tunnelId
+                        ? currentTunnelIpOptions.length > 0
+                          ? "选择入口监听IP"
+                          : "当前隧道入口节点暂无可选IP"
+                        : "请先选择隧道"
                     }
-                  />
+                    selectedKeys={[form.inIp || "__default__"]}
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selectedKey = Array.from(keys)[0] as string;
+
+                      setForm((prev) => ({
+                        ...prev,
+                        inIp: selectedKey === "__default__" ? "" : selectedKey,
+                      }));
+                    }}
+                  >
+                    <SelectItem key="__default__">默认入口IP</SelectItem>
+                    {currentTunnelIpOptions.map((ip) => (
+                      <SelectItem key={ip}>{ip}</SelectItem>
+                    ))}
+                  </Select>
 
                   <Textarea
                     description="格式: IP:端口 或 域名:端口，支持多个地址（每行一个）"
