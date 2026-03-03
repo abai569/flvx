@@ -887,6 +887,7 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 			Strategy:  r.Strategy,
 			ChainType: 3,
 			Port:      r.Port,
+			ConnectIP: r.ConnectIP,
 		})
 		state.NodeIDList = append(state.NodeIDList, r.NodeID)
 	}
@@ -901,6 +902,7 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 				ChainType: 2,
 				Inx:       int(r.Inx),
 				Port:      r.Port,
+				ConnectIP: r.ConnectIP,
 			})
 			state.NodeIDList = append(state.NodeIDList, r.NodeID)
 		}

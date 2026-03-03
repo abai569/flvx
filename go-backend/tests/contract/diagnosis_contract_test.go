@@ -1,6 +1,7 @@
 package contract_test
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -460,4 +461,168 @@ func TestDiagnosisUsesFederationRuntimeForRemoteNodes(t *testing.T) {
 	if atomic.LoadInt32(&remoteDiagnoseCalls) == 0 {
 		t.Fatalf("expected federation runtime diagnose endpoint to be called")
 	}
+}
+
+func TestTunnelDiagnosisUsesConfiguredConnectIPContract(t *testing.T) {
+	secret := "contract-jwt-secret"
+	router, r := setupContractRouter(t, secret)
+	now := time.Now().UnixMilli()
+
+	insertNode := func(name, ip string) int64 {
+		if err := r.DB().Exec(`
+			INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, name, name+"-secret", ip, ip, "", "30000-30010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0).Error; err != nil {
+			t.Fatalf("insert node %s: %v", name, err)
+		}
+		return mustLastInsertID(t, r, name)
+	}
+
+	entryNodeID := insertNode("entry-connectip", "10.80.0.10")
+	middleNodeID := insertNode("middle-connectip", "10.80.0.20")
+	exitNodeID := insertNode("exit-connectip", "10.80.0.30")
+
+	if err := r.DB().Exec(`
+		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "diagnose-connectip-tunnel", 1.0, 2, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	tunnelID := mustLastInsertID(t, r, "diagnose-connectip-tunnel")
+
+	if err := r.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 30001, 'round', 1, 'tls')
+	`, tunnelID, entryNodeID).Error; err != nil {
+		t.Fatalf("insert entry chain: %v", err)
+	}
+	if err := r.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol, connect_ip)
+		VALUES(?, 2, ?, 30002, 'round', 1, 'tls', ?)
+	`, tunnelID, middleNodeID, "10.99.0.22").Error; err != nil {
+		t.Fatalf("insert middle chain: %v", err)
+	}
+	if err := r.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol, connect_ip)
+		VALUES(?, 3, ?, 30003, 'round', 1, 'tls', ?)
+	`, tunnelID, exitNodeID, "10.99.0.33").Error; err != nil {
+		t.Fatalf("insert exit chain: %v", err)
+	}
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+
+	t.Run("normal diagnose should use configured connectIp", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/diagnose", bytes.NewBufferString(`{"tunnelId":`+strconv.FormatInt(tunnelID, 10)+`}`))
+		req.Header.Set("Authorization", adminToken)
+		res := httptest.NewRecorder()
+
+		router.ServeHTTP(res, req)
+
+		var out response.R
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if out.Code != 0 {
+			t.Fatalf("expected code 0, got %d (%s)", out.Code, out.Msg)
+		}
+
+		payload, ok := out.Data.(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected object payload, got %T", out.Data)
+		}
+		results, ok := payload["results"].([]interface{})
+		if !ok || len(results) == 0 {
+			t.Fatalf("expected non-empty results, got %v", payload["results"])
+		}
+
+		entryToMiddleOK := false
+		middleToExitOK := false
+		for _, raw := range results {
+			item, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			from := valueAsInt(item["fromChainType"])
+			to := valueAsInt(item["toChainType"])
+			targetIP := strings.TrimSpace(valueAsString(item["targetIp"]))
+
+			if from == 1 && to == 2 && targetIP == "10.99.0.22" {
+				entryToMiddleOK = true
+			}
+			if from == 2 && to == 3 && targetIP == "10.99.0.33" {
+				middleToExitOK = true
+			}
+		}
+
+		if !entryToMiddleOK || !middleToExitOK {
+			t.Fatalf("expected connectIp targets 10.99.0.22/10.99.0.33, got entry=%v middle=%v", entryToMiddleOK, middleToExitOK)
+		}
+	})
+
+	t.Run("stream diagnose start items should use configured connectIp", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/diagnose/stream", bytes.NewBufferString(`{"tunnelId":`+strconv.FormatInt(tunnelID, 10)+`}`))
+		req.Header.Set("Authorization", adminToken)
+		res := httptest.NewRecorder()
+
+		router.ServeHTTP(res, req)
+
+		if res.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", res.Code)
+		}
+
+		scanner := bufio.NewScanner(bytes.NewReader(res.Body.Bytes()))
+		startFound := false
+		entryToMiddleOK := false
+		middleToExitOK := false
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+			var event map[string]interface{}
+			if err := json.Unmarshal([]byte(line), &event); err != nil {
+				continue
+			}
+			if strings.TrimSpace(valueAsString(event["type"])) != "start" {
+				continue
+			}
+			startFound = true
+			data, ok := event["data"].(map[string]interface{})
+			if !ok {
+				break
+			}
+			items, ok := data["items"].([]interface{})
+			if !ok {
+				break
+			}
+			for _, raw := range items {
+				item, ok := raw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				from := valueAsInt(item["fromChainType"])
+				to := valueAsInt(item["toChainType"])
+				targetIP := strings.TrimSpace(valueAsString(item["targetIp"]))
+				if from == 1 && to == 2 && targetIP == "10.99.0.22" {
+					entryToMiddleOK = true
+				}
+				if from == 2 && to == 3 && targetIP == "10.99.0.33" {
+					middleToExitOK = true
+				}
+			}
+			break
+		}
+		if err := scanner.Err(); err != nil {
+			t.Fatalf("scan stream body: %v", err)
+		}
+		if !startFound {
+			t.Fatalf("expected start event in stream response")
+		}
+		if !entryToMiddleOK || !middleToExitOK {
+			t.Fatalf("expected start items with connectIp targets 10.99.0.22/10.99.0.33, got entry=%v middle=%v", entryToMiddleOK, middleToExitOK)
+		}
+	})
 }

@@ -97,3 +97,18 @@ func TestBuildForwardServiceConfigs_DefaultListenAddrWhenBindIPEmpty(t *testing.
 		t.Fatalf("expected udp addr [::]:22001, got %q", udpAddr)
 	}
 }
+
+func TestBuildForwardServiceConfigs_BindIPAlreadyContainsPort(t *testing.T) {
+	forward := &forwardRecord{RemoteAddr: "1.2.3.4:80", Strategy: "fifo", TunnelID: 7}
+	node := &nodeRecord{TCPListenAddr: "[::]", UDPListenAddr: "[::]"}
+	services := buildForwardServiceConfigs("1_2_0", forward, nil, node, 55555, "3.3.3.3:12345", nil, false)
+	if len(services) != 2 {
+		t.Fatalf("expected 2 services, got %d", len(services))
+	}
+	for _, svc := range services {
+		addr, _ := svc["addr"].(string)
+		if addr != "3.3.3.3:12345" {
+			t.Fatalf("expected bind IP with port 3.3.3.3:12345, got %q", addr)
+		}
+	}
+}

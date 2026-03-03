@@ -72,7 +72,7 @@ func (h *Handler) buildDiagnosisStreamStartItems(workItems []diagnosisWorkItem) 
 			fromNode, _ := h.cachedNode(nodeCache, workItem.fromNodeID)
 			targetNode, err := h.cachedNode(nodeCache, workItem.toNode.NodeID)
 			if err == nil {
-				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference, "")
+				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference, workItem.toNode.ConnectIP)
 				if resolveErr == nil {
 					targetIP = resolvedIP
 					targetPort = resolvedPort
@@ -1099,7 +1099,7 @@ func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nod
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, "", 0, description, metadata, err.Error())
 		return
 	}
-	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference, "")
+	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference, toNode.ConnectIP)
 	if err != nil {
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]"), toNode.Port, description, metadata, err.Error())
 		return
@@ -1317,12 +1317,19 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		if protocol == "udp" {
 			listenerAddr = node.UDPListenAddr
 		}
+		var serviceAddr string
 		if bindIP != "" {
-			listenerAddr = bindIP
+			if strings.Contains(bindIP, ":") {
+				serviceAddr = processServerAddress(bindIP)
+			} else {
+				serviceAddr = processServerAddress(fmt.Sprintf("%s:%d", bindIP, port))
+			}
+		} else {
+			serviceAddr = processServerAddress(fmt.Sprintf("%s:%d", listenerAddr, port))
 		}
 		service := map[string]interface{}{
 			"name": fmt.Sprintf("%s_%s", baseName, protocol),
-			"addr": processServerAddress(fmt.Sprintf("%s:%d", listenerAddr, port)),
+			"addr": serviceAddr,
 			"handler": map[string]interface{}{
 				"type": protocol,
 			},

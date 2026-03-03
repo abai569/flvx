@@ -113,3 +113,10 @@ docker compose -f docker-compose-v6.yml up -d
 - PostgreSQL migration supported via `panel_install.sh` menu option using pgloader.
 - Repository layer is large: `repository.go` (83k LOC), `repository_mutations.go` (43k LOC).
 - Button visual parity relies on `vite-frontend/src/shadcn-bridge/heroui/button.tsx` color mapping + `vite-frontend/src/styles/tailwind-theme.pcss` token export.
+
+## PLAN DOCUMENT RULE
+- Every new implementation plan must have a dedicated Markdown plan document.
+- Store plan documents under `plans/`.
+- Use an incrementing numeric prefix and a short plan-summary name: `NNN-<plan-summary>.md` (for example, `001-auth-refactor.md`, `002-federation-api-cleanup.md`).
+- The numeric prefix must increase by 1 for each new plan.
+- In each plan document, keep a task checklist and mark each task as completed immediately after finishing it.
