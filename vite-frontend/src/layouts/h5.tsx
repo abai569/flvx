@@ -33,7 +33,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
     },
     {
       path: "/forward",
-      label: "转发",
+      label: "规则",
       icon: (
         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
           <path

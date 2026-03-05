@@ -767,9 +767,21 @@ func (r *Repository) ListUserAccessibleTunnels(userID int64) ([]map[string]inter
 	if err != nil {
 		return nil, err
 	}
+
+	tunnelIDs := make([]int64, 0, len(rows))
+	for _, rw := range rows {
+		tunnelIDs = append(tunnelIDs, rw.ID)
+	}
+	portRangeMap := r.getTunnelEntryPortRanges(tunnelIDs)
+
 	items := make([]map[string]interface{}, 0, len(rows))
-	for _, r := range rows {
-		items = append(items, map[string]interface{}{"id": r.ID, "name": r.Name})
+	for _, rw := range rows {
+		item := map[string]interface{}{"id": rw.ID, "name": rw.Name}
+		if pr, ok := portRangeMap[rw.ID]; ok {
+			item["portRangeMin"] = pr.min
+			item["portRangeMax"] = pr.max
+		}
+		items = append(items, item)
 	}
 	return items, nil
 }
@@ -788,11 +800,144 @@ func (r *Repository) ListEnabledTunnelSummaries() ([]map[string]interface{}, err
 	if err != nil {
 		return nil, err
 	}
+
+	tunnelIDs := make([]int64, 0, len(rows))
+	for _, rw := range rows {
+		tunnelIDs = append(tunnelIDs, rw.ID)
+	}
+	portRangeMap := r.getTunnelEntryPortRanges(tunnelIDs)
+
 	items := make([]map[string]interface{}, 0, len(rows))
-	for _, r := range rows {
-		items = append(items, map[string]interface{}{"id": r.ID, "name": r.Name})
+	for _, rw := range rows {
+		item := map[string]interface{}{"id": rw.ID, "name": rw.Name}
+		if pr, ok := portRangeMap[rw.ID]; ok {
+			item["portRangeMin"] = pr.min
+			item["portRangeMax"] = pr.max
+		}
+		items = append(items, item)
 	}
 	return items, nil
+}
+
+type tunnelPortRange struct {
+	min int
+	max int
+}
+
+func (r *Repository) getTunnelEntryPortRanges(tunnelIDs []int64) map[int64]tunnelPortRange {
+	result := make(map[int64]tunnelPortRange)
+	if len(tunnelIDs) == 0 {
+		return result
+	}
+
+	type entryNode struct {
+		TunnelID int64
+		NodeID   int64
+	}
+	var entries []entryNode
+	r.db.Model(&model.ChainTunnel{}).
+		Select("tunnel_id, node_id").
+		Where("tunnel_id IN (?) AND chain_type = ?", tunnelIDs, "1").
+		Find(&entries)
+
+	nodeIDs := make([]int64, 0, len(entries))
+	nodeSet := make(map[int64]struct{})
+	for _, e := range entries {
+		if _, exists := nodeSet[e.NodeID]; !exists {
+			nodeSet[e.NodeID] = struct{}{}
+			nodeIDs = append(nodeIDs, e.NodeID)
+		}
+	}
+
+	type nodePort struct {
+		ID   int64
+		Port string
+	}
+	var nodePorts []nodePort
+	if len(nodeIDs) > 0 {
+		r.db.Model(&model.Node{}).Select("id, port").Where("id IN (?)", nodeIDs).Find(&nodePorts)
+	}
+
+	nodePortMap := make(map[int64]string)
+	for _, np := range nodePorts {
+		nodePortMap[np.ID] = np.Port
+	}
+
+	for _, e := range entries {
+		portSpec := nodePortMap[e.NodeID]
+		if portSpec == "" {
+			continue
+		}
+		minP, maxP := parsePortRangeMinMax(portSpec)
+		if minP <= 0 || maxP <= 0 {
+			continue
+		}
+		pr, exists := result[e.TunnelID]
+		if !exists {
+			result[e.TunnelID] = tunnelPortRange{min: minP, max: maxP}
+		} else {
+			if minP < pr.min {
+				pr.min = minP
+			}
+			if maxP > pr.max {
+				pr.max = maxP
+			}
+			result[e.TunnelID] = pr
+		}
+	}
+	return result
+}
+
+func parsePortRangeMinMax(input string) (int, int) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return 0, 0
+	}
+	minPort, maxPort := 0, 0
+	parts := strings.Split(input, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if strings.Contains(part, "-") {
+			r := strings.SplitN(part, "-", 2)
+			if len(r) != 2 {
+				continue
+			}
+			start, end := parseIntPort(r[0]), parseIntPort(r[1])
+			if start <= 0 || end <= 0 {
+				continue
+			}
+			if end < start {
+				start, end = end, start
+			}
+			if minPort == 0 || start < minPort {
+				minPort = start
+			}
+			if maxPort == 0 || end > maxPort {
+				maxPort = end
+			}
+			continue
+		}
+		p := parseIntPort(part)
+		if p <= 0 {
+			continue
+		}
+		if minPort == 0 || p < minPort {
+			minPort = p
+		}
+		if maxPort == 0 || p > maxPort {
+			maxPort = p
+		}
+	}
+	return minPort, maxPort
+}
+
+func parseIntPort(s string) int {
+	var p int
+	fmt.Sscanf(strings.TrimSpace(s), "%d", &p)
+	return p
 }
 
 func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {

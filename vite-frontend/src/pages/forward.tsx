@@ -128,6 +128,8 @@ interface Tunnel {
   inNodeId?: Array<{ nodeId: number }>;
   inNodePortSta?: number;
   inNodePortEnd?: number;
+  portRangeMin?: number;
+  portRangeMax?: number;
 }
 
 interface Node {
@@ -680,6 +682,27 @@ export default function ForwardPage() {
     );
 
     return (currentTunnel?.inNodeId?.length || 0) > 1;
+  }, [allTunnels, form.tunnelId]);
+
+  const currentTunnelPortRange = useMemo(() => {
+    if (!form.tunnelId) {
+      return null;
+    }
+
+    const currentTunnel = allTunnels.find(
+      (tunnel) => tunnel.id === form.tunnelId,
+    );
+
+    if (
+      currentTunnel?.portRangeMin &&
+      currentTunnel?.portRangeMax &&
+      currentTunnel.portRangeMin > 0 &&
+      currentTunnel.portRangeMax > 0
+    ) {
+      return { min: currentTunnel.portRangeMin, max: currentTunnel.portRangeMax };
+    }
+
+    return null;
   }, [allTunnels, form.tunnelId]);
 
   useEffect(() => {
@@ -1267,12 +1290,9 @@ export default function ForwardPage() {
       newErrors.tunnelId = "请选择关联隧道";
     }
 
-    // 验证入口端口（可选，如果填写则验证）
-    if (form.inPort !== null && form.inPort !== undefined) {
-      const port = Number(form.inPort);
-
-      if (isNaN(port) || port < 1 || port > 65535) {
-        newErrors.inPort = "端口必须在 1-65535 之间";
+    if (form.inPort !== null && form.inPort !== undefined && form.inPort > 0 && currentTunnelPortRange) {
+      if (form.inPort < currentTunnelPortRange.min || form.inPort > currentTunnelPortRange.max) {
+        newErrors.inPort = `端口 ${currentTunnelPortRange.min}-${currentTunnelPortRange.max} 超出允许范围`;
       }
     }
 
@@ -1432,11 +1452,11 @@ export default function ForwardPage() {
           id: form.id,
           name: form.name,
           tunnelId: form.tunnelId,
-          ...(isAdmin ? { inPort: form.inPort } : {}),
+          inPort: form.inPort,
           ...(inIpTouched ? { inIp: form.inIp || "" } : {}),
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
-          ...(isAdmin ? { speedId: normalizedSpeedId } : {}),
+          speedId: normalizedSpeedId,
         };
 
         res = await updateForward(updateData);
@@ -1444,13 +1464,12 @@ export default function ForwardPage() {
         const createData = {
           name: form.name,
           tunnelId: form.tunnelId,
-          ...(isAdmin ? { inPort: form.inPort } : {}),
+          inPort: form.inPort,
           inIp: form.inIp || undefined,
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
-          ...(isAdmin ? { speedId: normalizedSpeedId } : {}),
+          speedId: normalizedSpeedId,
         };
-
         res = await createForward(createData);
       }
 
@@ -4347,26 +4366,28 @@ export default function ForwardPage() {
                     ))}
                   </Select>
 
-                  {isAdmin && (
-                    <Input
-                      description="指定入口端口，留空则从节点可用端口中自动分配"
-                      errorMessage={errors.inPort}
-                      isInvalid={!!errors.inPort}
-                      label="入口端口"
-                      placeholder="留空则自动分配可用端口"
-                      type="number"
-                      value={form.inPort !== null ? form.inPort.toString() : ""}
-                      variant="bordered"
-                      onChange={(e) => {
-                        const value = e.target.value;
+                  <Input
+                    description={
+                      currentTunnelPortRange
+                        ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
+                        : "指定入口端口，留空则从节点可用端口中自动分配"
+                    }
+                    errorMessage={errors.inPort}
+                    isInvalid={!!errors.inPort}
+                    label="入口端口"
+                    placeholder="留空则自动分配可用端口"
+                    type="number"
+                    value={form.inPort !== null ? form.inPort.toString() : ""}
+                    variant="bordered"
+                    onChange={(e) => {
+                      const value = e.target.value;
 
-                        setForm((prev) => ({
-                          ...prev,
-                          inPort: value ? parseInt(value) : null,
-                        }));
-                      }}
-                    />
-                  )}
+                      setForm((prev) => ({
+                        ...prev,
+                        inPort: value ? parseInt(value) : null,
+                      }));
+                    }}
+                  />
 
                   <Select
                     description={

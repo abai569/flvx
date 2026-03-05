@@ -1158,13 +1158,6 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法设置限速规则"))
 			return
 		}
-		if inPortVal, ok := req["inPort"]; ok {
-			port := asInt(inPortVal, 0)
-			if port > 0 {
-				response.WriteJSON(w, response.Err(-1, "普通用户无法设置自定义端口"))
-				return
-			}
-		}
 	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
 	speedID, err = h.normalizeSpeedLimitReference(speedID)
@@ -1191,6 +1184,10 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if err := validateRemoteNodePort(node, port); err != nil {
+			response.WriteJSON(w, response.ErrDefault(err.Error()))
+			return
+		}
+		if err := validateLocalNodePort(node, port); err != nil {
 			response.WriteJSON(w, response.ErrDefault(err.Error()))
 			return
 		}
@@ -1281,13 +1278,6 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法修改限速规则"))
 			return
 		}
-		if inPortVal, ok := req["inPort"]; ok {
-			port := asInt(inPortVal, 0)
-			if port > 0 {
-				response.WriteJSON(w, response.Err(-1, "普通用户无法修改自定义端口"))
-				return
-			}
-		}
 	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
 	speedID, err = h.normalizeSpeedLimitReference(speedID)
@@ -1329,6 +1319,10 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if err := validateRemoteNodePort(node, port); err != nil {
+			response.WriteJSON(w, response.ErrDefault(err.Error()))
+			return
+		}
+		if err := validateLocalNodePort(node, port); err != nil {
 			response.WriteJSON(w, response.ErrDefault(err.Error()))
 			return
 		}
@@ -3518,4 +3512,69 @@ func asInt64Slice(v interface{}) []int64 {
 		}
 	}
 	return ids
+}
+
+func validateLocalNodePort(node *nodeRecord, port int) error {
+	if node == nil || node.IsRemote == 1 || port <= 0 {
+		return nil
+	}
+	portRange := strings.TrimSpace(node.PortRange)
+	if portRange == "" {
+		return nil
+	}
+	minPort, maxPort := parsePortRangeMinMax(portRange)
+	if minPort <= 0 || maxPort <= 0 {
+		return nil
+	}
+	if port < minPort || port > maxPort {
+		return fmt.Errorf("端口 %d 超出节点 %s 允许范围 %d-%d", port, node.Name, minPort, maxPort)
+	}
+	return nil
+}
+
+func parsePortRangeMinMax(input string) (int, int) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return 0, 0
+	}
+	minPort, maxPort := 0, 0
+	parts := strings.Split(input, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if strings.Contains(part, "-") {
+			r := strings.SplitN(part, "-", 2)
+			if len(r) != 2 {
+				continue
+			}
+			start, err1 := strconv.Atoi(strings.TrimSpace(r[0]))
+			end, err2 := strconv.Atoi(strings.TrimSpace(r[1]))
+			if err1 != nil || err2 != nil || start <= 0 || end <= 0 {
+				continue
+			}
+			if end < start {
+				start, end = end, start
+			}
+			if minPort == 0 || start < minPort {
+				minPort = start
+			}
+			if maxPort == 0 || end > maxPort {
+				maxPort = end
+			}
+			continue
+		}
+		p, err := strconv.Atoi(part)
+		if err != nil || p <= 0 {
+			continue
+		}
+		if minPort == 0 || p < minPort {
+			minPort = p
+		}
+		if maxPort == 0 || p > maxPort {
+			maxPort = p
+		}
+	}
+	return minPort, maxPort
 }

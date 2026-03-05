@@ -998,9 +998,9 @@ func TestNonAdminCannotSetSpeedIdOrPort(t *testing.T) {
 		assertCodeMsg(t, res, -1, "普通用户无法设置限速规则")
 	})
 
-	t.Run("non-admin cannot set inPort on create", func(t *testing.T) {
+	t.Run("non-admin cannot set inPort out of range on create", func(t *testing.T) {
 		createPayload := map[string]interface{}{
-			"name":       "perm-forward-port",
+			"name":       "perm-forward-port-out",
 			"tunnelId":   tunnelID,
 			"remoteAddr": "1.2.3.4:443",
 			"strategy":   "fifo",
@@ -1015,7 +1015,33 @@ func TestNonAdminCannotSetSpeedIdOrPort(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		res := httptest.NewRecorder()
 		router.ServeHTTP(res, req)
-		assertCodeMsg(t, res, -1, "普通用户无法设置自定义端口")
+		var out response.R
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if out.Code >= 0 {
+			t.Errorf("expected port out of range error, got code=%d msg=%s", out.Code, out.Msg)
+		}
+	})
+
+	t.Run("non-admin can set inPort within range on create", func(t *testing.T) {
+		createPayload := map[string]interface{}{
+			"name":       "perm-forward-port-in",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "1.2.3.4:443",
+			"strategy":   "fifo",
+			"inPort":     30005,
+		}
+		createBody, err := json.Marshal(createPayload)
+		if err != nil {
+			t.Fatalf("marshal create payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(createBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCode(t, res, 0)
 	})
 
 	t.Run("non-admin can create without speedId and inPort", func(t *testing.T) {
@@ -1059,7 +1085,7 @@ func TestNonAdminCannotSetSpeedIdOrPort(t *testing.T) {
 		assertCodeMsg(t, res, -1, "普通用户无法修改限速规则")
 	})
 
-	t.Run("non-admin cannot update inPort", func(t *testing.T) {
+	t.Run("non-admin cannot update inPort out of range", func(t *testing.T) {
 		updatePayload := map[string]interface{}{
 			"id":         forwardID,
 			"name":       "perm-forward-updated2",
@@ -1076,7 +1102,33 @@ func TestNonAdminCannotSetSpeedIdOrPort(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		res := httptest.NewRecorder()
 		router.ServeHTTP(res, req)
-		assertCodeMsg(t, res, -1, "普通用户无法修改自定义端口")
+		var out response.R
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if out.Code >= 0 {
+			t.Errorf("expected port out of range error, got code=%d msg=%s", out.Code, out.Msg)
+		}
+	})
+
+	t.Run("non-admin can update inPort within range", func(t *testing.T) {
+		updatePayload := map[string]interface{}{
+			"id":         forwardID,
+			"name":       "perm-forward-updated3",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "5.6.7.8:443",
+			"inPort":     30006,
+		}
+		updateBody, err := json.Marshal(updatePayload)
+		if err != nil {
+			t.Fatalf("marshal update payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/update", bytes.NewReader(updateBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCode(t, res, 0)
 	})
 
 	t.Run("non-admin can update without speedId and inPort", func(t *testing.T) {
