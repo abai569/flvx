@@ -26,7 +26,7 @@ import {
   updateAnnouncement,
   type AnnouncementData,
 } from "@/api";
-import { SettingsIcon } from "@/components/icons";
+import { BackIcon, SettingsIcon } from "@/components/icons";
 import { isAdmin } from "@/utils/auth";
 import { getCachedConfigs, configCache, updateSiteConfig } from "@/config/site";
 import {
@@ -233,6 +233,21 @@ export default function ConfigPage() {
   const [brandUploading, setBrandUploading] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
+
+  const canGoBack =
+    typeof window !== "undefined" &&
+    typeof window.history.state?.idx === "number" &&
+    window.history.state.idx > 0;
+
+  const handleBack = () => {
+    if (canGoBack) {
+      navigate(-1);
+
+      return;
+    }
+
+    navigate("/profile", { replace: true });
+  };
 
   // 权限检查
   useEffect(() => {
@@ -846,6 +861,16 @@ export default function ConfigPage() {
     <div className="p-6 max-w-4xl mx-auto">
       {/* 页面标题 */}
       <div className="flex items-center gap-3 mb-6">
+        <Button
+          isIconOnly
+          aria-label="返回上一页"
+          className="min-w-0 w-9 h-9"
+          size="sm"
+          variant="flat"
+          onPress={handleBack}
+        >
+          <BackIcon className="w-5 h-5" />
+        </Button>
         <SettingsIcon className="w-8 h-8 text-primary" />
         <div>
           <h1 className="text-2xl font-bold">网站配置</h1>

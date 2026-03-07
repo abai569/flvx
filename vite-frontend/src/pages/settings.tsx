@@ -9,6 +9,7 @@ import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { reinitializeBaseURL } from "@/api/network";
 import { getConfigByName, updateConfig } from "@/api";
+import { BackIcon } from "@/components/icons";
 import {
   type UpdateReleaseChannel,
   getUpdateReleaseChannel,
@@ -168,20 +169,7 @@ export const SettingsPage = () => {
               variant="light"
               onPress={() => navigate(-1)}
             >
-              <svg
-                aria-hidden="true"
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M15 19l-7-7 7-7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
+              <BackIcon className="w-5 h-5" />
             </Button>
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
               面板设置

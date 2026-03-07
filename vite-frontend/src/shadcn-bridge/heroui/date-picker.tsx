@@ -38,15 +38,33 @@ function parseDateText(value: string) {
     return null;
   }
 
-  const matched = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const digitsOnly = trimmed.replace(/\D/g, "");
 
-  if (!matched) {
+  if (/^\d+$/.test(trimmed)) {
+    if (digitsOnly.length !== 8) {
+      return null;
+    }
+
+    const year = Number(digitsOnly.slice(0, 4));
+    const month = Number(digitsOnly.slice(4, 6));
+    const day = Number(digitsOnly.slice(6, 8));
+
+    if (!isValidCalendarDate(year, month, day)) {
+      return null;
+    }
+
+    return { day, month, year };
+  }
+
+  const numberParts = trimmed.match(/\d+/g);
+
+  if (!numberParts || numberParts.length !== 3 || numberParts[0].length !== 4) {
     return null;
   }
 
-  const year = Number(matched[1]);
-  const month = Number(matched[2]);
-  const day = Number(matched[3]);
+  const year = Number(numberParts[0]);
+  const month = Number(numberParts[1]);
+  const day = Number(numberParts[2]);
 
   if (!isValidCalendarDate(year, month, day)) {
     return null;

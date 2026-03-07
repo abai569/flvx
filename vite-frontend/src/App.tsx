@@ -188,7 +188,7 @@ function App() {
       />
       <Route
         element={
-          <ProtectedRoute>
+          <ProtectedRoute useSimpleLayout={true}>
             <PanelSharingPage />
           </ProtectedRoute>
         }
