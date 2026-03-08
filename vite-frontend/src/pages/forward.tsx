@@ -1,6 +1,6 @@
-import type { SpeedLimitApiItem } from "@/api/types";
+import type { ForwardApiItem, SpeedLimitApiItem } from "@/api/types";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
   DndContext,
@@ -48,6 +48,7 @@ import { Chip } from "@/shadcn-bridge/heroui/chip";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
+import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import {
   createForward,
@@ -103,6 +104,7 @@ interface Forward {
   name: string;
   tunnelId: number;
   tunnelName: string;
+  tunnelTrafficRatio?: number;
   inIp: string;
   inPort: number;
   remoteAddr: string;
@@ -163,7 +165,14 @@ interface ForwardUserGroup {
 interface ForwardTunnelGroup {
   tunnelKey: string;
   tunnelName: string;
+  tunnelTrafficRatio?: number;
   items: Forward[];
+}
+
+interface BatchProgressState {
+  active: boolean;
+  label: string;
+  percent: number;
 }
 
 type ForwardGroupOrderMap = Record<string, string[]>;
@@ -236,6 +245,32 @@ const compareForwardTunnelGroupKeyAsc = (a: string, b: string): number => {
   }
 
   return compareForwardTunnelNameAsc(a, b);
+};
+
+const normalizeTunnelTrafficRatio = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return 1;
+};
+
+const formatTunnelTrafficRatio = (value?: number): string => {
+  const ratio = normalizeTunnelTrafficRatio(value);
+
+  if (Number.isInteger(ratio)) {
+    return `${ratio}x`;
+  }
+
+  return `${parseFloat(ratio.toFixed(2))}x`;
 };
 
 const buildForwardGroupOrderLocalKey = (tokenUserId: number): string => {
@@ -490,6 +525,43 @@ const isSameGroupCollapsedMap = (
   return true;
 };
 
+const normalizeForwardItems = (items: Forward[]): Forward[] => {
+  return items.map((forward) => ({
+    ...forward,
+    serviceRunning: forward.status === 1,
+  }));
+};
+
+const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
+  return (items || []).map((forward) => ({
+    id: forward.id,
+    name: forward.name,
+    tunnelId: forward.tunnelId ?? 0,
+    tunnelName: forward.tunnelName || "",
+    tunnelTrafficRatio: normalizeTunnelTrafficRatio(
+      forward.tunnelTrafficRatio,
+    ),
+    inIp: forward.inIp || "",
+    inPort: forward.inPort ?? 0,
+    remoteAddr: forward.remoteAddr || "",
+    strategy: typeof forward.strategy === "string" ? forward.strategy : "fifo",
+    status: typeof forward.status === "number" ? forward.status : 0,
+    inFlow: forward.inFlow ?? 0,
+    outFlow: forward.outFlow ?? 0,
+    createdTime:
+      typeof forward.createdTime === "string" ? forward.createdTime : "",
+    userName:
+      typeof forward.userName === "string" ? forward.userName : undefined,
+    userId: typeof forward.userId === "number" ? forward.userId : undefined,
+    inx: typeof forward.inx === "number" ? forward.inx : undefined,
+    speedId:
+      typeof forward.speedId === "number" || forward.speedId === null
+        ? forward.speedId
+        : undefined,
+    serviceRunning: forward.status === 1,
+  }));
+};
+
 export default function ForwardPage() {
   const [loading, setLoading] = useState(true);
   const [forwards, setForwards] = useState<Forward[]>([]);
@@ -603,6 +675,11 @@ export default function ForwardPage() {
     null,
   );
   const [batchLoading, setBatchLoading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
+    active: false,
+    label: "",
+    percent: 0,
+  });
   const [groupOrderMap, setGroupOrderMap] = useState<ForwardGroupOrderMap>({});
   const [collapsedTunnelGroups, setCollapsedTunnelGroups] =
     useState<ForwardGroupCollapsedMap>({});
@@ -959,7 +1036,7 @@ export default function ForwardPage() {
     return Number.isFinite(shareId) && shareId > 0 ? shareId : null;
   };
 
-  const mergeFederationShareFlow = async (
+  const mergeFederationShareFlow = useCallback(async (
     forwardsData: Forward[],
   ): Promise<Forward[]> => {
     if (forwardsData.length === 0) {
@@ -1135,7 +1212,7 @@ export default function ForwardPage() {
     } catch {
       return forwardsData;
     }
-  };
+  }, []);
 
   const getForwardDisplayFlow = (forward: Forward): number => {
     const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
@@ -1147,10 +1224,6 @@ export default function ForwardPage() {
     return forward.federationShareFlow || 0;
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   // 切换显示模式并保存到localStorage
   const handleViewModeChange = () => {
     const newMode = viewMode === "grouped" ? "direct" : "grouped";
@@ -1161,12 +1234,59 @@ export default function ForwardPage() {
     } catch {}
   };
 
+  const applyForwardList = useCallback(
+    async (items: Forward[]) => {
+      const mergedForwards = await mergeFederationShareFlow(
+        normalizeForwardItems(items),
+      );
+
+      setForwards(mergedForwards);
+
+      const currentUserId = JwtUtil.getUserIdFromToken();
+      const { order, fromDatabase } = buildForwardOrder(
+        mergedForwards,
+        currentUserId,
+      );
+
+      setForwardOrder(order);
+
+      if (fromDatabase) {
+        saveOrder(FORWARD_ORDER_KEY, order);
+      }
+    },
+    [mergeFederationShareFlow],
+  );
+
+  const refreshForwardList = useCallback(
+    async (lod = true) => {
+      if (lod) {
+        setLoading(true);
+      }
+
+      try {
+        const forwardsRes = await getForwardList();
+
+        if (forwardsRes.code === 0) {
+          await applyForwardList(mapForwardApiItems(forwardsRes.data || []));
+        } else {
+          toast.error(forwardsRes.msg || "获取规则列表失败");
+        }
+      } catch {
+        toast.error("获取规则列表失败");
+      } finally {
+        if (lod) {
+          setLoading(false);
+        }
+      }
+    },
+    [applyForwardList],
+  );
+
   // 加载所有数据
-  const loadData = async (lod = true) => {
+  const loadData = useCallback(async (lod = true) => {
     setLoading(lod);
     try {
-      const [forwardsRes, tunnelsRes, speedLimitsRes] = await Promise.all([
-        getForwardList(),
+      const [tunnelsRes, speedLimitsRes] = await Promise.all([
         userTunnel(),
         getSpeedLimitList(),
       ]);
@@ -1175,32 +1295,7 @@ export default function ForwardPage() {
         getNodeList(),
       ]);
 
-      if (forwardsRes.code === 0) {
-        const forwardsData =
-          forwardsRes.data?.map((forward: any) => ({
-            ...forward,
-            serviceRunning: forward.status === 1,
-          })) || [];
-
-        const mergedForwards = await mergeFederationShareFlow(forwardsData);
-
-        setForwards(mergedForwards);
-
-        // 初始化拖拽排序顺序
-        const currentUserId = JwtUtil.getUserIdFromToken();
-        const { order, fromDatabase } = buildForwardOrder(
-          mergedForwards,
-          currentUserId,
-        );
-
-        setForwardOrder(order);
-
-        if (fromDatabase) {
-          saveOrder(FORWARD_ORDER_KEY, order);
-        }
-      } else {
-        toast.error(forwardsRes.msg || "获取规则列表失败");
-      }
+      await refreshForwardList(false);
 
       if (tunnelsRes.code === 0) {
         setTunnels(tunnelsRes.data || []);
@@ -1226,7 +1321,11 @@ export default function ForwardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshForwardList]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // 表单验证
   const noLimitSpeedLimitIds = useMemo(() => {
@@ -1385,7 +1484,20 @@ export default function ForwardPage() {
       if (res.code === 0) {
         toast.success("删除成功");
         setDeleteModalOpen(false);
-        loadData();
+        setForwardToDelete(null);
+        setForwards((prev) => prev.filter((forward) => forward.id !== forwardToDelete.id));
+        setForwardOrder((prev) => {
+          const next = prev.filter((id) => id !== forwardToDelete.id);
+
+          saveOrder(FORWARD_ORDER_KEY, next);
+          return next;
+        });
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+
+          next.delete(forwardToDelete.id);
+          return next;
+        });
       } else {
         // 删除失败，询问是否强制删除
         const confirmed = window.confirm(
@@ -1398,7 +1510,22 @@ export default function ForwardPage() {
           if (forceRes.code === 0) {
             toast.success("强制删除成功");
             setDeleteModalOpen(false);
-            loadData();
+            setForwardToDelete(null);
+            setForwards((prev) =>
+              prev.filter((forward) => forward.id !== forwardToDelete.id),
+            );
+            setForwardOrder((prev) => {
+              const next = prev.filter((id) => id !== forwardToDelete.id);
+
+              saveOrder(FORWARD_ORDER_KEY, next);
+              return next;
+            });
+            setSelectedIds((prev) => {
+              const next = new Set(prev);
+
+              next.delete(forwardToDelete.id);
+              return next;
+            });
           } else {
             toast.error(forceRes.msg || "强制删除失败");
           }
@@ -1496,7 +1623,7 @@ export default function ForwardPage() {
         }
         toast.success(isEdit ? "修改成功" : "创建成功");
         setModalOpen(false);
-        loadData();
+        await refreshForwardList(false);
       } else {
         toast.error(res.msg || "操作失败");
       }
@@ -2091,7 +2218,7 @@ export default function ForwardPage() {
 
       toast.success("导入执行完成");
 
-      await loadData(false);
+      await refreshForwardList(false);
     } catch {
       toast.error("导入过程中发生错误");
     } finally {
@@ -2296,6 +2423,11 @@ export default function ForwardPage() {
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
+    setBatchProgress({
+      active: true,
+      label: `正在删除 ${selectedIds.size} 项规则...`,
+      percent: 30,
+    });
     try {
       const outcome = await executeForwardBatchDelete(Array.from(selectedIds));
 
@@ -2306,14 +2438,20 @@ export default function ForwardPage() {
       }
 
       if (outcome.shouldRefresh) {
+        setBatchProgress({
+          active: true,
+          label: outcome.progressLabel || "正在刷新规则列表...",
+          percent: outcome.progressPercent ?? 75,
+        });
         setSelectedIds(new Set());
         setSelectMode(false);
         if (outcome.closeDeleteModal) {
           setBatchDeleteModalOpen(false);
         }
-        loadData(false);
+        await refreshForwardList(false);
       }
     } finally {
+      setBatchProgress({ active: false, label: "", percent: 0 });
       setBatchLoading(false);
     }
   };
@@ -2321,6 +2459,11 @@ export default function ForwardPage() {
   const handleBatchToggleService = async (enable: boolean) => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
+    setBatchProgress({
+      active: true,
+      label: `正在${enable ? "启用" : "停用"} ${selectedIds.size} 项规则...`,
+      percent: 30,
+    });
     try {
       const outcome = await executeForwardBatchToggleService(
         Array.from(selectedIds),
@@ -2334,11 +2477,17 @@ export default function ForwardPage() {
       }
 
       if (outcome.shouldRefresh) {
+        setBatchProgress({
+          active: true,
+          label: outcome.progressLabel || "正在刷新规则列表...",
+          percent: outcome.progressPercent ?? 75,
+        });
         setSelectedIds(new Set());
         setSelectMode(false);
-        loadData(false);
+        await refreshForwardList(false);
       }
     } finally {
+      setBatchProgress({ active: false, label: "", percent: 0 });
       setBatchLoading(false);
     }
   };
@@ -2346,6 +2495,11 @@ export default function ForwardPage() {
   const handleBatchRedeploy = async () => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
+    setBatchProgress({
+      active: true,
+      label: `正在重新下发 ${selectedIds.size} 项规则...`,
+      percent: 30,
+    });
     try {
       const outcome = await executeForwardBatchRedeploy(
         Array.from(selectedIds),
@@ -2358,11 +2512,17 @@ export default function ForwardPage() {
       }
 
       if (outcome.shouldRefresh) {
+        setBatchProgress({
+          active: true,
+          label: outcome.progressLabel || "正在刷新规则列表...",
+          percent: outcome.progressPercent ?? 75,
+        });
         setSelectedIds(new Set());
         setSelectMode(false);
-        loadData(false);
+        await refreshForwardList(false);
       }
     } finally {
+      setBatchProgress({ active: false, label: "", percent: 0 });
       setBatchLoading(false);
     }
   };
@@ -2370,6 +2530,11 @@ export default function ForwardPage() {
   const handleBatchChangeTunnel = async () => {
     if (selectedIds.size === 0 || !batchTargetTunnelId) return;
     setBatchLoading(true);
+    setBatchProgress({
+      active: true,
+      label: `正在为 ${selectedIds.size} 项规则切换隧道...`,
+      percent: 30,
+    });
     try {
       const outcome = await executeForwardBatchChangeTunnel(
         Array.from(selectedIds),
@@ -2383,6 +2548,11 @@ export default function ForwardPage() {
       }
 
       if (outcome.shouldRefresh) {
+        setBatchProgress({
+          active: true,
+          label: outcome.progressLabel || "正在刷新规则列表...",
+          percent: outcome.progressPercent ?? 75,
+        });
         setSelectedIds(new Set());
         setSelectMode(false);
         if (outcome.closeChangeTunnelModal) {
@@ -2391,9 +2561,10 @@ export default function ForwardPage() {
         if (outcome.resetTargetTunnel) {
           setBatchTargetTunnelId(null);
         }
-        loadData(false);
+        await refreshForwardList(false);
       }
     } finally {
+      setBatchProgress({ active: false, label: "", percent: 0 });
       setBatchLoading(false);
     }
   };
@@ -2597,6 +2768,9 @@ export default function ForwardPage() {
         existingGroup.tunnelMap.set(tunnelKey, {
           tunnelKey,
           tunnelName,
+          tunnelTrafficRatio: normalizeTunnelTrafficRatio(
+            forward.tunnelTrafficRatio,
+          ),
           items: [forward],
         });
 
@@ -2610,6 +2784,15 @@ export default function ForwardPage() {
         tunnelName !== UNCATEGORIZED_FORWARD_TUNNEL_NAME
       ) {
         existingTunnelGroup.tunnelName = tunnelName;
+      }
+
+      if (
+        normalizeTunnelTrafficRatio(existingTunnelGroup.tunnelTrafficRatio) === 1 &&
+        normalizeTunnelTrafficRatio(forward.tunnelTrafficRatio) !== 1
+      ) {
+        existingTunnelGroup.tunnelTrafficRatio = normalizeTunnelTrafficRatio(
+          forward.tunnelTrafficRatio,
+        );
       }
     });
 
@@ -2787,6 +2970,14 @@ export default function ForwardPage() {
               </svg>
             </Button>
             <span className={titleClassName}>{tunnel.tunnelName}</span>
+            <Chip
+              className="h-5 border-none bg-secondary/15 px-1.5 text-[11px] font-semibold text-secondary-700"
+              color="secondary"
+              size="sm"
+              variant="flat"
+            >
+              {formatTunnelTrafficRatio(tunnel.tunnelTrafficRatio)}
+            </Chip>
           </div>
           <div className="flex items-center gap-2">
             <span className={countClassName}>{tunnel.items.length} 条规则</span>
@@ -3182,6 +3373,9 @@ export default function ForwardPage() {
             <span className="font-medium text-secondary-700">
               {forward.tunnelName}
             </span>
+            <span className="ml-1 text-secondary-600/80">
+              {formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
+            </span>
           </Chip>
         </TableCell>
         <TableCell className="max-w-[220px]">
@@ -3337,7 +3531,7 @@ export default function ForwardPage() {
                 {forward.name}
               </h3>
               <p className="text-xs text-default-500 truncate">
-                {normalizeForwardTunnelName(forward.tunnelName)}
+                {`${normalizeForwardTunnelName(forward.tunnelName)} · ${formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}`}
               </p>
             </div>
             <div className="flex items-center gap-1.5 ml-2">
@@ -3816,6 +4010,23 @@ export default function ForwardPage() {
           </div>
         </div>
       </div>
+
+      {batchProgress.active && (
+        <div className="mb-4">
+          <Alert
+            color="primary"
+            description={batchProgress.label}
+            variant="flat"
+          />
+          <Progress
+            aria-label={batchProgress.label}
+            className="mt-3"
+            color="primary"
+            size="sm"
+            value={batchProgress.percent}
+          />
+        </div>
+      )}
 
       {/* 根据显示模式渲染不同内容 */}
       {compactMode ? (

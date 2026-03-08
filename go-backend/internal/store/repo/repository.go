@@ -634,7 +634,10 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 	for _, n := range nodes {
 		items = append(items, map[string]interface{}{
 			"id": n.ID, "inx": n.Inx, "name": n.Name,
-			"ip": n.ServerIP, "serverIp": n.ServerIP,
+			"remark":     nullableString(n.Remark),
+			"tags":       nullableString(n.Tags),
+			"expiryTime": nullableInt64(n.ExpiryTime),
+			"ip":         n.ServerIP, "serverIp": n.ServerIP,
 			"serverIpV4":    nullableString(n.ServerIPV4),
 			"serverIpV6":    nullableString(n.ServerIPV6),
 			"extraIPs":      nullableString(n.ExtraIPs),
@@ -700,25 +703,26 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 	}
 
 	type fwdRow struct {
-		ID          int64
-		UserID      int64
-		UserName    string
-		Name        string
-		TunnelID    int64
-		TunnelName  string
-		RemoteAddr  string
-		Strategy    string
-		InFlow      int64
-		OutFlow     int64
-		CreatedTime int64
-		Status      int
-		Inx         int
-		SpeedID     sql.NullInt64
+		ID           int64
+		UserID       int64
+		UserName     string
+		Name         string
+		TunnelID     int64
+		TunnelName   string
+		TrafficRatio float64
+		RemoteAddr   string
+		Strategy     string
+		InFlow       int64
+		OutFlow      int64
+		CreatedTime  int64
+		Status       int
+		Inx          int
+		SpeedID      sql.NullInt64
 	}
 
 	var rows []fwdRow
 	err := r.db.Model(&model.Forward{}).
-		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id").
+		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id").
 		Joins("LEFT JOIN tunnel ON tunnel.id = forward.tunnel_id").
 		Order("forward.inx ASC, forward.id ASC").
 		Find(&rows).Error
@@ -735,7 +739,8 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 		item := map[string]interface{}{
 			"id": row.ID, "userId": row.UserID, "userName": row.UserName,
 			"name": row.Name, "tunnelId": row.TunnelID, "tunnelName": row.TunnelName,
-			"inIp": nullableForwardIngress(inIP), "inPort": nullableInt64(inPort),
+			"tunnelTrafficRatio": row.TrafficRatio,
+			"inIp":               nullableForwardIngress(inIP), "inPort": nullableInt64(inPort),
 			"remoteAddr": row.RemoteAddr, "strategy": row.Strategy,
 			"inFlow": row.InFlow, "outFlow": row.OutFlow,
 			"createdTime": row.CreatedTime, "status": row.Status, "inx": int64(row.Inx),
@@ -1814,10 +1819,14 @@ func (r *Repository) exportNodes() ([]model.NodeBackup, error) {
 	for _, n := range nodes {
 		b := model.NodeBackup{
 			ID: n.ID, Name: n.Name, Secret: n.Secret, ServerIP: n.ServerIP,
+			Remark: n.Remark.String, Tags: n.Tags.String,
 			Port: n.Port, HTTP: n.HTTP, TLS: n.TLS, Socks: n.Socks,
 			CreatedTime: n.CreatedTime, Status: n.Status,
 			TCPListenAddr: n.TCPListenAddr, UDPListenAddr: n.UDPListenAddr,
 			Inx: n.Inx, IsRemote: n.IsRemote,
+		}
+		if n.ExpiryTime.Valid {
+			b.ExpiryTime = n.ExpiryTime.Int64
 		}
 		if n.UpdatedTime.Valid {
 			b.UpdatedTime = n.UpdatedTime.Int64
@@ -2168,6 +2177,9 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error) 
 		item := model.Node{
 			ID:            n.ID,
 			Name:          n.Name,
+			Remark:        sql.NullString{String: n.Remark, Valid: n.Remark != ""},
+			Tags:          sql.NullString{String: n.Tags, Valid: n.Tags != ""},
+			ExpiryTime:    sql.NullInt64{Int64: n.ExpiryTime, Valid: n.ExpiryTime > 0},
 			Secret:        n.Secret,
 			ServerIP:      n.ServerIP,
 			ServerIPV4:    sql.NullString{String: n.ServerIPv4, Valid: true},
@@ -2192,7 +2204,7 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error) 
 		err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "secret", "server_ip", "server_ip_v4", "server_ip_v6", "port", "interface_name", "version",
+				"name", "remark", "tags", "expiry_time", "secret", "server_ip", "server_ip_v4", "server_ip_v6", "port", "interface_name", "version",
 				"http", "tls", "socks", "updated_time", "status", "tcp_listen_addr", "udp_listen_addr",
 				"inx", "is_remote", "remote_url", "remote_token", "remote_config",
 			}),

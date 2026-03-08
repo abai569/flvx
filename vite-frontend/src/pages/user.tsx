@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import { parseDate } from "@internationalized/date";
 
@@ -66,6 +66,10 @@ import {
 } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
+import {
+  removeItemsById,
+  replaceItemById,
+} from "@/utils/list-state";
 
 // 工具函数
 const formatFlow = (value: number, unit: string = "bytes"): string => {
@@ -122,6 +126,43 @@ const calculateTunnelUsedFlow = (tunnel: UserTunnel): number => {
   return inFlow + outFlow;
 };
 
+const USER_SEARCH_DEBOUNCE_MS = 250;
+
+const normalizeUserItem = (item: Partial<User>): User => {
+  return {
+    id: Number(item.id ?? 0),
+    name: item.name,
+    user: String(item.user ?? ""),
+    status: Number(item.status ?? 0),
+    flow: Number(item.flow ?? 0),
+    num: Number(item.num ?? 0),
+    expTime: item.expTime,
+    flowResetTime: item.flowResetTime ?? 0,
+    createdTime: item.createdTime,
+    inFlow: Number(item.inFlow ?? 0),
+    outFlow: Number(item.outFlow ?? 0),
+  };
+};
+
+const normalizeUserTunnelItem = (item: Partial<UserTunnel>): UserTunnel => {
+  return {
+    id: Number(item.id ?? 0),
+    userId: Number(item.userId ?? 0),
+    tunnelId: Number(item.tunnelId ?? 0),
+    tunnelName: String(item.tunnelName ?? ""),
+    status: Number(item.status ?? 0),
+    flow: Number(item.flow ?? 0),
+    num: Number(item.num ?? 0),
+    expTime: Number(item.expTime ?? 0),
+    flowResetTime: Number(item.flowResetTime ?? 0),
+    speedId: item.speedId ?? null,
+    speedLimitName: item.speedLimitName,
+    inFlow: Number(item.inFlow ?? 0),
+    outFlow: Number(item.outFlow ?? 0),
+    tunnelFlow: item.tunnelFlow,
+  };
+};
+
 export default function UserPage() {
   // 状态管理
   const [users, setUsers] = useState<User[]>([]);
@@ -136,6 +177,7 @@ export default function UserPage() {
     size: 10,
     total: 0,
   });
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 用户表单相关状态
   const {
@@ -259,26 +301,25 @@ export default function UserPage() {
     return !speedLimitIds.has(speedId);
   };
 
-  // 生命周期
-  useEffect(() => {
-    loadUsers();
-    loadTunnels();
-    loadSpeedLimits();
-    loadUserGroups();
-  }, [pagination.current, pagination.size, searchKeyword]);
-
   // 数据加载函数
-  const loadUsers = async () => {
+  const loadUsers = useCallback(
+    async (keywordOverride?: string) => {
     setLoading(true);
     try {
+      const keyword = keywordOverride ?? searchKeyword;
       const response = await getAllUsers({
         current: pagination.current,
         size: pagination.size,
-        keyword: searchKeyword,
+        keyword,
       });
 
       if (response.code === 0) {
-        setUsers(Array.isArray(response.data) ? response.data : []);
+        const nextUsers = Array.isArray(response.data)
+          ? response.data.map((item) => normalizeUserItem(item))
+          : [];
+
+        setUsers(nextUsers);
+        setPagination((prev) => ({ ...prev, total: nextUsers.length }));
       } else {
         toast.error(response.msg || "获取用户列表失败");
       }
@@ -287,9 +328,11 @@ export default function UserPage() {
     } finally {
       setLoading(false);
     }
-  };
+    },
+    [pagination.current, pagination.size],
+  );
 
-  const loadTunnels = async () => {
+  const loadTunnels = useCallback(async () => {
     try {
       const response = await getTunnelList();
 
@@ -297,9 +340,9 @@ export default function UserPage() {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
     } catch {}
-  };
+  }, []);
 
-  const loadSpeedLimits = async () => {
+  const loadSpeedLimits = useCallback(async () => {
     try {
       const response = await getSpeedLimitList();
 
@@ -315,9 +358,9 @@ export default function UserPage() {
         setSpeedLimits(speedLimitList);
       }
     } catch {}
-  };
+  }, []);
 
-  const loadUserGroups = async () => {
+  const loadUserGroups = useCallback(async () => {
     try {
       const response = await getUserGroupList();
 
@@ -325,15 +368,19 @@ export default function UserPage() {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
     } catch {}
-  };
+  }, []);
 
-  const loadUserTunnels = async (userId: number) => {
+  const loadUserTunnels = useCallback(async (userId: number) => {
     setTunnelListLoading(true);
     try {
       const response = await getUserTunnelList({ userId });
 
       if (response.code === 0) {
-        setUserTunnels(Array.isArray(response.data) ? response.data : []);
+        setUserTunnels(
+          Array.isArray(response.data)
+            ? response.data.map((item) => normalizeUserTunnelItem(item))
+            : [],
+        );
       } else {
         toast.error(response.msg || "获取隧道权限列表失败");
       }
@@ -342,12 +389,52 @@ export default function UserPage() {
     } finally {
       setTunnelListLoading(false);
     }
-  };
+  }, []);
+
+  // 生命周期
+  useEffect(() => {
+    void loadTunnels();
+    void loadSpeedLimits();
+    void loadUserGroups();
+  }, [loadSpeedLimits, loadTunnels, loadUserGroups]);
+
+  useEffect(() => {
+    void loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    searchDebounceRef.current = setTimeout(() => {
+      setPagination((prev) => {
+        if (prev.current === 1) {
+          void loadUsers(searchKeyword);
+          return prev;
+        }
+
+        return { ...prev, current: 1 };
+      });
+    }, USER_SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
+  }, [loadUsers, searchKeyword]);
 
   // 用户管理操作
   const handleSearch = () => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+
     setPagination((prev) => ({ ...prev, current: 1 }));
-    loadUsers();
+    void loadUsers(searchKeyword);
   };
 
   const handleAdd = () => {
@@ -405,9 +492,17 @@ export default function UserPage() {
 
       if (response.code === 0) {
         toast.success("删除成功");
-        loadUsers();
         onDeleteModalClose();
+        setUsers((prev) => removeItemsById(prev, [userToDelete.id]));
+        setPagination((prev) => ({
+          ...prev,
+          total: Math.max(prev.total - 1, 0),
+        }));
         setUserToDelete(null);
+        if (currentUser?.id === userToDelete.id) {
+          setCurrentUser(null);
+          setUserTunnels([]);
+        }
       } else {
         toast.error(response.msg || "删除失败");
       }
@@ -442,7 +537,26 @@ export default function UserPage() {
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
         onUserModalClose();
-        loadUsers();
+        const responseUser = normalizeUserItem((response as any).data || {});
+
+        if (
+          isEdit &&
+          responseUser.id > 0 &&
+          pagination.current === 1 &&
+          !searchKeyword.trim()
+        ) {
+          setUsers((prev) => replaceItemById(prev, responseUser));
+        } else if (
+          !isEdit &&
+          responseUser.id > 0 &&
+          pagination.current === 1 &&
+          !searchKeyword.trim()
+        ) {
+          setUsers((prev) => [responseUser, ...prev].slice(0, pagination.size));
+          setPagination((prev) => ({ ...prev, total: prev.total + 1 }));
+        } else {
+          await loadUsers();
+        }
       } else {
         toast.error(response.msg || (isEdit ? "更新失败" : "创建失败"));
       }
@@ -500,7 +614,7 @@ export default function UserPage() {
         }
         toast.success(response.msg || "分配成功");
         setBatchTunnelSelections(new Map());
-        loadUserTunnels(currentUser.id);
+        await loadUserTunnels(currentUser.id);
       } else {
         toast.error(response.msg || "分配失败");
       }
@@ -546,7 +660,19 @@ export default function UserPage() {
         toast.success("更新成功");
         onEditTunnelModalClose();
         if (currentUser) {
-          loadUserTunnels(currentUser.id);
+          const nextTunnel = normalizeUserTunnelItem({
+            ...editTunnelForm,
+            speedId: normalizeSpeedId(editTunnelForm.speedId),
+            speedLimitName:
+              normalizeSpeedId(editTunnelForm.speedId) !== null
+                ? speedLimits.find(
+                    (speedLimit) =>
+                      speedLimit.id === normalizeSpeedId(editTunnelForm.speedId),
+                  )?.name
+                : undefined,
+          });
+
+          setUserTunnels((prev) => replaceItemById(prev, nextTunnel));
         }
       } else {
         toast.error(response.msg || "更新失败");
@@ -572,7 +698,7 @@ export default function UserPage() {
       if (response.code === 0) {
         toast.success("删除成功");
         if (currentUser) {
-          loadUserTunnels(currentUser.id);
+          setUserTunnels((prev) => removeItemsById(prev, [tunnelToDelete.id]));
         }
         onDeleteTunnelModalClose();
         setTunnelToDelete(null);
@@ -603,8 +729,14 @@ export default function UserPage() {
       if (response.code === 0) {
         toast.success("流量重置成功");
         onResetFlowModalClose();
+        const targetUserId = userToReset.id;
+
+        setUsers((prev) =>
+          prev.map((user) =>
+            user.id === targetUserId ? { ...user, inFlow: 0, outFlow: 0 } : user,
+          ),
+        );
         setUserToReset(null);
-        loadUsers(); // 重新加载用户列表
       } else {
         toast.error(response.msg || "重置失败");
       }
@@ -634,10 +766,16 @@ export default function UserPage() {
       if (response.code === 0) {
         toast.success("隧道流量重置成功");
         onResetTunnelFlowModalClose();
+        const targetTunnelId = tunnelToReset.id;
+
+        setUserTunnels((prev) =>
+          prev.map((userTunnel) =>
+            userTunnel.id === targetTunnelId
+              ? { ...userTunnel, inFlow: 0, outFlow: 0 }
+              : userTunnel,
+          ),
+        );
         setTunnelToReset(null);
-        if (currentUser) {
-          loadUserTunnels(currentUser.id); // 重新加载隧道权限列表
-        }
       } else {
         toast.error(response.msg || "重置失败");
       }

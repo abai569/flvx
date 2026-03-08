@@ -60,6 +60,9 @@ func (ForwardPort) TableName() string { return "forward_port" }
 type Node struct {
 	ID            int64          `gorm:"primaryKey;autoIncrement"`
 	Name          string         `gorm:"type:varchar(100);not null"`
+	Remark        sql.NullString `gorm:"column:remark;type:text"`
+	Tags          sql.NullString `gorm:"column:tags;type:text"`
+	ExpiryTime    sql.NullInt64  `gorm:"column:expiry_time"`
 	Secret        string         `gorm:"type:varchar(100);not null"`
 	ServerIP      string         `gorm:"column:server_ip;type:varchar(100);not null"`
 	ServerIPV4    sql.NullString `gorm:"column:server_ip_v4;type:varchar(100)"`
@@ -336,6 +339,9 @@ type UserBackup struct {
 type NodeBackup struct {
 	ID            int64  `json:"id"`
 	Name          string `json:"name"`
+	Remark        string `json:"remark,omitempty"`
+	Tags          string `json:"tags,omitempty"`
+	ExpiryTime    int64  `json:"expiryTime,omitempty"`
 	Secret        string `json:"secret"`
 	ServerIP      string `json:"serverIp"`
 	ServerIPv4    string `json:"serverIpV4,omitempty"`

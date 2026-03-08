@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
   DndContext,
@@ -36,6 +36,7 @@ import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Divider } from "@/shadcn-bridge/heroui/divider";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
+import { Progress } from "@/shadcn-bridge/heroui/progress";
 import {
   createTunnel,
   getTunnelList,
@@ -114,6 +115,29 @@ interface TunnelForm {
   ipPreference: string;
   status: number;
 }
+
+interface BatchProgressState {
+  active: boolean;
+  label: string;
+  percent: number;
+}
+
+const TUNNEL_ORDER_KEY = "tunnel-order";
+
+const mapTunnelApiItems = (items: any[]): Tunnel[] => {
+  return (items || []).map((tunnel) => ({
+    ...tunnel,
+    inx: tunnel.inx ?? 0,
+    inNodeId: Array.isArray(tunnel.inNodeId) ? tunnel.inNodeId : [],
+    outNodeId: Array.isArray(tunnel.outNodeId) ? tunnel.outNodeId : [],
+    chainNodes: Array.isArray(tunnel.chainNodes) ? tunnel.chainNodes : [],
+    inIp: tunnel.inIp || "",
+    flow: tunnel.flow ?? 1,
+    trafficRatio: tunnel.trafficRatio ?? 1,
+    status: typeof tunnel.status === "number" ? tunnel.status : 0,
+    createdTime: tunnel.createdTime || "",
+  }));
+};
 
 export default function TunnelPage() {
   const [loading, setLoading] = useState(true);
@@ -203,6 +227,11 @@ export default function TunnelPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
+    active: false,
+    label: "",
+    percent: 0,
+  });
 
   useEffect(() => {
     return () => {
@@ -211,60 +240,78 @@ export default function TunnelPage() {
     };
   }, []);
 
-  useEffect(() => {
-    loadData();
+  const applyTunnelList = useCallback((items: Tunnel[]) => {
+    setTunnels(items);
+
+    const hasDbOrdering = items.some(
+      (tunnel) => tunnel.inx !== undefined && tunnel.inx !== 0,
+    );
+
+    if (hasDbOrdering) {
+      const dbOrder = [...items]
+        .sort((a, b) => (a.inx ?? 0) - (b.inx ?? 0))
+        .map((tunnel) => tunnel.id);
+
+      setTunnelOrder(dbOrder);
+
+      return;
+    }
+
+    setTunnelOrder(
+      loadStoredOrder(
+        TUNNEL_ORDER_KEY,
+        items.map((tunnel) => tunnel.id),
+      ),
+    );
   }, []);
 
-  // 加载所有数据
-  const loadData = async () => {
-    setLoading(true);
+  const refreshTunnelList = useCallback(async (withLoading = true) => {
+    if (withLoading) {
+      setLoading(true);
+    }
+
     try {
-      const [tunnelsRes, nodesRes] = await Promise.all([
-        getTunnelList(),
-        getNodeList(),
-      ]);
+      const tunnelsRes = await getTunnelList();
 
       if (tunnelsRes.code === 0) {
-        const tunnelsData: Tunnel[] = (tunnelsRes.data || []).map((t: any) => ({
-          ...t,
-          inx: t.inx ?? 0,
-        }));
-
-        setTunnels(tunnelsData);
-
-        // 优先使用数据库中的 inx 字段进行排序，否则回退到本地排序
-        const hasDbOrdering = tunnelsData.some(
-          (t) => t.inx !== undefined && t.inx !== 0,
-        );
-
-        if (hasDbOrdering) {
-          const dbOrder = [...tunnelsData]
-            .sort((a, b) => (a.inx ?? 0) - (b.inx ?? 0))
-            .map((t) => t.id);
-
-          setTunnelOrder(dbOrder);
-        } else {
-          setTunnelOrder(
-            loadStoredOrder(
-              "tunnel-order",
-              tunnelsData.map((t) => t.id),
-            ),
-          );
-        }
+        applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));
       } else {
         toast.error(tunnelsRes.msg || "获取隧道列表失败");
       }
+    } catch {
+      toast.error("获取隧道列表失败");
+    } finally {
+      if (withLoading) {
+        setLoading(false);
+      }
+    }
+  }, [applyTunnelList]);
+
+  const refreshNodes = useCallback(async () => {
+    try {
+      const nodesRes = await getNodeList();
 
       if (nodesRes.code === 0) {
         setNodes(nodesRes.data || []);
-      } else {
       }
+    } catch {}
+  }, []);
+
+  // 加载所有数据
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([refreshTunnelList(false), refreshNodes()]);
     } catch {
       toast.error("加载数据失败");
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshNodes, refreshTunnelList]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // 表单验证
   const validateForm = (): boolean => {
@@ -327,7 +374,21 @@ export default function TunnelPage() {
         toast.success("删除成功");
         setDeleteModalOpen(false);
         setTunnelToDelete(null);
-        loadData();
+        setTunnels((prev) =>
+          prev.filter((tunnel) => tunnel.id !== tunnelToDelete.id),
+        );
+        setTunnelOrder((prev) => {
+          const next = prev.filter((id) => id !== tunnelToDelete.id);
+
+          saveOrder(TUNNEL_ORDER_KEY, next);
+          return next;
+        });
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+
+          next.delete(tunnelToDelete.id);
+          return next;
+        });
       } else {
         toast.error(response.msg || "删除失败");
       }
@@ -500,7 +561,7 @@ export default function TunnelPage() {
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
         setModalOpen(false);
-        loadData();
+        await refreshTunnelList(false);
       } else {
         toast.error(response.msg || (isEdit ? "更新失败" : "创建失败"));
       }
@@ -725,7 +786,7 @@ export default function TunnelPage() {
 
     setTunnelOrder(newOrder);
 
-    saveOrder("tunnel-order", newOrder);
+    saveOrder(TUNNEL_ORDER_KEY, newOrder);
 
     // 持久化到数据库
     try {
@@ -779,6 +840,11 @@ export default function TunnelPage() {
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
+    setBatchProgress({
+      active: true,
+      label: `正在删除 ${selectedIds.size} 条隧道...`,
+      percent: 30,
+    });
     try {
       const res = await batchDeleteTunnels(Array.from(selectedIds));
 
@@ -787,21 +853,39 @@ export default function TunnelPage() {
 
         if (result.failCount === 0) {
           toast.success(`成功删除 ${result.successCount} 项`);
+          setBatchProgress({
+            active: true,
+            label: `删除完成：成功 ${result.successCount} 项`,
+            percent: 100,
+          });
+          setTunnels((prev) => prev.filter((tunnel) => !selectedIds.has(tunnel.id)));
+          setTunnelOrder((prev) => {
+            const next = prev.filter((id) => !selectedIds.has(id));
+
+            saveOrder(TUNNEL_ORDER_KEY, next);
+            return next;
+          });
         } else {
           toast.error(
             `成功 ${result.successCount} 项，失败 ${result.failCount} 项`,
           );
+          setBatchProgress({
+            active: true,
+            label: `部分完成：成功 ${result.successCount} 项，正在刷新列表...`,
+            percent: 75,
+          });
+          await refreshTunnelList(false);
         }
         setSelectedIds(new Set());
         setSelectMode(false);
         setBatchDeleteModalOpen(false);
-        loadData();
       } else {
         toast.error(res.msg || "删除失败");
       }
     } catch (error) {
       toast.error(extractApiErrorMessage(error, "删除失败"));
     } finally {
+      setBatchProgress({ active: false, label: "", percent: 0 });
       setBatchLoading(false);
     }
   };
@@ -809,6 +893,11 @@ export default function TunnelPage() {
   const handleBatchRedeploy = async () => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
+    setBatchProgress({
+      active: true,
+      label: `正在重新下发 ${selectedIds.size} 条隧道...`,
+      percent: 30,
+    });
     try {
       const res = await batchRedeployTunnels(Array.from(selectedIds));
 
@@ -824,13 +913,19 @@ export default function TunnelPage() {
         }
         setSelectedIds(new Set());
         setSelectMode(false);
-        loadData();
+        setBatchProgress({
+          active: true,
+          label: `重新下发完成：成功 ${result.successCount} 项，正在刷新列表...`,
+          percent: 100,
+        });
+        await refreshTunnelList(false);
       } else {
         toast.error(res.msg || "下发失败");
       }
     } catch (error) {
       toast.error(extractApiErrorMessage(error, "下发失败"));
     } finally {
+      setBatchProgress({ active: false, label: "", percent: 0 });
       setBatchLoading(false);
     }
   };
@@ -1037,6 +1132,23 @@ export default function TunnelPage() {
           </div>
         </div>
       </div>
+
+      {batchProgress.active && (
+        <div className="mb-4">
+          <Alert
+            color="primary"
+            description={batchProgress.label}
+            variant="flat"
+          />
+          <Progress
+            aria-label={batchProgress.label}
+            className="mt-3"
+            color="primary"
+            size="sm"
+            value={batchProgress.percent}
+          />
+        </div>
+      )}
 
       {/* 隧道卡片网格 */}
       {tunnels.length > 0 ? (

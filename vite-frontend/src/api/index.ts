@@ -65,6 +65,8 @@ export const getUserPackageInfo = () =>
 export const createNode = (data: NodeMutationPayload) =>
   Network.post("/node/create", data);
 export const getNodeList = () => Network.post<NodeApiItem[]>("/node/list");
+export const getDashboardNodeExpiryList = () =>
+  Network.post<NodeApiItem[]>("/node/list", {});
 export const updateNode = (data: NodeMutationPayload) =>
   Network.post("/node/update", data);
 export const deleteNode = (id: number) => Network.post("/node/delete", { id });

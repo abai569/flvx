@@ -15,6 +15,11 @@ interface UseNodeRealtimeOptions {
   enabled?: boolean;
 }
 
+const MAX_STANDARD_RECONNECT_ATTEMPTS = 5;
+const STANDARD_RECONNECT_DELAY_MS = 3000;
+const MAX_STANDARD_RECONNECT_DELAY_MS = 15000;
+const FALLBACK_RECONNECT_DELAY_MS = 30000;
+
 const getRealtimeWsUrl = (): string => {
   const baseUrl =
     axios.defaults.baseURL ||
@@ -34,13 +39,12 @@ export const useNodeRealtime = ({
 }: UseNodeRealtimeOptions) => {
   const [wsConnected, setWsConnected] = useState(false);
   const [wsConnecting, setWsConnecting] = useState(false);
+  const [usingPollingFallback, setUsingPollingFallback] = useState(false);
 
   const websocketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const onMessageRef = useRef(onMessage);
-
-  const maxReconnectAttempts = 5;
 
   useEffect(() => {
     onMessageRef.current = onMessage;
@@ -58,6 +62,7 @@ export const useNodeRealtime = ({
     reconnectAttemptsRef.current = 0;
     setWsConnected(false);
     setWsConnecting(false);
+    setUsingPollingFallback(false);
 
     if (!websocketRef.current) {
       return;
@@ -103,6 +108,7 @@ export const useNodeRealtime = ({
         reconnectAttemptsRef.current = 0;
         setWsConnected(true);
         setWsConnecting(false);
+        setUsingPollingFallback(false);
       };
 
       websocketRef.current.onmessage = (event) => {
@@ -122,15 +128,27 @@ export const useNodeRealtime = ({
         setWsConnected(false);
         setWsConnecting(false);
 
-        if (!enabled || reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        if (!enabled) {
           return;
         }
 
         reconnectAttemptsRef.current += 1;
+        const exhaustedStandardRetries =
+          reconnectAttemptsRef.current >= MAX_STANDARD_RECONNECT_ATTEMPTS;
+
+        setUsingPollingFallback(exhaustedStandardRetries);
+
+        const reconnectDelay = exhaustedStandardRetries
+          ? FALLBACK_RECONNECT_DELAY_MS
+          : Math.min(
+              STANDARD_RECONNECT_DELAY_MS * reconnectAttemptsRef.current,
+              MAX_STANDARD_RECONNECT_DELAY_MS,
+            );
+
         reconnectTimerRef.current = setTimeout(() => {
           reconnectTimerRef.current = null;
           connect();
-        }, 3000 * reconnectAttemptsRef.current);
+        }, reconnectDelay);
       };
     } catch {
       setWsConnected(false);
@@ -153,6 +171,7 @@ export const useNodeRealtime = ({
   return {
     wsConnected,
     wsConnecting,
+    usingPollingFallback,
     reconnectRealtime: connect,
     disconnectRealtime: disconnect,
   };

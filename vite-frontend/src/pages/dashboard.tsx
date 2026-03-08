@@ -17,6 +17,7 @@ import { MetricCard } from "@/pages/dashboard/components/metric-card";
 import {
   useDashboardData,
   type DashboardForward as Forward,
+  type DashboardNodeExpiryItem,
   type DashboardUserTunnel as UserTunnel,
 } from "@/pages/dashboard/use-dashboard-data";
 
@@ -34,6 +35,7 @@ export default function DashboardPage() {
     userTunnels,
     forwardList,
     statisticsFlows,
+    nodeExpiryReminders,
     isAdmin,
     announcement,
   } = useDashboardData();
@@ -68,6 +70,103 @@ export default function DashboardPage() {
     }
 
     return value.toString();
+  };
+
+  const getNodeExpiryStatus = (expiryTime?: number) => {
+    if (!expiryTime) {
+      return {
+        label: "永久有效",
+        badgeClassName:
+          "bg-default-100 text-default-700 dark:bg-default-50 dark:text-default-300",
+      };
+    }
+
+    const diffMs = expiryTime - Date.now();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) {
+      return {
+        label: "已过期",
+        badgeClassName:
+          "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300",
+      };
+    }
+
+    if (diffDays === 1) {
+      return {
+        label: "明天到期",
+        badgeClassName:
+          "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+      };
+    }
+
+    return {
+      label: `${diffDays}天后到期`,
+      badgeClassName:
+        diffDays <= 7
+          ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+    };
+  };
+
+  const parseNodeTags = (tags?: string) => {
+    if (!tags) return [];
+    return tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+  };
+
+  const renderNodeExpiryCard = (node: DashboardNodeExpiryItem) => {
+    const expiryStatus = getNodeExpiryStatus(node.expiryTime);
+    const tags = parseNodeTags(node.tags);
+
+    return (
+      <div
+        key={node.id}
+        className="rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm dark:border-amber-500/20 dark:from-amber-950/20 dark:via-background dark:to-orange-950/10"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-foreground truncate">
+              {node.name}
+            </div>
+            <div className="mt-1 text-xs text-default-500">节点 ID: {node.id}</div>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${expiryStatus.badgeClassName}`}
+          >
+            {expiryStatus.label}
+          </span>
+        </div>
+
+        <div className="mt-3 text-sm text-default-700 dark:text-default-300">
+          {node.expiryTime
+            ? new Date(node.expiryTime).toLocaleString()
+            : "未设置到期时间"}
+        </div>
+
+        {node.remark?.trim() && (
+          <p className="mt-3 line-clamp-2 text-xs leading-5 text-default-600 dark:text-default-400">
+            {node.remark.trim()}
+          </p>
+        )}
+
+        {tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span
+                key={`${node.id}-${tag}`}
+                className="rounded-full bg-white/80 px-2 py-1 text-[11px] text-default-600 ring-1 ring-amber-200/80 dark:bg-white/5 dark:text-default-300 dark:ring-amber-500/20"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // 处理24小时流量统计数据
@@ -660,6 +759,52 @@ export default function DashboardPage() {
         formatFlow={formatFlow}
         statisticsFlowsCount={statisticsFlows.length}
       />
+
+      {isAdmin && nodeExpiryReminders.length > 0 && (
+        <Card className="mb-6 lg:mb-8 border border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-background to-orange-50/70 shadow-md dark:border-amber-500/20 dark:from-amber-950/10 dark:to-orange-950/10">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between w-full">
+              <div className="flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                  <svg
+                    aria-hidden="true"
+                    className="h-5 w-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      clipRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.981-1.742 2.981H4.42c-1.53 0-2.492-1.647-1.743-2.98l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-7a1 1 0 00-1 1v3a1 1 0 102 0V7a1 1 0 00-1-1z"
+                      fillRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-lg lg:text-xl font-semibold text-foreground">
+                    节点到期提醒
+                  </h2>
+                  <p className="text-sm text-default-500">
+                    展示 7 天内到期或已过期的节点，便于提前续费或清理
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex w-fit items-center rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200/80 dark:bg-white/5 dark:text-amber-300 dark:ring-amber-500/20">
+                {nodeExpiryReminders.length} 个提醒
+              </span>
+            </div>
+          </CardHeader>
+          <CardBody className="pt-0">
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+              {nodeExpiryReminders.slice(0, 6).map(renderNodeExpiryCard)}
+            </div>
+            {nodeExpiryReminders.length > 6 && (
+              <p className="mt-4 text-xs text-default-500">
+                还有 {nodeExpiryReminders.length - 6} 个节点未展开显示，可前往节点页面继续处理。
+              </p>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       {/* 隧道权限 - 管理员不显示 */}
       {!isAdmin && (

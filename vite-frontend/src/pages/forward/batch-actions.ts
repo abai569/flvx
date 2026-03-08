@@ -13,6 +13,8 @@ export interface ForwardBatchActionOutcome {
   toastVariant: "success" | "error";
   toastMessage: string;
   shouldRefresh: boolean;
+  progressPercent?: number;
+  progressLabel?: string;
   closeDeleteModal?: boolean;
   closeChangeTunnelModal?: boolean;
   resetTargetTunnel?: boolean;
@@ -63,6 +65,8 @@ export const executeForwardBatchDelete = async (
     return {
       ...buildBatchToast(summary, `成功删除 ${summary.successCount} 项`),
       shouldRefresh: true,
+      progressPercent: 100,
+      progressLabel: `删除完成：成功 ${summary.successCount} 项`,
       closeDeleteModal: true,
     };
   } catch (error) {
@@ -103,6 +107,8 @@ export const executeForwardBatchToggleService = async (
           : `成功停用 ${summary.successCount} 项`,
       ),
       shouldRefresh: true,
+      progressPercent: 100,
+      progressLabel: `${enable ? "启用" : "停用"}完成：成功 ${summary.successCount} 项`,
     };
   } catch (error) {
     return {
@@ -132,6 +138,8 @@ export const executeForwardBatchRedeploy = async (
     return {
       ...buildBatchToast(summary, `成功重新下发 ${summary.successCount} 项`),
       shouldRefresh: true,
+      progressPercent: 100,
+      progressLabel: `重新下发完成：成功 ${summary.successCount} 项`,
     };
   } catch (error) {
     return {
@@ -165,6 +173,8 @@ export const executeForwardBatchChangeTunnel = async (
     return {
       ...buildBatchToast(summary, `成功换隧道 ${summary.successCount} 项`),
       shouldRefresh: true,
+      progressPercent: 100,
+      progressLabel: `批量换隧道完成：成功 ${summary.successCount} 项`,
       closeChangeTunnelModal: true,
       resetTargetTunnel: true,
     };

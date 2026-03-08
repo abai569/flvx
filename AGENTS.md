@@ -53,6 +53,7 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a 
 | `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |
 
 ## CONVENTIONS
+- **Skills & MCP**: Always prefer using available skills (via `skill` tool) and MCP tools when applicable. Check for relevant skills before implementing from scratch.
 - **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.
 - **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.
 - **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.

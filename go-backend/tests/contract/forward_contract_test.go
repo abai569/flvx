@@ -31,7 +31,7 @@ func TestForwardOwnershipAndScopeContracts(t *testing.T) {
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "contract-tunnel", 1.0, 1, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+	`, "contract-tunnel", 2.5, 1, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}
 	tunnelID := mustLastInsertID(t, repo, "contract-tunnel")
@@ -117,6 +117,13 @@ func TestForwardOwnershipAndScopeContracts(t *testing.T) {
 		}
 		if got := int64(idFloat); got != userForwardID {
 			t.Fatalf("expected forward id %d, got %d", userForwardID, got)
+		}
+		ratioFloat, ok := item["tunnelTrafficRatio"].(float64)
+		if !ok {
+			t.Fatalf("expected tunnelTrafficRatio to be float64, got %T", item["tunnelTrafficRatio"])
+		}
+		if ratioFloat != 2.5 {
+			t.Fatalf("expected tunnelTrafficRatio 2.5, got %v", ratioFloat)
 		}
 	})
 
