@@ -3642,16 +3642,6 @@ export default function ForwardPage() {
               <h3 className="font-semibold text-foreground truncate text-sm">
                 {forward.name}
               </h3>
-              <div className="text-xs text-default-500 truncate flex items-center mt-0.5">
-                {viewMode === "direct" && (
-                  <span className="truncate">
-                    {normalizeForwardTunnelName(forward.tunnelName)}
-                  </span>
-                )}
-                <span className="text-success font-bold text-[12px] mr-1">
-                  ‾{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
-                </span>
-              </div>
             </div>
             <div className="flex items-center gap-1.5 ml-2">
               <Switch
