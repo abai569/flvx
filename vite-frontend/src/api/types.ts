@@ -340,3 +340,104 @@ export interface BackupImportPayload {
   types: string[];
   [key: string]: unknown;
 }
+
+export interface NodeMetricApiItem {
+  id: number;
+  nodeId: number;
+  timestamp: number;
+  cpuUsage: number;
+  memoryUsage: number;
+  diskUsage: number;
+  netInBytes: number;
+  netOutBytes: number;
+  netInSpeed: number;
+  netOutSpeed: number;
+  load1: number;
+  load5: number;
+  load15: number;
+  tcpConns: number;
+  udpConns: number;
+}
+
+export interface TunnelMetricApiItem {
+  id: number;
+  tunnelId: number;
+  nodeId: number;
+  timestamp: number;
+  bytesIn: number;
+  bytesOut: number;
+  connections: number;
+  errors: number;
+  avgLatencyMs: number;
+}
+
+export interface ServiceMonitorApiItem {
+  id: number;
+  name: string;
+  // Keep as string for forward-compatibility.
+  type: string;
+  target: string;
+  intervalSec: number;
+  timeoutSec: number;
+  nodeId: number;
+  enabled: number;
+  createdTime: number;
+  updatedTime: number;
+}
+
+export interface ServiceMonitorResultApiItem {
+  id: number;
+  monitorId: number;
+  timestamp: number;
+  success: number;
+  latencyMs: number;
+  statusCode: number;
+  errorMessage: string;
+}
+
+export interface ServiceMonitorMutationPayload {
+  id?: number;
+  name: string;
+  type: "tcp" | "icmp";
+  target: string;
+  intervalSec?: number;
+  timeoutSec?: number;
+  nodeId?: number;
+  enabled?: number;
+}
+
+export interface ServiceMonitorLimitsApiData {
+  checkerScanIntervalSec: number;
+  minIntervalSec: number;
+  defaultIntervalSec: number;
+  minTimeoutSec: number;
+  defaultTimeoutSec: number;
+  maxTimeoutSec: number;
+}
+
+export interface MonitorNodeApiItem {
+  id: number;
+  inx: number;
+  name: string;
+  status: number;
+  updatedTime: number;
+}
+
+export interface MonitorTunnelApiItem {
+  id: number;
+  inx: number;
+  name: string;
+  status: number;
+  updatedTime: number;
+}
+
+export interface MonitorPermissionApiItem {
+  id: number;
+  userId: number;
+  createdTime: number;
+}
+
+export interface MonitorAccessApiData {
+  allowed: boolean;
+  reason?: string;
+}

@@ -16,17 +16,21 @@ import (
 	"time"
 
 	"go-backend/internal/auth"
+	"go-backend/internal/health"
 	"go-backend/internal/http/middleware"
 	"go-backend/internal/http/response"
+	"go-backend/internal/metrics"
 	"go-backend/internal/security"
 	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
 )
 
 type Handler struct {
-	repo      *repo.Repository
-	jwtSecret string
-	wsServer  *ws.Server
+	repo        *repo.Repository
+	jwtSecret   string
+	wsServer    *ws.Server
+	metrics     *metrics.IngestionService
+	healthCheck *health.Checker
 
 	captchaMu     sync.Mutex
 	captchaTokens map[string]int64
@@ -83,10 +87,31 @@ func New(repo *repo.Repository, jwtSecret string) *Handler {
 		repo:                   repo,
 		jwtSecret:              jwtSecret,
 		wsServer:               ws.NewServer(repo, jwtSecret),
+		metrics:                metrics.NewIngestionService(repo),
+		healthCheck:            nil,
 		captchaTokens:          make(map[string]int64),
 		pendingUpgradeRedeploy: make(map[int64]struct{}),
 	}
+	h.healthCheck = health.NewChecker(repo, h.wsServer)
 	h.wsServer.SetNodeOnlineHook(h.onNodeOnline)
+	h.wsServer.SetNodeMetricHook(func(nodeID int64, info ws.SystemInfo) {
+		metricInfo := metrics.SystemInfo{
+			Uptime:           info.Uptime,
+			BytesReceived:    info.BytesReceived,
+			BytesTransmitted: info.BytesTransmitted,
+			CPUUsage:         info.CPUUsage,
+			MemoryUsage:      info.MemoryUsage,
+			DiskUsage:        info.DiskUsage,
+			Load1:            info.Load1,
+			Load5:            info.Load5,
+			Load15:           info.Load15,
+			TCPConns:         info.TCPConns,
+			UDPConns:         info.UDPConns,
+			NetInSpeed:       info.NetInSpeed,
+			NetOutSpeed:      info.NetOutSpeed,
+		}
+		h.metrics.RecordNodeMetric(nodeID, metricInfo)
+	})
 	return h
 }
 
@@ -194,6 +219,23 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/federation/node/import", h.nodeImport)
 	mux.HandleFunc("/api/v1/announcement/get", h.getAnnouncement)
 	mux.HandleFunc("/api/v1/announcement/update", h.updateAnnouncement)
+
+	mux.HandleFunc("/api/v1/monitor/access", h.monitorAccessHandler)
+	mux.HandleFunc("/api/v1/monitor/nodes/", h.monitorNodeMetricsHandler)
+	mux.HandleFunc("/api/v1/monitor/nodes", h.monitorNodeListHandler)
+	mux.HandleFunc("/api/v1/monitor/tunnels", h.monitorTunnelListHandler)
+	mux.HandleFunc("/api/v1/monitor/tunnels/", h.monitorTunnelMetrics)
+	mux.HandleFunc("/api/v1/monitor/services", h.monitorServiceListHandler)
+	mux.HandleFunc("/api/v1/monitor/services/create", h.monitorServiceCreate)
+	mux.HandleFunc("/api/v1/monitor/services/update", h.monitorServiceUpdate)
+	mux.HandleFunc("/api/v1/monitor/services/delete", h.monitorServiceDelete)
+	mux.HandleFunc("/api/v1/monitor/services/run", h.monitorServiceRun)
+	mux.HandleFunc("/api/v1/monitor/services/latest-results", h.monitorServiceLatestResultsHandler)
+	mux.HandleFunc("/api/v1/monitor/services/limits", h.monitorServiceLimitsHandler)
+	mux.HandleFunc("/api/v1/monitor/services/", h.monitorServiceResultsHandler)
+	mux.HandleFunc("/api/v1/monitor/permission/list", h.monitorPermissionList)
+	mux.HandleFunc("/api/v1/monitor/permission/assign", h.monitorPermissionAssign)
+	mux.HandleFunc("/api/v1/monitor/permission/remove", h.monitorPermissionRemove)
 
 	mux.HandleFunc("/flow/test", h.flowTest)
 	mux.HandleFunc("/flow/config", h.flowConfig)
@@ -723,6 +765,8 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	if err == nil && strings.TrimSpace(raw) != "" {
 		var items []flowItem
 		if json.Unmarshal([]byte(raw), &items) == nil {
+			nowMs := time.Now().UnixMilli()
+			h.recordTunnelMetricsFromFlowItems(node.ID, items, nowMs)
 			for _, item := range items {
 				h.processFlowItem(node.ID, item)
 			}

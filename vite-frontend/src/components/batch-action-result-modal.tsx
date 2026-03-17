@@ -39,7 +39,8 @@ const getFailureTitle = (
 };
 
 const getFailureReason = (failure: BatchOperationFailure): string => {
-  const reason = typeof failure.reason === "string" ? failure.reason.trim() : "";
+  const reason =
+    typeof failure.reason === "string" ? failure.reason.trim() : "";
 
   return reason || "未知错误";
 };

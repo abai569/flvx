@@ -381,7 +381,7 @@ export default function TunnelPage() {
     });
     setErrors({});
     setModalOpen(true);
-  }; 
+  };
 
   // 删除隧道
   const handleDelete = (tunnel: Tunnel) => {
@@ -918,7 +918,9 @@ export default function TunnelPage() {
               failures,
             );
           } else {
-            toast.error(`成功 ${result.successCount} 项，失败 ${result.failCount} 项`);
+            toast.error(
+              `成功 ${result.successCount} 项，失败 ${result.failCount} 项`,
+            );
           }
           setBatchProgress({
             active: true,
@@ -1413,7 +1415,6 @@ export default function TunnelPage() {
                                 </div>
                               )}
                             </div>
-
                           </div>
 
                           <div className="flex gap-1.5 mt-3">

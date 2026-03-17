@@ -113,6 +113,12 @@ func TestIssue313_EntryPortCrossTunnelConflictContract(t *testing.T) {
 		t.Fatalf("insert forward_port a: %v", err)
 	}
 
+	// Simulate legacy dirty data: tunnel A already occupies port 2000 on entryB2.
+	// When tunnel B adds entryB2, the inherited forward port should conflict cross-tunnel.
+	if err := repo.DB().Exec(`INSERT INTO forward_port(forward_id, node_id, port) VALUES(?, ?, ?)`, forwardAID, entryB2, 2000).Error; err != nil {
+		t.Fatalf("insert forward_port a on entryB2: %v", err)
+	}
+
 	if err := repo.DB().Exec(`
 		INSERT INTO user_tunnel(id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status)
 		VALUES(3132, 1, ?, NULL, 999, 99999, 0, 0, 1, 2727251700000, 1)
@@ -171,7 +177,8 @@ func TestIssue313_EntryPortCrossTunnelConflictContract(t *testing.T) {
 		t.Fatalf("expected update failure due to cross-tunnel port conflict, got success with code 0")
 	}
 
-	if !bytes.Contains(res.Body.Bytes(), []byte("端口")) && !bytes.Contains(res.Body.Bytes(), []byte("占用")) {
+	msgBytes := []byte(out.Msg)
+	if !bytes.Contains(msgBytes, []byte("端口")) && !bytes.Contains(msgBytes, []byte("占用")) {
 		t.Fatalf("expected port conflict error message, got %q", out.Msg)
 	}
 

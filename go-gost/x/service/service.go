@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -63,11 +62,9 @@ func SetProtocolBlock(httpOn int, tlsOn int, socksOn int) {
 type Option func(opts *options)
 
 func init() {
-	_, err := LoadConfig("config.json")
-	fmt.Println("config.json loaded")
-	if err != nil {
-		log.Fatal(err)
-	}
+	// NOTE: This package can be imported by tests/tools that don't have a local
+	// config.json. Missing config should not crash the process.
+	_, _ = LoadConfig("config.json")
 	needWrap = isTls+isSocks+isHttp > 0
 }
 

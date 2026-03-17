@@ -73,9 +73,12 @@ const normalizeBatchFailure = (
   };
 };
 
-const normalizeBatchFailureReason = (failure: BatchOperationFailure): string => {
+const normalizeBatchFailureReason = (
+  failure: BatchOperationFailure,
+): string => {
   const name = typeof failure.name === "string" ? failure.name.trim() : "";
-  const reason = typeof failure.reason === "string" ? failure.reason.trim() : "";
+  const reason =
+    typeof failure.reason === "string" ? failure.reason.trim() : "";
 
   if (name && reason) {
     return `${name}: ${reason}`;

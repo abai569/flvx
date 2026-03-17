@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import IndexPage from "@/pages/index";
 import ChangePasswordPage from "@/pages/change-password";
 import DashboardPage from "@/pages/dashboard";
+import MonitorPage from "@/pages/monitor";
 import ForwardPage from "@/pages/forward";
 import TunnelPage from "@/pages/tunnel";
 import NodePage from "@/pages/node";
@@ -121,6 +122,14 @@ function App() {
           </ProtectedRoute>
         }
         path="/dashboard"
+      />
+      <Route
+        element={
+          <ProtectedRoute>
+            <MonitorPage />
+          </ProtectedRoute>
+        }
+        path="/monitor"
       />
       <Route
         element={

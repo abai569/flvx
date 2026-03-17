@@ -6,6 +6,14 @@ export interface NodeSystemInfo {
   uploadSpeed: number;
   downloadSpeed: number;
   uptime: number;
+  diskUsage?: number;
+  load1?: number;
+  load5?: number;
+  load15?: number;
+  tcpConns?: number;
+  udpConns?: number;
+  netInSpeed?: number;
+  netOutSpeed?: number;
 }
 
 type RawSystemInfo = Record<string, string | number | undefined>;
@@ -82,5 +90,13 @@ export const buildNodeSystemInfo = (
     uploadSpeed,
     downloadSpeed,
     uptime,
+    diskUsage: toFloat(raw.disk_usage),
+    load1: toFloat(raw.load1),
+    load5: toFloat(raw.load5),
+    load15: toFloat(raw.load15),
+    tcpConns: toInteger(raw.tcp_conns),
+    udpConns: toInteger(raw.udp_conns),
+    netInSpeed: toInteger(raw.net_in_speed),
+    netOutSpeed: toInteger(raw.net_out_speed),
   };
 };

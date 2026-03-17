@@ -57,6 +57,37 @@ func (r *Repository) ListForwardsByTunnel(tunnelID int64) ([]model.ForwardRecord
 	return rows, nil
 }
 
+func (r *Repository) ListForwardsByTunnelTx(tx *gorm.DB, tunnelID int64) ([]model.ForwardRecord, error) {
+	if tx == nil {
+		return nil, errors.New("database unavailable")
+	}
+	var forwards []model.Forward
+	err := tx.Where("tunnel_id = ?", tunnelID).Order("id ASC").Find(&forwards).Error
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]model.ForwardRecord, 0, len(forwards))
+	for _, f := range forwards {
+		rows = append(rows, model.ForwardRecord{
+			ID:         f.ID,
+			UserID:     f.UserID,
+			UserName:   f.UserName,
+			Name:       f.Name,
+			TunnelID:   f.TunnelID,
+			RemoteAddr: f.RemoteAddr,
+			Strategy:   f.Strategy,
+			Status:     f.Status,
+			SpeedID:    f.SpeedID,
+		})
+	}
+	for i := range rows {
+		if strings.TrimSpace(rows[i].Strategy) == "" {
+			rows[i].Strategy = "fifo"
+		}
+	}
+	return rows, nil
+}
+
 func (r *Repository) ListActiveTunnelIDsByNode(nodeID int64) ([]int64, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
@@ -111,6 +142,26 @@ func (r *Repository) ListForwardPorts(forwardID int64) ([]model.ForwardPortRecor
 	return rows, nil
 }
 
+func (r *Repository) ListForwardPortsTx(tx *gorm.DB, forwardID int64) ([]model.ForwardPortRecord, error) {
+	if tx == nil {
+		return nil, errors.New("database unavailable")
+	}
+	var ports []model.ForwardPort
+	err := tx.Where("forward_id = ?", forwardID).Order("id ASC").Find(&ports).Error
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]model.ForwardPortRecord, 0, len(ports))
+	for _, p := range ports {
+		inIP := ""
+		if p.InIP.Valid {
+			inIP = p.InIP.String
+		}
+		rows = append(rows, model.ForwardPortRecord{NodeID: p.NodeID, Port: p.Port, InIP: inIP})
+	}
+	return rows, nil
+}
+
 func (r *Repository) HasOtherForwardOnNodePort(nodeID int64, port int, currentForwardID int64) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, errors.New("repository not initialized")
@@ -121,6 +172,25 @@ func (r *Repository) HasOtherForwardOnNodePort(nodeID int64, port int, currentFo
 
 	var count int64
 	err := r.db.Model(&model.ForwardPort{}).
+		Where("node_id = ? AND port = ? AND forward_id <> ?", nodeID, port, currentForwardID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (r *Repository) HasOtherForwardOnNodePortTx(tx *gorm.DB, nodeID int64, port int, currentForwardID int64) (bool, error) {
+	if tx == nil {
+		return false, errors.New("database unavailable")
+	}
+	if nodeID <= 0 || port <= 0 {
+		return false, nil
+	}
+
+	var count int64
+	err := tx.Model(&model.ForwardPort{}).
 		Where("node_id = ? AND port = ? AND forward_id <> ?", nodeID, port, currentForwardID).
 		Count(&count).Error
 	if err != nil {

@@ -809,7 +809,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 			newEntryNodeIDs = append(newEntryNodeIDs, in.NodeID)
 		}
 	}
-	if err := h.validateTunnelEntryPortConflictsForNewEntries(id, oldEntryNodeIDs, newEntryNodeIDs); err != nil {
+	if err := h.validateTunnelEntryPortConflictsForNewEntriesTx(tx, id, oldEntryNodeIDs, newEntryNodeIDs); err != nil {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
@@ -997,8 +997,22 @@ func (h *Handler) cleanupTunnelForwardRuntimesOnRemovedEntryNodes(tunnelID int64
 	}
 }
 
-func (h *Handler) validateTunnelEntryPortConflictsForNewEntries(tunnelID int64, oldEntryNodeIDs, newEntryNodeIDs []int64) error {
-	if h == nil || h.repo == nil || tunnelID <= 0 {
+func (h *Handler) validateForwardPortAvailabilityTx(tx *gorm.DB, node *nodeRecord, port int, currentForwardID int64) error {
+	if h == nil || h.repo == nil || tx == nil || node == nil || port <= 0 {
+		return nil
+	}
+	occupied, err := h.repo.HasOtherForwardOnNodePortTx(tx, node.ID, port, currentForwardID)
+	if err != nil {
+		return err
+	}
+	if occupied {
+		return fmt.Errorf("节点 %s 端口 %d 已被其他转发占用", node.Name, port)
+	}
+	return nil
+}
+
+func (h *Handler) validateTunnelEntryPortConflictsForNewEntriesTx(tx *gorm.DB, tunnelID int64, oldEntryNodeIDs, newEntryNodeIDs []int64) error {
+	if h == nil || h.repo == nil || tx == nil || tunnelID <= 0 {
 		return nil
 	}
 
@@ -1007,7 +1021,7 @@ func (h *Handler) validateTunnelEntryPortConflictsForNewEntries(tunnelID int64, 
 		return nil
 	}
 
-	forwards, err := h.listForwardsByTunnel(tunnelID)
+	forwards, err := h.repo.ListForwardsByTunnelTx(tx, tunnelID)
 	if err != nil || len(forwards) == 0 {
 		return nil
 	}
@@ -1017,7 +1031,7 @@ func (h *Handler) validateTunnelEntryPortConflictsForNewEntries(tunnelID int64, 
 		if f == nil {
 			continue
 		}
-		oldPorts, portsErr := h.listForwardPorts(f.ID)
+		oldPorts, portsErr := h.repo.ListForwardPortsTx(tx, f.ID)
 		if portsErr != nil {
 			continue
 		}
@@ -1027,14 +1041,11 @@ func (h *Handler) validateTunnelEntryPortConflictsForNewEntries(tunnelID int64, 
 		}
 
 		for _, nodeID := range addedNodeIDs {
-			node, nodeErr := h.getNodeRecord(nodeID)
+			node, nodeErr := h.repo.GetNodeRecordTx(tx, nodeID)
 			if nodeErr != nil {
 				continue
 			}
-			if err := validateLocalNodePort(node, port); err != nil {
-				return fmt.Errorf("转发 %s 入口端口冲突: %w", f.Name, err)
-			}
-			if err := h.validateForwardPortAvailability(node, port, f.ID); err != nil {
+			if err := h.validateForwardPortAvailabilityTx(tx, node, port, f.ID); err != nil {
 				return fmt.Errorf("转发 %s 入口端口冲突: %w", f.Name, err)
 			}
 		}

@@ -1,7 +1,4 @@
-import type {
-  BatchOperationFailure,
-  BatchOperationResult,
-} from "@/api/types";
+import type { BatchOperationFailure, BatchOperationResult } from "@/api/types";
 
 import {
   batchChangeTunnel,
@@ -46,7 +43,11 @@ const buildBatchToast = (
   resultTitle: string,
 ): Pick<
   ForwardBatchActionOutcome,
-  "toastVariant" | "toastMessage" | "resultTitle" | "resultSummary" | "failureDetails"
+  | "toastVariant"
+  | "toastMessage"
+  | "resultTitle"
+  | "resultSummary"
+  | "failureDetails"
 > => {
   if (result.failCount === 0) {
     return {

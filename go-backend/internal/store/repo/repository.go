@@ -47,6 +47,10 @@ type UserGroupBackup = model.UserGroupBackup
 type PermissionBackup = model.PermissionBackup
 type PermissionGrantBackup = model.PermissionGrantBackup
 type ImportResult = model.ImportResult
+type NodeMetric = model.NodeMetric
+type TunnelMetric = model.TunnelMetric
+type ServiceMonitor = model.ServiceMonitor
+type ServiceMonitorResult = model.ServiceMonitorResult
 
 // ─── Repository ──────────────────────────────────────────────────────
 
@@ -176,12 +180,17 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.UserGroupUser{},
 		&model.GroupPermission{},
 		&model.GroupPermissionGrant{},
+		&model.MonitorPermission{},
 		&model.ViteConfig{},
 		&model.PeerShare{},
 		&model.PeerShareRuntime{},
 		&model.FederationTunnelBinding{},
 		&model.Announcement{},
 		&model.SchemaVersion{},
+		&model.NodeMetric{},
+		&model.TunnelMetric{},
+		&model.ServiceMonitor{},
+		&model.ServiceMonitorResult{},
 	}
 
 	if db.Dialector.Name() != "sqlite" {
@@ -388,6 +397,24 @@ func (r *Repository) ListConfigs() (map[string]string, error) {
 		return nil, err
 	}
 	result := make(map[string]string)
+	for _, c := range configs {
+		result[c.Name] = c.Value
+	}
+	return result, nil
+}
+
+func (r *Repository) GetConfigsByNames(names []string) (map[string]string, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	if len(names) == 0 {
+		return map[string]string{}, nil
+	}
+	var configs []model.ViteConfig
+	if err := r.db.Select("name", "value").Where("name IN ?", names).Find(&configs).Error; err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(configs))
 	for _, c := range configs {
 		result[c.Name] = c.Value
 	}
@@ -2689,12 +2716,13 @@ func (r *Repository) GetUserTunnelByID(id int64) (*model.UserTunnel, error) {
 
 // ─── Migration ───────────────────────────────────────────────────────
 
-const currentSchemaVersion = 5
+const currentSchemaVersion = 6
 
 var ensurePostgresIDDefaultsFn = ensurePostgresIDDefaults
 var migrateViteConfigValueColumnTypeFn = migrateViteConfigValueColumnType
 var migrateSpeedLimitTunnelBindingFn = migrateSpeedLimitTunnelBinding
 var migratePostgresTrafficInt64ColumnsFn = migratePostgresTrafficInt64Columns
+var migrateTunnelMetricBucketUniqueIndexFn = migrateTunnelMetricBucketUniqueIndex
 
 func getSchemaVersion(db *gorm.DB) int {
 	var v model.SchemaVersion
@@ -2760,6 +2788,12 @@ func migrateSchema(db *gorm.DB) error {
 
 	if ver < 5 {
 		if err := migratePostgresTrafficInt64ColumnsFn(db); err != nil {
+			return err
+		}
+	}
+
+	if ver < 6 {
+		if err := migrateTunnelMetricBucketUniqueIndexFn(db); err != nil {
 			return err
 		}
 	}
@@ -2865,6 +2899,130 @@ func migratePostgresTrafficInt64Columns(db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func migrateTunnelMetricBucketUniqueIndex(db *gorm.DB) error {
+	if db == nil {
+		return errors.New("nil db")
+	}
+
+	if !db.Migrator().HasTable(&model.TunnelMetric{}) {
+		return nil
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		// Only do the heavier dedupe work when needed.
+		var dupGroups int64
+		q := `
+			SELECT COUNT(1) AS cnt
+			FROM (
+				SELECT 1
+				FROM tunnel_metric
+				GROUP BY tunnel_id, node_id, timestamp
+				HAVING COUNT(*) > 1
+			) t
+		`
+		if err := tx.Raw(q).Scan(&dupGroups).Error; err != nil {
+			return fmt.Errorf("inspect tunnel_metric duplicates: %w", err)
+		}
+
+		if dupGroups > 0 {
+			switch tx.Dialector.Name() {
+			case "postgres":
+				sql := `
+					WITH agg AS (
+						SELECT MIN(id) AS keep_id,
+						       tunnel_id,
+						       node_id,
+						       timestamp,
+						       SUM(bytes_in) AS bytes_in,
+						       SUM(bytes_out) AS bytes_out,
+						       SUM(connections) AS connections,
+						       SUM(errors) AS errors,
+						       AVG(avg_latency_ms) AS avg_latency_ms
+						FROM tunnel_metric
+						GROUP BY tunnel_id, node_id, timestamp
+						HAVING COUNT(*) > 1
+					), updated AS (
+						UPDATE tunnel_metric tm
+						SET bytes_in = agg.bytes_in,
+						    bytes_out = agg.bytes_out,
+						    connections = agg.connections,
+						    errors = agg.errors,
+						    avg_latency_ms = agg.avg_latency_ms
+						FROM agg
+						WHERE tm.id = agg.keep_id
+						RETURNING tm.id
+					)
+					DELETE FROM tunnel_metric tm
+					USING agg
+					WHERE tm.tunnel_id = agg.tunnel_id
+					  AND tm.node_id = agg.node_id
+					  AND tm.timestamp = agg.timestamp
+					  AND tm.id <> agg.keep_id
+				`
+				if err := tx.Exec(sql).Error; err != nil {
+					return fmt.Errorf("dedupe tunnel_metric buckets: %w", err)
+				}
+			default:
+				// SQLite (and other) path.
+				if err := tx.Exec(`DROP TABLE IF EXISTS tunnel_metric_dedupe`).Error; err != nil {
+					return fmt.Errorf("prepare tunnel_metric dedupe table: %w", err)
+				}
+				if err := tx.Exec(`
+					CREATE TEMP TABLE tunnel_metric_dedupe AS
+					SELECT MIN(id) AS keep_id,
+					       tunnel_id,
+					       node_id,
+					       timestamp,
+					       SUM(bytes_in) AS bytes_in,
+					       SUM(bytes_out) AS bytes_out,
+					       SUM(connections) AS connections,
+					       SUM(errors) AS errors,
+					       AVG(avg_latency_ms) AS avg_latency_ms
+					FROM tunnel_metric
+					GROUP BY tunnel_id, node_id, timestamp
+					HAVING COUNT(*) > 1
+				`).Error; err != nil {
+					return fmt.Errorf("build tunnel_metric dedupe table: %w", err)
+				}
+				if err := tx.Exec(`
+					UPDATE tunnel_metric
+					SET bytes_in = (SELECT bytes_in FROM tunnel_metric_dedupe d WHERE d.keep_id = tunnel_metric.id),
+					    bytes_out = (SELECT bytes_out FROM tunnel_metric_dedupe d WHERE d.keep_id = tunnel_metric.id),
+					    connections = (SELECT connections FROM tunnel_metric_dedupe d WHERE d.keep_id = tunnel_metric.id),
+					    errors = (SELECT errors FROM tunnel_metric_dedupe d WHERE d.keep_id = tunnel_metric.id),
+					    avg_latency_ms = (SELECT avg_latency_ms FROM tunnel_metric_dedupe d WHERE d.keep_id = tunnel_metric.id)
+					WHERE id IN (SELECT keep_id FROM tunnel_metric_dedupe)
+				`).Error; err != nil {
+					return fmt.Errorf("update tunnel_metric deduped rows: %w", err)
+				}
+				if err := tx.Exec(`
+					DELETE FROM tunnel_metric
+					WHERE id IN (
+						SELECT tm.id
+						FROM tunnel_metric tm
+						JOIN tunnel_metric_dedupe d
+						  ON tm.tunnel_id = d.tunnel_id
+						 AND tm.node_id = d.node_id
+						 AND tm.timestamp = d.timestamp
+						WHERE tm.id <> d.keep_id
+					)
+				`).Error; err != nil {
+					return fmt.Errorf("delete tunnel_metric duplicates: %w", err)
+				}
+				_ = tx.Exec(`DROP TABLE IF EXISTS tunnel_metric_dedupe`).Error
+			}
+		}
+
+		// Uniqueness is required for safe upsert on (tunnel_id, node_id, timestamp).
+		if err := tx.Exec(
+			`CREATE UNIQUE INDEX IF NOT EXISTS uidx_tunnel_metric_bucket ON tunnel_metric(tunnel_id, node_id, timestamp)`,
+		).Error; err != nil {
+			return fmt.Errorf("create tunnel_metric unique index: %w", err)
+		}
+		return nil
+	})
 }
 
 func alterPostgresColumnToBigIntIfNeeded(db *gorm.DB, tableName, columnName string) error {
@@ -3140,3 +3298,331 @@ var osMkdirAll = func(path string) error {
 
 // Suppress unused import warning for log
 var _ = log.Printf
+
+func (r *Repository) InsertNodeMetric(m *model.NodeMetric) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.Create(m).Error
+}
+
+func (r *Repository) InsertNodeMetricBatch(metrics []*model.NodeMetric) error {
+	if r == nil || r.db == nil || len(metrics) == 0 {
+		return nil
+	}
+	return r.db.CreateInBatches(metrics, 100).Error
+}
+
+func (r *Repository) GetNodeMetrics(nodeID int64, startMs, endMs int64) ([]model.NodeMetric, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	var metrics []model.NodeMetric
+	err := r.db.Where("node_id = ? AND timestamp >= ? AND timestamp <= ?", nodeID, startMs, endMs).
+		Order("timestamp DESC").
+		Limit(5000).
+		Find(&metrics).Error
+	if len(metrics) > 1 {
+		for i, j := 0, len(metrics)-1; i < j; i, j = i+1, j-1 {
+			metrics[i], metrics[j] = metrics[j], metrics[i]
+		}
+	}
+	return metrics, err
+}
+
+func (r *Repository) GetLatestNodeMetric(nodeID int64) (*model.NodeMetric, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	var m model.NodeMetric
+	err := r.db.Where("node_id = ?", nodeID).Order("timestamp DESC").First(&m).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (r *Repository) PruneNodeMetrics(olderThanMs int64) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.Where("timestamp < ?", olderThanMs).Delete(&model.NodeMetric{}).Error
+}
+
+func (r *Repository) InsertTunnelMetric(m *model.TunnelMetric) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.Create(m).Error
+}
+
+func (r *Repository) InsertTunnelMetricBatch(metrics []*model.TunnelMetric) error {
+	if r == nil || r.db == nil || len(metrics) == 0 {
+		return nil
+	}
+	return r.db.CreateInBatches(metrics, 100).Error
+}
+
+// UpsertTunnelMetricBuckets adds the provided metric deltas into per-minute buckets.
+// Requires a unique index on (tunnel_id, node_id, timestamp) for safe upserts.
+func (r *Repository) UpsertTunnelMetricBuckets(metrics []*model.TunnelMetric) error {
+	if r == nil || r.db == nil || len(metrics) == 0 {
+		return nil
+	}
+
+	// Postgres rejects a single INSERT ... ON CONFLICT when the input contains
+	// duplicate conflict keys. Pre-aggregate within this batch to keep inserts safe.
+	type bucketKey struct {
+		tunnelID  int64
+		nodeID    int64
+		timestamp int64
+	}
+
+	agg := make(map[bucketKey]*model.TunnelMetric, len(metrics))
+	for _, m := range metrics {
+		if m == nil {
+			continue
+		}
+		if m.TunnelID <= 0 || m.NodeID <= 0 || m.Timestamp <= 0 {
+			continue
+		}
+		if m.BytesIn == 0 && m.BytesOut == 0 && m.Connections == 0 && m.Errors == 0 {
+			continue
+		}
+
+		k := bucketKey{tunnelID: m.TunnelID, nodeID: m.NodeID, timestamp: m.Timestamp}
+		if existing, ok := agg[k]; ok {
+			existing.BytesIn += m.BytesIn
+			existing.BytesOut += m.BytesOut
+			existing.Connections += m.Connections
+			existing.Errors += m.Errors
+			if existing.AvgLatencyMs == 0 && m.AvgLatencyMs != 0 {
+				existing.AvgLatencyMs = m.AvgLatencyMs
+			}
+			continue
+		}
+		cp := *m
+		agg[k] = &cp
+	}
+	if len(agg) == 0 {
+		return nil
+	}
+
+	rows := make([]*model.TunnelMetric, 0, len(agg))
+	for _, v := range agg {
+		rows = append(rows, v)
+	}
+
+	return r.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "tunnel_id"}, {Name: "node_id"}, {Name: "timestamp"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"bytes_in":    gorm.Expr("bytes_in + excluded.bytes_in"),
+			"bytes_out":   gorm.Expr("bytes_out + excluded.bytes_out"),
+			"connections": gorm.Expr("connections + excluded.connections"),
+			"errors":      gorm.Expr("errors + excluded.errors"),
+			// avg_latency_ms is not additive; keep the existing bucket value.
+		}),
+	}).CreateInBatches(rows, 100).Error
+}
+
+func (r *Repository) GetTunnelMetrics(tunnelID int64, startMs, endMs int64) ([]model.TunnelMetric, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	var metrics []model.TunnelMetric
+	err := r.db.Where("tunnel_id = ? AND timestamp >= ? AND timestamp <= ?", tunnelID, startMs, endMs).
+		Order("timestamp DESC").
+		Limit(5000).
+		Find(&metrics).Error
+	if len(metrics) > 1 {
+		for i, j := 0, len(metrics)-1; i < j; i, j = i+1, j-1 {
+			metrics[i], metrics[j] = metrics[j], metrics[i]
+		}
+	}
+	return metrics, err
+}
+
+// GetTunnelMetricsAggregated returns tunnel-level aggregated series (one point per timestamp).
+// Storage remains per (tunnel_id, node_id, timestamp) for future drill-down.
+func (r *Repository) GetTunnelMetricsAggregated(tunnelID int64, startMs, endMs int64) ([]model.TunnelMetric, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+
+	var metrics []model.TunnelMetric
+	err := r.db.Model(&model.TunnelMetric{}).
+		Select(
+			"tunnel_id, 0 AS node_id, timestamp, "+
+				"SUM(bytes_in) AS bytes_in, "+
+				"SUM(bytes_out) AS bytes_out, "+
+				"SUM(connections) AS connections, "+
+				"SUM(errors) AS errors, "+
+				"AVG(avg_latency_ms) AS avg_latency_ms",
+		).
+		Where("tunnel_id = ? AND timestamp >= ? AND timestamp <= ?", tunnelID, startMs, endMs).
+		Group("tunnel_id, timestamp").
+		Order("timestamp ASC").
+		Limit(5000).
+		Scan(&metrics).Error
+	if metrics == nil {
+		metrics = make([]model.TunnelMetric, 0)
+	}
+	return metrics, err
+}
+
+func (r *Repository) PruneTunnelMetrics(olderThanMs int64) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.Where("timestamp < ?", olderThanMs).Delete(&model.TunnelMetric{}).Error
+}
+
+func (r *Repository) ListServiceMonitors() ([]model.ServiceMonitor, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	var monitors []model.ServiceMonitor
+	err := r.db.Order("id ASC").Find(&monitors).Error
+	return monitors, err
+}
+
+func (r *Repository) ListEnabledServiceMonitors() ([]model.ServiceMonitor, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	var monitors []model.ServiceMonitor
+	err := r.db.Where("enabled = 1 AND type IN (?)", []string{"tcp", "icmp"}).Order("id ASC").Find(&monitors).Error
+	return monitors, err
+}
+
+func (r *Repository) GetServiceMonitor(id int64) (*model.ServiceMonitor, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	var m model.ServiceMonitor
+	err := r.db.First(&m, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (r *Repository) CreateServiceMonitor(m *model.ServiceMonitor) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.Create(m).Error
+}
+
+func (r *Repository) UpdateServiceMonitor(m *model.ServiceMonitor) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.Save(m).Error
+}
+
+func (r *Repository) DeleteServiceMonitor(id int64) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	if id <= 0 {
+		return nil
+	}
+
+	// Keep API/UI semantics simple: deleting a monitor also deletes its history.
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("monitor_id = ?", id).Delete(&model.ServiceMonitorResult{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&model.ServiceMonitor{}, id).Error
+	})
+}
+
+func (r *Repository) InsertServiceMonitorResult(result *model.ServiceMonitorResult) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.Create(result).Error
+}
+
+func (r *Repository) GetServiceMonitorResults(monitorID int64, limit int) ([]model.ServiceMonitorResult, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	var results []model.ServiceMonitorResult
+	err := r.db.Where("monitor_id = ?", monitorID).
+		Order("timestamp DESC").
+		Limit(limit).
+		Find(&results).Error
+	return results, err
+}
+
+// GetLatestServiceMonitorResults returns the newest result per monitor_id.
+// This is intended for list rendering (avoid N+1 queries).
+func (r *Repository) GetLatestServiceMonitorResults() ([]model.ServiceMonitorResult, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+
+	var results []model.ServiceMonitorResult
+
+	// Prefer a window-function query (works on modern SQLite + Postgres).
+	q1 := `
+		SELECT id, monitor_id, node_id, timestamp, success, latency_ms, status_code, error_message
+		FROM (
+			SELECT *, ROW_NUMBER() OVER (PARTITION BY monitor_id ORDER BY timestamp DESC, id DESC) AS rn
+			FROM service_monitor_result
+		) t
+		WHERE rn = 1
+		ORDER BY monitor_id ASC
+	`
+	if err := r.db.Raw(q1).Scan(&results).Error; err == nil {
+		return results, nil
+	}
+
+	// Fallback: just return newest rows (best-effort). This avoids hard failure on older SQLite builds.
+	// Note: This may not include all monitors if the table is extremely large and skewed.
+	results = nil
+	q2 := `
+		SELECT id, monitor_id, node_id, timestamp, success, latency_ms, status_code, error_message
+		FROM service_monitor_result
+		ORDER BY timestamp DESC, id DESC
+		LIMIT 5000
+	`
+	err := r.db.Raw(q2).Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[int64]struct{}, len(results))
+	out := make([]model.ServiceMonitorResult, 0, len(results))
+	for _, row := range results {
+		if row.MonitorID <= 0 {
+			continue
+		}
+		if _, ok := seen[row.MonitorID]; ok {
+			continue
+		}
+		seen[row.MonitorID] = struct{}{}
+		out = append(out, row)
+	}
+	// Keep response stable for the frontend.
+	sort.Slice(out, func(i, j int) bool { return out[i].MonitorID < out[j].MonitorID })
+	return out, nil
+}
+
+func (r *Repository) PruneServiceMonitorResults(olderThanMs int64) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.Where("timestamp < ?", olderThanMs).Delete(&model.ServiceMonitorResult{}).Error
+}

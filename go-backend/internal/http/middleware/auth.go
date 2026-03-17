@@ -101,6 +101,10 @@ func shouldSkip(path string) bool {
 }
 
 func requiresAdmin(path string) bool {
+	if strings.HasPrefix(path, "/api/v1/monitor/permission/") {
+		return true
+	}
+
 	if strings.HasPrefix(path, "/api/v1/group/") {
 		return true
 	}

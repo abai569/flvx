@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { siteConfig } from "@/config/site";
+import { getMonitorAccess } from "@/api";
 import { getAdminFlag } from "@/utils/session";
 import { useScrollTopOnPathChange } from "@/hooks/useScrollTopOnPathChange";
 
@@ -17,6 +19,10 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [monitorAllowed, setMonitorAllowed] = useState<boolean | null>(null);
+  const [monitorAccessReason, setMonitorAccessReason] = useState<string | null>(
+    null,
+  );
 
   useScrollTopOnPathChange();
 
@@ -73,6 +79,19 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       adminOnly: true,
     },
     {
+      path: "/monitor",
+      label: "监控",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            clipRule="evenodd"
+            d="M3 3a1 1 0 000 2v11a1 1 0 001 1h13a1 1 0 100-2H5V5a1 1 0 00-1-1H3zm13.707 4.293a1 1 0 00-1.414 0L12 10.586 10.707 9.293a1 1 0 00-1.414 0L7 11.586l-1.293-1.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0L10 11.414l1.293 1.293a1 1 0 001.414 0l3-3a1 1 0 000-1.414z"
+            fillRule="evenodd"
+          />
+        </svg>
+      ),
+    },
+    {
       path: "/profile",
       label: "我的",
       icon: (
@@ -84,11 +103,60 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
   ];
 
   useEffect(() => {
-    setIsAdmin(getAdminFlag());
+    const adminFlag = getAdminFlag();
+
+    setIsAdmin(adminFlag);
+    if (adminFlag) {
+      setMonitorAllowed(true);
+      setMonitorAccessReason(null);
+
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getMonitorAccess();
+        if (cancelled) return;
+        if (res.code === 0 && res.data) {
+          setMonitorAllowed(Boolean(res.data.allowed));
+          setMonitorAccessReason(
+            res.data.allowed ? null : (res.data.reason || null),
+          );
+          return;
+        }
+        setMonitorAllowed(true);
+        setMonitorAccessReason(null);
+      } catch {
+        if (cancelled) return;
+        setMonitorAllowed(true);
+        setMonitorAccessReason(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Tab点击处理
   const handleTabClick = (path: string) => {
+    if (path === "/monitor" && monitorAllowed !== true) {
+      if (monitorAllowed == null) {
+        toast("正在检查监控权限，请稍后重试");
+
+        return;
+      }
+
+      const hint =
+        monitorAccessReason === "need_admin_grant"
+          ? "暂无监控权限，请联系管理员授权"
+          : "暂无监控权限";
+
+      toast.error(hint);
+
+      return;
+    }
     navigate(path);
   };
 
@@ -121,6 +189,8 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       <nav className="bg-white dark:bg-black border-t border-gray-200 dark:border-gray-600 h-[calc(4rem+var(--safe-area-bottom))] flex-shrink-0 flex items-center justify-around px-2 fixed bottom-0 left-0 right-0 z-30">
         {filteredTabItems.map((item) => {
           const isActive = location.pathname === item.path;
+          const isMonitor = item.path === "/monitor";
+          const isMonitorBlocked = isMonitor && monitorAllowed !== true;
 
           return (
             <button
@@ -128,10 +198,13 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
               className={`
                 flex flex-col items-center justify-center flex-1 h-full pb-[var(--safe-area-bottom)]
                 transition-colors duration-200 min-h-[44px]
+                ${isMonitorBlocked ? "opacity-60" : ""}
                 ${
                   isActive
                     ? "text-primary-600 dark:text-primary-400"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                    : isMonitorBlocked
+                      ? "text-gray-500 dark:text-gray-400"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 }
               `}
               onClick={() => handleTabClick(item.path)}

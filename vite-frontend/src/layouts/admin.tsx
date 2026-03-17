@@ -21,7 +21,7 @@ import {
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { BrandLogo } from "@/components/brand-logo";
 import { VersionFooter } from "@/components/version-footer";
-import { updatePassword } from "@/api";
+import { getMonitorAccess, updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";
 import { siteConfig } from "@/config/site";
 import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
@@ -56,6 +56,10 @@ export default function AdminLayout({
   );
   const [username, setUsername] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [monitorAllowed, setMonitorAllowed] = useState<boolean | null>(null);
+  const [monitorAccessReason, setMonitorAccessReason] = useState<string | null>(
+    null,
+  );
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordForm, setPasswordForm] = useState<PasswordForm>({
     newUsername: "",
@@ -116,6 +120,19 @@ export default function AdminLayout({
         </svg>
       ),
       adminOnly: true,
+    },
+    {
+      path: "/monitor",
+      label: "监控",
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            clipRule="evenodd"
+            d="M3 3a1 1 0 000 2v11a1 1 0 001 1h13a1 1 0 100-2H5V5a1 1 0 00-1-1H3zm13.707 4.293a1 1 0 00-1.414 0L12 10.586 10.707 9.293a1 1 0 00-1.414 0L7 11.586l-1.293-1.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0L10 11.414l1.293 1.293a1 1 0 001.414 0l3-3a1 1 0 000-1.414z"
+            fillRule="evenodd"
+          />
+        </svg>
+      ),
     },
     {
       path: "/limit",
@@ -184,6 +201,41 @@ export default function AdminLayout({
 
     setUsername(name);
     setIsAdmin(adminFlag);
+
+	// Monitor permission is not strictly role-based; non-admin users may be
+	// granted access explicitly. Fetch a lightweight capability flag so we can
+	// avoid a confusing 403 navigation.
+	if (adminFlag) {
+		setMonitorAllowed(true);
+		setMonitorAccessReason(null);
+		return;
+	}
+
+	let cancelled = false;
+	(async () => {
+		try {
+			const res = await getMonitorAccess();
+			if (cancelled) return;
+			if (res.code === 0 && res.data) {
+				setMonitorAllowed(Boolean(res.data.allowed));
+				setMonitorAccessReason(
+					res.data.allowed ? null : (res.data.reason || null),
+				);
+				return;
+			}
+			// Fail open to preserve legacy navigation behavior.
+			setMonitorAllowed(true);
+			setMonitorAccessReason(null);
+		} catch {
+			if (cancelled) return;
+			setMonitorAllowed(true);
+			setMonitorAccessReason(null);
+		}
+	})();
+
+	return () => {
+		cancelled = true;
+	};
   }, []);
 
   useEffect(() => {
@@ -218,6 +270,23 @@ export default function AdminLayout({
 
   // 菜单点击处理
   const handleMenuClick = (path: string) => {
+    if (path === "/monitor" && monitorAllowed !== true) {
+      if (monitorAllowed == null) {
+        toast("正在检查监控权限，请稍后重试");
+
+        return;
+      }
+
+      const hint =
+        monitorAccessReason === "need_admin_grant"
+          ? "暂无监控权限，请联系管理员在用户页面授予监控权限"
+          : "暂无监控权限，请联系管理员授权";
+
+      toast.error(hint);
+
+      return;
+    }
+
     navigate(path);
     if (isMobile) {
       hideMobileMenu();
@@ -346,6 +415,8 @@ export default function AdminLayout({
           <ul className="space-y-1">
             {filteredMenuItems.map((item) => {
               const isActive = location.pathname === item.path;
+              const isMonitor = item.path === "/monitor";
+              const isMonitorBlocked = isMonitor && monitorAllowed !== true;
 
               return (
                 <li key={item.path}>
@@ -353,13 +424,23 @@ export default function AdminLayout({
                     className={`
                        w-full flex items-center p-2 rounded-lg text-left
                        relative min-h-[44px] overflow-hidden transition-colors
+                       ${isMonitorBlocked ? "opacity-60" : ""}
                        ${
                          isActive
                            ? "text-primary-600 dark:text-primary-300"
-                           : "text-gray-700 dark:text-gray-200"
+                            : isMonitorBlocked
+                              ? "text-gray-500 dark:text-gray-400"
+                              : "text-gray-700 dark:text-gray-200"
                        }
                      `}
-                    title={isCollapsed ? item.label : undefined}
+                    aria-disabled={isMonitorBlocked}
+                    title={
+                      isCollapsed
+                        ? isMonitorBlocked
+                          ? `${item.label} (无权限)`
+                          : item.label
+                        : undefined
+                    }
                     transition={{ duration: 0.15 }}
                     onClick={() => handleMenuClick(item.path)}
                   >

@@ -234,6 +234,16 @@ type GroupPermissionGrant struct {
 
 func (GroupPermissionGrant) TableName() string { return "group_permission_grant" }
 
+// MonitorPermission grants a non-admin user access to monitoring endpoints.
+// One row per user_id.
+type MonitorPermission struct {
+	ID          int64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID      int64 `gorm:"column:user_id;not null;uniqueIndex:idx_monitor_permission_user" json:"userId"`
+	CreatedTime int64 `gorm:"column:created_time;not null" json:"createdTime"`
+}
+
+func (MonitorPermission) TableName() string { return "monitor_permission" }
+
 type ViteConfig struct {
 	ID    int64  `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name  string `gorm:"type:varchar(200);not null;uniqueIndex" json:"name"`
@@ -640,3 +650,66 @@ type UserForwardDetail struct {
 	Status     int
 	CreatedAt  int64
 }
+
+type NodeMetric struct {
+	ID          int64   `gorm:"primaryKey;autoIncrement" json:"id"`
+	NodeID      int64   `gorm:"column:node_id;not null;index:idx_node_metric_node_time,priority:1" json:"nodeId"`
+	Timestamp   int64   `gorm:"not null;index:idx_node_metric_node_time,priority:2;index:idx_node_metric_time" json:"timestamp"`
+	CPUUsage    float64 `gorm:"column:cpu_usage" json:"cpuUsage"`
+	MemUsage    float64 `gorm:"column:mem_usage" json:"memoryUsage"`
+	DiskUsage   float64 `gorm:"column:disk_usage" json:"diskUsage"`
+	NetInBytes  int64   `gorm:"column:net_in_bytes" json:"netInBytes"`
+	NetOutBytes int64   `gorm:"column:net_out_bytes" json:"netOutBytes"`
+	NetInSpeed  int64   `gorm:"column:net_in_speed" json:"netInSpeed"`
+	NetOutSpeed int64   `gorm:"column:net_out_speed" json:"netOutSpeed"`
+	Load1       float64 `gorm:"column:load1" json:"load1"`
+	Load5       float64 `gorm:"column:load5" json:"load5"`
+	Load15      float64 `gorm:"column:load15" json:"load15"`
+	TCPConns    int64   `gorm:"column:tcp_conns" json:"tcpConns"`
+	UDPConns    int64   `gorm:"column:udp_conns" json:"udpConns"`
+	Uptime      int64   `gorm:"column:uptime" json:"uptime"`
+}
+
+func (NodeMetric) TableName() string { return "node_metric" }
+
+type TunnelMetric struct {
+	ID           int64   `gorm:"primaryKey;autoIncrement" json:"id"`
+	TunnelID     int64   `gorm:"column:tunnel_id;not null;index:idx_tunnel_metric_tunnel_time,priority:1" json:"tunnelId"`
+	NodeID       int64   `gorm:"column:node_id;not null;index:idx_tunnel_metric_tunnel_time,priority:2" json:"nodeId"`
+	Timestamp    int64   `gorm:"not null;index:idx_tunnel_metric_tunnel_time,priority:3;index:idx_tunnel_metric_time" json:"timestamp"`
+	BytesIn      int64   `gorm:"column:bytes_in" json:"bytesIn"`
+	BytesOut     int64   `gorm:"column:bytes_out" json:"bytesOut"`
+	Connections  int64   `gorm:"column:connections" json:"connections"`
+	Errors       int64   `gorm:"column:errors" json:"errors"`
+	AvgLatencyMs float64 `gorm:"column:avg_latency_ms" json:"avgLatencyMs"`
+}
+
+func (TunnelMetric) TableName() string { return "tunnel_metric" }
+
+type ServiceMonitor struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name        string `gorm:"type:varchar(100);not null" json:"name"`
+	Type        string `gorm:"type:varchar(20);not null" json:"type"`
+	Target      string `gorm:"type:text;not null" json:"target"`
+	IntervalSec int    `gorm:"column:interval_sec;not null;default:60" json:"intervalSec"`
+	TimeoutSec  int    `gorm:"column:timeout_sec;not null;default:5" json:"timeoutSec"`
+	NodeID      int64  `gorm:"column:node_id;index" json:"nodeId"`
+	Enabled     int    `gorm:"not null;default:1" json:"enabled"`
+	CreatedTime int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+}
+
+func (ServiceMonitor) TableName() string { return "service_monitor" }
+
+type ServiceMonitorResult struct {
+	ID           int64   `gorm:"primaryKey;autoIncrement" json:"id"`
+	MonitorID    int64   `gorm:"column:monitor_id;not null;index:idx_monitor_result_monitor_time,priority:1" json:"monitorId"`
+	NodeID       int64   `gorm:"column:node_id;not null;index" json:"nodeId"`
+	Timestamp    int64   `gorm:"not null;index:idx_monitor_result_monitor_time,priority:2" json:"timestamp"`
+	Success      int     `gorm:"not null" json:"success"`
+	LatencyMs    float64 `gorm:"column:latency_ms" json:"latencyMs"`
+	StatusCode   int     `gorm:"column:status_code" json:"statusCode"`
+	ErrorMessage string  `gorm:"column:error_message;type:text" json:"errorMessage"`
+}
+
+func (ServiceMonitorResult) TableName() string { return "service_monitor_result" }
