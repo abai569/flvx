@@ -9,7 +9,7 @@ const APP_VERSION = "1.0.3";
 const DEFAULT_FAVICON = "/favicon.ico";
 const FAVICON_LINK_ID = "app-favicon";
 const GITHUB_REPO =
-  import.meta.env.VITE_GITHUB_REPO || "https://github.com/Sagit-chu/flux-panel";
+  import.meta.env.VITE_GITHUB_REPO || "https://github.com/abai569/flvx";
 
 const getInitialConfig = () => {
   if (typeof window === "undefined") {

@@ -9,7 +9,7 @@ import {
   hasVersionUpdate,
 } from "@/utils/version-update";
 
-const FALLBACK_GITHUB_REPO = "https://github.com/Sagit-chu/flux-panel";
+const FALLBACK_GITHUB_REPO = "https://github.com/abai569/flvx";
 
 interface VersionFooterProps {
   version: string;
