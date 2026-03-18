@@ -226,10 +226,8 @@ const normalizeNodeExpiryReminders = (items: NodeApiItem[]) => {
         typeof item.expiryTime === "number" && item.expiryTime > 0
           ? item.expiryTime
           : undefined,
-      expiryReminderDismissed: item.expiryReminderDismissed,
     }))
     .filter((item) => {
-      if (item.expiryReminderDismissed) return false;
       if (!item.expiryTime || !item.renewalCycle) return false;
       const snapshot = getNodeRenewalSnapshot(
         item.expiryTime,

@@ -477,146 +477,204 @@ export default function GroupPage() {
       )}
 
       <Card>
-        <CardHeader className="flex flex-row items-center gap-3 pb-2">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <h3 className="text-lg font-semibold">隧道分组</h3>
-          <Button
-            className="h-7 px-3 text-xs font-medium min-w-0 shadow-sm"
-            color="primary"
-            size="sm"
+          <Button 
+            color="primary" 
+            size="md" 
+            className="h-9 px-4 text-xs font-medium min-w-0 shadow-sm" 
             onPress={openCreateTunnelGroup}
           >
             新建
           </Button>
         </CardHeader>
         <CardBody>
-          <Table aria-label="隧道分组列表">
-            <TableHeader>
-              <TableColumn>名称</TableColumn>
-              <TableColumn>隧道</TableColumn>
-              <TableColumn>状态</TableColumn>
-              <TableColumn>创建时间</TableColumn>
-              <TableColumn>操作</TableColumn>
-            </TableHeader>
-            <TableBody emptyContent="暂无隧道分组" items={tunnelGroups}>
-              {(item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>
-                    {item.tunnelNames.length > 0
-                      ? item.tunnelNames.join("、")
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      color={item.status === 1 ? "success" : "danger"}
-                      size="sm"
-                    >
-                      {item.status === 1 ? "启用" : "停用"}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>{formatDate(item.createdTime)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="flat"
-                        onPress={() => openAssignTunnels(item)}
-                      >
-                        分配隧道
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="light"
-                        onPress={() => openEditTunnelGroup(item)}
-                      >
-                        编辑
-                      </Button>
-                      <Button
-                        color="danger"
-                        size="sm"
-                        variant="light"
-                        onPress={() => handleDeleteTunnelGroup(item.id)}
-                      >
-                        删除
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto w-full touch-pan-x pb-2">
+            <Table
+              aria-label="隧道分组列表"
+              className="min-w-[800px]"
+              classNames={{
+                th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+                td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                tr: "hover:bg-default-50/50 transition-colors",
+              }}
+            >
+              <TableHeader>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">名称</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[300px] text-left">隧道</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">创建时间</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[280px] text-left">操作</TableColumn>
+              </TableHeader>
+              <TableBody>
+                {tunnelGroups.length === 0 ? null : (
+                  tunnelGroups.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="font-medium text-foreground truncate">{item.name}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {item.tunnelNames.length > 0 ? (
+                          <div className="flex flex-nowrap gap-1 items-center" title={item.tunnelNames.join("、")}>
+                            {item.tunnelNames.slice(0, 2).map((name: string, idx: number) => (
+                              <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap">{name}</Chip>
+                            ))}
+                            {item.tunnelNames.length > 2 && (
+                              <Chip size="sm" variant="flat" color="primary" className="cursor-help whitespace-nowrap">+{item.tunnelNames.length - 2}</Chip>
+                            )}
+                          </div>
+                        ) : "-"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Chip
+                          color={item.status === 1 ? "success" : "danger"}
+                          size="sm"
+                          variant="flat"
+                        >
+                          {item.status === 1 ? "启用" : "停用"}
+                        </Chip>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-sm text-default-600">{formatDate(item.createdTime)}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <div className="flex gap-1.5">
+                          <Button
+                            className="min-h-7 min-w-[64px]"
+                            color="primary"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => openAssignTunnels(item)}
+                          >
+                            分配隧道
+                          </Button>
+                          <Button
+                            className="min-h-7 min-w-[64px]"
+                            color="default"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => openEditTunnelGroup(item)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            className="min-h-7 min-w-[64px]"
+                            color="danger"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleDeleteTunnelGroup(item.id)}
+                          >
+                            删除
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center gap-3 pb-2">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <h3 className="text-lg font-semibold">用户分组</h3>
-          <Button
-            className="h-7 px-3 text-xs font-medium min-w-0 shadow-sm"
-            color="primary"
-            size="sm"
+          <Button 
+            color="primary" 
+            size="md" 
+            className="h-9 px-4 text-xs font-medium min-w-0 shadow-sm" 
             onPress={openCreateUserGroup}
           >
             新建
           </Button>
         </CardHeader>
         <CardBody>
-          <Table aria-label="用户分组列表">
-            <TableHeader>
-              <TableColumn>名称</TableColumn>
-              <TableColumn>用户</TableColumn>
-              <TableColumn>状态</TableColumn>
-              <TableColumn>创建时间</TableColumn>
-              <TableColumn>操作</TableColumn>
-            </TableHeader>
-            <TableBody emptyContent="暂无用户分组" items={userGroups}>
-              {(item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>
-                    {item.userNames.length > 0
-                      ? item.userNames.join("、")
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      color={item.status === 1 ? "success" : "danger"}
-                      size="sm"
-                    >
-                      {item.status === 1 ? "启用" : "停用"}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>{formatDate(item.createdTime)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="flat"
-                        onPress={() => openAssignUsers(item)}
-                      >
-                        分配用户
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="light"
-                        onPress={() => openEditUserGroup(item)}
-                      >
-                        编辑
-                      </Button>
-                      <Button
-                        color="danger"
-                        size="sm"
-                        variant="light"
-                        onPress={() => handleDeleteUserGroup(item.id)}
-                      >
-                        删除
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto w-full touch-pan-x pb-2">
+            <Table
+              aria-label="用户分组列表"
+              className="min-w-[800px]"
+              classNames={{
+                th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+                td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                tr: "hover:bg-default-50/50 transition-colors",
+              }}
+            >
+              <TableHeader>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">名称</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[300px] text-left">用户</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">创建时间</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[280px] text-left">操作</TableColumn>
+              </TableHeader>
+              <TableBody>
+                {userGroups.length === 0 ? null : (
+                  userGroups.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="font-medium text-foreground truncate">{item.name}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {item.userNames.length > 0 ? (
+                          <div className="flex flex-nowrap gap-1 items-center" title={item.userNames.join("、")}>
+                            {item.userNames.slice(0, 2).map((name: string, idx: number) => (
+                              <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap">{name}</Chip>
+                            ))}
+                            {item.userNames.length > 2 && (
+                              <Chip size="sm" variant="flat" color="primary" className="cursor-help whitespace-nowrap">+{item.userNames.length - 2}</Chip>
+                            )}
+                          </div>
+                        ) : "-"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Chip
+                          color={item.status === 1 ? "success" : "danger"}
+                          size="sm"
+                          variant="flat"
+                        >
+                          {item.status === 1 ? "启用" : "停用"}
+                        </Chip>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-sm text-default-600">{formatDate(item.createdTime)}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <div className="flex gap-1.5">
+                          <Button
+                            className="min-h-7 min-w-[64px]"
+                            color="primary"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => openAssignUsers(item)}
+                          >
+                            分配用户
+                          </Button>
+                          <Button
+                            className="min-h-7 min-w-[64px]"
+                            color="default"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => openEditUserGroup(item)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            className="min-h-7 min-w-[64px]"
+                            color="danger"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleDeleteUserGroup(item.id)}
+                          >
+                            删除
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardBody>
       </Card>
 
@@ -625,9 +683,9 @@ export default function GroupPage() {
           <h3 className="text-lg font-semibold">权限分配</h3>
         </CardHeader>
         <CardBody className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:items-end">
+          <div className="flex flex-row items-end gap-2 w-full">
             <Select
-              items={userGroups}
+              className="flex-1 min-w-0" size="md" items={userGroups}
               label="用户分组"
               selectedKeys={
                 selectedUserGroupId ? [String(selectedUserGroupId)] : []
@@ -641,7 +699,7 @@ export default function GroupPage() {
               {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
             </Select>
             <Select
-              items={tunnelGroups}
+              className="flex-1 min-w-0" size="md" items={tunnelGroups}
               label="隧道分组"
               selectedKeys={
                 selectedTunnelGroupId ? [String(selectedTunnelGroupId)] : []
@@ -655,57 +713,70 @@ export default function GroupPage() {
               {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
             </Select>
             <Button
-              className="md:self-end md:justify-self-start whitespace-nowrap px-4"
+              className="flex-none whitespace-nowrap px-4 min-w-0 h-9 text-xs font-medium shadow-sm"
               color="primary"
               isLoading={savingPermission}
-              size="sm"
+              size="md"
               onPress={handleAssignPermission}
             >
               分配
             </Button>
           </div>
 
-          <Table aria-label="分组权限列表">
-            <TableHeader>
-              <TableColumn>ID</TableColumn>
-              <TableColumn>用户分组</TableColumn>
-              <TableColumn>隧道分组</TableColumn>
-              <TableColumn>创建时间</TableColumn>
-              <TableColumn>操作</TableColumn>
-            </TableHeader>
-            <TableBody emptyContent="暂无权限分配记录" items={permissions}>
-              {(item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.id}</TableCell>
-                  <TableCell>
-                    {item.userGroupName || item.userGroupId}
-                  </TableCell>
-                  <TableCell>
-                    {item.tunnelGroupName || item.tunnelGroupId}
-                  </TableCell>
-                  <TableCell>{formatDate(item.createdTime)}</TableCell>
-                  <TableCell>
-                    <Button
-                      color="danger"
-                      size="sm"
-                      variant="light"
-                      onPress={() => handleRemovePermission(item.id)}
-                    >
-                      回收
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto w-full touch-pan-x pb-2">
+            <Table
+              aria-label="分组权限列表"
+              className="min-w-[800px]"
+              classNames={{
+                th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+                td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                tr: "hover:bg-default-50/50 transition-colors",
+              }}
+            >
+              <TableHeader>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">ID</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">用户分组</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">隧道分组</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">创建时间</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">操作</TableColumn>
+              </TableHeader>
+              <TableBody>
+                {permissions.length === 0 ? null : (
+                  permissions.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-sm text-default-600">{item.id}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-sm text-foreground">{item.userGroupName || item.userGroupId}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-sm text-foreground">{item.tunnelGroupName || item.tunnelGroupId}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-sm text-default-600">{formatDate(item.createdTime)}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Button
+                          className="min-h-7 min-w-[64px]"
+                          color="danger"
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleRemovePermission(item.id)}
+                        >
+                          回收
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardBody>
       </Card>
 
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
+      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
         isOpen={tunnelGroupModalOpen}
         onOpenChange={onTunnelGroupModalChange}
       >
@@ -749,14 +820,7 @@ export default function GroupPage() {
         </ModalContent>
       </Modal>
 
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={userGroupModalOpen}
-        onOpenChange={onUserGroupModalChange}
-      >
+      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }} isOpen={userGroupModalOpen} onOpenChange={onUserGroupModalChange}>
         <ModalContent>
           <ModalHeader>
             {editingUserGroup ? "编辑用户分组" : "新建用户分组"}
@@ -797,11 +861,7 @@ export default function GroupPage() {
         </ModalContent>
       </Modal>
 
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
+      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
         isOpen={tunnelAssignModalOpen}
         onOpenChange={onTunnelAssignModalChange}
       >
@@ -848,11 +908,7 @@ export default function GroupPage() {
         </ModalContent>
       </Modal>
 
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
+      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
         isOpen={userAssignModalOpen}
         onOpenChange={onUserAssignModalChange}
       >

@@ -17,7 +17,6 @@ import PanelSharingPage from "@/pages/panel-sharing";
 import { SettingsPage } from "@/pages/settings";
 import AdminLayout from "@/layouts/admin";
 import H5Layout from "@/layouts/h5";
-import H5SimpleLayout from "@/layouts/h5-simple";
 import { isLoggedIn } from "@/utils/auth";
 import { siteConfig, updateSiteConfig } from "@/config/site";
 import { useH5Mode } from "@/hooks/useH5Mode";
@@ -25,11 +24,9 @@ import { useH5Mode } from "@/hooks/useH5Mode";
 // 简化的路由保护组件 - 使用 React Router 导航避免循环
 const ProtectedRoute = ({
   children,
-  useSimpleLayout = false,
   skipLayout = false,
 }: {
   children: React.ReactNode;
-  useSimpleLayout?: boolean;
   skipLayout?: boolean;
 }) => {
   const authenticated = isLoggedIn();
@@ -57,8 +54,7 @@ const ProtectedRoute = ({
   }
 
   // 根据模式和页面类型选择布局
-  const Layout =
-    isH5 && useSimpleLayout ? H5SimpleLayout : isH5 ? H5Layout : AdminLayout;
+  const Layout = isH5 ? H5Layout : AdminLayout;
 
   return <Layout>{children}</Layout>;
 };
@@ -157,7 +153,7 @@ function App() {
       />
       <Route
         element={
-          <ProtectedRoute useSimpleLayout={true}>
+          <ProtectedRoute>
             <UserPage />
           </ProtectedRoute>
         }
@@ -165,7 +161,7 @@ function App() {
       />
       <Route
         element={
-          <ProtectedRoute useSimpleLayout={true}>
+          <ProtectedRoute>
             <GroupPage />
           </ProtectedRoute>
         }
@@ -181,7 +177,7 @@ function App() {
       />
       <Route
         element={
-          <ProtectedRoute useSimpleLayout={true}>
+          <ProtectedRoute>
             <LimitPage />
           </ProtectedRoute>
         }
@@ -197,7 +193,7 @@ function App() {
       />
       <Route
         element={
-          <ProtectedRoute useSimpleLayout={true}>
+          <ProtectedRoute>
             <PanelSharingPage />
           </ProtectedRoute>
         }

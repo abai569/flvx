@@ -1,7 +1,5 @@
 import type { ForwardApiItem, SpeedLimitApiItem } from "@/api/types";
 
-
-
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
@@ -23,6 +21,8 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
+import { SearchBar } from "@/components/search-bar";
 import { AnimatedPage } from "@/components/animated-page";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -95,6 +95,7 @@ import {
 import { buildForwardOrder, FORWARD_ORDER_KEY } from "@/pages/forward/order";
 import { PageLoadingState } from "@/components/page-state";
 // import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
+import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { saveOrder } from "@/utils/order-storage";
 import { JwtUtil } from "@/utils/jwt";
 
@@ -188,17 +189,18 @@ const FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX = "forward-group-collapsed";
 const FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX = "forward-tunnel-group";
 const FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS = "min-w-[1320px]";
 const FORWARD_GROUPED_TABLE_COLUMN_CLASS = {
-  select: "w-14",
-  drag: "w-14 pl-2",
-  name: "w-[180px]",
-  inAddr: "w-[160px]",
+  select: "w-[56px]",
+  drag: "w-[70px] pl-2",
+  name: "w-[190px]",
+  tunnel: "w-[180px]",
+  inAddr: "w-[170px]",
   inPort: "w-[80px]",
-  targetAddr: "w-[120px]",
+  targetAddr: "w-[170px]",
   targetPort: "w-[80px]",
   strategy: "w-[90px]",
   totalFlow: "w-[110px]",
   status: "w-[90px]",
-  actions: "w-[160px] text-right pr-4",
+  actions: "w-[180px] text-right pr-4",
 } as const;
 
 const normalizeForwardUserName = (userName?: string): string => {
@@ -636,16 +638,16 @@ const SortableTunnelGroupContainer = ({
               <path d="m6 9 6 6 6-6" />
             </svg>
           </Button>
+          {/* 倍率 */}
           <span className={titleClassName}>{tunnel.tunnelName}</span>
-          {/* 隧道倍率标识 - 统一 10px 字体 */}
-          <span className="text-primary-600 font-bold text-[10px] mr-1.5">
+          <span className="text-primary font-bold text-[10px] mr-1.5">
             ^{formatTunnelTrafficRatio(tunnel.tunnelTrafficRatio)}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className={countClassName}>{tunnel.items.length} 条规则</span>
           <div
-            className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors"
+            className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors"
             title="拖拽分组排序"
             {...attributes}
             {...listeners}
@@ -698,9 +700,11 @@ const SortableForwardCard = ({ forward, renderCard }: any) => {
 };
 
 // 可拖拽的表格行组件
-const SortableTableRow = ({ copyToClipboard, forward, selectedIds, toggleSelect, handleServiceToggle, handleEdit, handleDelete, handleDiagnose, formatFlow }: any) => {
+
+const SortableTableRow = ({ copyToClipboard, forward, selectedIds, toggleSelect, getStrategyDisplay, handleServiceToggle, handleEdit, handleDelete, handleDiagnose, formatFlow }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: forward.id });
-  const style = { transform: CSS.Transform.toString(transform), transition: isDragging ? 'none' : transition, opacity: isDragging ? 0.6 : 1, zIndex: isDragging ? 50 : undefined, position: isDragging ? ('relative' as const) : undefined, willChange: 'transform', backgroundColor: isDragging ? "var(--nextui-default-100)" : undefined };
+  const style = { transform: CSS.Transform.toString(transform), transition: isDragging ? 'none' : transition, opacity: 0.6, zIndex: 50, position: isDragging ? ('relative' as const) : undefined, willChange: 'transform' };
+  const strategyDisplay = getStrategyDisplay(forward.strategy);
   const rowBg = selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
   const inAddrOnly = (forward.inIp || "").replace(/:\d+$/, "") || "默认IP";
   const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
@@ -708,165 +712,89 @@ const SortableTableRow = ({ copyToClipboard, forward, selectedIds, toggleSelect,
 
   return (
     <TableRow key={forward.id} ref={setNodeRef} style={style as any}>
-      <TableCell className={rowBg}>
-        <div className="flex items-center justify-center h-full">
-          <Checkbox isSelected={selectedIds.has(forward.id)} onValueChange={() => toggleSelect(forward.id)} />
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors flex-shrink-0" {...attributes} {...listeners}>
-          <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" /></svg>
-        </div>
-      </TableCell>
-      <TableCell className={`whitespace-nowrap text-black ${rowBg}`}><span className="cursor-pointer hover:text-primary transition-colors text-black" onClick={() => copyToClipboard(forward.name, "规则名")}>{forward.name}</span></TableCell>
-      <TableCell className={rowBg}>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.select} ${rowBg}`}><Checkbox isSelected={selectedIds.has(forward.id)} onValueChange={() => toggleSelect(forward.id)} /></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag} ${rowBg}`}><div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0" {...attributes} {...listeners}><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" /></svg></div></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.name} ${rowBg} text-foreground font-bold truncate`}><span className="cursor-pointer hover:text-primary transition-colors" onClick={() => copyToClipboard(forward.name, "规则名")}>{forward.name}</span></TableCell>
+      
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.inAddr} ${rowBg}`}>
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${inAddrOnly}:${forward.inPort}`, "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={inAddrOnly} onClick={() => copyToClipboard(inAddrOnly, "入口地址")}>{inAddrOnly}</span>
+          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${inAddrOnly}:${forward.inPort}`, "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" strokeWidth={2.5}/></svg>
+          <span className="text-sm font-mono text-foreground font-bold cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate" onClick={() => copyToClipboard(inAddrOnly, "入口地址")}>{inAddrOnly}</span>
         </div>
       </TableCell>
-
-      <TableCell className={rowBg}>
-        <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors" onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}>{forward.inPort}</span>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.inPort} ${rowBg} text-left font-mono text-foreground font-bold`}>
+        <span className="cursor-pointer hover:bg-default-200/50 rounded px-1" onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}>{forward.inPort}</span>
       </TableCell>
-
-      <TableCell className={rowBg}>
+      
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.targetAddr} ${rowBg}`}>
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(forward.remoteAddr.split(",")[0], "完整落地"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={remoteAddrOnly} onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}>{remoteAddrOnly}</span>
-          {forward.remoteAddr.includes(',') && <span className="text-primary-400 ml-0.5">...</span>}
+          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${remoteAddrOnly}:${remotePortOnly}`, "完整落地"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" strokeWidth={2.5}/></svg>
+          <span className="text-sm font-mono text-foreground font-bold cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate" onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}>{remoteAddrOnly}</span>
         </div>
       </TableCell>
-
-      <TableCell className={rowBg}>
-        <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors" onClick={() => copyToClipboard(remotePortOnly, "落地端口")}>{remotePortOnly}</span>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.targetPort} ${rowBg} text-left font-mono text-foreground font-bold`}>
+        <span className="cursor-pointer hover:bg-default-200/50 rounded px-1" onClick={() => copyToClipboard(remotePortOnly, "落地端口")}>{remotePortOnly}</span>
       </TableCell>
-
-      <TableCell className={`whitespace-nowrap ${rowBg}`}><span className="text-sm font-mono text-black">{formatFlow(getForwardDisplayFlow(forward))}</span></TableCell>
-      <TableCell className={rowBg}><div className="flex items-center gap-2.5 whitespace-nowrap"><Chip
-        color={forward.serviceRunning ? "success" : "warning"}
-        size="sm"
-        variant="flat"
-      >
-        {forward.serviceRunning ? "正常" : "暂停"}
-      </Chip></div></TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex justify-start gap-2 pl-2">
-          <Button isIconOnly className={forward.serviceRunning ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]" : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"} size="sm" onPress={() => handleServiceToggle(forward)} title={forward.serviceRunning ? "暂停" : "启用"}>
-            {forward.serviceRunning ? (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
-            ) : (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            )}
-          </Button>
-          <Button isIconOnly className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]" size="sm" title="编辑" onPress={() => handleEdit(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2} /></svg></Button>
-          <Button isIconOnly className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]" size="sm" title="诊断" onPress={() => handleDiagnose(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" strokeWidth={2} /></svg></Button>
-          <Button isIconOnly className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]" size="sm" title="删除" onPress={() => handleDelete(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2} /></svg></Button>
+      
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy} ${rowBg}`}><Chip className="text-xs font-bold shrink-0" color={strategyDisplay.color as any} size="sm" variant="flat">{strategyDisplay.text}</Chip></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow} ${rowBg} text-sm font-bold text-foreground font-mono`}>{formatFlow(getForwardDisplayFlow(forward))}</TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.status} ${rowBg}`}><Switch color="success" isDisabled={forward.status !== 1 && forward.status !== 0} isSelected={forward.serviceRunning} size="sm" onValueChange={() => handleServiceToggle(forward)} /></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions} ${rowBg} text-right`}>
+        <div className="flex justify-end gap-2">
+          <Button isIconOnly className="bg-primary/10 text-primary flex-shrink-0 min-w-[32px]" size="sm" onPress={() => handleEdit(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2}/></svg></Button>
+          <Button isIconOnly className="bg-warning/10 text-warning flex-shrink-0 min-w-[32px]" size="sm" onPress={() => handleDiagnose(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg></Button>
+          <Button isIconOnly className="bg-danger/10 text-danger flex-shrink-0 min-w-[32px]" size="sm" onPress={() => handleDelete(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2}/></svg></Button>
         </div>
       </TableCell>
     </TableRow>
   );
 };
 
-const SortableCompactTableRow = ({
-  copyToClipboard,
-  forward,
-  selectedIds,
-  toggleSelect,
-  handleServiceToggle,
-  handleEdit,
-  handleDelete,
-  handleDiagnose,
-  formatFlow,
-}: any) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: forward.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : transition,
-    opacity: isDragging ? 0.6 : 1,
-    zIndex: isDragging ? 50 : undefined,
-    position: isDragging ? ('relative' as const) : undefined,
-    willChange: 'transform',
-    backgroundColor: isDragging ? "var(--nextui-default-100)" : undefined,
-  };
-
+const SortableCompactTableRow = ({ copyToClipboard, forward, selectedIds, toggleSelect, getStrategyDisplay, handleServiceToggle, handleEdit, handleDelete, handleDiagnose, formatFlow }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: forward.id });
+  const style = { transform: CSS.Transform.toString(transform), transition: isDragging ? 'none' : transition, opacity: 0.6, zIndex: 50, position: isDragging ? ('relative' as const) : undefined, willChange: 'transform' };
+  const strategyDisplay = getStrategyDisplay(forward.strategy);
   const rowBg = selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
-
-  const inAddrOnly = (forward.inIp || "").replace(/:\d+$/, "") || "默认 IP";
+  const inAddrOnly = (forward.inIp || "").replace(/:\d+$/, "") || "默认IP";
   const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
   const remotePortOnly = (forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "-";
 
   return (
     <TableRow key={forward.id} ref={setNodeRef} style={style as any}>
-      <TableCell className={rowBg}>
-        <div className="flex items-center justify-center h-full">
-          <Checkbox isSelected={selectedIds.has(forward.id)} onValueChange={() => toggleSelect(forward.id)} />
-        </div>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.select} ${rowBg}`}><Checkbox isSelected={selectedIds.has(forward.id)} onValueChange={() => toggleSelect(forward.id)} /></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag} ${rowBg}`}><div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0" {...attributes} {...listeners}><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" /></svg></div></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.name} ${rowBg} text-foreground font-bold truncate`}><span className="cursor-pointer hover:text-primary transition-colors" onClick={() => copyToClipboard(forward.name, "规则名")}>{forward.name}</span></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.tunnel} ${rowBg} truncate font-bold text-foreground`}>
+        <div className="flex items-center"><span className="font-bold text-foreground text-sm">{forward.tunnelName}</span><span className="font-bold text-success text-[12px] ml-1">^{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}</span></div>
       </TableCell>
-      <TableCell className={rowBg}>
-        <div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors flex-shrink-0" {...attributes} {...listeners}>
-          <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" /></svg>
-        </div>
-      </TableCell>
-      <TableCell className={`whitespace-nowrap text-black ${rowBg}`}><span className="cursor-pointer hover:text-primary transition-colors text-black" onClick={() => copyToClipboard(forward.name, "规则名")}>{forward.name}</span></TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="flex items-center">
-          <span className="font-medium text-black text-sm">{forward.tunnelName}</span>
-          {/* 隧道倍率标识 - 统一 10px 字体 */}
-          <span className="text-primary-600 font-bold text-[10px] ml-1.5">^{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}</span>
-        </div>
-      </TableCell>
-
-      <TableCell className={rowBg}>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.inAddr} ${rowBg}`}>
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${inAddrOnly}:${forward.inPort}`, "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={inAddrOnly} onClick={() => copyToClipboard(inAddrOnly, "入口地址")}>{inAddrOnly}</span>
+          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${inAddrOnly}:${forward.inPort}`, "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" strokeWidth={2.5}/></svg>
+          <span className="text-sm font-mono text-foreground font-bold cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate" onClick={() => copyToClipboard(inAddrOnly, "入口地址")}>{inAddrOnly}</span>
         </div>
       </TableCell>
-
-      <TableCell className={rowBg}>
-        <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors" onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}>{forward.inPort}</span>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.inPort} ${rowBg} text-left font-mono text-foreground font-bold`}>
+        <span className="cursor-pointer hover:bg-default-200/50 rounded px-1" onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}>{forward.inPort}</span>
       </TableCell>
-
-      <TableCell className={rowBg}>
+      
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.targetAddr} ${rowBg}`}>
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(forward.remoteAddr.split(",")[0], "完整落地"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={remoteAddrOnly} onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}>{remoteAddrOnly}</span>
-          {forward.remoteAddr.includes(',') && <span className="text-primary-400 ml-0.5">...</span>}
+          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${remoteAddrOnly}:${remotePortOnly}`, "完整落地"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" strokeWidth={2.5}/></svg>
+          <span className="text-sm font-mono text-foreground font-bold cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate" onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}>{remoteAddrOnly}</span>
         </div>
       </TableCell>
-
-      <TableCell className={rowBg}>
-        <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors" onClick={() => copyToClipboard(remotePortOnly, "落地端口")}>{remotePortOnly}</span>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.targetPort} ${rowBg} text-left font-mono text-foreground font-bold`}>
+        <span className="cursor-pointer hover:bg-default-200/50 rounded px-1" onClick={() => copyToClipboard(remotePortOnly, "落地端口")}>{remotePortOnly}</span>
       </TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}><span className="text-sm font-mono text-black">{formatFlow(getForwardDisplayFlow(forward))}</span></TableCell>
-      <TableCell className={rowBg}><div className="flex items-center gap-2.5 whitespace-nowrap"><Chip
-        color={forward.serviceRunning ? "success" : "warning"}
-        size="sm"
-        variant="flat"
-      >
-        {forward.serviceRunning ? "正常" : "暂停"}
-      </Chip></div></TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex justify-start gap-2 pl-2">
-          <Button isIconOnly className={forward.serviceRunning ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]" : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"} size="sm" onPress={() => handleServiceToggle(forward)} title={forward.serviceRunning ? "暂停" : "启用"}>
-            {forward.serviceRunning ? (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
-            ) : (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            )}
-          </Button>
-          <Button isIconOnly className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]" size="sm" title="编辑" onPress={() => handleEdit(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2} /></svg></Button>
-          <Button isIconOnly className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]" size="sm" title="诊断" onPress={() => handleDiagnose(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" strokeWidth={2} /></svg></Button>
-          <Button isIconOnly className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]" size="sm" title="删除" onPress={() => handleDelete(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2} /></svg></Button>
+      
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy} ${rowBg}`}><Chip className="text-xs font-bold shrink-0" color={strategyDisplay.color as any} size="sm" variant="flat">{strategyDisplay.text}</Chip></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow} ${rowBg} text-sm font-bold text-foreground font-mono`}>{formatFlow(getForwardDisplayFlow(forward))}</TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.status} ${rowBg}`}><Switch color="success" isDisabled={forward.status !== 1 && forward.status !== 0} isSelected={forward.serviceRunning} size="sm" onValueChange={() => handleServiceToggle(forward)} /></TableCell>
+      <TableCell className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions} ${rowBg} text-right`}>
+        <div className="flex justify-end gap-2">
+          <Button isIconOnly className="bg-primary/10 text-primary flex-shrink-0 min-w-[32px]" size="sm" onPress={() => handleEdit(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2}/></svg></Button>
+          <Button isIconOnly className="bg-warning/10 text-warning flex-shrink-0 min-w-[32px]" size="sm" onPress={() => handleDiagnose(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg></Button>
+          <Button isIconOnly className="bg-danger/10 text-danger flex-shrink-0 min-w-[32px]" size="sm" onPress={() => handleDelete(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2}/></svg></Button>
         </div>
       </TableCell>
     </TableRow>
@@ -1553,29 +1481,6 @@ export default function ForwardPage() {
       localStorage.setItem("forward-view-mode", newMode);
     } catch { }
   };
-
-  // 切换精简模式
-  const handleCompactModeToggle = async (checked: boolean) => {
-    try {
-      const res = await updateConfig(FORWARD_COMPACT_MODE_CONFIG_KEY, checked ? "true" : "false");
-
-      if (res.code === 0) {
-        setCompactMode(checked);
-        // 触发事件通知其他组件
-        window.dispatchEvent(
-          new CustomEvent(FORWARD_COMPACT_MODE_EVENT, {
-            detail: { enabled: checked },
-          }),
-        );
-        toast.success(checked ? "已启用精简模式" : "已关闭精简模式");
-      } else {
-        toast.error(res.msg || "切换失败");
-      }
-    } catch {
-      toast.error("切换失败，请重试");
-    }
-  };
-
 
   const applyForwardList = useCallback(
     async (items: Forward[]) => {
@@ -2280,7 +2185,7 @@ export default function ForwardPage() {
         textArea.style.top = "0";
         document.body.appendChild(textArea);
         textArea.focus(); textArea.select();
-        try { document.execCommand('copy'); toast.success(`已复制${label}`); }
+        try { document.execCommand('copy'); toast.success(`已复制${label}`); } 
         catch (err) { toast.error("复制失败"); }
         document.body.removeChild(textArea);
       }
@@ -3242,6 +3147,10 @@ export default function ForwardPage() {
     return sortedForwards && sortedForwards.length > 0 && selectedIds.size === sortedForwards.length;
   }, [sortedForwards, selectedIds]);
 
+  const isIndeterminate = useMemo(() => {
+    return selectedIds.size > 0 && sortedForwards && selectedIds.size < sortedForwards.length;
+  }, [sortedForwards, selectedIds]);
+
   const handleSelectAllToggle = (isSelected: boolean) => {
     if (isSelected) {
       const allIds = sortedForwards.map((f) => f.id);
@@ -3331,10 +3240,12 @@ export default function ForwardPage() {
           {/* 第一行：复选框与开关 */}
           <div className="flex justify-between items-center w-full">
             <div className="flex items-center -ml-1">
-              <Checkbox
-                isSelected={selectedIds.has(forward.id)}
-                onValueChange={() => toggleSelect(forward.id)}
-              />
+              {true && (
+                <Checkbox
+                  isSelected={selectedIds.has(forward.id)}
+                  onValueChange={() => toggleSelect(forward.id)}
+                />
+              )}
             </div>
             <div className="flex items-center gap-1.5 -mr-1">
               <Switch
@@ -3353,16 +3264,16 @@ export default function ForwardPage() {
 
           {/* 第二行：规则名与隧道信息 */}
           <div className="flex-1 min-w-0 w-full pl-0.5">
-            <h3
-              className="font-bold text-foreground truncate text-sm cursor-pointer hover:text-primary transition-colors"
+            <h3 
+              className="font-bold text-foreground truncate text-sm cursor-pointer hover:text-primary transition-colors" 
+              title="点击复制规则名"
               onClick={() => copyToClipboard(forward.name, "规则名")}
             >
               {forward.name}
             </h3>
             <div className="text-xs text-foreground font-bold truncate flex items-center mt-0.5">
               <span className="truncate">{normalizeForwardTunnelName(forward.tunnelName)}</span>
-              {/* 隧道倍率标识 - 统一 10px 字体 */}
-              <span className="text-primary-600 font-bold text-[10px] ml-1">
+              <span className="text-success text-[12px] ml-1">
                 ^{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
               </span>
             </div>
@@ -3371,23 +3282,24 @@ export default function ForwardPage() {
 
         <CardBody className="flex flex-1 flex-col pt-0 pb-3 md:pt-0 md:pb-3">
           <div className="space-y-3 flex-1 py-1">
-            {/* 入口信息区 */}
+            {/* 入口信息区 - 强制高度 h-8 确保对齐 */}
             <div className="space-y-1">
               <div className="flex gap-1 px-1 text-[11px] font-bold text-foreground uppercase tracking-wider">
                 <span className="flex-1 text-left">入口地址</span>
                 <span className="w-16 text-center">端口</span>
               </div>
               <div className="flex gap-1 items-center">
-                <div className="flex-1 min-w-0 h-8 bg-default-100/60 text-red-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center transition-colors">
+                <div className="flex-1 min-w-0 h-8 bg-default-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center transition-colors">
                   <div className="flex items-center gap-1.5 w-full">
                     <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${(forward.inIp || "").replace(/:\d+$/, "") || "默认IP"}:${forward.inPort}`, "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                    <code className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]" title={(forward.inIp || "").replace(/:\d+$/, "") || "默认IP"} onClick={() => copyToClipboard((forward.inIp || "").replace(/:\d+$/, "") || "默认IP", "入口地址")}>
+                    <code className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer" title="点击复制入口地址" onClick={() => copyToClipboard((forward.inIp || "").replace(/:\d+$/, "") || "默认IP", "入口地址")}>
                       {(forward.inIp || "").replace(/:\d+$/, "") || "默认IP"}
                     </code>
                   </div>
                 </div>
-                <div
+                <div 
                   className="w-16 h-8 bg-default-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center justify-center cursor-pointer transition-colors"
+                  title="点击复制入口端口"
                   onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}
                 >
                   <code className="text-xs font-mono text-foreground font-bold">
@@ -3397,7 +3309,7 @@ export default function ForwardPage() {
               </div>
             </div>
 
-            {/* 落地信息区 */}
+            {/* 落地信息区 - 强制高度 h-8 确保对齐 */}
             <div className="space-y-1">
               <div className="flex gap-1 px-1 text-[11px] font-bold text-foreground uppercase tracking-wider">
                 <span className="flex-1 text-left">落地地址</span>
@@ -3407,13 +3319,14 @@ export default function ForwardPage() {
                 <div className="flex-1 min-w-0 h-8 bg-default-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center transition-colors">
                   <div className="flex items-center gap-1.5 w-full">
                     <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${forward.remoteAddr.split(",")[0]}`, "完整落地"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                    <code className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]" title={forward.remoteAddr.split(',')[0].replace(/:\d+$/, "")} onClick={() => copyToClipboard(forward.remoteAddr.split(',')[0].replace(/:\d+$/, ""), "落地地址")}>
+                    <code className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer" title="点击复制落地地址" onClick={() => copyToClipboard(forward.remoteAddr.split(',')[0].replace(/:\d+$/, ""), "落地地址")}>
                       {forward.remoteAddr.split(',')[0].replace(/:\d+$/, "")}
                     </code>
                   </div>
                 </div>
-                <div
+                <div 
                   className="w-16 h-8 bg-default-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center justify-center cursor-pointer transition-colors"
+                  title="点击复制落地端口"
                   onClick={() => copyToClipboard((forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "", "落地端口")}
                 >
                   <code className="text-xs font-mono text-foreground font-bold">
@@ -3441,9 +3354,9 @@ export default function ForwardPage() {
           </div>
 
           <div className="flex gap-1.5 mt-3">
-            <Button className="flex-1 min-h-8 font-bold flex-shrink-0" color="primary" size="sm" variant="flat" onPress={() => handleEdit(forward)}>编辑</Button>
-            <Button className="flex-1 min-h-8 font-bold flex-shrink-0" color="warning" size="sm" variant="flat" onPress={() => handleDiagnose(forward)}>诊断</Button>
-            <Button className="flex-1 min-h-8 font-bold flex-shrink-0" color="danger" size="sm" variant="flat" onPress={() => handleDelete(forward)}>删除</Button>
+            <Button className="flex-1 min-h-8 font-bold" color="primary" size="sm" variant="flat" onPress={() => handleEdit(forward)}>编辑</Button>
+            <Button className="flex-1 min-h-8 font-bold" color="warning" size="sm" variant="flat" onPress={() => handleDiagnose(forward)}>诊断</Button>
+            <Button className="flex-1 min-h-8 font-bold" color="danger" size="sm" variant="flat" onPress={() => handleDelete(forward)}>删除</Button>
           </div>
         </CardBody>
       </Card>
@@ -3456,14 +3369,33 @@ export default function ForwardPage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
-      <div className="flex items-center justify-between mb-6 gap-3">
-        <div className="flex-1" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-3">
+
+        <div className="flex-1 flex items-center gap-2">
+          <Button
+            color={activeFilterCount > 0 ? "primary" : "default"}
+            variant={activeFilterCount > 0 ? "flat" : "bordered"}
+            startContent={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            }
+            onPress={() => setIsSearchModalOpen(true)}
+          >
+            高级筛选 {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
+          </Button>
+          {activeFilterCount > 0 && (
+            <Button size="sm" variant="light" color="danger" onPress={() => setSearchParams({ name: "", userId: tokenUserId ? tokenUserId.toString() : "all", tunnelId: "all", inPort: "", remoteAddr: "" })}>
+              清空条件
+            </Button>
+          )}
+        </div>
         <div className="min-h-9 min-w-0 max-w-full overflow-x-auto touch-pan-x">
           <div className="flex min-h-9 w-max min-w-full items-center justify-end gap-2 whitespace-nowrap sm:gap-3 [&>*]:shrink-0">
             {selectedIds.size > 0 ? (
               <>
-                <span className="text-sm text-danger-400 shrink-0">
-                  已选{selectedIds.size}项
+                <span className="text-sm text-default-600 shrink-0">
+                  已选择 {selectedIds.size} 项
                 </span>
                 <Button
                   color="primary"
@@ -3533,43 +3465,45 @@ export default function ForwardPage() {
               </>
             ) : (
               <>
-                {/* 筛选按钮 */}
-                <Button
-                  className="h-8 px-2 text-xs whitespace-nowrap bg-red-100"
-                  color={activeFilterCount > 0 ? "secondary" : "danger"}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setIsSearchModalOpen(true)}
-                >
-                  筛选{activeFilterCount > 0 && `(${activeFilterCount})`}
-                </Button>
-                {activeFilterCount > 0 && (
-                  <Button size="sm" variant="light" color="danger" onPress={() => setSearchParams({ name: "", userId: tokenUserId ? tokenUserId.toString() : "all", tunnelId: "all", inPort: "", remoteAddr: "" })}>
-                    清空条件
-                  </Button>
-                )}
-
                 {/* 显示模式切换按钮 */}
                 <Button
-                  color={viewMode === "grouped" ? "primary" : "warning"}
+                  isIconOnly
+                  aria-label={
+                    viewMode === "grouped" ? "切换到直接显示" : "切换到分类显示"
+                  }
+                  className="text-sm"
+                  color="default"
                   size="sm"
+                  title={
+                    viewMode === "grouped" ? "切换到直接显示" : "切换到分类显示"
+                  }
                   variant="flat"
                   onPress={handleViewModeChange}
                 >
-                  {viewMode === "grouped" ? "卡片" : "列表"}
+                  {viewMode === "grouped" ? (
+                    <svg
+                      aria-hidden="true"
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        clipRule="evenodd"
+                        d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM3 16a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"
+                        fillRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      aria-hidden="true"
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                    </svg>
+                  )}
                 </Button>
-                {/* 精简模式按钮 - 仅管理员可见 */}
-                {isAdmin && (
-                  <Button
-                    color={compactMode ? "success" : "secondary"}
-                    size="sm"
-                    variant="flat"
-                    onPress={() => handleCompactModeToggle(!compactMode)}
-                  >
-                    {compactMode ? "默认" : "精简"}
-                  </Button>
-                )}
-
 
                 {/* 导入按钮 */}
                 <Button
@@ -3648,33 +3582,30 @@ export default function ForwardPage() {
                     items={sortableForwardIds}
                     strategy={verticalListSortingStrategy}
                   >
-                    <Table
+                                        <Table
                       aria-label="全部规则列表"
+                      layout="fixed"
                       classNames={{
-                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
                         td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                         tr: "hover:bg-default-50/50 transition-colors",
                       }}
                     >
                       <TableHeader>
-                        {true && (
-                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-14 text-left">
-                            {/* @ts-ignore */}
-                            <div className="flex items-center justify-center h-full">
-                              <Checkbox isSelected={isAllSelected} onValueChange={handleSelectAllToggle} aria-label="全选" />
-                            </div>
-                          </TableColumn>
-                        )}
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">规则名</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道倍率</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">入口地址</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] pl-4 text-left" align="left" >操作</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.select}>
+                          <Checkbox isSelected={isAllSelected} isIndeterminate={isIndeterminate} onValueChange={handleSelectAllToggle} aria-label="全选" />
+                        </TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag + " font-bold text-foreground"}>排序</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.name + " font-bold text-foreground text-left"}>规则名</TableColumn> 
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.tunnel + " font-bold text-foreground text-left"}>隧道<sup className="text-success font-bold text-[10px] mr-1">^倍率</sup></TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.inAddr + " font-bold text-foreground text-left"}>入口地址</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.inPort + " font-bold text-foreground text-left"}>端口</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.targetAddr + " font-bold text-foreground text-left"}>落地地址</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.targetPort + " font-bold text-foreground text-left"}>端口</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy + " font-bold text-foreground text-left"}>策略</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow + " font-bold text-foreground text-left"}>用量</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status + " font-bold text-foreground text-left"}>状态</TableColumn>
+                        <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions + " font-bold text-foreground text-right"}>操作</TableColumn>
                       </TableHeader>
                       <TableBody
                         emptyContent="暂无规则配置"
@@ -3805,7 +3736,7 @@ export default function ForwardPage() {
                         )}
                         strategy={verticalListSortingStrategy}
                       >
-                        {group.tunnels.map((tunnel) => {
+                                                {group.tunnels.map((tunnel) => {
                           const tunnelSortableForwardIds = tunnel.items
                             .map((item) => item.id)
                             .filter((id) => id > 0);
@@ -3817,17 +3748,32 @@ export default function ForwardPage() {
                             )
                             ] === true;
 
+                          // 核心：局部全选逻辑计算
+                          const groupForwardIds = tunnel.items.map((f: any) => f.id);
+                          const selectedInGroup = groupForwardIds.filter((id: number) => selectedIds.has(id));
+                          const isGroupAllSelected = groupForwardIds.length > 0 && selectedInGroup.length === groupForwardIds.length;
+                          const isGroupIndeterminate = selectedInGroup.length > 0 && selectedInGroup.length < groupForwardIds.length;
+
+                          const handleGroupSelectAll = (isSelected: boolean) => {
+                            const next = new Set(selectedIds);
+                            groupForwardIds.forEach((id: number) => {
+                              if (isSelected) next.add(id);
+                              else next.delete(id);
+                            });
+                            setSelectedIds(next);
+                          };
+
                           return (
                             <SortableTunnelGroupContainer
                               key={`grouped-table-${group.userId}-${tunnel.tunnelKey}`}
                               bodyClassName=""
                               collapsed={collapsed}
-                              countClassName="text-xs text-default-600"
+                              countClassName="text-xs text-secondary-700"
                               groupUserId={group.userId}
-                              headerClassName="flex items-center justify-between border-b border-divider bg-default-100/50 px-4 py-2.5"
-                              titleClassName="truncate text-sm font-semibold text-foreground"
+                              headerClassName="flex items-center justify-between border-b border-secondary/20 bg-secondary/10 px-4 py-2.5"
+                              titleClassName="truncate text-sm font-semibold text-secondary-700"
                               tunnel={tunnel}
-                              wrapperClassName="overflow-hidden rounded-lg border border-divider bg-content1"
+                              wrapperClassName="overflow-hidden rounded-lg border border-secondary/20 bg-secondary/5"
                               onToggleCollapsed={() =>
                                 toggleTunnelGroupCollapsed(
                                   group.userId,
@@ -3840,62 +3786,57 @@ export default function ForwardPage() {
                                 sensors={sensors}
                                 onDragEnd={handleDragEnd}
                               >
-                                {(() => {
-                                  const groupIds = tunnel.items.map(f => f.id);
-                                  const isGroupSelected = groupIds.every(id => selectedIds.has(id));
-                                  const handleGroupToggle = (isSelected: boolean) => {
-                                    const next = new Set(selectedIds);
-                                    groupIds.forEach(id => isSelected ? next.add(id) : next.delete(id));
-                                    setSelectedIds(next);
-                                  };
-                                  return (
-                                    <Table
-                                      aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
-                                      className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
-                                      classNames={{
-                                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
-                                        td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                                        tr: "hover:bg-default-50/50 transition-colors",
-                                        wrapper: "bg-content1",
-                                      }}
-                                    >
-                                      <TableHeader>
-                                        <TableColumn className={`whitespace-nowrap flex-shrink-0 ${FORWARD_GROUPED_TABLE_COLUMN_CLASS.select} text-left`}>
-                                          <div className="flex items-center justify-center h-full">
-                                            <Checkbox isSelected={isGroupSelected} onValueChange={handleGroupToggle} aria-label="本组全选" />
-                                          </div>
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">规则名</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">入口地址</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] pl-4 text-left" align="left" >操作</TableColumn>
-                                      </TableHeader>
-                                      <TableBody emptyContent="暂无规则配置" items={tunnel.items}>
-                                        {(forward) => (
-                                          <SortableContext key={forward.id} items={tunnelSortableForwardIds} strategy={verticalListSortingStrategy}>
-                                            <SortableTableRow
-                                              copyToClipboard={copyToClipboard}
-                                              forward={forward}
-                                              selectedIds={selectedIds}
-                                              toggleSelect={toggleSelect}
-                                              getStrategyDisplay={getStrategyDisplay}
-                                              handleServiceToggle={handleServiceToggle}
-                                              handleEdit={handleEdit}
-                                              handleDelete={handleDelete}
-                                              handleDiagnose={handleDiagnose}
-                                              formatFlow={formatFlow}
-                                            />
-                                          </SortableContext>
-                                        )}
-                                      </TableBody>
-                                    </Table>
-                                  );
-                                })()}
+                                <Table
+                                  aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
+                                  layout="fixed"
+                                  className={`${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
+                                  classNames={{
+                                    th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                                    td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                                    tr: "hover:bg-default-50/50 transition-colors",
+                                  }}
+                                >
+                                  <TableHeader>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.select}>
+                                      <Checkbox isSelected={isGroupAllSelected} isIndeterminate={isGroupIndeterminate} onValueChange={handleGroupSelectAll} />
+                                    </TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag + " font-bold text-foreground"}>排序</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.name + " font-bold text-foreground text-left"}>规则名</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.inAddr + " font-bold text-foreground text-left"}>入口地址</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.inPort + " font-bold text-foreground text-left"}>端口</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.targetAddr + " font-bold text-foreground text-left"}>落地地址</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.targetPort + " font-bold text-foreground text-left"}>端口</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy + " font-bold text-foreground text-left"}>策略</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow + " font-bold text-foreground text-left"}>用量</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status + " font-bold text-foreground text-left"}>状态</TableColumn>
+                                    <TableColumn className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions + " font-bold text-foreground text-right"}>操作</TableColumn>
+                                  </TableHeader>
+                                  <TableBody
+                                    emptyContent="暂无规则配置"
+                                    items={tunnel.items}
+                                  >
+                                    {(forward) => (
+                                      <SortableContext
+                                        key={forward.id}
+                                        items={tunnelSortableForwardIds}
+                                        strategy={verticalListSortingStrategy}
+                                      >
+                                        <SortableTableRow 
+                                          copyToClipboard={copyToClipboard}
+                                          formatFlow={formatFlow}
+                                          forward={forward}
+                                          getStrategyDisplay={getStrategyDisplay}
+                                          handleDelete={handleDelete}
+                                          handleDiagnose={handleDiagnose}
+                                          handleEdit={handleEdit}
+                                          handleServiceToggle={handleServiceToggle}
+                                          selectedIds={selectedIds}
+                                          toggleSelect={toggleSelect}
+                                        />
+                                      </SortableContext>
+                                    )}
+                                  </TableBody>
+                                </Table>
                               </DndContext>
                             </SortableTunnelGroupContainer>
                           );
@@ -4008,7 +3949,10 @@ export default function ForwardPage() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                                   {tunnel.items.map((forward) =>
                                     forward && forward.id ? (
-                                      <SortableForwardCard renderCard={renderForwardCard} key={forward.id} forward={forward} />
+                                      <SortableForwardCard
+                                        key={forward.id}
+                                        forward={forward}
+                                      />
                                     ) : null,
                                   )}
                                 </div>
@@ -4623,8 +4567,8 @@ export default function ForwardPage() {
                       <div
                         key={index}
                         className={`p-2 rounded border ${result.success
-                          ? "bg-success-50 dark:bg-success-100/10 border-success-200 dark:border-success-300/20"
-                          : "bg-danger-50 dark:bg-danger-100/10 border-danger-200 dark:border-danger-300/20"
+                            ? "bg-success-50 dark:bg-success-100/10 border-success-200 dark:border-success-300/20"
+                            : "bg-danger-50 dark:bg-danger-100/10 border-danger-200 dark:border-danger-300/20"
                           }`}
                       >
                         <div className="flex items-center gap-2">
@@ -4659,8 +4603,8 @@ export default function ForwardPage() {
                             <div className="flex items-center gap-2 mb-0.5">
                               <span
                                 className={`text-xs font-medium ${result.success
-                                  ? "text-success-700 dark:text-success-300"
-                                  : "text-danger-700 dark:text-danger-300"
+                                    ? "text-success-700 dark:text-success-300"
+                                    : "text-danger-700 dark:text-danger-300"
                                   }`}
                               >
                                 {result.success ? "成功" : "失败"}
@@ -4674,8 +4618,8 @@ export default function ForwardPage() {
                             </div>
                             <div
                               className={`text-xs ${result.success
-                                ? "text-success-600 dark:text-success-400"
-                                : "text-danger-600 dark:text-danger-400"
+                                  ? "text-success-600 dark:text-success-400"
+                                  : "text-danger-600 dark:text-danger-400"
                                 }`}
                             >
                               {result.message}
@@ -4889,10 +4833,10 @@ export default function ForwardPage() {
                                       <tr
                                         key={index}
                                         className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${isDiagnosing
-                                          ? "bg-warning-50 dark:bg-warning-900/20"
-                                          : isSuccess
-                                            ? "bg-white dark:bg-gray-800"
-                                            : "bg-danger-50 dark:bg-danger-900/30"
+                                            ? "bg-warning-50 dark:bg-warning-900/20"
+                                            : isSuccess
+                                              ? "bg-white dark:bg-gray-800"
+                                              : "bg-danger-50 dark:bg-danger-900/30"
                                           }`}
                                       >
                                         <td className="px-3 py-2">
@@ -4902,8 +4846,8 @@ export default function ForwardPage() {
                                             ) : (
                                               <span
                                                 className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${isSuccess
-                                                  ? "bg-success text-white"
-                                                  : "bg-danger text-white"
+                                                    ? "bg-success text-white"
+                                                    : "bg-danger text-white"
                                                   }`}
                                               >
                                                 {isSuccess ? "✓" : "✗"}
@@ -4954,8 +4898,8 @@ export default function ForwardPage() {
                                           {isSuccess ? (
                                             <span
                                               className={`font-semibold ${(result.packetLoss || 0) > 0
-                                                ? "text-warning"
-                                                : "text-success"
+                                                  ? "text-warning"
+                                                  : "text-success"
                                                 }`}
                                             >
                                               {result.packetLoss?.toFixed(1)}%
@@ -5073,10 +5017,10 @@ export default function ForwardPage() {
                                   <div
                                     key={index}
                                     className={`border rounded-lg p-3 ${isDiagnosing
-                                      ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
-                                      : isSuccess
-                                        ? "border-divider bg-white dark:bg-gray-800"
-                                        : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
+                                        ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
+                                        : isSuccess
+                                          ? "border-divider bg-white dark:bg-gray-800"
+                                          : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
                                       }`}
                                   >
                                     <div className="flex items-start gap-2 mb-2">
@@ -5085,8 +5029,8 @@ export default function ForwardPage() {
                                       ) : (
                                         <span
                                           className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${isSuccess
-                                            ? "bg-success text-white"
-                                            : "bg-danger text-white"
+                                              ? "bg-success text-white"
+                                              : "bg-danger text-white"
                                             }`}
                                         >
                                           {isSuccess ? "✓" : "✗"}
@@ -5133,8 +5077,8 @@ export default function ForwardPage() {
                                         <div className="text-center">
                                           <div
                                             className={`text-lg font-bold ${(result.packetLoss || 0) > 0
-                                              ? "text-warning"
-                                              : "text-success"
+                                                ? "text-warning"
+                                                : "text-success"
                                               }`}
                                           >
                                             {result.packetLoss?.toFixed(1)}%
@@ -5165,8 +5109,8 @@ export default function ForwardPage() {
                                       <div className="mt-2 pt-2 border-t border-divider">
                                         <div
                                           className={`text-xs ${isDiagnosing
-                                            ? "text-warning"
-                                            : "text-danger"
+                                              ? "text-warning"
+                                              : "text-danger"
                                             }`}
                                         >
                                           {isDiagnosing
@@ -5372,7 +5316,7 @@ export default function ForwardPage() {
         onOpenChange={setIsSearchModalOpen}
       >
         <ModalContent>
-          {() => (
+          {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1">
                 搜索筛选用户规则
@@ -5468,4 +5412,3 @@ export default function ForwardPage() {
     </AnimatedPage>
   );
 }
-
