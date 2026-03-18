@@ -67,7 +67,10 @@ import {
   getNodeRenewalCycleLabel,
   type NodeRenewalCycle,
 } from "@/pages/node/renewal";
-import { buildNodeSystemInfo } from "@/pages/node/system-info";
+import {
+  buildNodeSystemInfo,
+  type NodeSystemInfo,
+} from "@/pages/node/system-info";
 import { useNodeOfflineTimers } from "@/pages/node/use-node-offline-timers";
 import { useNodeRealtime } from "@/pages/node/use-node-realtime";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
@@ -100,15 +103,7 @@ interface Node {
   remoteUrl?: string;
   syncError?: string;
   connectionStatus: "online" | "offline";
-  systemInfo?: {
-    cpuUsage: number;
-    memoryUsage: number;
-    uploadTraffic: number;
-    downloadTraffic: number;
-    uploadSpeed: number;
-    downloadSpeed: number;
-    uptime: number;
-  } | null;
+  systemInfo?: NodeSystemInfo | null;
   copyLoading?: boolean;
   upgradeLoading?: boolean;
   rollbackLoading?: boolean;
@@ -297,6 +292,13 @@ export default function NodePage() {
     "node-active-tab",
     "local",
   );
+
+  // Backward-compat: older versions stored extra tab values.
+  useEffect(() => {
+    if (activeTab !== "local" && activeTab !== "remote") {
+      setActiveTab("local");
+    }
+  }, [activeTab, setActiveTab]);
   const [remoteUsageMap, setRemoteUsageMap] = useState<
     Record<number, RemoteUsageNode>
   >({});
@@ -581,6 +583,43 @@ export default function NodePage() {
       } catch {
         // ignore parse errors
       }
+    } else if (type === "metric") {
+      clearOfflineTimer(nodeId);
+      setNodeList((prev) =>
+        prev.map((node) => {
+          if (node.id !== nodeId) return node;
+
+          const metric =
+            typeof messageData === "string"
+              ? JSON.parse(messageData)
+              : messageData;
+
+          if (!metric || typeof metric !== "object") return node;
+
+          return {
+            ...node,
+            connectionStatus: "online",
+            systemInfo: {
+              cpuUsage: metric.cpuUsage ?? metric.cpu_usage ?? 0,
+              memoryUsage: metric.memoryUsage ?? metric.memory_usage ?? 0,
+              uploadTraffic:
+                metric.netOutBytes ?? metric.bytes_transmitted ?? 0,
+              downloadTraffic: metric.netInBytes ?? metric.bytes_received ?? 0,
+              uploadSpeed: metric.netOutSpeed ?? metric.net_out_speed ?? 0,
+              downloadSpeed: metric.netInSpeed ?? metric.net_in_speed ?? 0,
+              uptime: metric.uptime ?? 0,
+              diskUsage: metric.diskUsage ?? metric.disk_usage,
+              load1: metric.load1,
+              load5: metric.load5,
+              load15: metric.load15,
+              tcpConns: metric.tcpConns ?? metric.tcp_conns,
+              udpConns: metric.udpConns ?? metric.udp_conns,
+              netInSpeed: metric.netInSpeed ?? metric.net_in_speed,
+              netOutSpeed: metric.netOutSpeed ?? metric.net_out_speed,
+            },
+          };
+        }),
+      );
     }
   };
 
@@ -2244,6 +2283,111 @@ export default function NodePage() {
                                     </div>
                                   </div>
                                 </div>
+
+                                {/* 扩展指标：磁盘/负载/连接 */}
+                                {node.connectionStatus === "online" &&
+                                  node.systemInfo && (
+                                    <div className="space-y-2">
+                                      {node.systemInfo.diskUsage !==
+                                        undefined && (
+                                        <div>
+                                          <div className="flex justify-between text-xs mb-1">
+                                            <span>磁盘</span>
+                                            <span className="font-mono">
+                                              {node.systemInfo.diskUsage.toFixed(
+                                                1,
+                                              )}
+                                              %
+                                            </span>
+                                          </div>
+                                          <Progress
+                                            aria-label="磁盘使用率"
+                                            color={getProgressColor(
+                                              node.systemInfo.diskUsage,
+                                              false,
+                                            )}
+                                            size="sm"
+                                            value={node.systemInfo.diskUsage}
+                                          />
+                                        </div>
+                                      )}
+                                      {(node.systemInfo.load1 !== undefined ||
+                                        node.systemInfo.load5 !== undefined ||
+                                        node.systemInfo.load15 !==
+                                          undefined) && (
+                                        <div className="grid grid-cols-3 gap-1 text-xs">
+                                          {node.systemInfo.load1 !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                负载 1m
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.load1.toFixed(
+                                                  2,
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {node.systemInfo.load5 !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                负载 5m
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.load5.toFixed(
+                                                  2,
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {node.systemInfo.load15 !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                负载 15m
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.load15.toFixed(
+                                                  2,
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                      {(node.systemInfo.tcpConns !==
+                                        undefined ||
+                                        node.systemInfo.udpConns !==
+                                          undefined) && (
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                          {node.systemInfo.tcpConns !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                TCP 连接
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.tcpConns}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {node.systemInfo.udpConns !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                UDP 连接
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.udpConns}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                               </div>
                             </>
                           )}
@@ -2329,7 +2473,6 @@ export default function NodePage() {
           </SortableContext>
         </DndContext>
       )}
-
       {/* 新增/编辑节点对话框 */}
       <Modal
         backdrop="blur"

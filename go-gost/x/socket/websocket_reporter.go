@@ -17,7 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync" // 新增：用于管理连接状态的互斥锁
+	"sync"
 	"time"
 
 	"github.com/go-gost/x/config"
@@ -25,34 +25,67 @@ import (
 	"github.com/go-gost/x/service"
 	"github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shirou/gopsutil/v3/load"
 	"github.com/shirou/gopsutil/v3/mem"
 	psnet "github.com/shirou/gopsutil/v3/net"
+	"golang.org/x/net/icmp"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 )
 
 // SystemInfo 系统信息结构体
 type SystemInfo struct {
-	Uptime           uint64  `json:"uptime"`            // 开机时间	（秒）
-	BytesReceived    uint64  `json:"bytes_received"`    // 接收字节数
-	BytesTransmitted uint64  `json:"bytes_transmitted"` // 发送字节数
-	CPUUsage         float64 `json:"cpu_usage"`         // CPU使用率（百分比）
-	MemoryUsage      float64 `json:"memory_usage"`      // 内存使用率（百分比）
+	Uptime           uint64  `json:"uptime"`
+	BytesReceived    uint64  `json:"bytes_received"`
+	BytesTransmitted uint64  `json:"bytes_transmitted"`
+	CPUUsage         float64 `json:"cpu_usage"`
+	MemoryUsage      float64 `json:"memory_usage"`
+	DiskUsage        float64 `json:"disk_usage"`
+	Load1            float64 `json:"load1"`
+	Load5            float64 `json:"load5"`
+	Load15           float64 `json:"load15"`
+	TCPConns         int64   `json:"tcp_conns"`
+	UDPConns         int64   `json:"udp_conns"`
+	NetInSpeed       int64   `json:"net_in_speed"`
+	NetOutSpeed      int64   `json:"net_out_speed"`
 }
 
 // NetworkStats 网络统计信息
 type NetworkStats struct {
-	BytesReceived    uint64 `json:"bytes_received"`    // 接收字节数
-	BytesTransmitted uint64 `json:"bytes_transmitted"` // 发送字节数
+	BytesReceived    uint64 `json:"bytes_received"`
+	BytesTransmitted uint64 `json:"bytes_transmitted"`
+	BytesRecvDelta   uint64 `json:"bytes_recv_delta"`
+	BytesSentDelta   uint64 `json:"bytes_sent_delta"`
 }
 
 // CPUInfo CPU信息
 type CPUInfo struct {
-	Usage float64 `json:"usage"` // CPU使用率（百分比）
+	Usage float64 `json:"usage"`
 }
 
 // MemoryInfo 内存信息
 type MemoryInfo struct {
-	Usage float64 `json:"usage"` // 内存使用率（百分比）
+	Usage float64 `json:"usage"`
+}
+
+// DiskInfo 磁盘信息
+type DiskInfo struct {
+	Usage float64 `json:"usage"`
+}
+
+// LoadInfo 负载信息
+type LoadInfo struct {
+	Load1  float64 `json:"load1"`
+	Load5  float64 `json:"load5"`
+	Load15 float64 `json:"load15"`
+}
+
+// ConnectionInfo 连接信息
+type ConnectionInfo struct {
+	TCPConns int64 `json:"tcp_conns"`
+	UDPConns int64 `json:"udp_conns"`
 }
 
 // CommandMessage 命令消息结构体
@@ -89,6 +122,25 @@ type TcpPingResponse struct {
 	PacketLoss   float64 `json:"packetLoss"`  // 连接失败率(%)
 	ErrorMessage string  `json:"errorMessage,omitempty"`
 	RequestId    string  `json:"requestId,omitempty"`
+}
+
+// ServiceMonitorCheckRequest service monitor check request.
+type ServiceMonitorCheckRequest struct {
+	MonitorID  int64  `json:"monitorId"`
+	Type       string `json:"type"` // tcp|icmp
+	Target     string `json:"target"`
+	TimeoutSec int    `json:"timeoutSec"`
+}
+
+// ServiceMonitorCheckResult node-executed check output.
+// CommandResponse.Success indicates command execution status.
+// Actual check success is represented by this struct.
+type ServiceMonitorCheckResult struct {
+	MonitorID    int64   `json:"monitorId"`
+	Success      bool    `json:"success"`
+	LatencyMs    float64 `json:"latencyMs"`
+	StatusCode   int     `json:"statusCode,omitempty"`
+	ErrorMessage string  `json:"errorMessage,omitempty"`
 }
 
 const (
@@ -134,7 +186,7 @@ func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 	return &WebSocketReporter{
 		url:            serverURL,
 		reconnectTime:  5 * time.Second,  // 重连间隔
-		pingInterval:   2 * time.Second,  // 发送间隔改为2秒
+		pingInterval:   5 * time.Second,  // 指标上报间隔
 		configInterval: 10 * time.Minute, // 配置上报间隔
 		ctx:            ctx,
 		cancel:         cancel,
@@ -449,11 +501,35 @@ func (w *WebSocketReporter) handleConnection() {
 	}
 }
 
+var lastNetBytesReceived uint64
+var lastNetBytesTransmitted uint64
+var lastNetTime int64
+
+var connInfoCached ConnectionInfo
+var connInfoCachedAt int64
+var connInfoCachedMu sync.Mutex
+
 // collectSystemInfo 收集系统信息
 func (w *WebSocketReporter) collectSystemInfo() SystemInfo {
 	networkStats := getNetworkStats()
 	cpuInfo := getCPUInfo()
 	memoryInfo := getMemoryInfo()
+	diskInfo := getDiskInfo()
+	loadInfo := getLoadInfo()
+	connInfo := getConnectionInfo()
+
+	now := time.Now().UnixMilli()
+	var netInSpeed, netOutSpeed int64
+	if lastNetTime > 0 {
+		deltaMs := now - lastNetTime
+		if deltaMs > 0 {
+			netInSpeed = int64(float64(networkStats.BytesRecvDelta) * 1000 / float64(deltaMs))
+			netOutSpeed = int64(float64(networkStats.BytesSentDelta) * 1000 / float64(deltaMs))
+		}
+	}
+	lastNetBytesReceived = networkStats.BytesReceived
+	lastNetBytesTransmitted = networkStats.BytesTransmitted
+	lastNetTime = now
 
 	return SystemInfo{
 		Uptime:           getUptime(),
@@ -461,6 +537,14 @@ func (w *WebSocketReporter) collectSystemInfo() SystemInfo {
 		BytesTransmitted: networkStats.BytesTransmitted,
 		CPUUsage:         cpuInfo.Usage,
 		MemoryUsage:      memoryInfo.Usage,
+		DiskUsage:        diskInfo.Usage,
+		Load1:            loadInfo.Load1,
+		Load5:            loadInfo.Load5,
+		Load15:           loadInfo.Load15,
+		TCPConns:         connInfo.TCPConns,
+		UDPConns:         connInfo.UDPConns,
+		NetInSpeed:       netInSpeed,
+		NetOutSpeed:      netOutSpeed,
 	}
 }
 
@@ -622,7 +706,7 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 
 			if cmdMsg.Type != "call" {
 				// 其他状态变更命令保持同步，确保顺序执行
-				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
+				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "ServiceMonitorCheck" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
 					go w.routeCommand(cmdMsg)
 				} else {
 					w.routeCommand(cmdMsg)
@@ -638,7 +722,7 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 			}
 			if cmdMsg.Type != "call" {
 				// 其他状态变更命令保持同步，确保顺序执行
-				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
+				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "ServiceMonitorCheck" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
 					go w.routeCommand(cmdMsg)
 				} else {
 					w.routeCommand(cmdMsg)
@@ -725,6 +809,13 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 		response.Type = "TcpPingResponse"
 		response.Data = tcpPingResult
 		// needSaveConfig = false (默认值)
+
+	// Service monitor check (read-only)
+	case "ServiceMonitorCheck":
+		var checkResult ServiceMonitorCheckResult
+		checkResult, err = w.handleServiceMonitorCheck(cmd.Data)
+		response.Type = "ServiceMonitorCheckResponse"
+		response.Data = checkResult
 
 	// Protocol blocking switches
 	case "SetProtocol":
@@ -1381,15 +1472,19 @@ func getNetworkStats() NetworkStats {
 		return stats
 	}
 
-	// 汇总所有非回环接口的流量
 	for _, io := range ioCounters {
-		// 跳过回环接口
 		if io.Name == "lo" || strings.HasPrefix(io.Name, "lo") {
 			continue
 		}
-
 		stats.BytesReceived += io.BytesRecv
 		stats.BytesTransmitted += io.BytesSent
+	}
+
+	if lastNetBytesReceived > 0 && stats.BytesReceived >= lastNetBytesReceived {
+		stats.BytesRecvDelta = stats.BytesReceived - lastNetBytesReceived
+	}
+	if lastNetBytesTransmitted > 0 && stats.BytesTransmitted >= lastNetBytesTransmitted {
+		stats.BytesSentDelta = stats.BytesTransmitted - lastNetBytesTransmitted
 	}
 
 	return stats
@@ -1399,8 +1494,8 @@ func getNetworkStats() NetworkStats {
 func getCPUInfo() CPUInfo {
 	var cpuInfo CPUInfo
 
-	// 获取CPU使用率
-	percentages, err := cpu.Percent(time.Second, false)
+	// 获取CPU使用率 (non-blocking)
+	percentages, err := cpu.Percent(0, false)
 	if err == nil && len(percentages) > 0 {
 		cpuInfo.Usage = percentages[0]
 	}
@@ -1420,6 +1515,69 @@ func getMemoryInfo() MemoryInfo {
 	memInfo.Usage = vmStat.UsedPercent
 
 	return memInfo
+}
+
+// getDiskInfo 获取磁盘信息
+func getDiskInfo() DiskInfo {
+	var diskInfo DiskInfo
+
+	usage, err := disk.Usage("/")
+	if err != nil {
+		return diskInfo
+	}
+
+	diskInfo.Usage = usage.UsedPercent
+
+	return diskInfo
+}
+
+// getLoadInfo 获取负载信息
+func getLoadInfo() LoadInfo {
+	var loadInfo LoadInfo
+
+	avg, err := load.Avg()
+	if err != nil {
+		return loadInfo
+	}
+
+	loadInfo.Load1 = avg.Load1
+	loadInfo.Load5 = avg.Load5
+	loadInfo.Load15 = avg.Load15
+
+	return loadInfo
+}
+
+// getConnectionInfo 获取连接信息
+func getConnectionInfo() ConnectionInfo {
+	now := time.Now().UnixMilli()
+	const refreshEveryMs = int64((15 * time.Second) / time.Millisecond)
+
+	connInfoCachedMu.Lock()
+	if connInfoCachedAt > 0 && now-connInfoCachedAt < refreshEveryMs {
+		v := connInfoCached
+		connInfoCachedMu.Unlock()
+		return v
+	}
+	connInfoCachedMu.Unlock()
+
+	var connInfo ConnectionInfo
+
+	connStats, err := psnet.Connections("tcp")
+	if err == nil {
+		connInfo.TCPConns = int64(len(connStats))
+	}
+
+	udpStats, err := psnet.Connections("udp")
+	if err == nil {
+		connInfo.UDPConns = int64(len(udpStats))
+	}
+
+	connInfoCachedMu.Lock()
+	connInfoCached = connInfo
+	connInfoCachedAt = now
+	connInfoCachedMu.Unlock()
+
+	return connInfo
 }
 
 // StartWebSocketReporterWithConfig 使用配置字段启动WebSocket报告器
@@ -1501,6 +1659,210 @@ func (w *WebSocketReporter) handleTcpPing(data interface{}) (TcpPingResponse, er
 	}
 
 	return response, nil
+}
+
+// handleServiceMonitorCheck executes a service monitor check on this node.
+// It always returns a result (command execution is considered successful even if the check fails).
+func (w *WebSocketReporter) handleServiceMonitorCheck(data interface{}) (ServiceMonitorCheckResult, error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return ServiceMonitorCheckResult{}, fmt.Errorf("序列化检查数据失败: %v", err)
+	}
+
+	var req ServiceMonitorCheckRequest
+	if err := json.Unmarshal(jsonData, &req); err != nil {
+		return ServiceMonitorCheckResult{}, fmt.Errorf("解析检查请求失败: %v", err)
+	}
+
+	checkType := strings.ToLower(strings.TrimSpace(req.Type))
+	target := strings.TrimSpace(req.Target)
+	res := ServiceMonitorCheckResult{MonitorID: req.MonitorID}
+
+	if checkType != "tcp" && checkType != "icmp" {
+		res.Success = false
+		res.ErrorMessage = "不支持的检查类型"
+		return res, nil
+	}
+	if target == "" {
+		res.Success = false
+		res.ErrorMessage = "检查目标为空"
+		return res, nil
+	}
+
+	timeoutSec := req.TimeoutSec
+	if timeoutSec <= 0 {
+		timeoutSec = 5
+	}
+	timeout := time.Duration(timeoutSec) * time.Second
+
+	start := time.Now()
+
+	switch checkType {
+	case "tcp":
+		// Validate and normalize host:port.
+		_, _, splitErr := net.SplitHostPort(target)
+		if splitErr != nil {
+			res.Success = false
+			res.ErrorMessage = "无效的TCP目标"
+			res.LatencyMs = float64(time.Since(start).Milliseconds())
+			return res, nil
+		}
+		conn, dialErr := net.DialTimeout("tcp", target, timeout)
+		res.LatencyMs = float64(time.Since(start).Milliseconds())
+		if dialErr != nil {
+			res.Success = false
+			res.ErrorMessage = dialErr.Error()
+			return res, nil
+		}
+		_ = conn.Close()
+		res.Success = true
+		return res, nil
+
+	case "icmp":
+		rtt, pingErr := icmpPing(target, timeout)
+		res.LatencyMs = float64(rtt.Milliseconds())
+		if pingErr != nil {
+			res.Success = false
+			res.ErrorMessage = pingErr.Error()
+			return res, nil
+		}
+		res.Success = true
+		return res, nil
+	}
+
+	res.Success = false
+	res.ErrorMessage = "未知错误"
+	res.LatencyMs = float64(time.Since(start).Milliseconds())
+	return res, nil
+}
+
+func icmpPing(target string, timeout time.Duration) (time.Duration, error) {
+	start := time.Now()
+
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return time.Since(start), fmt.Errorf("无效的ICMP目标")
+	}
+	// Avoid accepting URL-like targets.
+	if strings.Contains(target, "://") {
+		return time.Since(start), fmt.Errorf("无效的ICMP目标")
+	}
+	if strings.HasPrefix(target, "[") && strings.HasSuffix(target, "]") {
+		target = strings.TrimSuffix(strings.TrimPrefix(target, "["), "]")
+	}
+
+	ipAddr, err := net.ResolveIPAddr("ip", target)
+	if err != nil || ipAddr == nil || ipAddr.IP == nil {
+		if err == nil {
+			err = fmt.Errorf("unknown address")
+		}
+		return time.Since(start), fmt.Errorf("解析目标失败: %v", err)
+	}
+
+	isV4 := ipAddr.IP.To4() != nil
+	listenAddr := "0.0.0.0"
+	proto := 1
+	var echoType icmp.Type = ipv4.ICMPTypeEcho
+	var echoReplyType icmp.Type = ipv4.ICMPTypeEchoReply
+	networks := []string{"udp4", "ip4:icmp"}
+	if !isV4 {
+		listenAddr = "::"
+		proto = 58
+		echoType = ipv6.ICMPTypeEchoRequest
+		echoReplyType = ipv6.ICMPTypeEchoReply
+		networks = []string{"udp6", "ip6:ipv6-icmp"}
+	}
+
+	var conn *icmp.PacketConn
+	selectedNetwork := ""
+	var lastErr error
+	for _, nw := range networks {
+		c, err := icmp.ListenPacket(nw, listenAddr)
+		if err == nil {
+			conn = c
+			selectedNetwork = nw
+			break
+		}
+		lastErr = err
+	}
+	if conn == nil {
+		if lastErr != nil {
+			return time.Since(start), fmt.Errorf("创建ICMP连接失败: %v", lastErr)
+		}
+		return time.Since(start), fmt.Errorf("创建ICMP连接失败")
+	}
+	defer conn.Close()
+
+	id := os.Getpid() & 0xffff
+	seq := 1
+
+	wm := icmp.Message{
+		Type: echoType,
+		Code: 0,
+		Body: &icmp.Echo{
+			ID:   id,
+			Seq:  seq,
+			Data: []byte("FLVX-PING"),
+		},
+	}
+	wb, err := wm.Marshal(nil)
+	if err != nil {
+		return time.Since(start), err
+	}
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	var dst net.Addr
+	if strings.HasPrefix(selectedNetwork, "udp") {
+		dst = &net.UDPAddr{IP: ipAddr.IP, Zone: ipAddr.Zone}
+	} else {
+		dst = &net.IPAddr{IP: ipAddr.IP, Zone: ipAddr.Zone}
+	}
+
+	if _, err := conn.WriteTo(wb, dst); err != nil {
+		return time.Since(start), err
+	}
+
+	addrIP := func(a net.Addr) net.IP {
+		switch v := a.(type) {
+		case *net.IPAddr:
+			return v.IP
+		case *net.UDPAddr:
+			return v.IP
+		default:
+			return nil
+		}
+	}
+
+	rb := make([]byte, 1500)
+	for {
+		n, peer, err := conn.ReadFrom(rb)
+		if err != nil {
+			return time.Since(start), err
+		}
+		if p := addrIP(peer); p != nil && !p.Equal(ipAddr.IP) {
+			continue
+		}
+		rm, err := icmp.ParseMessage(proto, rb[:n])
+		if err != nil {
+			continue
+		}
+		if rm.Type != echoReplyType {
+			continue
+		}
+		echo, ok := rm.Body.(*icmp.Echo)
+		if !ok {
+			continue
+		}
+		if echo.Seq != seq {
+			continue
+		}
+		// For non-privileged endpoints, the kernel may choose the ID.
+		if !strings.HasPrefix(selectedNetwork, "udp") && echo.ID != id {
+			continue
+		}
+		return time.Since(start), nil
+	}
 }
 
 // tcpPingHost 执行TCP连接测试，返回平均连接时间和失败率

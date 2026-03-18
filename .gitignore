@@ -62,6 +62,9 @@ go-gost/ss/
 .classpath
 .project
 .settings/
+
+# OpenCode session metadata
+.entire/
 bin/
 tmp/
 *.swp

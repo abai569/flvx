@@ -72,6 +72,7 @@ type Server struct {
 	jwtSecret    string
 	upgrader     websocket.Upgrader
 	onNodeOnline func(nodeID int64)
+	onNodeMetric func(nodeID int64, info SystemInfo)
 
 	mu      sync.RWMutex
 	admins  map[*connWrap]struct{}
@@ -80,12 +81,37 @@ type Server struct {
 	pending map[string]pendingRequest
 }
 
+type SystemInfo struct {
+	Uptime           uint64  `json:"uptime"`
+	BytesReceived    uint64  `json:"bytes_received"`
+	BytesTransmitted uint64  `json:"bytes_transmitted"`
+	CPUUsage         float64 `json:"cpu_usage"`
+	MemoryUsage      float64 `json:"memory_usage"`
+	DiskUsage        float64 `json:"disk_usage"`
+	Load1            float64 `json:"load1"`
+	Load5            float64 `json:"load5"`
+	Load15           float64 `json:"load15"`
+	TCPConns         int64   `json:"tcp_conns"`
+	UDPConns         int64   `json:"udp_conns"`
+	NetInSpeed       int64   `json:"net_in_speed"`
+	NetOutSpeed      int64   `json:"net_out_speed"`
+}
+
 func (s *Server) SetNodeOnlineHook(fn func(nodeID int64)) {
 	if s == nil {
 		return
 	}
 	s.mu.Lock()
 	s.onNodeOnline = fn
+	s.mu.Unlock()
+}
+
+func (s *Server) SetNodeMetricHook(fn func(nodeID int64, info SystemInfo)) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.onNodeMetric = fn
 	s.mu.Unlock()
 }
 
@@ -231,12 +257,73 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 		var parsed struct {
 			Type string `json:"type"`
 		}
-		if json.Unmarshal([]byte(msg), &parsed) == nil && parsed.Type == "UpgradeProgress" {
-			s.broadcastTyped(nodeID, "upgrade_progress", msg)
-		} else {
-			s.broadcastInfo(nodeID, msg)
+		if json.Unmarshal([]byte(msg), &parsed) == nil && parsed.Type != "" {
+			switch parsed.Type {
+			case "UpgradeProgress":
+				s.broadcastTyped(nodeID, "upgrade_progress", msg)
+				continue
+			default:
+				// Unknown typed messages still get broadcast so future
+				// agent message types are not silently lost.
+				s.broadcastInfo(nodeID, msg)
+				continue
+			}
+		}
+
+		if looksLikeSystemInfoMessage(msg) {
+			var sysInfo SystemInfo
+			if err := json.Unmarshal([]byte(msg), &sysInfo); err == nil {
+				s.mu.RLock()
+				onMetric := s.onNodeMetric
+				s.mu.RUnlock()
+				if onMetric != nil {
+					go onMetric(nodeID, sysInfo)
+				}
+				s.broadcastTyped(nodeID, "metric", msg)
+				continue
+			}
+		}
+
+		s.broadcastInfo(nodeID, msg)
+	}
+}
+
+func looksLikeSystemInfoMessage(msg string) bool {
+	// Keep this as a cheap heuristic so that arbitrary JSON objects don't get
+	// misclassified as metrics (SystemInfo unmarshal would otherwise succeed with
+	// all-zero values).
+	if strings.TrimSpace(msg) == "" {
+		return false
+	}
+	if !strings.Contains(msg, "{") {
+		return false
+	}
+
+	keys := []string{
+		"\"uptime\"",
+		"\"cpu_usage\"",
+		"\"memory_usage\"",
+		"\"disk_usage\"",
+		"\"bytes_received\"",
+		"\"bytes_transmitted\"",
+		"\"net_in_speed\"",
+		"\"net_out_speed\"",
+		"\"tcp_conns\"",
+		"\"udp_conns\"",
+		"\"load1\"",
+		"\"load5\"",
+		"\"load15\"",
+	}
+	matched := 0
+	for _, k := range keys {
+		if strings.Contains(msg, k) {
+			matched++
+			if matched >= 3 {
+				return true
+			}
 		}
 	}
+	return false
 }
 
 func (s *Server) SendCommand(nodeID int64, cmdType string, data interface{}, timeout time.Duration) (CommandResult, error) {

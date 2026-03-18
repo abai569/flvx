@@ -30,6 +30,16 @@ import type {
   SpeedLimitMutationPayload,
   UpdatePasswordPayload,
   BackupImportPayload,
+  NodeMetricApiItem,
+  TunnelMetricApiItem,
+  ServiceMonitorApiItem,
+  ServiceMonitorResultApiItem,
+  ServiceMonitorLimitsApiData,
+  ServiceMonitorMutationPayload,
+  MonitorNodeApiItem,
+  MonitorTunnelApiItem,
+  MonitorPermissionApiItem,
+  MonitorAccessApiData,
 } from "./types";
 
 import axios from "axios";
@@ -402,3 +412,85 @@ export const getAnnouncement = () =>
   Network.get<AnnouncementData>("/announcement/get");
 export const updateAnnouncement = (data: AnnouncementData) =>
   Network.post("/announcement/update", data);
+
+export const getNodeMetrics = (
+  nodeId: number,
+  start?: number,
+  end?: number,
+) => {
+  const params: Record<string, string> = {};
+
+  if (start) params.start = String(start);
+  if (end) params.end = String(end);
+
+  return Network.get<NodeMetricApiItem[]>(
+    `/monitor/nodes/${nodeId}/metrics`,
+    params,
+  );
+};
+
+export const getNodeMetricsLatest = (nodeId: number) =>
+  Network.get<NodeMetricApiItem>(`/monitor/nodes/${nodeId}/metrics/latest`);
+
+export const getTunnelMetrics = (
+  tunnelId: number,
+  start?: number,
+  end?: number,
+) => {
+  const params: Record<string, string> = {};
+
+  if (start) params.start = String(start);
+  if (end) params.end = String(end);
+
+  return Network.get<TunnelMetricApiItem[]>(
+    `/monitor/tunnels/${tunnelId}/metrics`,
+    params,
+  );
+};
+
+export const getMonitorTunnels = () =>
+  Network.get<MonitorTunnelApiItem[]>("/monitor/tunnels");
+
+export const getServiceMonitorList = () =>
+  Network.get<ServiceMonitorApiItem[]>("/monitor/services");
+
+export const getServiceMonitorLimits = () =>
+  Network.get<ServiceMonitorLimitsApiData>("/monitor/services/limits");
+
+export const createServiceMonitor = (data: ServiceMonitorMutationPayload) =>
+  Network.post<ServiceMonitorApiItem>("/monitor/services/create", data);
+
+export const updateServiceMonitor = (data: ServiceMonitorMutationPayload) =>
+  Network.post<ServiceMonitorApiItem>("/monitor/services/update", data);
+
+export const deleteServiceMonitor = (id: number) =>
+  Network.post("/monitor/services/delete", { id });
+
+export const getServiceMonitorResults = (monitorId: number, limit = 100) =>
+  Network.get<ServiceMonitorResultApiItem[]>(
+    `/monitor/services/${monitorId}/results`,
+    { limit: String(limit) },
+  );
+
+export const getServiceMonitorLatestResults = () =>
+  Network.get<ServiceMonitorResultApiItem[]>(
+    "/monitor/services/latest-results",
+  );
+
+export const runServiceMonitor = (id: number) =>
+  Network.post<ServiceMonitorResultApiItem>("/monitor/services/run", { id });
+
+export const getMonitorNodes = () =>
+  Network.get<MonitorNodeApiItem[]>("/monitor/nodes");
+
+export const getMonitorAccess = () =>
+  Network.get<MonitorAccessApiData>("/monitor/access");
+
+export const getMonitorPermissionList = () =>
+  Network.get<MonitorPermissionApiItem[]>("/monitor/permission/list");
+
+export const assignMonitorPermission = (userId: number) =>
+  Network.post("/monitor/permission/assign", { userId });
+
+export const removeMonitorPermission = (userId: number) =>
+  Network.post("/monitor/permission/remove", { userId });
