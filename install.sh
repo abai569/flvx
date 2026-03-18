@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # GitHub repo used for release downloads
-REPO="Sagit-chu/flux-panel"
+REPO="abai569/flvx"
 
 # 固定版本号（Release 构建时自动填充，留空则获取最新版）
 PINNED_VERSION=""

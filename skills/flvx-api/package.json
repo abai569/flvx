@@ -20,13 +20,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Sagit-chu/flvx.git",
+    "url": "git+https://github.com/abai569/flvx.git",
     "directory": "skills/flvx-api"
   },
   "bugs": {
-    "url": "https://github.com/Sagit-chu/flvx/issues"
+    "url": "https://github.com/abai569/flvx/issues"
   },
-  "homepage": "https://github.com/Sagit-chu/flvx/tree/main/skills/flvx-api#readme",
+  "homepage": "https://github.com/abai569/flvx/tree/main/skills/flvx-api#readme",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"

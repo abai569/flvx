@@ -1,7 +1,7 @@
 # 036 - Issue 313 添加入口节点时跨隧道端口占用校验
 
 ## Issue
-- GitHub: `https://github.com/Sagit-chu/flvx/issues/313`
+- GitHub: `https://github.com/abai569/flvx/issues/313`
 - 问题现象：给已有隧道新增入口节点时，系统会沿用该隧道现有 `forward_port` 端口，但当前链路没有校验该端口是否已被其他隧道占用，导致更新阶段静默写入冲突数据，直到后续修改转发时才报错。
 
 ## 目标
