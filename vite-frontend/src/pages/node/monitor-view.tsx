@@ -26,6 +26,12 @@ import {
   Edit,
   Activity,
   Play,
+  Server,
+  Zap,
+  HardDrive,
+  Cpu,
+  Clock,
+  Globe,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -69,6 +75,7 @@ import {
   DropdownItem,
 } from "@/shadcn-bridge/heroui/dropdown";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
+import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { useNodeRealtime } from "@/pages/node/use-node-realtime";
 
 interface MonitorViewProps {
@@ -144,6 +151,117 @@ const formatBytesPerSecond = (bytesPerSecond: number): string => {
 
   return `${parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
+
+const formatUptime = (seconds: number) => {
+  if (!seconds) return "-";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  if (days > 0) return `${days} 天 ${hours} 小时`;
+  return `${hours} 小时`;
+};
+
+const getColorByUsage = (usage?: number) => {
+  if (usage === undefined || usage === null) return "default";
+  if (usage >= 90) return "danger";
+  if (usage >= 75) return "warning";
+  if (usage >= 50) return "primary";
+  return "success";
+};
+
+function ServerCard({ node, metric }: { node: any; metric: RealtimeNodeMetric | null }) {
+  const isOnline = node.connectionStatus === "online";
+  
+  return (
+    <Card className={`border-t-4 ${isOnline ? "border-t-success" : "border-t-danger"}`}>
+      <CardHeader className="pb-2 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Server className={`w-5 h-5 ${isOnline ? "text-success" : "text-default-400"}`} />
+          <div className="font-semibold text-base truncate max-w-[150px]" title={node.name}>{node.name}</div>
+        </div>
+        <Chip size="sm" color={isOnline ? "success" : "danger"} variant="flat">
+          {isOnline ? "在线" : "离线"}
+        </Chip>
+      </CardHeader>
+      
+      <CardBody className="pt-0 space-y-4">
+        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mt-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-default-500">
+              <Clock className="w-3 h-3" /> 运行
+            </div>
+            <span className="font-mono text-[11px]">{metric ? formatUptime(metric.uptime) : "-"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-default-500">
+              <Activity className="w-3 h-3" /> 负载
+            </div>
+            <span className="font-mono text-[11px]">{metric ? metric.load1.toFixed(2) : "-"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-default-500">
+              <Globe className="w-3 h-3" /> 连接
+            </div>
+            <span className="font-mono text-[11px]">{metric ? metric.tcpConns : "-"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-default-500">
+              <Zap className="w-3 h-3" /> UDP
+            </div>
+            <span className="font-mono text-[11px]">{metric ? metric.udpConns : "-"}</span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <div className="flex items-center gap-1 text-default-600"><Cpu className="w-3.5 h-3.5" /> CPU</div>
+              <span className="font-mono text-[11px]">{metric ? metric.cpuUsage.toFixed(1) : "0.0"}%</span>
+            </div>
+            <Progress value={metric ? metric.cpuUsage : 0} color={getColorByUsage(metric?.cpuUsage)} className="h-1.5" />
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <div className="flex items-center gap-1 text-default-600"><HardDrive className="w-3.5 h-3.5" /> RAM</div>
+              <span className="font-mono text-[11px]">{metric ? metric.memoryUsage.toFixed(1) : "0.0"}%</span>
+            </div>
+            <Progress value={metric ? metric.memoryUsage : 0} color={getColorByUsage(metric?.memoryUsage)} className="h-1.5" />
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <div className="flex items-center gap-1 text-default-600"><HardDrive className="w-3.5 h-3.5" /> Disk</div>
+              <span className="font-mono text-[11px]">{metric ? metric.diskUsage.toFixed(1) : "0.0"}%</span>
+            </div>
+            <Progress value={metric ? metric.diskUsage : 0} color={getColorByUsage(metric?.diskUsage)} className="h-1.5" />
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center pt-3 border-t border-default-200/50 text-xs">
+           <div className="flex flex-col gap-0.5 w-[50%] border-r border-default-200/50 pr-2">
+             <div className="text-default-500 flex justify-between">
+               <span>网络 ↓</span>
+               <span className="font-mono text-success">{metric ? formatBytesPerSecond(metric.netInSpeed) : "0 B/s"}</span>
+             </div>
+             <div className="text-default-400 font-mono flex justify-between">
+               <span>总计</span>
+               <span className="text-[11px]">{metric ? formatBytes(metric.netInBytes) : "0 B"}</span>
+             </div>
+           </div>
+           
+           <div className="flex flex-col gap-0.5 w-[50%] pl-2">
+             <div className="text-default-500 flex justify-between">
+               <span>网络 ↑</span>
+               <span className="font-mono text-primary">{metric ? formatBytesPerSecond(metric.netOutSpeed) : "0 B/s"}</span>
+             </div>
+             <div className="text-default-400 font-mono flex justify-between">
+               <span>总计</span>
+               <span className="text-[11px]">{metric ? formatBytes(metric.netOutBytes) : "0 B"}</span>
+             </div>
+           </div>
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
 
 type MetricType =
   | "cpu"
@@ -1059,6 +1177,13 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
 
       {!accessDenied && (
         <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {nodes.map((node) => {
+               const metric = realtimeNodeMetrics[node.id] || null;
+               return <ServerCard key={node.id} node={node} metric={metric} />;
+            })}
+          </div>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <h3 className="text-lg font-semibold">监控概览</h3>
