@@ -4165,20 +4165,6 @@ func (h *Handler) validateForwardPortAvailability(node *nodeRecord, port int, cu
 	return nil
 }
 
-func (h *Handler) validateForwardPortAvailabilityTx(tx *gorm.DB, node *nodeRecord, port int, currentForwardID int64) error {
-	if h == nil || h.repo == nil || tx == nil || node == nil || port <= 0 {
-		return nil
-	}
-	occupied, err := h.repo.HasOtherForwardOnNodePortTx(tx, node.ID, port, currentForwardID)
-	if err != nil {
-		return err
-	}
-	if occupied {
-		return fmt.Errorf("节点 %s 端口 %d 已被其他转发占用", node.Name, port)
-	}
-	return nil
-}
-
 func parsePortRangeMinMax(input string) (int, int) {
 	input = strings.TrimSpace(input)
 	if input == "" {

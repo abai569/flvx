@@ -402,6 +402,7 @@ export interface NodeMetricApiItem {
   load15: number;
   tcpConns: number;
   udpConns: number;
+  uptime: number;
 }
 
 export interface TunnelMetricApiItem {

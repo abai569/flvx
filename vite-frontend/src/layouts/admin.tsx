@@ -202,40 +202,40 @@ export default function AdminLayout({
     setUsername(name);
     setIsAdmin(adminFlag);
 
-	// Monitor permission is not strictly role-based; non-admin users may be
-	// granted access explicitly. Fetch a lightweight capability flag so we can
-	// avoid a confusing 403 navigation.
-	if (adminFlag) {
-		setMonitorAllowed(true);
-		setMonitorAccessReason(null);
-		return;
-	}
+    // Monitor permission is not strictly role-based; non-admin users may be
+    // granted access explicitly. Fetch a lightweight capability flag so we can
+    // avoid a confusing 403 navigation.
+    if (adminFlag) {
+      setMonitorAllowed(true);
+      setMonitorAccessReason(null);
+      return;
+    }
 
-	let cancelled = false;
-	(async () => {
-		try {
-			const res = await getMonitorAccess();
-			if (cancelled) return;
-			if (res.code === 0 && res.data) {
-				setMonitorAllowed(Boolean(res.data.allowed));
-				setMonitorAccessReason(
-					res.data.allowed ? null : (res.data.reason || null),
-				);
-				return;
-			}
-			// Fail open to preserve legacy navigation behavior.
-			setMonitorAllowed(true);
-			setMonitorAccessReason(null);
-		} catch {
-			if (cancelled) return;
-			setMonitorAllowed(true);
-			setMonitorAccessReason(null);
-		}
-	})();
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getMonitorAccess();
+        if (cancelled) return;
+        if (res.code === 0 && res.data) {
+          setMonitorAllowed(Boolean(res.data.allowed));
+          setMonitorAccessReason(
+            res.data.allowed ? null : (res.data.reason || null),
+          );
+          return;
+        }
+        // Fail open to preserve legacy navigation behavior.
+        setMonitorAllowed(true);
+        setMonitorAccessReason(null);
+      } catch {
+        if (cancelled) return;
+        setMonitorAllowed(true);
+        setMonitorAccessReason(null);
+      }
+    })();
 
-	return () => {
-		cancelled = true;
-	};
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

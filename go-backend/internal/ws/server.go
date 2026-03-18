@@ -258,10 +258,16 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 			Type string `json:"type"`
 		}
 		if json.Unmarshal([]byte(msg), &parsed) == nil && parsed.Type != "" {
-			if parsed.Type == "UpgradeProgress" {
+			switch parsed.Type {
+			case "UpgradeProgress":
 				s.broadcastTyped(nodeID, "upgrade_progress", msg)
+				continue
+			default:
+				// Unknown typed messages still get broadcast so future
+				// agent message types are not silently lost.
+				s.broadcastInfo(nodeID, msg)
+				continue
 			}
-			continue
 		}
 
 		if looksLikeSystemInfoMessage(msg) {
@@ -308,9 +314,13 @@ func looksLikeSystemInfoMessage(msg string) bool {
 		"\"load5\"",
 		"\"load15\"",
 	}
+	matched := 0
 	for _, k := range keys {
 		if strings.Contains(msg, k) {
-			return true
+			matched++
+			if matched >= 3 {
+				return true
+			}
 		}
 	}
 	return false

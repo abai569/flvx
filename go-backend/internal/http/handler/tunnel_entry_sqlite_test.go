@@ -83,7 +83,7 @@ func TestValidateTunnelEntryPortConflictsForNewEntriesDoesNotBlockOnSQLiteTx(t *
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		errCh <- h.validateTunnelEntryPortConflictsForNewEntries(tx, tunnelID, []int64{oldEntryID}, []int64{oldEntryID, newEntryID})
+		errCh <- h.validateTunnelEntryPortConflictsForNewEntriesTx(tx, tunnelID, []int64{oldEntryID}, []int64{oldEntryID, newEntryID})
 	}()
 
 	select {
