@@ -8,7 +8,7 @@ export LC_ALL=C
 
 
 # GitHub repo used for release downloads
-REPO="abai569/flvx"
+REPO="abai569/flux-panel"
 
 # 固定版本号（Release 构建时自动填充，留空则获取最新版）
 PINNED_VERSION=""
