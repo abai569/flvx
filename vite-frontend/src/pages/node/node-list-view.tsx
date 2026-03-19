@@ -60,49 +60,6 @@ interface NodeListViewProps {
   formatTraffic: (bytes: number) => string;
 }
 
-function SortableDragHandle({ nodeId }: { nodeId: number }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: nodeId });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors inline-block"
-      title="拖拽排序"
-    >
-      <svg
-        aria-hidden="true"
-        className="w-4 h-4"
-        fill="currentColor"
-        viewBox="0 0 20 20"
-      >
-        <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
-      </svg>
-    </div>
-  );
-}
-
-const CopyIcon = () => (
-  <svg
-    className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-    strokeWidth={2.5}
-  >
-    <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-  </svg>
-);
-
 function SortableTableRow({
   node,
   selectedIds,
@@ -173,11 +130,11 @@ function SortableTableRow({
         <div className="space-y-0.5">
           {node.serverIpV4?.trim() && (
             <span
-              className="text-xs font-mono cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
+              className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
               title={node.serverIpV4.trim()}
               onClick={(e) => {
                 e.stopPropagation();
-                copyToClipboard(node.serverIpV4.trim(), "IPv4 地址");
+                copyToClipboard(node.serverIpV4!.trim(), "IPv4 地址");
               }}
             >
               {node.serverIpV4.trim()}
@@ -185,11 +142,11 @@ function SortableTableRow({
           )}
           {node.serverIpV6?.trim() && (
             <span
-              className="text-xs font-mono cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
+              className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
               title={node.serverIpV6.trim()}
               onClick={(e) => {
                 e.stopPropagation();
-                copyToClipboard(node.serverIpV6.trim(), "IPv6 地址");
+                copyToClipboard(node.serverIpV6!.trim(), "IPv6 地址");
               }}
             >
               {node.serverIpV6.trim()}
@@ -197,11 +154,11 @@ function SortableTableRow({
           )}
           {(!node.serverIpV4?.trim() && !node.serverIpV6?.trim()) && (
             <span
-              className="text-xs font-mono cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
+              className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
               title={node.serverIp.trim()}
               onClick={(e) => {
                 e.stopPropagation();
-                copyToClipboard(node.serverIp.trim(), "地址");
+                copyToClipboard(node.serverIp.trim(), "IP 地址");
               }}
             >
               {node.serverIp.trim()}
@@ -211,7 +168,7 @@ function SortableTableRow({
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         {!isRemoteNode ? (
-          <span className="text-xs text-default-600">
+          <span className="font-mono text-sm text-default-600">
             {node.version || "未知"}
           </span>
         ) : (
@@ -227,7 +184,7 @@ function SortableTableRow({
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
-          <span className="text-xs text-danger-600 dark:text-danger-400 font-medium">
+          <span className="font-mono text-sm text-danger-600 dark:text-danger-400">
             {node.connectionStatus === "online" && node.systemInfo
               ? formatTraffic(
                   node.systemInfo.uploadTraffic +
@@ -239,7 +196,7 @@ function SortableTableRow({
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
-          <span className="text-xs text-primary-700 dark:text-primary-300 font-mono">
+          <span className="font-mono text-sm text-primary-700 dark:text-primary-300">
             {node.connectionStatus === "online" && node.systemInfo
               ? formatTraffic(node.systemInfo.uploadTraffic)
               : "-"}
@@ -248,7 +205,7 @@ function SortableTableRow({
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
-          <span className="text-xs text-success-700 dark:text-success-300 font-mono">
+          <span className="font-mono text-sm text-success-700 dark:text-success-300">
             {node.connectionStatus === "online" && node.systemInfo
               ? formatTraffic(node.systemInfo.downloadTraffic)
               : "-"}

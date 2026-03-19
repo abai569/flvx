@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { ChevronDown } from "lucide-react";
 
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -152,6 +153,13 @@ export default function GroupPage() {
     new Set(),
   );
   const [savingAssign, setSavingAssign] = useState(false);
+
+  const [expandedTunnelGroups, setExpandedTunnelGroups] = useState<Set<number>>(
+    new Set(),
+  );
+  const [expandedUserGroups, setExpandedUserGroups] = useState<Set<number>>(
+    new Set(),
+  );
 
   const tunnelNameMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -454,6 +462,30 @@ export default function GroupPage() {
     }
   };
 
+  const toggleTunnelGroupExpand = (groupId: number) => {
+    setExpandedTunnelGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  const toggleUserGroupExpand = (groupId: number) => {
+    setExpandedUserGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
   if (!isAdmin) {
     return (
       <div className="px-3 lg:px-6 py-8">
@@ -516,11 +548,36 @@ export default function GroupPage() {
                       <TableCell className="whitespace-nowrap">
                         {item.tunnelNames.length > 0 ? (
                           <div className="flex flex-nowrap gap-1 items-center" title={item.tunnelNames.join("、")}>
-                            {item.tunnelNames.slice(0, 2).map((name: string, idx: number) => (
-                              <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap">{name}</Chip>
-                            ))}
-                            {item.tunnelNames.length > 2 && (
-                              <Chip size="sm" variant="flat" color="primary" className="cursor-help whitespace-nowrap">+{item.tunnelNames.length - 2}</Chip>
+                            {item.tunnelNames.length > 2 && !expandedTunnelGroups.has(item.id) ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="light"
+                                  className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
+                                  onPress={() => toggleTunnelGroupExpand(item.id)}
+                                >
+                                  <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                                  <span className="sr-only">展开</span>
+                                </Button>
+                                {item.tunnelNames.slice(0, 2).map((name: string, idx: number) => (
+                                  <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap">{name}</Chip>
+                                ))}
+                              </>
+                            ) : (
+                              <div className="flex flex-nowrap gap-1 items-center overflow-x-auto max-w-[400px]">
+                                <Button
+                                  size="sm"
+                                  variant="light"
+                                  className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
+                                  onPress={() => toggleTunnelGroupExpand(item.id)}
+                                >
+                                  <ChevronDown className="h-4 w-4 transition-transform duration-200 rotate-180" />
+                                  <span className="sr-only">收起</span>
+                                </Button>
+                                {item.tunnelNames.map((name: string, idx: number) => (
+                                  <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0">{name}</Chip>
+                                ))}
+                              </div>
                             )}
                           </div>
                         ) : "-"}
@@ -617,11 +674,36 @@ export default function GroupPage() {
                       <TableCell className="whitespace-nowrap">
                         {item.userNames.length > 0 ? (
                           <div className="flex flex-nowrap gap-1 items-center" title={item.userNames.join("、")}>
-                            {item.userNames.slice(0, 2).map((name: string, idx: number) => (
-                              <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap">{name}</Chip>
-                            ))}
-                            {item.userNames.length > 2 && (
-                              <Chip size="sm" variant="flat" color="primary" className="cursor-help whitespace-nowrap">+{item.userNames.length - 2}</Chip>
+                            {item.userNames.length > 2 && !expandedUserGroups.has(item.id) ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="light"
+                                  className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
+                                  onPress={() => toggleUserGroupExpand(item.id)}
+                                >
+                                  <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                                  <span className="sr-only">展开</span>
+                                </Button>
+                                {item.userNames.slice(0, 2).map((name: string, idx: number) => (
+                                  <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap">{name}</Chip>
+                                ))}
+                              </>
+                            ) : (
+                              <div className="flex flex-nowrap gap-1 items-center overflow-x-auto max-w-[400px]">
+                                <Button
+                                  size="sm"
+                                  variant="light"
+                                  className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
+                                  onPress={() => toggleUserGroupExpand(item.id)}
+                                >
+                                  <ChevronDown className="h-4 w-4 transition-transform duration-200 rotate-180" />
+                                  <span className="sr-only">收起</span>
+                                </Button>
+                                {item.userNames.map((name: string, idx: number) => (
+                                  <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0">{name}</Chip>
+                                ))}
+                              </div>
                             )}
                           </div>
                         ) : "-"}

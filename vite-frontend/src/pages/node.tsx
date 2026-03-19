@@ -39,6 +39,8 @@ import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
+import { Grid3x3, List } from "lucide-react";
+import { NodeListView } from "@/pages/node/node-list-view";
 import {
   createNode,
   getNodeList,
@@ -52,7 +54,7 @@ import {
   getNodeReleases,
   rollbackNode,
   getPeerRemoteUsageList,
-  dismissNodeExpiryReminder,
+  // dismissNodeExpiryReminder,
   type ReleaseChannel,
 } from "@/api";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
@@ -64,7 +66,7 @@ import { tryCopyInstallCommand } from "@/pages/node/install-command";
 import {
   getNodeRenewalSnapshot,
   formatNodeRenewalTime,
-  getNodeRenewalCycleLabel,
+  // getNodeRenewalCycleLabel,
   type NodeRenewalCycle,
 } from "@/pages/node/renewal";
 import {
@@ -129,6 +131,7 @@ interface NodeForm {
 }
 
 type NodeTab = "local" | "remote";
+type NodeViewMode = "grid" | "list";
 
 interface RemoteUsageBinding {
   bindingId: number;
@@ -341,6 +344,11 @@ export default function NodePage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
+
+  const [viewMode, setViewMode] = useLocalStorageState<NodeViewMode>(
+    "node-view-mode",
+    "grid",
+  );
 
   // 安装命令相关状态
   const [installCommandModal, setInstallCommandModal] = useState(false);
@@ -665,23 +673,6 @@ export default function NodePage() {
     );
   };
 
-  // 格式化开机时间
-  const formatUptime = (seconds: number): string => {
-    if (seconds === 0) return "-";
-
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-
-    if (days > 0) {
-      return `${days}天${hours}小时`;
-    } else if (hours > 0) {
-      return `${hours}小时${minutes}分钟`;
-    } else {
-      return `${minutes}分钟`;
-    }
-  };
-
   // 格式化流量
   const formatTraffic = (bytes: number): string => {
     if (bytes === 0) return "0 B";
@@ -717,18 +708,6 @@ export default function NodePage() {
     }
 
     return "未知链路";
-  };
-
-  // 获取进度条颜色
-  const getProgressColor = (
-    value: number,
-    offline = false,
-  ): "default" | "primary" | "secondary" | "success" | "warning" | "danger" => {
-    if (offline) return "default";
-    if (value <= 50) return "success";
-    if (value <= 80) return "warning";
-
-    return "danger";
   };
 
   // IPv4/IPv6 格式验证（仅用于判定地址族）
@@ -945,23 +924,23 @@ export default function NodePage() {
     }
   };
 
-  const handleDismissExpiryReminder = async (nodeId: number) => {
-    try {
-      const res = await dismissNodeExpiryReminder(nodeId);
+  // const handleDismissExpiryReminder = async (nodeId: number) => {
+  //   try {
+  //     const res = await dismissNodeExpiryReminder(nodeId);
 
-      if (res.code === 0) {
-        setNodeList((prev) =>
-          prev.map((n) =>
-            n.id === nodeId ? { ...n, expiryReminderDismissed: 1 } : n,
-          ),
-        );
-      } else {
-        toast.error(res.msg || "操作失败");
-      }
-    } catch {
-      toast.error("网络错误，请重试");
-    }
-  };
+  //     if (res.code === 0) {
+  //       setNodeList((prev) =>
+  //         prev.map((n) =>
+  //           n.id === nodeId ? { ...n, expiryReminderDismissed: 1 } : n,
+  //         ),
+  //       );
+  //     } else {
+  //       toast.error(res.msg || "操作失败");
+  //     }
+  //   } catch {
+  //     toast.error("网络错误，请重试");
+  //   }
+  // };
 
   const openInstallSelector = (node: Node) => {
     setInstallTargetNode(node);
@@ -1002,6 +981,28 @@ export default function NodePage() {
       setNodeList((prev) =>
         prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
       );
+    }
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+        toast.success(`${label}已复制到剪贴板`);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        toast.success(`${label}已复制到剪贴板`);
+        document.body.removeChild(textArea);
+      }
+    } catch {
+      toast.error("复制失败，请手动选择文本复制");
     }
   };
 
@@ -1334,15 +1335,15 @@ export default function NodePage() {
   };
 
   // 批量操作处理函数
-  const toggleSelectMode = () => {
-    setSelectMode((prev) => {
-      if (prev) {
-        setSelectedIds(new Set());
-      }
+  // const toggleSelectMode = () => {
+  //   setSelectMode((prev) => {
+  //     if (prev) {
+  //       setSelectedIds(new Set());
+  //     }
 
-      return !prev;
-    });
-  };
+  //     return !prev;
+  //   });
+  // };
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -1354,8 +1355,30 @@ export default function NodePage() {
         next.add(id);
       }
 
+      // 当有选中项时，自动进入批量模式
+      if (next.size > 0 && !selectMode) {
+        setSelectMode(true);
+      }
+
+      // 当没有选中项时，自动退出批量模式
+      if (next.size === 0 && selectMode) {
+        setSelectMode(false);
+      }
+
       return next;
     });
+  };
+
+  const handleSelectAllToggle = (isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedIds(new Set(displayNodes.map((n) => n.id)));
+      if (!selectMode) {
+        setSelectMode(true);
+      }
+    } else {
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    }
   };
 
   const selectAll = () => {
@@ -1621,8 +1644,8 @@ export default function NodePage() {
           <div className="flex h-8 items-center justify-end gap-2 whitespace-nowrap shrink-0">
             {selectMode ? (
               <>
-                <span className="text-sm text-default-600 shrink-0">
-                  已选择 {selectedIds.size} 项
+                <span className="text-sm text-danger-400 shrink-0">
+                  已选 {selectedIds.size} 项
                 </span>
                 <Button
                   color="primary"
@@ -1659,18 +1682,21 @@ export default function NodePage() {
                 >
                   删除
                 </Button>
-                <Button
-                  color="secondary"
-                  size="sm"
-                  variant="solid"
-                  onPress={toggleSelectMode}
-                >
-                  退出
-                </Button>
               </>
             ) : (
               <>
-                {/* 筛选按钮 (纯文字胶囊版) */}
+                <Button
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                  title={viewMode === "grid" ? "切换到列表视图" : "切换到网格视图"}
+                >
+                  {viewMode === "grid" ? (
+                    <List className="w-4 h-4" />
+                  ) : (
+                    <Grid3x3 className="w-4 h-4" />
+                  )}
+                </Button>
                 <Button
                   className="h-8 px-3 text-xs min-w-0 shrink-0"
                   color={
@@ -1687,15 +1713,6 @@ export default function NodePage() {
                   onPress={() => setIsFilterModalOpen(true)}
                 >
                   筛选 {canUseExpiryFilter && nodeFilterMode !== "all" && "(1)"}
-                </Button>
-                <Button
-                  className="bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/45"
-                  color="default"
-                  size="sm"
-                  variant="flat"
-                  onPress={toggleSelectMode}
-                >
-                  批量
                 </Button>
                 <Button
                   color="primary"
@@ -1748,13 +1765,15 @@ export default function NodePage() {
           }
         />
       ) : (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <SortableContext
-            items={sortableNodeIds}
-            strategy={rectSortingStrategy}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-              {displayNodes.map((node) => {
+        <>
+          {viewMode === "grid" ? (
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              <SortableContext
+                items={sortableNodeIds}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                  {displayNodes.map((node) => {
                 const isRemoteNode = node.isRemote === 1;
                 const remoteUsage = isRemoteNode
                   ? remoteUsageMap[node.id]
@@ -1786,87 +1805,74 @@ export default function NodePage() {
                         data-node-card="true"
                       >
                         <CardHeader className="pb-3 md:pb-3">
-                          <div className="flex justify-between items-start w-full gap-3">
-                            <div className="flex items-start gap-2 flex-1 min-w-0">
-                              <div
-                                className="cursor-grab active:cursor-grabbing p-2 -ml-2 -mt-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
-                                {...listeners}
-                                style={{ touchAction: "none" }}
-                                title="拖拽排序"
-                              >
-                                <svg
-                                  aria-hidden="true"
-                                  className="w-4 h-4"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
-                                </svg>
-                              </div>
-                              {selectMode && (
+                          <div className="flex flex-col gap-2 w-full">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
                                 <Checkbox
-                                  className="mt-0.5"
                                   isSelected={selectedIds.has(node.id)}
                                   onValueChange={() => toggleSelect(node.id)}
                                 />
-                              )}
-                              <div className="min-w-0 flex-1 pt-0.5">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <h3 className="font-semibold text-foreground truncate text-sm leading-5">
-                                    {node.name}
-                                  </h3>
-                                  <span
-                                    className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
-                                    title={connectionStatusMeta.text}
-                                  />
+                                <div
+                                  className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors"
+                                  {...listeners}
+                                  style={{ touchAction: "none" }}
+                                  title="拖拽排序"
+                                >
+                                  <svg
+                                    aria-hidden="true"
+                                    className="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+                                  </svg>
                                 </div>
                               </div>
-                            </div>
-                            <div className="ml-2 flex-shrink-0 self-start">
-                              {hasInfoTrigger && (
-                                <div className="group/info relative">
-                                  <button
-                                    aria-label={`查看节点信息，共 ${infoCount} 项`}
-                                    className="relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none"
-                                    type="button"
-                                    onFocus={(event) =>
-                                      updateInfoPopoverPlacement(
-                                        node.id,
-                                        event.currentTarget,
-                                      )
-                                    }
-                                    onMouseEnter={(event) =>
-                                      updateInfoPopoverPlacement(
-                                        node.id,
-                                        event.currentTarget,
-                                      )
-                                    }
-                                  >
-                                    <svg
-                                      aria-hidden="true"
-                                      className="h-3.5 w-3.5"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
+                              <div className="flex-shrink-0">
+                                {hasInfoTrigger && (
+                                  <div className="group/info relative">
+                                    <button
+                                      aria-label={`查看节点信息，共 ${infoCount} 项`}
+                                      className="relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none"
+                                      type="button"
+                                      onFocus={(event) =>
+                                        updateInfoPopoverPlacement(
+                                          node.id,
+                                          event.currentTarget,
+                                        )
+                                      }
+                                      onMouseEnter={(event) =>
+                                        updateInfoPopoverPlacement(
+                                          node.id,
+                                          event.currentTarget,
+                                        )
+                                      }
                                     >
-                                      <path
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={1.8}
-                                      />
-                                    </svg>
-                                    {hasRemark && (
-                                      <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5 rounded-full border border-background bg-default-300 shadow-sm dark:bg-default-500" />
-                                    )}
-                                  </button>
-                                  <div
-                                    className={`pointer-events-none invisible absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 opacity-0 shadow-xl backdrop-blur transition-all duration-150 group-hover/info:visible group-hover/info:pointer-events-auto group-hover/info:opacity-100 group-focus-within/info:visible group-focus-within/info:pointer-events-auto group-focus-within/info:opacity-100 ${
-                                      infoPlacement === "bottom"
-                                        ? "right-0 top-[calc(100%+0.75rem)] translate-y-1 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0"
-                                        : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0"
-                                    }`}
-                                  >
+                                      <svg
+                                        aria-hidden="true"
+                                        className="h-3.5 w-3.5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={1.8}
+                                        />
+                                      </svg>
+                                      {hasRemark && (
+                                        <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5 rounded-full border border-background bg-red-300 shadow-sm dark:bg-default-500" />
+                                      )}
+                                    </button>
+                                    <div
+                                      className={`pointer-events-none invisible absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 opacity-0 shadow-xl backdrop-blur transition-all duration-150 group-hover/info:visible group-hover/info:pointer-events-auto group-hover/info:opacity-100 group-focus-within/info:visible group-focus-within/info:pointer-events-auto group-focus-within/info:opacity-100 ${
+                                        infoPlacement === "bottom"
+                                          ? "right-0 top-[calc(100%+0.75rem)] translate-y-1 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0"
+                                          : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0"
+                                      }`}
+                                    >
                                     <div className="space-y-3">
                                       {hasExpiryInfo && (
                                         <div className="space-y-2">
@@ -1879,27 +1885,25 @@ export default function NodePage() {
                                               type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleDismissExpiryReminder(node.id);
+                                                // handleDismissExpiryReminder(node.id);
                                               }}
                                             >
                                               关闭提醒
                                             </button>
                                           </div>
-                                          <div className="flex flex-wrap gap-1.5">
-                                            <Chip
-                                              className="text-[10px] h-5 px-1 flex-shrink-0"
-                                              color={expiryMeta.tone}
-                                              size="sm"
-                                              title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}
-                                              variant="flat"
-                                            >
-                                              {expiryMeta.label}
-                                            </Chip>
-                                          </div>
                                           <div className="rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700">
                                             {formatNodeRenewalTime(
                                               expiryMeta.nextDueTime,
                                             )}
+                                            {' '}
+                                            <Chip
+                                              className="text-[10px] h-5 px-1 ml-1 inline-flex"
+                                              color={expiryMeta.tone}
+                                              size="sm"
+                                              variant="flat"
+                                            >
+                                              {expiryMeta.label}
+                                            </Chip>
                                           </div>
                                         </div>
                                       )}
@@ -1918,9 +1922,19 @@ export default function NodePage() {
                                         </div>
                                       )}
                                     </div>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
+                                title={connectionStatusMeta.text}
+                              />
+                              <h3 className="font-semibold text-foreground truncate text-sm flex-1">
+                                {node.name}
+                              </h3>
                             </div>
                           </div>
                         </CardHeader>
@@ -1938,7 +1952,7 @@ export default function NodePage() {
                               node.renewalCycle && <div className="hidden" />}
                             <div className="flex justify-between items-center text-sm min-w-0">
                               <span className="text-default-600 flex-shrink-0">
-                                IP
+                                地址
                               </span>
                               <div className="text-right text-xs min-w-0 flex-1 ml-2 min-h-[2.125rem]">
                                 {node.serverIpV4?.trim() ||
@@ -1946,16 +1960,24 @@ export default function NodePage() {
                                   <div className="space-y-0.5">
                                     {node.serverIpV4?.trim() && (
                                       <span
-                                        className="font-mono truncate block"
+                                        className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block"
                                         title={node.serverIpV4.trim()}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyToClipboard(node.serverIpV4!.trim(), "IPv4 地址");
+                                        }}
                                       >
                                         {node.serverIpV4.trim()}
                                       </span>
                                     )}
                                     {node.serverIpV6?.trim() && (
                                       <span
-                                        className="font-mono truncate block"
+                                        className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px] ml-auto"
                                         title={node.serverIpV6.trim()}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyToClipboard(node.serverIpV6!.trim(), "IPv6 地址");
+                                        }}
                                       >
                                         {node.serverIpV6.trim()}
                                       </span>
@@ -1963,8 +1985,12 @@ export default function NodePage() {
                                   </div>
                                 ) : (
                                   <span
-                                    className="font-mono truncate block"
+                                    className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block"
                                     title={node.serverIp.trim()}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(node.serverIp.trim(), "IP 地址");
+                                    }}
                                   >
                                     {node.serverIp.trim()}
                                   </span>
@@ -1975,8 +2001,20 @@ export default function NodePage() {
                               <>
                                 <div className="flex justify-between text-sm">
                                   <span className="text-default-600">版本</span>
-                                  <span className="text-xs">
+                                  <span className="font-mono text-sm text-default-600">
                                     {node.version || "未知"}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-default-600">总流量</span>
+                                  <span className="font-mono text-sm text-danger-600 dark:text-danger-400">
+                                    {node.connectionStatus === "online" &&
+                                    node.systemInfo
+                                      ? formatTraffic(
+                                          node.systemInfo.uploadTraffic +
+                                            node.systemInfo.downloadTraffic,
+                                        )
+                                      : "-"}
                                   </span>
                                 </div>
                                 {upgradeProgress[node.id] &&
@@ -1992,17 +2030,6 @@ export default function NodePage() {
                                       />
                                     </div>
                                   )}
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-default-600">
-                                    开机时间
-                                  </span>
-                                  <span className="text-xs">
-                                    {node.connectionStatus === "online" &&
-                                    node.systemInfo
-                                      ? formatUptime(node.systemInfo.uptime)
-                                      : "-"}
-                                  </span>
-                                </div>
                               </>
                             )}
                           </div>
@@ -2154,230 +2181,34 @@ export default function NodePage() {
 
                           {!isRemoteNode && (
                             <>
-                              {/* 系统监控 */}
-                              <div className="space-y-3 mb-4">
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <div className="flex justify-between text-xs mb-1">
-                                      <span>CPU</span>
-                                      <span className="font-mono">
-                                        {node.connectionStatus === "online" &&
-                                        node.systemInfo
-                                          ? `${node.systemInfo.cpuUsage.toFixed(1)}%`
-                                          : "-"}
-                                      </span>
-                                    </div>
-                                    <Progress
-                                      aria-label="CPU使用率"
-                                      color={getProgressColor(
-                                        node.connectionStatus === "online" &&
-                                          node.systemInfo
-                                          ? node.systemInfo.cpuUsage
-                                          : 0,
-                                        node.connectionStatus !== "online",
-                                      )}
-                                      size="sm"
-                                      value={
-                                        node.connectionStatus === "online" &&
-                                        node.systemInfo
-                                          ? node.systemInfo.cpuUsage
-                                          : 0
-                                      }
-                                    />
+                              {/* 流量统计 */}
+                              <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                                <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
+                                  <div className="text-primary-600 dark:text-primary-400 mb-0.5">
+                                    ↑ 上行流量
                                   </div>
-                                  <div>
-                                    <div className="flex justify-between text-xs mb-1">
-                                      <span>内存</span>
-                                      <span className="font-mono">
-                                        {node.connectionStatus === "online" &&
-                                        node.systemInfo
-                                          ? `${node.systemInfo.memoryUsage.toFixed(1)}%`
-                                          : "-"}
-                                      </span>
-                                    </div>
-                                    <Progress
-                                      aria-label="内存使用率"
-                                      color={getProgressColor(
-                                        node.connectionStatus === "online" &&
-                                          node.systemInfo
-                                          ? node.systemInfo.memoryUsage
-                                          : 0,
-                                        node.connectionStatus !== "online",
-                                      )}
-                                      size="sm"
-                                      value={
-                                        node.connectionStatus === "online" &&
-                                        node.systemInfo
-                                          ? node.systemInfo.memoryUsage
-                                          : 0
-                                      }
-                                    />
+                                  <div className="font-mono text-sm text-primary-700 dark:text-primary-300">
+                                    {node.connectionStatus === "online" &&
+                                    node.systemInfo
+                                      ? formatTraffic(
+                                          node.systemInfo.uploadTraffic,
+                                        )
+                                      : "-"}
                                   </div>
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                  <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
-                                    <div className="text-default-600 mb-0.5">
-                                      上传
-                                    </div>
-                                    <div className="font-mono">
-                                      {node.connectionStatus === "online" &&
-                                      node.systemInfo
-                                        ? formatSpeed(
-                                            node.systemInfo.uploadSpeed,
-                                          )
-                                        : "-"}
-                                    </div>
+                                <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
+                                  <div className="text-success-600 dark:text-success-400 mb-0.5">
+                                    ↓ 下行流量
                                   </div>
-                                  <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
-                                    <div className="text-default-600 mb-0.5">
-                                      下载
-                                    </div>
-                                    <div className="font-mono">
-                                      {node.connectionStatus === "online" &&
-                                      node.systemInfo
-                                        ? formatSpeed(
-                                            node.systemInfo.downloadSpeed,
-                                          )
-                                        : "-"}
-                                    </div>
+                                  <div className="font-mono text-sm text-success-700 dark:text-success-300">
+                                    {node.connectionStatus === "online" &&
+                                    node.systemInfo
+                                      ? formatTraffic(
+                                          node.systemInfo.downloadTraffic,
+                                        )
+                                      : "-"}
                                   </div>
                                 </div>
-
-                                {/* 流量统计 */}
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                  <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
-                                    <div className="text-primary-600 dark:text-primary-400 mb-0.5">
-                                      ↑ 上行流量
-                                    </div>
-                                    <div className="font-mono text-primary-700 dark:text-primary-300">
-                                      {node.connectionStatus === "online" &&
-                                      node.systemInfo
-                                        ? formatTraffic(
-                                            node.systemInfo.uploadTraffic,
-                                          )
-                                        : "-"}
-                                    </div>
-                                  </div>
-                                  <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
-                                    <div className="text-success-600 dark:text-success-400 mb-0.5">
-                                      ↓ 下行流量
-                                    </div>
-                                    <div className="font-mono text-success-700 dark:text-success-300">
-                                      {node.connectionStatus === "online" &&
-                                      node.systemInfo
-                                        ? formatTraffic(
-                                            node.systemInfo.downloadTraffic,
-                                          )
-                                        : "-"}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* 扩展指标：磁盘/负载/连接 */}
-                                {node.connectionStatus === "online" &&
-                                  node.systemInfo && (
-                                    <div className="space-y-2">
-                                      {node.systemInfo.diskUsage !==
-                                        undefined && (
-                                        <div>
-                                          <div className="flex justify-between text-xs mb-1">
-                                            <span>磁盘</span>
-                                            <span className="font-mono">
-                                              {node.systemInfo.diskUsage.toFixed(
-                                                1,
-                                              )}
-                                              %
-                                            </span>
-                                          </div>
-                                          <Progress
-                                            aria-label="磁盘使用率"
-                                            color={getProgressColor(
-                                              node.systemInfo.diskUsage,
-                                              false,
-                                            )}
-                                            size="sm"
-                                            value={node.systemInfo.diskUsage}
-                                          />
-                                        </div>
-                                      )}
-                                      {(node.systemInfo.load1 !== undefined ||
-                                        node.systemInfo.load5 !== undefined ||
-                                        node.systemInfo.load15 !==
-                                          undefined) && (
-                                        <div className="grid grid-cols-3 gap-1 text-xs">
-                                          {node.systemInfo.load1 !==
-                                            undefined && (
-                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                                              <div className="text-default-500 text-[10px]">
-                                                负载 1m
-                                              </div>
-                                              <div className="font-mono">
-                                                {node.systemInfo.load1.toFixed(
-                                                  2,
-                                                )}
-                                              </div>
-                                            </div>
-                                          )}
-                                          {node.systemInfo.load5 !==
-                                            undefined && (
-                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                                              <div className="text-default-500 text-[10px]">
-                                                负载 5m
-                                              </div>
-                                              <div className="font-mono">
-                                                {node.systemInfo.load5.toFixed(
-                                                  2,
-                                                )}
-                                              </div>
-                                            </div>
-                                          )}
-                                          {node.systemInfo.load15 !==
-                                            undefined && (
-                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                                              <div className="text-default-500 text-[10px]">
-                                                负载 15m
-                                              </div>
-                                              <div className="font-mono">
-                                                {node.systemInfo.load15.toFixed(
-                                                  2,
-                                                )}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                      {(node.systemInfo.tcpConns !==
-                                        undefined ||
-                                        node.systemInfo.udpConns !==
-                                          undefined) && (
-                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                          {node.systemInfo.tcpConns !==
-                                            undefined && (
-                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                                              <div className="text-default-500 text-[10px]">
-                                                TCP 连接
-                                              </div>
-                                              <div className="font-mono">
-                                                {node.systemInfo.tcpConns}
-                                              </div>
-                                            </div>
-                                          )}
-                                          {node.systemInfo.udpConns !==
-                                            undefined && (
-                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                                              <div className="text-default-500 text-[10px]">
-                                                UDP 连接
-                                              </div>
-                                              <div className="font-mono">
-                                                {node.systemInfo.udpConns}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
                               </div>
                             </>
                           )}
@@ -2462,6 +2293,29 @@ export default function NodePage() {
             </div>
           </SortableContext>
         </DndContext>
+      ) : (
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <SortableContext
+            items={sortableNodeIds}
+            strategy={rectSortingStrategy}
+          >
+            <NodeListView
+              displayNodes={displayNodes}
+              selectedIds={selectedIds}
+              toggleSelect={toggleSelect}
+              toggleSelectAll={handleSelectAllToggle}
+              copyToClipboard={copyToClipboard}
+              openInstallSelector={openInstallSelector}
+              openUpgradeModal={openUpgradeModal}
+              handleRollbackNode={handleRollbackNode}
+              handleEdit={handleEdit}
+              handleDelete={handleDelete}
+              formatTraffic={formatTraffic}
+            />
+          </SortableContext>
+        </DndContext>
+      )}
+        </>
       )}
       {/* 新增/编辑节点对话框 */}
       <Modal
@@ -2566,7 +2420,7 @@ export default function NodePage() {
                 description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
                 errorMessage={errors.serverHost}
                 isInvalid={!!errors.serverHost}
-                label="域名/主机名"
+                label="域名/地址"
                 placeholder="例如: test.example.com"
                 value={form.serverHost}
                 variant="bordered"

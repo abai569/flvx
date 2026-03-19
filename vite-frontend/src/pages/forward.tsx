@@ -3463,7 +3463,7 @@ export default function ForwardPage() {
             {selectedIds.size > 0 ? (
               <>
                 <span className="text-sm text-danger-400 shrink-0">
-                  已选{selectedIds.size}项
+                  已选 {selectedIds.size} 项
                 </span>
                 <Button
                   color="primary"
