@@ -381,7 +381,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const loadSpeedLimits = useCallback(async () => {
@@ -391,15 +391,15 @@ export default function UserPage() {
       if (response.code === 0) {
         const speedLimitList = Array.isArray(response.data)
           ? response.data.map((item) => ({
-              ...item,
-              uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
-              downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
-            }))
+            ...item,
+            uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
+            downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
+          }))
           : [];
 
         setSpeedLimits(speedLimitList);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const loadUserGroups = useCallback(async () => {
@@ -409,7 +409,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const loadUserTunnels = useCallback(async (userId: number) => {
@@ -497,7 +497,7 @@ export default function UserPage() {
       if (groupRes.code === 0) {
         currentGroupIds = groupRes.data || [];
       }
-    } catch {}
+    } catch { }
 
     setUserForm({
       id: user.id,
@@ -703,10 +703,10 @@ export default function UserPage() {
             speedLimitName:
               normalizeSpeedId(editTunnelForm.speedId) !== null
                 ? speedLimits.find(
-                    (speedLimit) =>
-                      speedLimit.id ===
-                      normalizeSpeedId(editTunnelForm.speedId),
-                  )?.name
+                  (speedLimit) =>
+                    speedLimit.id ===
+                    normalizeSpeedId(editTunnelForm.speedId),
+                )?.name
                 : undefined,
           });
 
@@ -962,7 +962,7 @@ export default function UserPage() {
               <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">规则数</TableColumn>
               <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">重置日期</TableColumn>
               <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">过期时间</TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">操作</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[240px] text-left">操作</TableColumn>
             </TableHeader>
             <TableBody>
               {users.map((user) => {
@@ -1048,7 +1048,7 @@ export default function UserPage() {
                     <TableCell className="whitespace-nowrap">
                       <div className="flex gap-1.5">
                         <Button
-                          className="min-h-7 min-w-[64px]"
+                          className="min-h-7 min-w-[50px]"
                           color="primary"
                           size="sm"
                           variant="flat"
@@ -1057,7 +1057,16 @@ export default function UserPage() {
                           编辑
                         </Button>
                         <Button
-                          className="min-h-7 min-w-[64px]"
+                          className="min-h-7 min-w-[50px]"
+                          color="success"
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleManageTunnels(user)}
+                        >
+                          权限
+                        </Button>
+                        <Button
+                          className="min-h-7 min-w-[50px]"
                           color="warning"
                           size="sm"
                           variant="flat"
@@ -1066,7 +1075,7 @@ export default function UserPage() {
                           重置
                         </Button>
                         <Button
-                          className="min-h-7 min-w-[64px]"
+                          className="min-h-7 min-w-[50px]"
                           color="danger"
                           size="sm"
                           variant="flat"
@@ -1093,9 +1102,9 @@ export default function UserPage() {
             const flowPercent =
               user.flow > 0
                 ? Math.min(
-                    (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
-                    100,
-                  )
+                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
+                  100,
+                )
                 : 0;
 
             return (
@@ -1365,8 +1374,8 @@ export default function UserPage() {
                 value={
                   userForm.expTime
                     ? (parseDate(
-                        userForm.expTime.toISOString().split("T")[0],
-                      ) as any)
+                      userForm.expTime.toISOString().split("T")[0],
+                    ) as any)
                     : null
                 }
                 onChange={(date) => {
@@ -1529,201 +1538,229 @@ export default function UserPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-4">分配新权限</h3>
                 <div className="space-y-4">
-                  <div className="flex flex-col gap-2 relative">
-                    <p className="text-base text-default-700 ml-1 font-medium">隧道列表</p>
-                    
+                  <div className="flex items-center justify-between gap-2">
                     {/* 顶部触发框 */}
-                    <div 
-                      className={`group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all cursor-pointer shadow-sm w-[320px] ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
+                    <div
+                      className={`group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex-1 ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
                       onClick={() => setIsTunnelListExpanded(!isTunnelListExpanded)}
                     >
                       <span className={`text-sm truncate ${batchTunnelSelections.size > 0 ? "text-primary-500 font-bold" : "text-default-400"}`}>
-                        {batchTunnelSelections.size > 0 
+                        {batchTunnelSelections.size > 0
                           ? `已选 ${batchTunnelSelections.size} 项：` + Array.from(batchTunnelSelections.keys()).map(id => tunnels.find(t => t.id === id)?.name).join('、')
                           : "请选择隧道（勾选后配置限速）"}
                       </span>
                       <svg className={`w-5 h-5 text-default-400 transition-transform ${isTunnelListExpanded ? "rotate-180 text-primary" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth={2.5} /></svg>
                     </div>
 
-                    {/* 列表悬浮层 */}
-                    {isTunnelListExpanded && (
-                      <div 
-                        className="absolute top-[calc(100%+8px)] left-0 w-[320px] border border-default-200 rounded-2xl bg-white dark:bg-default-900 shadow-2xl overflow-hidden z-[999]"
-                        onClick={(e) => e.stopPropagation()} 
-                      >
-                        <div className="max-h-[350px] overflow-y-auto p-2 custom-scrollbar">
-                          {tunnels.map((tunnel) => {
-                            const isAssigned = isTunnelAssigned(tunnel.id);
-                            const isSelected = batchTunnelSelections.has(tunnel.id);
-                            const tunnelSpeedLimits = getSpeedLimitsForTunnel(tunnel.id);
-                            const currentSpeedId = batchTunnelSelections.get(tunnel.id);
-
-                            return (
-                              <div 
-                                key={tunnel.id} 
-                                className={`flex items-center justify-between px-4 py-2.5 rounded-xl mb-1 border transition-all ${isSelected ? "bg-primary-50/60 border-primary-200" : "bg-transparent border-transparent hover:bg-default-100"} ${isAssigned ? "opacity-40 grayscale cursor-not-allowed" : "cursor-pointer"}`}
-                                // 核心：整行点击直接控制状态
-                                onClick={(e) => {
-                                  if (isAssigned) return;
-                                  e.stopPropagation();
-                                  toggleTunnelSelection(tunnel.id);
-                                }}
-                              >
-                                <div className="flex items-center gap-4 min-w-0 flex-1">
-                                  <Checkbox 
-                                    color="primary" 
-                                    isSelected={isSelected} 
-                                    isDisabled={isAssigned}
-                                    // 关键：禁用 Checkbox 自身的点击，防止它跟父容器打架
-                                    className="pointer-events-none"
-                                  />
-                                  <span className={`text-sm font-medium truncate ${isSelected ? "text-primary-700" : ""}`}>{tunnel.name}</span>
-                                </div>
-
-                                {/* 右侧限速选择：复刻 image_24879b */}
-                                {isSelected && !isAssigned && (
-                                  <div className="flex items-center ml-2" onClick={(e) => e.stopPropagation()}>
-                                    <Select
-                                      aria-label="限速选择"
-                                      className="w-32"
-                                      size="sm"
-                                      variant="flat"
-                                      placeholder="不限速"
-                                      selectedKeys={currentSpeedId ? [currentSpeedId.toString()] : []}
-                                      onSelectionChange={(keys) => {
-                                        const selectedKey = Array.from(keys)[0];
-                                        updateTunnelSpeedLimit(tunnel.id, selectedKey ? Number(selectedKey) : null);
-                                      }}
-                                    >
-                                      {tunnelSpeedLimits.map(sl => <SelectItem key={sl.id.toString()}>{sl.name}</SelectItem>)}
-                                    </Select>
-                                  </div>
-                                )}
-                                {isAssigned && <span className="text-[10px] text-default-400 italic pr-2">已分配</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="bg-default-50/80 border-t p-2 flex justify-end">
-                           <Button size="md" variant="light" color="primary" className="font-bold" onPress={() => setIsTunnelListExpanded(false)}>完成配置</Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-<div className="flex flex-wrap items-center gap-2">
                     <Button
-                      className="w-fit px-8"
+                      className="w-[60px] px-8 py-3 h-[48px]"
                       color="primary"
                       isDisabled={batchTunnelSelections.size === 0}
                       isLoading={assignLoading}
                       onPress={handleBatchAssignTunnel}
                     >
-                      分配权限
+                      分配
                     </Button>
-                    {batchTunnelSelections.size > 0 && (
-                      <Chip color="primary" size="sm" variant="flat">
-                        已选 {batchTunnelSelections.size} 个隧道
-                      </Chip>
-                    )}
                   </div>
+
+                  {/* 列表悬浮层 */}
+                  {isTunnelListExpanded && (
+                    <div
+                      className="overflow-hidden border border-default-200 rounded-2xl bg-white dark:bg-default-900 shadow-2xl z-[999]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="max-h-[350px] overflow-y-auto">
+                        <Table
+                          aria-label="隧道列表"
+                          classNames={{
+                            th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+                            td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                            tr: "hover:bg-default-50/50 transition-colors",
+                            wrapper: "shadow-none p-0",
+                          }}
+                        >
+                          <TableHeader>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-left">选择</TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 text-left">隧道名称</TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">限速</TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
+                          </TableHeader>
+                          <TableBody>
+                            {tunnels.map((tunnel) => {
+                              const isAssigned = isTunnelAssigned(tunnel.id);
+                              const isSelected = batchTunnelSelections.has(tunnel.id);
+                              const tunnelSpeedLimits = getSpeedLimitsForTunnel(tunnel.id);
+                              const currentSpeedId = batchTunnelSelections.get(tunnel.id);
+
+                              return (
+                                <TableRow
+                                  key={tunnel.id}
+                                  className={`cursor-pointer transition-colors ${isSelected ? "bg-primary-50/60" : ""} ${isAssigned ? "opacity-40 grayscale" : ""}`}
+                                >
+                                  <TableCell className="whitespace-nowrap">
+                                    <Checkbox
+                                      color="primary"
+                                      isSelected={isSelected}
+                                      isDisabled={isAssigned}
+                                      onClick={(e) => {
+                                        if (isAssigned) return;
+                                        e.stopPropagation();
+                                        toggleTunnelSelection(tunnel.id);
+                                      }}
+                                    />
+                                  </TableCell>
+
+                                  <TableCell className="whitespace-nowrap">
+                                    <span className={`text-sm font-medium ${isSelected ? "text-primary-700" : "text-default-700"}`}>
+                                      {tunnel.name}
+                                    </span>
+                                  </TableCell>
+
+                                  <TableCell className="whitespace-nowrap">
+                                    {isSelected && !isAssigned ? (
+                                      <div onClick={(e) => e.stopPropagation()}>
+                                        <Select
+                                          aria-label="限速选择"
+                                          className="w-32"
+                                          size="sm"
+                                          variant="flat"
+                                          placeholder="不限速"
+                                          selectedKeys={currentSpeedId ? [currentSpeedId.toString()] : []}
+                                          onSelectionChange={(keys) => {
+                                            const selectedKey = Array.from(keys)[0];
+                                            updateTunnelSpeedLimit(tunnel.id, selectedKey ? Number(selectedKey) : null);
+                                          }}
+                                        >
+                                          {tunnelSpeedLimits.map(sl => <SelectItem key={sl.id.toString()}>{sl.name}</SelectItem>)}
+                                        </Select>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-default-400">-</span>
+                                    )}
+                                  </TableCell>
+
+                                  <TableCell className="whitespace-nowrap">
+                                    {isAssigned ? (
+                                      <span className="text-xs text-default-400 italic">已分配</span>
+                                    ) : (
+                                      <span className="text-xs text-default-400">-</span>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <div className="bg-default-50/80 border-t p-3 flex justify-end">
+                        <Button size="md" variant="light" color="primary" className="font-bold" onPress={() => setIsTunnelListExpanded(false)}>完成配置</Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* 已有权限部分 */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">已有权限</h3>
-<Table
-  aria-label="用户隧道权限列表"
-  // 1. 去掉 layout="fixed"，改为在 classNames.table 里写 table-fixed
-  classNames={{
-    wrapper: "shadow-none p-0 min-w-[380px] overflow-x-auto",
-    th: "bg-default-50 text-default-600 font-semibold",
-    td: "py-4 border-b border-divider"
-  }}
->
-  <TableHeader>
-    <TableColumn className="w-[35%]">隧道名称</TableColumn>
-    <TableColumn className="w-[35%]">流量统计</TableColumn>
-    <TableColumn className="w-[30%] text-right">操作</TableColumn>
-  </TableHeader>
-  <TableBody
-    emptyContent="暂无隧道权限"
-    isLoading={tunnelListLoading}
-    items={userTunnels}
-    loadingContent={<Spinner />}
-  >
-    {(userTunnel) => (
-      <TableRow key={userTunnel.id} className="hover:bg-default-50/50 transition-colors">
-        <TableCell>
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-default-700 whitespace-nowrap">
-              {userTunnel.tunnelName}
-            </span>
-          </div>
-        </TableCell>
+                <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
+                  <Table
+                    aria-label="用户隧道权限列表"
+                    classNames={{
+                      th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+                      td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                      tr: "hover:bg-default-50/50 transition-colors",
+                      wrapper: "shadow-none p-0",
+                    }}
+                  >
+                    <TableHeader>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道名称</TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">流量统计</TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">限速</TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">操作</TableColumn>
+                    </TableHeader>
+                    <TableBody
+                      emptyContent="暂无隧道权限"
+                      isLoading={tunnelListLoading}
+                      items={userTunnels}
+                      loadingContent={<Spinner />}
+                    >
+                      {(userTunnel) => (
+                        <TableRow key={userTunnel.id} className="hover:bg-default-50/50 transition-colors">
+                          <TableCell className="whitespace-nowrap">
+                            <span className="font-bold text-default-700">
+                              {userTunnel.tunnelName}
+                            </span>
+                          </TableCell>
 
-        <TableCell>
-          <div className="flex items-center gap-1 whitespace-nowrap text-sm">
-            <span className="text-danger font-mono font-bold">
-              {formatFlow(calculateTunnelUsedFlow(userTunnel))}
-            </span>
-            <span className="text-default-300">/</span>
-            <span className="text-default-500 font-mono">
-              {formatFlow(userTunnel.flow, "gb")}
-            </span>
-          </div>
-        </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <div className="flex items-center gap-1 text-sm">
+                              <span className="text-danger font-mono font-bold">
+                                {formatFlow(calculateTunnelUsedFlow(userTunnel))}
+                              </span>
+                              <span className="text-default-300">/</span>
+                              <span className="text-default-500 font-mono">
+                                {formatFlow(userTunnel.flow, "gb")}
+                              </span>
+                            </div>
+                          </TableCell>
 
-        <TableCell>
-          {/* 5. justify-end 确保按钮群组整体靠右 */}
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="flat"
-              className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
-              onPress={() => handleEditTunnel(userTunnel)}
-            >
-              <EditIcon className="w-4 h-4" />
-            </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="flat"
-              className="bg-orange-50 text-orange-600 hover:bg-orange-100 w-8 h-8 min-w-8"
-              onPress={() => handleResetTunnelFlow(userTunnel)}
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path clipRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" fillRule="evenodd" />
-              </svg>
-            </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="flat"
-              className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
-              onPress={() => handleRemoveTunnel(userTunnel)}
-            >
-              <DeleteIcon className="w-4 h-4" />
-            </Button>
-          </div>
-        </TableCell>
-      </TableRow>
-    )}
-  </TableBody>
-</Table>
+                          <TableCell className="whitespace-nowrap">
+                            <span className="text-sm text-default-700">
+                              {userTunnel.speedLimitName ? userTunnel.speedLimitName.replace(/^限速\s*/, "") : "不限"}
+                            </span>
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="flat"
+                                className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
+                                onPress={() => handleEditTunnel(userTunnel)}
+                              >
+                                <EditIcon className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="flat"
+                                className="bg-orange-50 text-orange-600 hover:bg-orange-100 w-8 h-8 min-w-8"
+                                onPress={() => handleResetTunnelFlow(userTunnel)}
+                              >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                  <path clipRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" fillRule="evenodd" />
+                                </svg>
+                              </Button>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="flat"
+                                className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
+                                onPress={() => handleRemoveTunnel(userTunnel)}
+                              >
+                                <DeleteIcon className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           </ModalBody>
-<ModalFooter className="justify-end">
-  <Button 
-    onPress={onTunnelModalClose} 
-    color="primary" 
-    variant="flat" // 建议加个 variant 保持和你其他按钮风格一致
-  >
-    关闭
-  </Button>
-</ModalFooter>
+          <ModalFooter className="justify-end">
+            <Button
+              onPress={onTunnelModalClose}
+              color="primary"
+              variant="flat" // 建议加个 variant 保持和你其他按钮风格一致
+            >
+              关闭
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
 
@@ -1742,139 +1779,38 @@ export default function UserPage() {
           <ModalBody>
             {editTunnelForm && (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="流量限制(GB)"
-                    max="99999"
-                    min="1"
-                    type="number"
-                    value={editTunnelForm.flow.toString()}
-                    onChange={(e) => {
-                      const value = Math.min(
-                        Math.max(Number(e.target.value) || 0, 1),
-                        99999,
-                      );
+                <Select
+                  label="限速规则"
+                  placeholder="不限速"
+                  selectedKeys={
+                    editTunnelSelectedSpeedId !== null
+                      ? [editTunnelSelectedSpeedId.toString()]
+                      : []
+                  }
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0] as
+                      | string
+                      | undefined;
 
-                      setEditTunnelForm((prev) =>
-                        prev ? { ...prev, flow: value } : null,
-                      );
-                    }}
-                  />
-
-                  <Input
-                    label="规则数量"
-                    max="99999"
-                    min="1"
-                    type="number"
-                    value={editTunnelForm.num.toString()}
-                    onChange={(e) => {
-                      const value = Math.min(
-                        Math.max(Number(e.target.value) || 0, 1),
-                        99999,
-                      );
-
-                      setEditTunnelForm((prev) =>
-                        prev ? { ...prev, num: value } : null,
-                      );
-                    }}
-                  />
-
-                  <Select
-                    label="限速规则"
-                    placeholder="不限速"
-                    selectedKeys={
-                      editTunnelSelectedSpeedId !== null
-                        ? [editTunnelSelectedSpeedId.toString()]
-                        : []
-                    }
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as
-                        | string
-                        | undefined;
-
-                      setEditTunnelForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              speedId: selectedKey ? Number(selectedKey) : null,
-                            }
-                          : null,
-                      );
-                    }}
-                  >
-                    {editAvailableSpeedLimits.map((speedLimit) => (
-                      <SelectItem
-                        key={speedLimit.id.toString()}
-                        textValue={speedLimit.name}
-                      >
-                        {speedLimit.name}
-                      </SelectItem>
-                    ))}
-                  </Select>
-
-                  <Select
-                    label="流量重置日期"
-                    selectedKeys={[editTunnelForm.flowResetTime.toString()]}
-                    onSelectionChange={(keys) => {
-                      const value = Array.from(keys)[0] as string;
-
-                      setEditTunnelForm((prev) =>
-                        prev ? { ...prev, flowResetTime: Number(value) } : null,
-                      );
-                    }}
-                  >
-                    <>
-                      <SelectItem key="0" textValue="不重置">
-                        不重置
-                      </SelectItem>
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map(
-                        (day) => (
-                          <SelectItem
-                            key={day.toString()}
-                            textValue={`每月${day}号（0点重置）`}
-                          >
-                            每月{day}号（0点重置）
-                          </SelectItem>
-                        ),
-                      )}
-                    </>
-                  </Select>
-
-                  <DatePicker
-                    isRequired
-                    showMonthAndYearPickers
-                    label="到期时间"
-                    value={
-                      editTunnelForm.expTime
-                        ? (parseDate(
-                            new Date(editTunnelForm.expTime)
-                              .toISOString()
-                              .split("T")[0],
-                          ) as any)
-                        : null
-                    }
-                    onChange={(date) => {
-                      if (date) {
-                        const jsDate = new Date(
-                          date.year,
-                          date.month - 1,
-                          date.day,
-                          23,
-                          59,
-                          59,
-                        );
-
-                        setEditTunnelForm((prev) =>
-                          prev ? { ...prev, expTime: jsDate.getTime() } : null,
-                        );
-                      } else {
-                        setEditTunnelForm((prev) =>
-                          prev ? { ...prev, expTime: Date.now() } : null,
-                        );
-                      }
-                    }}
-                  />
-                </div>
+                    setEditTunnelForm((prev) =>
+                      prev
+                        ? {
+                          ...prev,
+                          speedId: selectedKey ? Number(selectedKey) : null,
+                        }
+                        : null,
+                    );
+                  }}
+                >
+                  {editAvailableSpeedLimits.map((speedLimit) => (
+                    <SelectItem
+                      key={speedLimit.id.toString()}
+                      textValue={speedLimit.name}
+                    >
+                      {speedLimit.name}
+                    </SelectItem>
+                  ))}
+                </Select>
 
                 <RadioGroup
                   label="状态"
