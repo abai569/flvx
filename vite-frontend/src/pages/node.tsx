@@ -54,7 +54,7 @@ import {
   getNodeReleases,
   rollbackNode,
   getPeerRemoteUsageList,
-  // dismissNodeExpiryReminder,
+  dismissNodeExpiryReminder,
   type ReleaseChannel,
 } from "@/api";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
@@ -240,6 +240,7 @@ const mergeNodeRealtimeState = (
       existingNode?.upgradeLoading ?? incomingNode.upgradeLoading ?? false,
     rollbackLoading:
       existingNode?.rollbackLoading ?? incomingNode.rollbackLoading ?? false,
+    expiryReminderDismissed: existingNode?.expiryReminderDismissed ?? incomingNode.expiryReminderDismissed ?? 0,
   };
 };
 
@@ -349,6 +350,20 @@ export default function NodePage() {
     "node-view-mode",
     "grid",
   );
+
+  const [infoPopoverOpenId, setInfoPopoverOpenId] = useState<number | null>(null);
+
+  // 点击外部关闭信息弹窗
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (infoPopoverOpenId !== null) {
+        setInfoPopoverOpenId(null);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [infoPopoverOpenId]);
 
   // 安装命令相关状态
   const [installCommandModal, setInstallCommandModal] = useState(false);
@@ -924,23 +939,28 @@ export default function NodePage() {
     }
   };
 
-  // const handleDismissExpiryReminder = async (nodeId: number) => {
-  //   try {
-  //     const res = await dismissNodeExpiryReminder(nodeId);
+  const handleDismissExpiryReminder = async (nodeId: number) => {
+    try {
+      const res = await dismissNodeExpiryReminder(nodeId);
 
-  //     if (res.code === 0) {
-  //       setNodeList((prev) =>
-  //         prev.map((n) =>
-  //           n.id === nodeId ? { ...n, expiryReminderDismissed: 1 } : n,
-  //         ),
-  //       );
-  //     } else {
-  //       toast.error(res.msg || "操作失败");
-  //     }
-  //   } catch {
-  //     toast.error("网络错误，请重试");
-  //   }
-  // };
+      if (res.code === 0) {
+        // 更新节点列表状态
+        setNodeList((prev) =>
+          prev.map((n) =>
+            n.id === nodeId ? { ...n, expiryReminderDismissed: 1 } : n,
+          ),
+        );
+        // 关闭弹窗
+        setInfoPopoverOpenId(null);
+        toast.success("提醒已关闭");
+      } else {
+        toast.error(res.msg || "操作失败");
+      }
+    } catch (err) {
+      console.error('Failed to dismiss expiry reminder:', err);
+      toast.error("网络错误，请重试");
+    }
+  };
 
   const openInstallSelector = (node: Node) => {
     setInstallTargetNode(node);
@@ -1801,7 +1821,7 @@ export default function NodePage() {
                     {(listeners) => (
                       <Card
                         key={node.id}
-                        className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${expiryMeta.accentClassName}`}
+                        className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? '' : expiryMeta.accentClassName}`}
                         data-node-card="true"
                       >
                         <CardHeader className="pb-3 md:pb-3">
@@ -1830,11 +1850,16 @@ export default function NodePage() {
                               </div>
                               <div className="flex-shrink-0">
                                 {hasInfoTrigger && (
-                                  <div className="group/info relative">
+                                  <div className="relative">
                                     <button
                                       aria-label={`查看节点信息，共 ${infoCount} 项`}
-                                      className="relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none"
+                                      className={`relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none ${infoPopoverOpenId === node.id ? 'border-default-300 text-foreground' : ''}`}
                                       type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateInfoPopoverPlacement(node.id, null);
+                                        setInfoPopoverOpenId(infoPopoverOpenId === node.id ? null : node.id);
+                                      }}
                                       onFocus={(event) =>
                                         updateInfoPopoverPlacement(
                                           node.id,
@@ -1867,11 +1892,19 @@ export default function NodePage() {
                                       )}
                                     </button>
                                     <div
-                                      className={`pointer-events-none invisible absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 opacity-0 shadow-xl backdrop-blur transition-all duration-150 group-hover/info:visible group-hover/info:pointer-events-auto group-hover/info:opacity-100 group-focus-within/info:visible group-focus-within/info:pointer-events-auto group-focus-within/info:opacity-100 ${
+                                      className={`absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur transition-all duration-150 ${
+                                        infoPopoverOpenId === node.id
+                                          ? 'visible opacity-100 pointer-events-auto'
+                                          : 'invisible opacity-0 pointer-events-none'
+                                      } ${
                                         infoPlacement === "bottom"
-                                          ? "right-0 top-[calc(100%+0.75rem)] translate-y-1 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0"
-                                          : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0"
+                                          ? "right-0 top-[calc(100%+0.75rem)] translate-y-1"
+                                          : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1"
                                       }`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.nativeEvent.stopImmediatePropagation();
+                                      }}
                                     >
                                     <div className="space-y-3">
                                       {hasExpiryInfo && (
@@ -1885,7 +1918,8 @@ export default function NodePage() {
                                               type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                // handleDismissExpiryReminder(node.id);
+                                                e.nativeEvent.stopImmediatePropagation();
+                                                handleDismissExpiryReminder(node.id);
                                               }}
                                             >
                                               关闭提醒

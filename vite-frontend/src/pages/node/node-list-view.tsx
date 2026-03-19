@@ -127,6 +127,18 @@ function SortableTableRow({
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        {node.remark?.trim() ? (
+          <span
+            className="text-sm truncate block max-w-[120px]"
+            title={node.remark.trim()}
+          >
+            {node.remark.trim()}
+          </span>
+        ) : (
+          <span className="text-sm text-default-400">-</span>
+        )}
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="space-y-0.5">
           {node.serverIpV4?.trim() && (
             <span
@@ -307,11 +319,12 @@ export function NodeListView({
           </TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[250px] text-left">节点名称</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">备注</TableColumn> 
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">地址</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>         
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">上行流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">下行流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-right">总流量</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">总流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-right">操作</TableColumn>
         </TableHeader>
         <TableBody>
