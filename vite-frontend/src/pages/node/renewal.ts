@@ -114,5 +114,5 @@ export const formatNodeRenewalTime = (timestamp?: number): string => {
     return "未设置";
   }
 
-  return new Date(timestamp).toLocaleString();
+  return new Date(timestamp).toLocaleDateString();
 };
