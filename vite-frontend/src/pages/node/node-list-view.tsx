@@ -50,6 +50,7 @@ interface NodeListViewProps {
   displayNodes: Node[];
   selectedIds: Set<number>;
   toggleSelect: (nodeId: number) => void;
+  toggleSelectAll: (isSelected: boolean) => void;
   openInstallSelector: (node: Node) => void;
   openUpgradeModal: (type: "single" | "batch", nodeId?: number) => void;
   handleRollbackNode: (node: Node) => void;
@@ -275,6 +276,7 @@ export function NodeListView({
   displayNodes,
   selectedIds,
   toggleSelect,
+  toggleSelectAll,
   openInstallSelector,
   openUpgradeModal,
   handleRollbackNode,
@@ -282,6 +284,8 @@ export function NodeListView({
   handleDelete,
   formatTraffic,
 }: NodeListViewProps) {
+  const isAllSelected = displayNodes.length > 0 && selectedIds.size === displayNodes.length;
+
   return (
     <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
       <Table
@@ -293,7 +297,11 @@ export function NodeListView({
         }}
       >
         <TableHeader>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center">选择</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center">
+            <div className="flex items-center justify-center h-full">
+              <Checkbox isSelected={isAllSelected} onValueChange={toggleSelectAll} aria-label="全选" />
+            </div>
+          </TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">名称</TableColumn>
