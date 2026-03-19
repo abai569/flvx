@@ -30,6 +30,11 @@ import { SettingsIcon } from "@/components/icons";
 import { isAdmin } from "@/utils/auth";
 import { getCachedConfigs, configCache, updateSiteConfig } from "@/config/site";
 import {
+  type UpdateReleaseChannel,
+  getUpdateReleaseChannel,
+  setUpdateReleaseChannel,
+} from "@/utils/version-update";
+import {
   convertBrandAssetToPngDataURL,
   isPngDataURL,
   type BrandAssetKind,
@@ -213,6 +218,9 @@ export default function ConfigPage() {
   });
   const [announcementLoading, setAnnouncementLoading] = useState(true);
   const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [updateChannel, setUpdateChannel] = useState<UpdateReleaseChannel>(
+    getUpdateReleaseChannel(),
+  );
   const [previewLoadFailed, setPreviewLoadFailed] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
@@ -822,17 +830,7 @@ export default function ConfigPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* 页面标题 */}
-      <div className="flex items-center gap-3 mb-6">
-        <SettingsIcon className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">网站配置</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            管理网站的基本信息和显示设置
-          </p>
-        </div>
-      </div>
-
+      {/* 页面第一个卡片 */}
       <Card className="shadow-md">
         <CardHeader className="pb-6">
           <div className="flex items-center w-full">

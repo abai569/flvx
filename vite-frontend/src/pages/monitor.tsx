@@ -2,7 +2,7 @@ import type { MonitorNodeApiItem } from "@/api/types";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Grid3x3, List } from "lucide-react";
 
 import { AnimatedPage } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -16,10 +16,13 @@ type MonitorNode = {
   connectionStatus: "online" | "offline";
 };
 
+type ViewMode = "grid" | "list";
+
 export default function MonitorPage() {
   const [nodes, setNodes] = useState<MonitorNodeApiItem[]>([]);
   const [nodesLoading, setNodesLoading] = useState(false);
   const [nodesError, setNodesError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const loadNodes = useCallback(async () => {
     setNodesLoading(true);
@@ -82,15 +85,30 @@ export default function MonitorPage() {
               实时节点状态 + 历史指标图表 + 隧道流量 + 服务监控（TCP/ICMP）
             </div>
           </div>
-          <Button
-            isLoading={nodesLoading}
-            size="sm"
-            variant="flat"
-            onPress={loadNodes}
-          >
-            <RefreshCw className="w-4 h-4 mr-1" />
-            刷新节点
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              isLoading={nodesLoading}
+              size="sm"
+              variant="flat"
+              onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+              title={viewMode === "grid" ? "切换到列表视图" : "切换到网格视图"}
+            >
+              {viewMode === "grid" ? (
+                <List className="w-4 h-4" />
+              ) : (
+                <Grid3x3 className="w-4 h-4" />
+              )}
+            </Button>
+            <Button
+              isLoading={nodesLoading}
+              size="sm"
+              variant="flat"
+              onPress={loadNodes}
+            >
+              <RefreshCw className="w-4 h-4 mr-1" />
+              刷新节点
+            </Button>
+          </div>
         </div>
 
         {nodesError ? (
@@ -105,7 +123,7 @@ export default function MonitorPage() {
         ) : null}
       </div>
 
-      <MonitorView nodeMap={nodeMap} />
+      <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
     </AnimatedPage>
   );
 }
