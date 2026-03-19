@@ -683,7 +683,15 @@ export default function NodePage() {
   };
 
   // 格式化流量
+  const formatTraffic = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
 
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
   const formatFlow = (bytes: number): string => {
     if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -711,6 +719,17 @@ export default function NodePage() {
     return "未知链路";
   };
 
+  // 获取进度条颜色
+  const getProgressColor = (
+    value: number,
+    offline = false,
+  ): "default" | "primary" | "secondary" | "success" | "warning" | "danger" => {
+    if (offline) return "default";
+    if (value <= 50) return "success";
+    if (value <= 80) return "warning";
+
+    return "danger";
+  };
 
   // IPv4/IPv6 格式验证（仅用于判定地址族）
   const ipv4Regex =
@@ -996,9 +1015,28 @@ export default function NodePage() {
   // 手动复制安装命令
   const handleManualCopy = async () => {
     try {
-      await navigator.clipboard.writeText(installCommand);
-      toast.success("安装命令已复制到剪贴板");
-      setInstallCommandModal(false);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(installCommand);
+        toast.success("安装命令已复制到剪贴板");
+        setInstallCommandModal(false);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = installCommand;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          toast.success("安装命令已复制到剪贴板");
+          setInstallCommandModal(false);
+        } catch (err) {
+          toast.error("复制失败，请手动选择文本复制");
+        }
+        document.body.removeChild(textArea);
+      }
     } catch {
       toast.error("复制失败，请手动选择文本复制");
     }
@@ -1394,13 +1432,6 @@ export default function NodePage() {
     if (!nodeList || nodeList.length === 0) return [];
 
     const sortedByDb = [...nodeList].sort((a, b) => {
-      const expiryDiff =
-        getNodeExpiryMeta(a.expiryTime, a.renewalCycle).sortWeight -
-        getNodeExpiryMeta(b.expiryTime, b.renewalCycle).sortWeight;
-
-      if (expiryDiff !== 0) {
-        return expiryDiff;
-      }
       const aInx = a.inx ?? 0;
       const bInx = b.inx ?? 0;
 
@@ -1639,19 +1670,13 @@ export default function NodePage() {
               </>
             ) : (
               <>
-                {/* 筛选按钮 */}
+                {/* 筛选按钮 (纯文字胶囊版) */}
                 <Button
-                  isIconOnly
-                  aria-label="筛选条件"
-                  className={
-                    canUseExpiryFilter && nodeFilterMode !== "all"
-                      ? "bg-primary/20 text-primary relative"
-                      : "text-default-600 relative"
-                  }
+                  className="h-8 px-3 text-xs min-w-0 shrink-0"
                   color={
                     canUseExpiryFilter && nodeFilterMode !== "all"
-                      ? "primary"
-                      : "default"
+                      ? "secondary"
+                      : "danger"
                   }
                   isDisabled={!canUseExpiryFilter}
                   size="sm"
@@ -1661,23 +1686,7 @@ export default function NodePage() {
                   variant="flat"
                   onPress={() => setIsFilterModalOpen(true)}
                 >
-                  <svg
-                    aria-hidden="true"
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  {canUseExpiryFilter && nodeFilterMode !== "all" && (
-                    <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5 rounded-full bg-primary" />
-                  )}
+                  筛选 {canUseExpiryFilter && nodeFilterMode !== "all" && "(1)"}
                 </Button>
                 <Button
                   className="bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/45"
@@ -1780,7 +1789,7 @@ export default function NodePage() {
                           <div className="flex justify-between items-start w-full gap-3">
                             <div className="flex items-start gap-2 flex-1 min-w-0">
                               <div
-                                className="cursor-grab active:cursor-grabbing p-2 -ml-2 -mt-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0"
+                                className="cursor-grab active:cursor-grabbing p-2 -ml-2 -mt-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
                                 {...listeners}
                                 style={{ touchAction: "none" }}
                                 title="拖拽排序"
@@ -2143,7 +2152,235 @@ export default function NodePage() {
                             </div>
                           )}
 
+                          {!isRemoteNode && (
+                            <>
+                              {/* 系统监控 */}
+                              <div className="space-y-3 mb-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <div className="flex justify-between text-xs mb-1">
+                                      <span>CPU</span>
+                                      <span className="font-mono">
+                                        {node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                          ? `${node.systemInfo.cpuUsage.toFixed(1)}%`
+                                          : "-"}
+                                      </span>
+                                    </div>
+                                    <Progress
+                                      aria-label="CPU使用率"
+                                      color={getProgressColor(
+                                        node.connectionStatus === "online" &&
+                                          node.systemInfo
+                                          ? node.systemInfo.cpuUsage
+                                          : 0,
+                                        node.connectionStatus !== "online",
+                                      )}
+                                      size="sm"
+                                      value={
+                                        node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                          ? node.systemInfo.cpuUsage
+                                          : 0
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <div className="flex justify-between text-xs mb-1">
+                                      <span>内存</span>
+                                      <span className="font-mono">
+                                        {node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                          ? `${node.systemInfo.memoryUsage.toFixed(1)}%`
+                                          : "-"}
+                                      </span>
+                                    </div>
+                                    <Progress
+                                      aria-label="内存使用率"
+                                      color={getProgressColor(
+                                        node.connectionStatus === "online" &&
+                                          node.systemInfo
+                                          ? node.systemInfo.memoryUsage
+                                          : 0,
+                                        node.connectionStatus !== "online",
+                                      )}
+                                      size="sm"
+                                      value={
+                                        node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                          ? node.systemInfo.memoryUsage
+                                          : 0
+                                      }
+                                    />
+                                  </div>
+                                </div>
 
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
+                                    <div className="text-default-600 mb-0.5">
+                                      上传
+                                    </div>
+                                    <div className="font-mono">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? formatSpeed(
+                                            node.systemInfo.uploadSpeed,
+                                          )
+                                        : "-"}
+                                    </div>
+                                  </div>
+                                  <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
+                                    <div className="text-default-600 mb-0.5">
+                                      下载
+                                    </div>
+                                    <div className="font-mono">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? formatSpeed(
+                                            node.systemInfo.downloadSpeed,
+                                          )
+                                        : "-"}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* 流量统计 */}
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
+                                    <div className="text-primary-600 dark:text-primary-400 mb-0.5">
+                                      ↑ 上行流量
+                                    </div>
+                                    <div className="font-mono text-primary-700 dark:text-primary-300">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? formatTraffic(
+                                            node.systemInfo.uploadTraffic,
+                                          )
+                                        : "-"}
+                                    </div>
+                                  </div>
+                                  <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
+                                    <div className="text-success-600 dark:text-success-400 mb-0.5">
+                                      ↓ 下行流量
+                                    </div>
+                                    <div className="font-mono text-success-700 dark:text-success-300">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? formatTraffic(
+                                            node.systemInfo.downloadTraffic,
+                                          )
+                                        : "-"}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* 扩展指标：磁盘/负载/连接 */}
+                                {node.connectionStatus === "online" &&
+                                  node.systemInfo && (
+                                    <div className="space-y-2">
+                                      {node.systemInfo.diskUsage !==
+                                        undefined && (
+                                        <div>
+                                          <div className="flex justify-between text-xs mb-1">
+                                            <span>磁盘</span>
+                                            <span className="font-mono">
+                                              {node.systemInfo.diskUsage.toFixed(
+                                                1,
+                                              )}
+                                              %
+                                            </span>
+                                          </div>
+                                          <Progress
+                                            aria-label="磁盘使用率"
+                                            color={getProgressColor(
+                                              node.systemInfo.diskUsage,
+                                              false,
+                                            )}
+                                            size="sm"
+                                            value={node.systemInfo.diskUsage}
+                                          />
+                                        </div>
+                                      )}
+                                      {(node.systemInfo.load1 !== undefined ||
+                                        node.systemInfo.load5 !== undefined ||
+                                        node.systemInfo.load15 !==
+                                          undefined) && (
+                                        <div className="grid grid-cols-3 gap-1 text-xs">
+                                          {node.systemInfo.load1 !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                负载 1m
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.load1.toFixed(
+                                                  2,
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {node.systemInfo.load5 !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                负载 5m
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.load5.toFixed(
+                                                  2,
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {node.systemInfo.load15 !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                负载 15m
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.load15.toFixed(
+                                                  2,
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                      {(node.systemInfo.tcpConns !==
+                                        undefined ||
+                                        node.systemInfo.udpConns !==
+                                          undefined) && (
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                          {node.systemInfo.tcpConns !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                TCP 连接
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.tcpConns}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {node.systemInfo.udpConns !==
+                                            undefined && (
+                                            <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                                              <div className="text-default-500 text-[10px]">
+                                                UDP 连接
+                                              </div>
+                                              <div className="font-mono">
+                                                {node.systemInfo.udpConns}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                              </div>
+                            </>
+                          )}
 
                           <div className="mt-auto space-y-3">
                             {/* 操作按钮 */}
@@ -3001,7 +3238,7 @@ export default function NodePage() {
         onOpenChange={setIsFilterModalOpen}
       >
         <ModalContent>
-          {(onClose) => (
+          {() => (
             <>
               <ModalHeader className="flex flex-col gap-1">
                 筛选条件
@@ -3044,9 +3281,6 @@ export default function NodePage() {
                   onPress={resetNodeFilterMode}
                 >
                   重置
-                </Button>
-                <Button color="primary" onPress={onClose}>
-                  完成
                 </Button>
               </ModalFooter>
             </>

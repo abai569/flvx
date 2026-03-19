@@ -26,14 +26,9 @@ import {
   updateAnnouncement,
   type AnnouncementData,
 } from "@/api";
-import { SettingsIcon } from "@/components/icons";
 import { isAdmin } from "@/utils/auth";
 import { getCachedConfigs, configCache, updateSiteConfig } from "@/config/site";
-import {
-  type UpdateReleaseChannel,
-  getUpdateReleaseChannel,
-  setUpdateReleaseChannel,
-} from "@/utils/version-update";
+
 import {
   convertBrandAssetToPngDataURL,
   isPngDataURL,
@@ -218,9 +213,6 @@ export default function ConfigPage() {
   });
   const [announcementLoading, setAnnouncementLoading] = useState(true);
   const [announcementSaving, setAnnouncementSaving] = useState(false);
-  const [updateChannel, setUpdateChannel] = useState<UpdateReleaseChannel>(
-    getUpdateReleaseChannel(),
-  );
   const [previewLoadFailed, setPreviewLoadFailed] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});

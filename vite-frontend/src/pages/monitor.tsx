@@ -22,7 +22,7 @@ export default function MonitorPage() {
   const [nodes, setNodes] = useState<MonitorNodeApiItem[]>([]);
   const [nodesLoading, setNodesLoading] = useState(false);
   const [nodesError, setNodesError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   const loadNodes = useCallback(async () => {
     setNodesLoading(true);
@@ -87,7 +87,6 @@ export default function MonitorPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button
-              isLoading={nodesLoading}
               size="sm"
               variant="flat"
               onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}

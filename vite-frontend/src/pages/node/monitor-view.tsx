@@ -151,7 +151,7 @@ const formatBytesPerSecond = (bytesPerSecond: number): string => {
   const sizes = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"];
   const i = Math.floor(Math.log(bytesPerSecond) / Math.log(k));
 
-  return `${parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  return `${parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
 const formatUptime = (seconds: number) => {
@@ -172,44 +172,45 @@ const getColorByUsage = (usage?: number) => {
 
 function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNodeMetric | null; onPress?: () => void }) {
   const isOnline = node.connectionStatus === "online";
-  
+  const cpuUsage = metric?.cpuUsage ?? 0;
+  const memoryUsage = metric?.memoryUsage ?? 0;
+  const diskUsage = metric?.diskUsage ?? 0;
+
   return (
-    <Card className={`border-t-4 transition-all hover:scale-[1.02] hover:shadow-lg cursor-pointer ${isOnline ? "border-t-success" : "border-t-danger"}`} onClick={onPress}>
-      <CardHeader className="pb-2 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Server className={`w-5 h-5 ${isOnline ? "text-success" : "text-default-400"}`} />
-          <div className="font-semibold text-base truncate max-w-[150px]" title={node.name}>{node.name}</div>
-        </div>
-        <Chip size="sm" color={isOnline ? "success" : "danger"} variant="flat">
+    <Card className={`transition-all hover:scale-[1.02] hover:shadow-lg cursor-pointer`} onClick={onPress}>
+      <CardHeader className="!flex-row !items-center gap-2 overflow-hidden">
+        <Chip size="sm" color={isOnline ? "success" : "danger"} variant="flat" className="shrink-0">
           {isOnline ? "在线" : "离线"}
         </Chip>
+        <Server className={`w-5 h-5 shrink-0 ${isOnline ? "text-success" : "text-default-400"}`} />
+        <div className="font-semibold text-base truncate min-w-0">{node.name}</div>
       </CardHeader>
-      
+
       <CardBody className="pt-0 space-y-4">
         <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mt-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 text-default-500">
               <Clock className="w-3 h-3" /> 运行
             </div>
-            <span className="font-mono text-[11px]">{metric ? formatUptime(metric.uptime) : "-"}</span>
+            <span className="font-mono text-[11px] transition-colors duration-300">{metric ? formatUptime(metric.uptime) : "-"}</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 text-default-500">
               <Activity className="w-3 h-3" /> 负载
             </div>
-            <span className="font-mono text-[11px]">{metric ? metric.load1.toFixed(2) : "-"}</span>
+            <span className="font-mono text-[11px] transition-colors duration-300">{metric ? metric.load1.toFixed(2) : "-"}</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 text-default-500">
-              <Globe className="w-3 h-3" /> 连接
+              <Globe className="w-3 h-3" /> TCP
             </div>
-            <span className="font-mono text-[11px]">{metric ? metric.tcpConns : "-"}</span>
+            <span className="font-mono text-[11px] transition-colors duration-300">{metric ? metric.tcpConns : "-"}</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 text-default-500">
               <Zap className="w-3 h-3" /> UDP
             </div>
-            <span className="font-mono text-[11px]">{metric ? metric.udpConns : "-"}</span>
+            <span className="font-mono text-[11px] transition-colors duration-300">{metric ? metric.udpConns : "-"}</span>
           </div>
         </div>
 
@@ -217,48 +218,48 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
           <div>
             <div className="flex justify-between text-xs mb-1">
               <div className="flex items-center gap-1 text-default-600"><Cpu className="w-3.5 h-3.5" /> CPU</div>
-              <span className="font-mono text-[11px]">{metric ? metric.cpuUsage.toFixed(1) : "0.0"}%</span>
+              <span className="font-mono text-[11px] transition-colors duration-300">{cpuUsage.toFixed(1)}%</span>
             </div>
-            <Progress value={metric ? metric.cpuUsage : 0} color={getColorByUsage(metric?.cpuUsage)} className="h-1.5" />
+            <Progress value={cpuUsage} color={getColorByUsage(metric?.cpuUsage)} className="h-1.5" />
           </div>
           <div>
             <div className="flex justify-between text-xs mb-1">
               <div className="flex items-center gap-1 text-default-600"><HardDrive className="w-3.5 h-3.5" /> RAM</div>
-              <span className="font-mono text-[11px]">{metric ? metric.memoryUsage.toFixed(1) : "0.0"}%</span>
+              <span className="font-mono text-[11px] transition-colors duration-300">{memoryUsage.toFixed(1)}%</span>
             </div>
-            <Progress value={metric ? metric.memoryUsage : 0} color={getColorByUsage(metric?.memoryUsage)} className="h-1.5" />
+            <Progress value={memoryUsage} color={getColorByUsage(metric?.memoryUsage)} className="h-1.5" />
           </div>
           <div>
             <div className="flex justify-between text-xs mb-1">
               <div className="flex items-center gap-1 text-default-600"><HardDrive className="w-3.5 h-3.5" /> Disk</div>
-              <span className="font-mono text-[11px]">{metric ? metric.diskUsage.toFixed(1) : "0.0"}%</span>
+              <span className="font-mono text-[11px] transition-colors duration-300">{diskUsage.toFixed(1)}%</span>
             </div>
-            <Progress value={metric ? metric.diskUsage : 0} color={getColorByUsage(metric?.diskUsage)} className="h-1.5" />
+            <Progress value={diskUsage} color={getColorByUsage(metric?.diskUsage)} className="h-1.5" />
           </div>
         </div>
 
         <div className="flex justify-between items-center pt-3 border-t border-default-200/50 text-xs">
-           <div className="flex flex-col gap-0.5 w-[50%] border-r border-default-200/50 pr-2">
-             <div className="text-default-500 flex justify-between">
-               <span>网络 ↓</span>
-               <span className="font-mono text-success">{metric ? formatBytesPerSecond(metric.netInSpeed) : "0 B/s"}</span>
-             </div>
-             <div className="text-default-400 font-mono flex justify-between">
-               <span>总计</span>
-               <span className="text-[11px]">{metric ? formatBytes(metric.netInBytes) : "0 B"}</span>
-             </div>
-           </div>
-           
-           <div className="flex flex-col gap-0.5 w-[50%] pl-2">
-             <div className="text-default-500 flex justify-between">
-               <span>网络 ↑</span>
-               <span className="font-mono text-primary">{metric ? formatBytesPerSecond(metric.netOutSpeed) : "0 B/s"}</span>
-             </div>
-             <div className="text-default-400 font-mono flex justify-between">
-               <span>总计</span>
-               <span className="text-[11px]">{metric ? formatBytes(metric.netOutBytes) : "0 B"}</span>
-             </div>
-           </div>
+          <div className="flex flex-col gap-0.5 w-[50%] border-r border-default-200/50 pr-2">
+            <div className="text-default-500 flex justify-between">
+              <span>网络 ↓</span>
+              <span className="font-mono text-success transition-colors duration-300">{metric ? formatBytesPerSecond(metric.netInSpeed) : "0 B/s"}</span>
+            </div>
+            <div className="flex items-center gap-1 text-default-500 justify-between">
+              <span>总计</span>
+              <span className="text-[11px] transition-colors duration-300">{metric ? formatBytes(metric.netInBytes) : "0 B"}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-0.5 w-[50%] pl-2">
+            <div className="text-default-500 flex justify-between">
+              <span>网络 ↑</span>
+              <span className="font-mono text-primary transition-colors duration-300">{metric ? formatBytesPerSecond(metric.netOutSpeed) : "0 B/s"}</span>
+            </div>
+            <div className="flex items-center gap-1 text-default-500 justify-between">
+              <span>总计</span>
+              <span className="text-[11px] transition-colors duration-300">{metric ? formatBytes(metric.netOutBytes) : "0 B"}</span>
+            </div>
+          </div>
         </div>
       </CardBody>
     </Card>
@@ -364,6 +365,32 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     });
   }, [nodeMap, realtimeNodeStatus]);
 
+  const formattedNodeMetrics = useMemo(() => {
+    const map = new Map<number, { cpu: string; memory: string; disk: string; netIn: string; netOut: string; tcp: string; udp: string; uptime: string }>();
+
+    nodes.forEach((node) => {
+      const metric = realtimeNodeMetrics[node.id];
+
+      if (!metric) {
+        map.set(node.id, { cpu: "-", memory: "-", disk: "-", netIn: "-", netOut: "-", tcp: "-", udp: "-", uptime: "-" });
+        return;
+      }
+
+      map.set(node.id, {
+        cpu: `${metric.cpuUsage.toFixed(1)}%`,
+        memory: `${metric.memoryUsage.toFixed(1)}%`,
+        disk: `${metric.diskUsage.toFixed(1)}%`,
+        netIn: formatBytesPerSecond(metric.netInSpeed),
+        netOut: formatBytesPerSecond(metric.netOutSpeed),
+        tcp: String(metric.tcpConns),
+        udp: String(metric.udpConns),
+        uptime: formatUptime(metric.uptime),
+      });
+    });
+
+    return map;
+  }, [nodes, realtimeNodeMetrics]);
+
   const onlineNodes = nodes.filter((n) => n.connectionStatus === "online");
   const preferredNodeId = onlineNodes[0]?.id ?? nodes[0]?.id ?? 0;
 
@@ -423,10 +450,27 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
         uptime: Number(metric.uptime ?? 0),
       };
 
-      setRealtimeNodeMetrics((prev) => ({
-        ...prev,
-        [nodeId]: normalized,
-      }));
+      setRealtimeNodeMetrics((prev) => {
+        const existing = prev[nodeId];
+
+        if (existing) {
+          const smoothed: RealtimeNodeMetric = {
+            ...normalized,
+            netInSpeed: (existing.netInSpeed + normalized.netInSpeed) / 2,
+            netOutSpeed: (existing.netOutSpeed + normalized.netOutSpeed) / 2,
+          };
+
+          return {
+            ...prev,
+            [nodeId]: smoothed,
+          };
+        }
+
+        return {
+          ...prev,
+          [nodeId]: normalized,
+        };
+      });
       setRealtimeNodeStatus((prev) => ({
         ...prev,
         [nodeId]: "online",
@@ -1046,9 +1090,9 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
       if (monitor.enabled !== 1) {
         return false;
       }
-	  if (!latestResult || !latestResult.timestamp) {
-		  return false;
-	  }
+      if (!latestResult || !latestResult.timestamp) {
+        return false;
+      }
 
       const intervalMs = resolveMonitorIntervalSec(monitor) * 1000;
       const budgetMs =
@@ -1074,10 +1118,10 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
       }
 
       const latest = getLatestResult(m.id);
-	  if (!latest) {
-		  unknown += 1;
-		  return;
-	  }
+      if (!latest) {
+        unknown += 1;
+        return;
+      }
 
       if (isResultStale(m, latest)) {
         stale += 1;
@@ -1209,113 +1253,129 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
               <Table
                 aria-label="节点列表"
                 classNames={{
-                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
-                  td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                  tr: "hover:bg-default-50/50 transition-colors",
+                  th: "bg-default-50/80 text-default-500 font-semibold text-sm border-b border-divider py-4 uppercase tracking-wider text-left align-middle",
+                  td: "py-4 border-b border-divider/30 group-data-[last=true]:border-b-0",
+                  tr: "hover:bg-default-50/80 transition-colors",
                 }}
               >
                 <TableHeader>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[60px] text-center">状态</TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">名称</TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left hidden lg:table-cell">CPU</TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left hidden lg:table-cell">内存</TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left hidden lg:table-cell">磁盘</TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left hidden md:table-cell">下行</TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left hidden md:table-cell">上行</TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left hidden xl:table-cell">连接</TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left hidden xl:table-cell">运行时间</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center">状态</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">名称</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">速率</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">流量</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left hidden lg:table-cell">开机时长</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left hidden lg:table-cell">连接数</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">CPU</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">RAM</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">存储</TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-right">操作</TableColumn>
                 </TableHeader>
                 <TableBody>
                   {nodes.map((node) => {
-                    const metric = realtimeNodeMetrics[node.id] || null;
+                    const metric = realtimeNodeMetrics[node.id];
+                    const formatted = formattedNodeMetrics.get(node.id);
                     const isOnline = node.connectionStatus === "online";
+                    const cpuUsage = metric?.cpuUsage ?? 0;
+                    const memoryUsage = metric?.memoryUsage ?? 0;
+                    const diskUsage = metric?.diskUsage ?? 0;
+
                     return (
-                      <TableRow 
-                        key={node.id} 
-                        className={`cursor-pointer transition-colors ${selectedNodeId === node.id ? "bg-primary-50 dark:bg-primary-900/30" : "hover:bg-default-50/50"}`}
+                      <TableRow
+                        key={node.id}
+                        className={`cursor-pointer transition-colors ${selectedNodeId === node.id ? "bg-primary-50 dark:bg-primary-900/20" : ""}`}
                         onClick={() => {
                           setDetailNodeId(node.id);
                           setSelectedNodeId(node.id);
                         }}
                       >
                         <TableCell className="text-center">
-                          <div className={`w-3 h-3 rounded-full inline-block ${isOnline ? "bg-success" : "bg-danger"}`} />
+                          <div className={`w-2.5 h-2.5 rounded-full inline-block ${isOnline ? "bg-success shadow-success/50 shadow-lg" : "bg-danger shadow-danger/50 shadow-lg"}`} />
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <span className="font-medium text-foreground truncate block" title={node.name}>{node.name}</span>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap hidden lg:table-cell">
-                          {metric ? (
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs">{metric.cpuUsage.toFixed(1)}%</span>
-                              <div className="w-16 h-1.5 rounded-full bg-default-100 overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${metric.cpuUsage >= 90 ? "bg-danger" : metric.cpuUsage >= 75 ? "bg-warning" : metric.cpuUsage >= 50 ? "bg-primary" : "bg-success"}`}
-                                  style={{ width: `${Math.min(metric.cpuUsage, 100)}%` }}
-                                />
-                              </div>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <span className="text-success font-mono w-[65px] text-right">{formatted?.netIn ?? "-"}</span>
+                              <span className="text-default-400">↑</span>
                             </div>
-                          ) : (
-                            <span className="text-default-400">-</span>
-                          )}
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <span className="text-primary font-mono w-[65px] text-right">{formatted?.netOut ?? "-"}</span>
+                              <span className="text-default-400">↓</span>
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap hidden lg:table-cell">
-                          {metric ? (
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs">{metric.memoryUsage.toFixed(1)}%</span>
-                              <div className="w-16 h-1.5 rounded-full bg-default-100 overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${metric.memoryUsage >= 90 ? "bg-danger" : metric.memoryUsage >= 75 ? "bg-warning" : metric.memoryUsage >= 50 ? "bg-primary" : "bg-success"}`}
-                                  style={{ width: `${Math.min(metric.memoryUsage, 100)}%` }}
-                                />
-                              </div>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <span className="text-default-600 font-mono w-[65px] text-right">{metric ? formatBytes(metric.netInBytes) : "-"}</span>
+                              <span className="text-default-400">↑</span>
                             </div>
-                          ) : (
-                            <span className="text-default-400">-</span>
-                          )}
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <span className="text-default-600 font-mono w-[65px] text-right">{metric ? formatBytes(metric.netOutBytes) : "-"}</span>
+                              <span className="text-default-400">↓</span>
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap hidden lg:table-cell">
-                          {metric ? (
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs">{metric.diskUsage.toFixed(1)}%</span>
-                              <div className="w-16 h-1.5 rounded-full bg-default-100 overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${metric.diskUsage >= 90 ? "bg-danger" : metric.diskUsage >= 75 ? "bg-warning" : metric.diskUsage >= 50 ? "bg-primary" : "bg-success"}`}
-                                  style={{ width: `${Math.min(metric.diskUsage, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-default-400">-</span>
-                          )}
+                          <span className="text-xs text-default-500">{formatted?.uptime ?? "-"}</span>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap hidden md:table-cell">
-                          {metric ? (
-                            <span className="font-mono text-xs text-success">{formatBytesPerSecond(metric.netInSpeed)}</span>
-                          ) : (
-                            <span className="text-default-400">-</span>
-                          )}
+                        <TableCell className="whitespace-nowrap hidden lg:table-cell">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-mono text-default-600">TCP {formatted?.tcp ?? "-"}</span>
+                            <span className="text-xs font-mono text-default-400">UDP {formatted?.udp ?? "-"}</span>
+                          </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap hidden md:table-cell">
-                          {metric ? (
-                            <span className="font-mono text-xs text-primary">{formatBytesPerSecond(metric.netOutSpeed)}</span>
-                          ) : (
-                            <span className="text-default-400">-</span>
-                          )}
+                        <TableCell className="whitespace-nowrap">
+                          <div className="relative w-[120px] h-7 rounded-full bg-default-100 overflow-hidden">
+                            <div
+                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${cpuUsage >= 90 ? "bg-gradient-to-r from-danger to-danger" : cpuUsage >= 75 ? "bg-gradient-to-r from-warning to-warning" : cpuUsage >= 50 ? "bg-gradient-to-r from-primary to-primary" : "bg-gradient-to-r from-success to-emerald-400"}`}
+                              style={{ width: `${Math.min(cpuUsage, 100)}%` }}
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center text-xs font-medium" style={{ color: cpuUsage >= 50 ? '#fff' : '#666' }}>
+                              {formatted?.cpu ?? "-"}
+                            </span>
+                          </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap hidden xl:table-cell">
-                          {metric ? (
-                            <span className="font-mono text-xs">{metric.tcpConns} TCP / {metric.udpConns} UDP</span>
-                          ) : (
-                            <span className="text-default-400">-</span>
-                          )}
+                        <TableCell className="whitespace-nowrap">
+                          <div className="relative w-[120px] h-7 rounded-full bg-default-100 overflow-hidden">
+                            <div
+                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${memoryUsage >= 90 ? "bg-gradient-to-r from-danger to-danger" : memoryUsage >= 75 ? "bg-gradient-to-r from-warning to-warning" : memoryUsage >= 50 ? "bg-gradient-to-r from-primary to-primary" : "bg-gradient-to-r from-success to-emerald-400"}`}
+                              style={{ width: `${Math.min(memoryUsage, 100)}%` }}
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center text-xs font-medium" style={{ color: memoryUsage >= 50 ? '#fff' : '#666' }}>
+                              {formatted?.memory ?? "-"}
+                            </span>
+                          </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap hidden xl:table-cell">
-                          {metric ? (
-                            <span className="font-mono text-xs">{formatUptime(metric.uptime)}</span>
-                          ) : (
-                            <span className="text-default-400">-</span>
-                          )}
+                        <TableCell className="whitespace-nowrap">
+                          <div className="relative w-[120px] h-7 rounded-full bg-default-100 overflow-hidden">
+                            <div
+                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${diskUsage >= 90 ? "bg-gradient-to-r from-danger to-danger" : diskUsage >= 75 ? "bg-gradient-to-r from-warning to-warning" : diskUsage >= 50 ? "bg-gradient-to-r from-primary to-primary" : "bg-gradient-to-r from-success to-emerald-400"}`}
+                              style={{ width: `${Math.min(diskUsage, 100)}%` }}
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center text-xs font-medium" style={{ color: diskUsage >= 50 ? '#fff' : '#666' }}>
+                              {formatted?.disk ?? "-"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button
+                            className="min-w-8 h-8 rounded-full"
+                            size="sm"
+                            variant="flat"
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setDetailNodeId(node.id);
+                              setSelectedNodeId(node.id);
+                            }}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -1543,11 +1603,10 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                       <Card key={monitor.id} className="border border-default-200/60">
                         <CardHeader className="pb-1 flex flex-row items-center justify-between">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                              monitor.enabled !== 1 ? "bg-default-300" :
-                              !latestResult ? "bg-default-400" :
-                              latestResult.success === 1 ? "bg-success" : "bg-danger"
-                            }`} />
+                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${monitor.enabled !== 1 ? "bg-default-300" :
+                                !latestResult ? "bg-default-400" :
+                                  latestResult.success === 1 ? "bg-success" : "bg-danger"
+                              }`} />
                             <span className="font-semibold text-sm truncate">{monitor.name}</span>
                             <Chip size="sm" color="primary" variant="flat">{monitor.type.toUpperCase()}</Chip>
                             {stale ? <Chip size="sm" color="warning" variant="flat">陈旧</Chip> : null}
@@ -1805,7 +1864,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 description={`最小 ${resolvedServiceMonitorLimits.minIntervalSec}s（扫描周期 ${resolvedServiceMonitorLimits.checkerScanIntervalSec}s）`}
                 errorMessage={
                   monitorForm.intervalSec <
-                  resolvedServiceMonitorLimits.minIntervalSec
+                    resolvedServiceMonitorLimits.minIntervalSec
                     ? `不能小于 ${resolvedServiceMonitorLimits.minIntervalSec}s`
                     : undefined
                 }
@@ -1830,16 +1889,16 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 errorMessage={
                   monitorForm.timeoutSec <
                     resolvedServiceMonitorLimits.minTimeoutSec ||
-                  monitorForm.timeoutSec >
+                    monitorForm.timeoutSec >
                     resolvedServiceMonitorLimits.maxTimeoutSec
                     ? `需在 ${resolvedServiceMonitorLimits.minTimeoutSec}-${resolvedServiceMonitorLimits.maxTimeoutSec}s 范围内`
                     : undefined
                 }
                 isInvalid={
                   monitorForm.timeoutSec <
-                    resolvedServiceMonitorLimits.minTimeoutSec ||
+                  resolvedServiceMonitorLimits.minTimeoutSec ||
                   monitorForm.timeoutSec >
-                    resolvedServiceMonitorLimits.maxTimeoutSec
+                  resolvedServiceMonitorLimits.maxTimeoutSec
                 }
                 label="超时时间(秒)"
                 type="number"
