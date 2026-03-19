@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/abai569/flvx-backend:${FLUX_VERSION:-latest}
+    image: ghcr.io/abai569/flux-panel-backend:${FLUX_VERSION:-latest}
     container_name: flux-panel-backend
     restart: unless-stopped
     logging:
