@@ -1541,7 +1541,7 @@ export default function UserPage() {
                   <div className="flex items-center justify-between gap-2">
                     {/* 顶部触发框 */}
                     <div
-                      className={`group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex-1 ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
+                      className={`group flex items-center justify-between px-4 h-9 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex-1 ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
                       onClick={() => setIsTunnelListExpanded(!isTunnelListExpanded)}
                     >
                       <span className={`text-sm truncate ${batchTunnelSelections.size > 0 ? "text-primary-500 font-bold" : "text-default-400"}`}>
@@ -1553,7 +1553,7 @@ export default function UserPage() {
                     </div>
 
                     <Button
-                      className="w-[60px] px-8 py-3 h-[48px]"
+                      className="flex-none whitespace-nowrap px-4 min-w-0 h-9 text-xs font-medium shadow-sm"
                       color="primary"
                       isDisabled={batchTunnelSelections.size === 0}
                       isLoading={assignLoading}
@@ -1677,6 +1677,7 @@ export default function UserPage() {
                       <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道名称</TableColumn>
                       <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">流量统计</TableColumn>
                       <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">限速</TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
                       <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">操作</TableColumn>
                     </TableHeader>
                     <TableBody
@@ -1708,6 +1709,12 @@ export default function UserPage() {
                           <TableCell className="whitespace-nowrap">
                             <span className="text-sm text-default-700">
                               {userTunnel.speedLimitName ? userTunnel.speedLimitName.replace(/^限速\s*/, "") : "不限"}
+                            </span>
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap">
+                            <span className={`text-sm font-medium ${userTunnel.status === 1 ? "text-success" : "text-danger"}`}>
+                              {userTunnel.status === 1 ? "正常" : "禁用"}
                             </span>
                           </TableCell>
 
@@ -1771,7 +1778,7 @@ export default function UserPage() {
         isOpen={isEditTunnelModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="sm"
         onClose={onEditTunnelModalClose}
       >
         <ModalContent>
