@@ -51,6 +51,7 @@ interface NodeListViewProps {
   selectedIds: Set<number>;
   toggleSelect: (nodeId: number) => void;
   toggleSelectAll: (isSelected: boolean) => void;
+  copyToClipboard: (text: string, label: string) => void;
   openInstallSelector: (node: Node) => void;
   openUpgradeModal: (type: "single" | "batch", nodeId?: number) => void;
   handleRollbackNode: (node: Node) => void;
@@ -90,10 +91,23 @@ function SortableDragHandle({ nodeId }: { nodeId: number }) {
   );
 }
 
+const CopyIcon = () => (
+  <svg
+    className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    strokeWidth={2.5}
+  >
+    <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+  </svg>
+);
+
 function SortableTableRow({
   node,
   selectedIds,
   toggleSelect,
+  copyToClipboard,
   openInstallSelector,
   openUpgradeModal,
   handleRollbackNode,
@@ -104,6 +118,7 @@ function SortableTableRow({
   node: Node;
   selectedIds: Set<number>;
   toggleSelect: (nodeId: number) => void;
+  copyToClipboard: (text: string, label: string) => void;
   openInstallSelector: (node: Node) => void;
   openUpgradeModal: (type: "single" | "batch", nodeId?: number) => void;
   handleRollbackNode: (node: Node) => void;
@@ -118,59 +133,83 @@ function SortableTableRow({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.6 : 1,
   };
+
+  const rowBg = selectedIds.has(node.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
 
   const isRemoteNode = node.isRemote === 1;
   const connectionStatusMeta = getConnectionStatusMeta(node.connectionStatus);
 
   return (
     <TableRow ref={setNodeRef} key={node.id} className="cursor-default" style={style}>
-      <TableCell className="text-center">
-        <Checkbox
-          isSelected={selectedIds.has(node.id)}
-          onValueChange={() => toggleSelect(node.id)}
-        />
+      <TableCell className={rowBg}>
+        <div className="flex items-center justify-center h-full">
+          <Checkbox
+            isSelected={selectedIds.has(node.id)}
+            onValueChange={() => toggleSelect(node.id)}
+          />
+        </div>
       </TableCell>
-      <TableCell className="text-center">
-        <SortableDragHandle nodeId={node.id} />
+      <TableCell className={rowBg}>
+        <div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors">
+          <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+          </svg>
+        </div>
       </TableCell>
-      <TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex items-center gap-2">
           <span
             className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
             title={connectionStatusMeta.text}
           />
-          <span className="text-xs text-default-500">
-            {connectionStatusMeta.text}
+          <span className="font-medium text-foreground truncate" title={node.name}>
+            {node.name}
           </span>
         </div>
       </TableCell>
-      <TableCell>
-        <span className="font-medium text-foreground truncate block" title={node.name}>
-          {node.name}
-        </span>
-      </TableCell>
-      <TableCell>
-        <div className="space-y-0.5 text-xs font-mono">
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <div className="space-y-0.5">
           {node.serverIpV4?.trim() && (
-            <div className="text-default-600" title={node.serverIpV4.trim()}>
-              V4: {node.serverIpV4.trim()}
-            </div>
+            <span
+              className="text-xs font-mono cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
+              title={node.serverIpV4.trim()}
+              onClick={(e) => {
+                e.stopPropagation();
+                copyToClipboard(node.serverIpV4.trim(), "IPv4 地址");
+              }}
+            >
+              {node.serverIpV4.trim()}
+            </span>
           )}
           {node.serverIpV6?.trim() && (
-            <div className="text-default-600" title={node.serverIpV6.trim()}>
-              V6: {node.serverIpV6.trim()}
-            </div>
+            <span
+              className="text-xs font-mono cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
+              title={node.serverIpV6.trim()}
+              onClick={(e) => {
+                e.stopPropagation();
+                copyToClipboard(node.serverIpV6.trim(), "IPv6 地址");
+              }}
+            >
+              {node.serverIpV6.trim()}
+            </span>
           )}
           {(!node.serverIpV4?.trim() && !node.serverIpV6?.trim()) && (
-            <div className="text-default-600" title={node.serverIp.trim()}>
+            <span
+              className="text-xs font-mono cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
+              title={node.serverIp.trim()}
+              onClick={(e) => {
+                e.stopPropagation();
+                copyToClipboard(node.serverIp.trim(), "地址");
+              }}
+            >
               {node.serverIp.trim()}
-            </div>
+            </span>
           )}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
         {!isRemoteNode ? (
           <span className="text-xs text-default-600">
             {node.version || "未知"}
@@ -186,31 +225,37 @@ function SortableTableRow({
           </Chip>
         )}
       </TableCell>
-      <TableCell>
-        <span className="text-xs text-danger-600 dark:text-danger-400 font-medium">
-          {node.connectionStatus === "online" && node.systemInfo
-            ? formatTraffic(
-                node.systemInfo.uploadTraffic +
-                  node.systemInfo.downloadTraffic,
-              )
-            : "-"}
-        </span>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <div className="flex justify-end">
+          <span className="text-xs text-danger-600 dark:text-danger-400 font-medium">
+            {node.connectionStatus === "online" && node.systemInfo
+              ? formatTraffic(
+                  node.systemInfo.uploadTraffic +
+                    node.systemInfo.downloadTraffic,
+                )
+              : "-"}
+          </span>
+        </div>
       </TableCell>
-      <TableCell>
-        <span className="text-xs text-primary-700 dark:text-primary-300 font-mono">
-          {node.connectionStatus === "online" && node.systemInfo
-            ? formatTraffic(node.systemInfo.uploadTraffic)
-            : "-"}
-        </span>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <div className="flex justify-end">
+          <span className="text-xs text-primary-700 dark:text-primary-300 font-mono">
+            {node.connectionStatus === "online" && node.systemInfo
+              ? formatTraffic(node.systemInfo.uploadTraffic)
+              : "-"}
+          </span>
+        </div>
       </TableCell>
-      <TableCell>
-        <span className="text-xs text-success-700 dark:text-success-300 font-mono">
-          {node.connectionStatus === "online" && node.systemInfo
-            ? formatTraffic(node.systemInfo.downloadTraffic)
-            : "-"}
-        </span>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <div className="flex justify-end">
+          <span className="text-xs text-success-700 dark:text-success-300 font-mono">
+            {node.connectionStatus === "online" && node.systemInfo
+              ? formatTraffic(node.systemInfo.downloadTraffic)
+              : "-"}
+          </span>
+        </div>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end gap-1">
           {!isRemoteNode && (
             <>
@@ -277,6 +322,7 @@ export function NodeListView({
   selectedIds,
   toggleSelect,
   toggleSelectAll,
+  copyToClipboard,
   openInstallSelector,
   openUpgradeModal,
   handleRollbackNode,
@@ -291,9 +337,9 @@ export function NodeListView({
       <Table
         aria-label="节点列表"
         classNames={{
-          th: "bg-default-50/80 text-default-500 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
-          td: "py-3 border-b border-divider/30 group-data-[last=true]:border-b-0",
-          tr: "hover:bg-default-50/80 transition-colors",
+          th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+          td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+          tr: "hover:bg-default-50/50 transition-colors",
         }}
       >
         <TableHeader>
@@ -303,14 +349,13 @@ export function NodeListView({
             </div>
           </TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">名称</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">IP 地址</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[250px] text-left">节点名称</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">地址</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">总流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">上行流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">下行流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-right">操作</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">上行流量</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">下行流量</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-right">总流量</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-right">操作</TableColumn>
         </TableHeader>
         <TableBody>
           {displayNodes.map((node) => (
@@ -319,6 +364,7 @@ export function NodeListView({
               node={node}
               selectedIds={selectedIds}
               toggleSelect={toggleSelect}
+              copyToClipboard={copyToClipboard}
               openInstallSelector={openInstallSelector}
               openUpgradeModal={openUpgradeModal}
               handleRollbackNode={handleRollbackNode}
