@@ -31,20 +31,43 @@ jobs:
           IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "image_owner=$IMAGE_OWNER" >> $GITHUB_OUTPUT
 
+          VERSION="${{ github.ref_name }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            # Tag 触发：直接使用 tag 名作为版本，全量构建
-            VERSION="${{ github.ref_name }}"
             echo "🏷️ Tag trigger detected: $VERSION"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "is_tag=true" >> $GITHUB_OUTPUT
-            echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "should_build_gost=true" >> $GITHUB_OUTPUT
+
+            # 检查 go-gost 目录是否有变化
+            TAG_COMMIT=$(git rev-list -n 1 "$VERSION" 2>/dev/null || echo "")
+            if [[ -n "$TAG_COMMIT" ]]; then
+              if git diff --quiet --ignore-all-space --ignore-blank-lines $TAG_COMMIT HEAD -- go-gost/ 2>/dev/null; then
+                echo "✅ GOST files unchanged since tag"
+                echo "should_build_gost=false" >> $GITHUB_OUTPUT
+              else
+                echo "🔄 Detected changes in go-gost directory"
+                git diff --stat $TAG_COMMIT HEAD -- go-gost/ || true
+                echo "should_build_gost=true" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "should_build_gost=true" >> $GITHUB_OUTPUT
+            fi
+
+            # 检查 go-backend 和 vite-frontend 是否有变化
+            if git diff --quiet --ignore-all-space --ignore-blank-lines $TAG_COMMIT HEAD -- go-backend/ vite-frontend/ 2>/dev/null; then
+              echo "✅ Backend/Frontend unchanged since tag"
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            else
+              echo "🔄 Detected changes in backend/frontend"
+              git diff --stat $TAG_COMMIT HEAD -- go-backend/ vite-frontend/ || true
+              echo "should_build=true" >> $GITHUB_OUTPUT
+            fi
           else
             # 分支触发：使用 env.VERSION，检查是否需要构建
             VERSION="${{ env.VERSION }}"
             echo "🌿 Branch trigger detected, using version: $VERSION"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "is_tag=false" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
 
             # 检查 tag 是否已存在
             if git rev-parse "$VERSION" >/dev/null 2>&1; then
