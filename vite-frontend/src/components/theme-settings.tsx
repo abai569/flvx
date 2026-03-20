@@ -56,10 +56,7 @@ export const ThemeSettings: React.FC = () => {
   return (
     <Card className="border border-gray-200 dark:border-gray-700">
       <CardBody className="p-6">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-5">
-          主题设置
-        </h2>
-
+        <div><h2 className="text-xl font-semibold">主题设置</h2></div>
         {/* ── Mode toggle ────────────────────────────────────── */}
         <div className="mb-6">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
