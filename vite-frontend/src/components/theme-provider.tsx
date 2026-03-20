@@ -1,51 +1,28 @@
-import React, { useEffect } from "react";
+/**
+ * ThemeProvider — app-level wrapper
+ * =================================
+ * Loads all registered themes and wraps children with the theme context.
+ * Import the loader to ensure all built-in themes are registered before
+ * the provider mounts.
+ */
 
-import { useTheme } from "@/shadcn-bridge/heroui/use-theme";
+import React from "react";
+
+// Side-effect: registers all built-in themes
+import "@/themes/loader";
+
+import { ThemeProvider as ThemeContextProvider } from "@/themes/context";
+import { initThemeSystem } from "@/themes/registry";
+
+// Restore saved theme SYNCHRONOUSLY at module load time — before first render.
+// This ensures the CSS tokens are injected before any component renders,
+// preventing a flash of the default theme.
+initThemeSystem();
 
 interface ThemeProviderProps {
   children: React.ReactNode;
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const { theme, setTheme } = useTheme();
-
-  useEffect(() => {
-    // 确保主题与HTML class同步
-    const updateThemeClass = (currentTheme: string) => {
-      if (currentTheme === "dark") {
-        document.documentElement.classList.add("dark");
-        document.documentElement.style.colorScheme = "dark";
-      } else {
-        document.documentElement.classList.remove("dark");
-        document.documentElement.style.colorScheme = "light";
-      }
-    };
-
-    // 始终跟随系统主题
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-      .matches
-      ? "dark"
-      : "light";
-
-    if (systemTheme !== theme) {
-      setTheme(systemTheme);
-    }
-
-    // 监听主题变化
-    updateThemeClass(theme);
-
-    // 监听系统主题变化
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleThemeChange = (e: MediaQueryListEvent) => {
-      const newTheme = e.matches ? "dark" : "light";
-
-      setTheme(newTheme);
-    };
-
-    mediaQuery.addEventListener("change", handleThemeChange);
-
-    return () => mediaQuery.removeEventListener("change", handleThemeChange);
-  }, [theme, setTheme]);
-
-  return <>{children}</>;
+  return <ThemeContextProvider>{children}</ThemeContextProvider>;
 };

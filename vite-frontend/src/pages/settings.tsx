@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -8,6 +9,7 @@ import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { reinitializeBaseURL } from "@/api/network";
 import { getConfigByName, updateConfig } from "@/api";
+import { BackIcon } from "@/components/icons";
 import {
   type UpdateReleaseChannel,
   getUpdateReleaseChannel,
@@ -31,6 +33,7 @@ interface PanelAddress {
 const FORWARD_COMPACT_MODE_CONFIG_KEY = "forward_compact_mode";
 
 export const SettingsPage = () => {
+  const navigate = useNavigate();
   const [panelAddresses, setPanelAddresses] = useState<PanelAddress[]>([]);
   const [newName, setNewName] = useState("");
   const [newAddress, setNewAddress] = useState("");
@@ -158,9 +161,20 @@ export const SettingsPage = () => {
       {/* 顶部导航 */}
       <div className="bg-white dark:bg-black border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            面板设置
-          </h1>
+          <div className="flex items-center gap-3">
+            <Button
+              isIconOnly
+              aria-label="返回上一页"
+              className="text-gray-600 dark:text-gray-300"
+              variant="light"
+              onPress={() => navigate(-1)}
+            >
+              <BackIcon className="w-5 h-5" />
+            </Button>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              面板设置
+            </h1>
+          </div>
         </div>
       </div>
 
