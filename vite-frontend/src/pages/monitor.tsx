@@ -104,8 +104,8 @@ export default function MonitorPage() {
               variant="flat"
               onPress={loadNodes}
             >
-              <RefreshCw className="w-4 h-4 mr-1" />
-              刷新节点
+              <RefreshCw className="w-4 h-4 mr-3" />
+              刷新
             </Button>
           </div>
         </div>

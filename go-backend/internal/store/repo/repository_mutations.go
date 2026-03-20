@@ -253,23 +253,24 @@ func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, ser
 	return r.db.Model(&model.Node{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"name":                      name,
-			"remark":                    nullStringFromInterface(remark),
-			"expiry_time":               nullInt64FromInterface(expiryTime),
-			"renewal_cycle":             nullStringFromInterface(renewalCycle),
-			"server_ip":                 serverIP,
-			"server_ip_v4":              nullStringFromInterface(serverIPV4),
-			"server_ip_v6":              nullStringFromInterface(serverIPV6),
-			"extra_ips":                 nullStringFromInterface(extraIPs),
-			"port":                      stringFromInterface(port),
-			"interface_name":            nullStringFromInterface(interfaceName),
-			"http":                      httpFlag,
-			"tls":                       tlsFlag,
-			"socks":                     socksFlag,
-			"tcp_listen_addr":           tcpAddr,
-			"udp_listen_addr":           udpAddr,
-			"updated_time":              sql.NullInt64{Int64: now, Valid: true},
-			"expiry_reminder_dismissed": 0,
+			"name":                            name,
+			"remark":                          nullStringFromInterface(remark),
+			"expiry_time":                     nullInt64FromInterface(expiryTime),
+			"renewal_cycle":                   nullStringFromInterface(renewalCycle),
+			"server_ip":                       serverIP,
+			"server_ip_v4":                    nullStringFromInterface(serverIPV4),
+			"server_ip_v6":                    nullStringFromInterface(serverIPV6),
+			"extra_ips":                       nullStringFromInterface(extraIPs),
+			"port":                            stringFromInterface(port),
+			"interface_name":                  nullStringFromInterface(interfaceName),
+			"http":                            httpFlag,
+			"tls":                             tlsFlag,
+			"socks":                           socksFlag,
+			"tcp_listen_addr":                 tcpAddr,
+			"udp_listen_addr":                 udpAddr,
+			"updated_time":                    sql.NullInt64{Int64: now, Valid: true},
+			"expiry_reminder_dismissed":       0,
+			"expiry_reminder_dismissed_until": (*int64)(nil),
 		}).Error
 }
 
@@ -309,13 +310,21 @@ func (r *Repository) UpdateNodeOrder(nodeID int64, inx int, now int64) {
 		}).Error
 }
 
-func (r *Repository) UpdateNodeExpiryReminderDismissed(nodeID int64, dismissed int) error {
+func (r *Repository) UpdateNodeExpiryReminderDismissed(nodeID int64, dismissed int, dismissedUntil *int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
+
+	updates := map[string]interface{}{
+		"expiry_reminder_dismissed": dismissed,
+	}
+	if dismissedUntil != nil {
+		updates["expiry_reminder_dismissed_until"] = *dismissedUntil
+	}
+
 	return r.db.Model(&model.Node{}).
 		Where("id = ?", nodeID).
-		Update("expiry_reminder_dismissed", dismissed).Error
+		Updates(updates).Error
 }
 
 func (r *Repository) DeleteNodeCascade(nodeID int64) error {

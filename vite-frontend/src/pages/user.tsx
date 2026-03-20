@@ -1531,7 +1531,7 @@ export default function UserPage() {
         onClose={onTunnelModalClose}
       >
         <ModalContent>
-          <ModalHeader>用户 {currentUser?.user} 的隧道权限管理</ModalHeader>
+          <ModalHeader>管理用户 {currentUser?.user} 的隧道权限</ModalHeader>
           <ModalBody>
             <div className="space-y-6">
               {/* 分配新权限部分 */}

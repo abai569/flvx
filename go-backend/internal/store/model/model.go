@@ -58,33 +58,34 @@ type ForwardPort struct {
 func (ForwardPort) TableName() string { return "forward_port" }
 
 type Node struct {
-	ID                      int64          `gorm:"primaryKey;autoIncrement"`
-	Name                    string         `gorm:"type:varchar(100);not null"`
-	Remark                  sql.NullString `gorm:"column:remark;type:text"`
-	ExpiryTime              sql.NullInt64  `gorm:"column:expiry_time"`
-	RenewalCycle            sql.NullString `gorm:"column:renewal_cycle;type:varchar(20)"`
-	Secret                  string         `gorm:"type:varchar(100);not null"`
-	ServerIP                string         `gorm:"column:server_ip;type:varchar(100);not null"`
-	ServerIPV4              sql.NullString `gorm:"column:server_ip_v4;type:varchar(100)"`
-	ServerIPV6              sql.NullString `gorm:"column:server_ip_v6;type:varchar(100)"`
-	ExtraIPs                sql.NullString `gorm:"column:extra_ips;type:text"`
-	Port                    string         `gorm:"type:text;not null"`
-	InterfaceName           sql.NullString `gorm:"column:interface_name;type:varchar(200)"`
-	Version                 sql.NullString `gorm:"type:varchar(100)"`
-	HTTP                    int            `gorm:"column:http;not null;default:0"`
-	TLS                     int            `gorm:"column:tls;not null;default:0"`
-	Socks                   int            `gorm:"not null;default:0"`
-	CreatedTime             int64          `gorm:"column:created_time;not null"`
-	UpdatedTime             sql.NullInt64  `gorm:"column:updated_time"`
-	Status                  int            `gorm:"not null"`
-	TCPListenAddr           string         `gorm:"column:tcp_listen_addr;type:varchar(100);not null;default:'[::]'"`
-	UDPListenAddr           string         `gorm:"column:udp_listen_addr;type:varchar(100);not null;default:'[::]'"`
-	Inx                     int            `gorm:"not null;default:0"`
-	IsRemote                int            `gorm:"column:is_remote;default:0"`
-	RemoteURL               sql.NullString `gorm:"column:remote_url;type:text"`
-	RemoteToken             sql.NullString `gorm:"column:remote_token;type:text"`
-	RemoteConfig            sql.NullString `gorm:"column:remote_config;type:text"`
-	ExpiryReminderDismissed int            `gorm:"column:expiry_reminder_dismissed;not null;default:0"`
+	ID                           int64          `gorm:"primaryKey;autoIncrement"`
+	Name                         string         `gorm:"type:varchar(100);not null"`
+	Remark                       sql.NullString `gorm:"column:remark;type:text"`
+	ExpiryTime                   sql.NullInt64  `gorm:"column:expiry_time"`
+	RenewalCycle                 sql.NullString `gorm:"column:renewal_cycle;type:varchar(20)"`
+	ExpiryReminderDismissed      int            `gorm:"column:expiry_reminder_dismissed;not null;default:0"`
+	ExpiryReminderDismissedUntil sql.NullInt64  `gorm:"column:expiry_reminder_dismissed_until"`
+	Secret                       string         `gorm:"type:varchar(100);not null"`
+	ServerIP                     string         `gorm:"column:server_ip;type:varchar(100);not null"`
+	ServerIPV4                   sql.NullString `gorm:"column:server_ip_v4;type:varchar(100)"`
+	ServerIPV6                   sql.NullString `gorm:"column:server_ip_v6;type:varchar(100)"`
+	ExtraIPs                     sql.NullString `gorm:"column:extra_ips;type:text"`
+	Port                         string         `gorm:"type:text;not null"`
+	InterfaceName                sql.NullString `gorm:"column:interface_name;type:varchar(200)"`
+	Version                      sql.NullString `gorm:"type:varchar(100)"`
+	HTTP                         int            `gorm:"column:http;not null;default:0"`
+	TLS                          int            `gorm:"column:tls;not null;default:0"`
+	Socks                        int            `gorm:"not null;default:0"`
+	CreatedTime                  int64          `gorm:"column:created_time;not null"`
+	UpdatedTime                  sql.NullInt64  `gorm:"column:updated_time"`
+	Status                       int            `gorm:"not null"`
+	TCPListenAddr                string         `gorm:"column:tcp_listen_addr;type:varchar(100);not null;default:'[::]'"`
+	UDPListenAddr                string         `gorm:"column:udp_listen_addr;type:varchar(100);not null;default:'[::]'"`
+	Inx                          int            `gorm:"not null;default:0"`
+	IsRemote                     int            `gorm:"column:is_remote;default:0"`
+	RemoteURL                    sql.NullString `gorm:"column:remote_url;type:text"`
+	RemoteToken                  sql.NullString `gorm:"column:remote_token;type:text"`
+	RemoteConfig                 sql.NullString `gorm:"column:remote_config;type:text"`
 }
 
 func (Node) TableName() string { return "node" }

@@ -1396,19 +1396,18 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
               <ArrowLeft className="w-4 h-4 mr-1" />
               返回总览
             </Button>
-            <div className="flex items-center gap-2">
-              <Server className={`w-5 h-5 ${detailNode?.connectionStatus === "online" ? "text-success" : "text-default-400"}`} />
-              <h3 className="text-lg font-semibold">{detailNode?.name || `节点 #${detailNodeId}`}</h3>
-              <Chip size="sm" color={detailNode?.connectionStatus === "online" ? "success" : "danger"} variant="flat">
-                {detailNode?.connectionStatus === "online" ? "在线" : "离线"}
-              </Chip>
-            </div>
             <div className="flex items-center gap-2 text-xs text-default-500 ml-auto">
               <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-success" : wsConnecting ? "bg-warning" : "bg-default-300"}`} />
               <span>{wsConnected ? "实时已连接" : wsConnecting ? "实时连接中" : "实时未连接"}</span>
             </div>
+            <div className="flex items-center gap-2 w-full mt-2">
+              <Server className={`w-5 h-5 ${detailNode?.connectionStatus === "online" ? "text-success" : "text-default-400"}`} />
+              <h3 className="text-sm font-semibold">{detailNode?.name || `节点 #${detailNodeId}`}</h3>
+              <Chip size="sm" color={detailNode?.connectionStatus === "online" ? "success" : "danger"} variant="flat">
+                {detailNode?.connectionStatus === "online" ? "在线" : "离线"}
+              </Chip>
+            </div>
           </div>
-
           {/* Realtime KPI cards */}
           {detailRealtimeMetric && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1433,10 +1432,10 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
           {/* Node metrics chart */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <h3 className="text-lg font-semibold">节点指标图表</h3>
+              <h3 className="text-lg font-semibold">节点指标</h3>
               <div className="flex items-center gap-2">
                 <Select
-                  className="w-36"
+                  className="w-22 sm:w-22"
                   selectedKeys={[String(metricsRangeMs)]}
                   onSelectionChange={(keys) => {
                     const v = Number(Array.from(keys)[0]);
@@ -1511,11 +1510,11 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
 
           {/* Tunnel traffic chart */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <h3 className="text-lg font-semibold">隧道流量趋势</h3>
-              <div className="flex items-center gap-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold">流量趋势</h3>
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Select
-                  className="w-56"
+                  className="w-30 sm:w-42"
                   placeholder={tunnelsLoading ? "加载中..." : "选择隧道"}
                   selectedKeys={selectedTunnelId ? [String(selectedTunnelId)] : []}
                   onSelectionChange={(keys) => {
@@ -1528,7 +1527,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                   ))}
                 </Select>
                 <Select
-                  className="w-36"
+                  className="w-22 sm:w-22"
                   selectedKeys={[String(tunnelRangeMs)]}
                   onSelectionChange={(keys) => {
                     const v = Number(Array.from(keys)[0]);
@@ -1604,8 +1603,8 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                         <CardHeader className="pb-1 flex flex-row items-center justify-between">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${monitor.enabled !== 1 ? "bg-default-300" :
-                                !latestResult ? "bg-default-400" :
-                                  latestResult.success === 1 ? "bg-success" : "bg-danger"
+                              !latestResult ? "bg-default-400" :
+                                latestResult.success === 1 ? "bg-success" : "bg-danger"
                               }`} />
                             <span className="font-semibold text-sm truncate">{monitor.name}</span>
                             <Chip size="sm" color="primary" variant="flat">{monitor.type.toUpperCase()}</Chip>

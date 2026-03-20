@@ -662,10 +662,12 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 	for _, n := range nodes {
 		items = append(items, map[string]interface{}{
 			"id": n.ID, "inx": n.Inx, "name": n.Name,
-			"remark":       nullableString(n.Remark),
-			"expiryTime":   nullableInt64(n.ExpiryTime),
-			"renewalCycle": nullableString(n.RenewalCycle),
-			"ip":           n.ServerIP, "serverIp": n.ServerIP,
+			"remark":                       nullableString(n.Remark),
+			"expiryTime":                   nullableInt64(n.ExpiryTime),
+			"renewalCycle":                 nullableString(n.RenewalCycle),
+			"expiryReminderDismissed":      n.ExpiryReminderDismissed,
+			"expiryReminderDismissedUntil": nullableInt64(n.ExpiryReminderDismissedUntil),
+			"ip":                           n.ServerIP, "serverIp": n.ServerIP,
 			"serverIpV4":    nullableString(n.ServerIPV4),
 			"serverIpV6":    nullableString(n.ServerIPV6),
 			"extraIPs":      nullableString(n.ExtraIPs),

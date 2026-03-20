@@ -23,6 +23,7 @@ interface Node {
   expiryTime?: number;
   renewalCycle?: NodeRenewalCycle;
   expiryReminderDismissed?: number;
+  expiryReminderDismissedUntil: number | null;
   ip: string;
   serverIp: string;
   serverIpV4?: string;
