@@ -1,5 +1,10 @@
 # GO-GOST/X LISTENERS KNOWLEDGE BASE
 
+**Generated:** Fri Mar 20 2026
+**Commit:** f45f960
+**Branch:** main
+**Tag:** 2.1.9-beta6
+
 ## OVERVIEW
 Inbound listeners (transport-level accept loops) used by services defined in the GOST config.
 

@@ -1,6 +1,9 @@
 # GOST CONNECTOR KNOWLEDGE BASE
 
-**Generated:** Fri Feb 13 2026
+**Generated:** Fri Mar 20 2026
+**Commit:** f45f960
+**Branch:** main
+**Tag:** 2.1.9-beta6
 
 ## OVERVIEW
 Connection initiators (clients) for various protocols in GOST forwarding.

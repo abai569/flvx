@@ -1,5 +1,10 @@
 # GO-GOST/X KNOWLEDGE BASE
 
+**Generated:** Fri Mar 20 2026
+**Commit:** f45f960
+**Branch:** main
+**Tag:** 2.1.9-beta6
+
 ## OVERVIEW
 Local fork of `github.com/go-gost/x` used by `go-gost/` via `replace github.com/go-gost/x => ./x`. Most protocol/runtime behavior changes happen here. 30+ top-level packages - framework-style layout.
 

@@ -705,8 +705,7 @@ const SortableTableRow = ({ copyToClipboard, forward, selectedIds, toggleSelect,
   const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, '') : "默认IP";
   const inAddrNoPorts = rawInIp === "默认IP" ? rawInIp : rawInIp.split(',').map((ip: string) => ip.trim().replace(/:\d+$/, "")).join(',');
   const inAddrWithPorts = rawInIp === "默认IP" ? `默认IP:${forward.inPort}` : rawInIp.split(',').map((ip: string) => `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`).join(',');
-  const inAddrOnly = inAddrNoPorts; // 兜底变量，绝对防止 ReferenceError 崩溃
-  const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
+    const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
   const remotePortOnly = (forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "-";
 
   return (
@@ -806,8 +805,7 @@ const SortableCompactTableRow = ({
   const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, '') : "默认IP";
   const inAddrNoPorts = rawInIp === "默认IP" ? rawInIp : rawInIp.split(',').map((ip: string) => ip.trim().replace(/:\d+$/, "")).join(',');
   const inAddrWithPorts = rawInIp === "默认IP" ? `默认IP:${forward.inPort}` : rawInIp.split(',').map((ip: string) => `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`).join(',');
-  const inAddrOnly = inAddrNoPorts; // 兜底变量，绝对防止 ReferenceError 崩溃
-  const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
+    const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
   const remotePortOnly = (forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "-";
 
   return (

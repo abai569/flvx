@@ -1,5 +1,10 @@
 # GO-GOST/X HANDLERS KNOWLEDGE BASE
 
+**Generated:** Fri Mar 20 2026
+**Commit:** f45f960
+**Branch:** main
+**Tag:** 2.1.9-beta6
+
 ## OVERVIEW
 Protocol handlers (server-side request handling) used by services defined in the GOST config.
 

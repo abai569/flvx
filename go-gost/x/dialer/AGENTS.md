@@ -1,5 +1,10 @@
 # GO-GOST/X DIALERS KNOWLEDGE BASE
 
+**Generated:** Fri Mar 20 2026
+**Commit:** f45f960
+**Branch:** main
+**Tag:** 2.1.9-beta6
+
 ## OVERVIEW
 Outbound dialers (client-side connection establishment) used by connectors/handlers.
 

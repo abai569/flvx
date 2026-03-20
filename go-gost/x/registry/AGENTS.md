@@ -1,6 +1,9 @@
 # GO-GOST REGISTRY KNOWLEDGE BASE
 
-**Generated:** Wed Feb 04 2026
+**Generated:** Fri Mar 20 2026
+**Commit:** f45f960
+**Branch:** main
+**Tag:** 2.1.9-beta6
 
 ## OVERVIEW
 Central registration point for all pluggable GOST components (handlers, listeners, dialers, etc.).

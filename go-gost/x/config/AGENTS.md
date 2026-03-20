@@ -1,5 +1,10 @@
 # GO-GOST/X CONFIG KNOWLEDGE BASE
 
+**Generated:** Fri Mar 20 2026
+**Commit:** f45f960
+**Branch:** main
+**Tag:** 2.1.9-beta6
+
 ## OVERVIEW
 Config model + parsing/loading pipeline for the `go-gost/x` runtime. This is the bridge between `gost.json`/`gost.yaml` and in-memory registries/services.
 
