@@ -29,7 +29,14 @@ curl -L https://raw.githubusercontent.com/abai569/flvx/main/panel_install.sh -o 
 ```bash
 curl -L https://raw.githubusercontent.com/abai569/flvx/main/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
+#### 默认管理员账号
 
+- **账号**: admin_user
+- **密码**: admin_user
+
+> ⚠️ 首次登录后请立即修改默认密码！
+
+---
 #### 安装特定版本
 从 [Releases](https://github.com/abai569/flvx/releases) 页面复制对应版本的安装命令，脚本会自动安装该版本而非最新版。
 
@@ -115,14 +122,6 @@ docker compose up -d
 
 5) 迁移完成后，登录面板检查用户、隧道、转发、节点数据是否正确。
 
-#### 默认管理员账号
-
-- **账号**: admin_user
-- **密码**: admin_user
-
-> ⚠️ 首次登录后请立即修改默认密码！
-
----
 ## Original Project
 - **Name**: flux-panel
 - **Source**: https://github.com/bqlpfy/flux-panel
