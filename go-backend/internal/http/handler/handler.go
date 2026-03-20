@@ -42,6 +42,8 @@ type Handler struct {
 
 	upgradeMu              sync.Mutex
 	pendingUpgradeRedeploy map[int64]struct{}
+
+	qualityProber *tunnelQualityProber
 }
 
 type loginRequest struct {
@@ -93,6 +95,7 @@ func New(repo *repo.Repository, jwtSecret string) *Handler {
 		pendingUpgradeRedeploy: make(map[int64]struct{}),
 	}
 	h.healthCheck = health.NewChecker(repo, h.wsServer)
+	h.qualityProber = newTunnelQualityProber(h)
 	h.wsServer.SetNodeOnlineHook(h.onNodeOnline)
 	h.wsServer.SetNodeMetricHook(func(nodeID int64, info ws.SystemInfo) {
 		metricInfo := metrics.SystemInfo{
@@ -229,6 +232,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/monitor/nodes/", h.monitorNodeMetricsHandler)
 	mux.HandleFunc("/api/v1/monitor/nodes", h.monitorNodeListHandler)
 	mux.HandleFunc("/api/v1/monitor/tunnels", h.monitorTunnelListHandler)
+	mux.HandleFunc("/api/v1/monitor/tunnels/quality", h.monitorTunnelQualityHandler)
 	mux.HandleFunc("/api/v1/monitor/tunnels/", h.monitorTunnelMetrics)
 	mux.HandleFunc("/api/v1/monitor/services", h.monitorServiceListHandler)
 	mux.HandleFunc("/api/v1/monitor/services/create", h.monitorServiceCreate)
@@ -1234,6 +1238,21 @@ func nullableNullInt64(v sql.NullInt64) interface{} {
 	return nil
 }
 
+// flowCryptoCache caches AES crypto instances by secret to avoid per-request SHA256+GCM init.
+var flowCryptoCache sync.Map
+
+func getOrCreateFlowCrypto(secret string) *security.AESCrypto {
+	if v, ok := flowCryptoCache.Load(secret); ok {
+		return v.(*security.AESCrypto)
+	}
+	c, err := security.NewAESCrypto(secret)
+	if err != nil {
+		return nil
+	}
+	flowCryptoCache.Store(secret, c)
+	return c
+}
+
 func readAndDecryptFlowBody(body io.ReadCloser, secret string) (string, error) {
 	defer body.Close()
 	raw, err := io.ReadAll(body)
@@ -1254,8 +1273,8 @@ func readAndDecryptFlowBody(body io.ReadCloser, secret string) (string, error) {
 		return text, nil
 	}
 
-	crypto, err := security.NewAESCrypto(secret)
-	if err != nil {
+	crypto := getOrCreateFlowCrypto(secret)
+	if crypto == nil {
 		return text, nil
 	}
 	plain, err := crypto.Decrypt(wrap.Data)

@@ -453,7 +453,7 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/abai569/flvx/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, version, processServerAddress(panelAddr), secret)
+	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flvx/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, version, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 
@@ -494,45 +494,11 @@ func (h *Handler) nodeDismissExpiryReminder(w http.ResponseWriter, r *http.Reque
 		response.WriteJSON(w, response.ErrDefault("节点ID不能为空"))
 		return
 	}
-
-	// 获取节点信息，计算下一个周期时间
-	node, err := h.repo.GetNodeByID(req.ID)
-	if err != nil {
-		response.WriteJSON(w, response.Err(-2, "未找到节点"))
-		return
-	}
-
-	// 计算关闭截止时间（当前到期时间 + 一个周期）
-	var dismissedUntil *int64
-	if node.ExpiryTime.Valid && node.RenewalCycle.Valid && node.RenewalCycle.String != "" {
-		until := calculateExpiryReminderDismissedUntil(node.ExpiryTime.Int64, node.RenewalCycle.String)
-		dismissedUntil = &until
-	}
-
-	if err := h.repo.UpdateNodeExpiryReminderDismissed(req.ID, 1, dismissedUntil); err != nil {
+	if err := h.repo.UpdateNodeExpiryReminderDismissed(req.ID, 1); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
 	response.WriteJSON(w, response.OKEmpty())
-}
-
-// calculateExpiryReminderDismissedUntil 计算关闭提醒的截止时间（当前到期时间 + 一个周期）
-func calculateExpiryReminderDismissedUntil(expiryTime int64, renewalCycle string) int64 {
-	var months int64
-	switch renewalCycle {
-	case "month":
-		months = 1
-	case "quarter":
-		months = 3
-	case "year":
-		months = 12
-	default:
-		months = 1
-	}
-
-	// 将月数转换为秒数（近似计算：1 月 = 30 天）
-	secondsToAdd := months * 30 * 24 * 3600
-	return expiryTime + secondsToAdd
 }
 
 func (h *Handler) nodeBatchDelete(w http.ResponseWriter, r *http.Request) {

@@ -18,7 +18,7 @@ func (h *Handler) StartBackgroundJobs() {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.jobsCancel = cancel
 	h.jobsStarted = true
-	h.jobsWG.Add(5)
+	h.jobsWG.Add(6)
 	h.jobsMu.Unlock()
 
 	go h.runHourlyStatsLoop(ctx)
@@ -26,6 +26,7 @@ func (h *Handler) StartBackgroundJobs() {
 	go h.runNodeRenewalCycleLoop(ctx)
 	go h.runMetricsIngestion(ctx)
 	go h.runHealthChecks(ctx)
+	go h.runTunnelQualityProber(ctx)
 }
 
 func (h *Handler) StopBackgroundJobs() {
@@ -60,6 +61,13 @@ func (h *Handler) runHealthChecks(ctx context.Context) {
 	defer h.jobsWG.Done()
 	if h.healthCheck != nil {
 		h.healthCheck.Start(ctx)
+	}
+}
+
+func (h *Handler) runTunnelQualityProber(ctx context.Context) {
+	defer h.jobsWG.Done()
+	if h.qualityProber != nil {
+		h.qualityProber.Start(ctx)
 	}
 }
 

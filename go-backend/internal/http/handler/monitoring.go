@@ -207,6 +207,98 @@ func (h *Handler) handleNodeMetricsLatest(w http.ResponseWriter, _ *http.Request
 	response.WriteJSON(w, response.OK(metric))
 }
 
+func (h *Handler) monitorTunnelQualityHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureMonitoringAccess(w, r) {
+		return
+	}
+
+	// Try in-memory cache first
+	if h.qualityProber != nil {
+		items := h.qualityProber.GetAll()
+		if len(items) > 0 {
+			response.WriteJSON(w, response.OK(items))
+			return
+		}
+	}
+
+	// Fallback to database (latest per tunnel)
+	qualities, err := h.repo.GetLatestTunnelQualities()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	snapshots := make([]tunnelQualitySnapshot, 0, len(qualities))
+	for _, q := range qualities {
+		snapshots = append(snapshots, tunnelQualitySnapshot{
+			TunnelID:           q.TunnelID,
+			EntryToExitLatency: q.EntryToExitLatency,
+			ExitToBingLatency:  q.ExitToBingLatency,
+			EntryToExitLoss:    q.EntryToExitLoss,
+			ExitToBingLoss:     q.ExitToBingLoss,
+			Success:            q.Success == 1,
+			ErrorMessage:       q.ErrorMessage,
+			Timestamp:          q.Timestamp,
+		})
+	}
+	response.WriteJSON(w, response.OK(snapshots))
+}
+
+// monitorTunnelQualityHistory returns quality probe history for charting.
+// GET /api/v1/monitor/tunnels/{id}/quality?start=...&end=...
+// Mirrors monitorTunnelMetrics / monitorServiceResultsHandler pattern.
+func (h *Handler) monitorTunnelQualityHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureMonitoringAccess(w, r) {
+		return
+	}
+
+	tunnelIDStr := extractPathParam(r.URL.Path, "/api/v1/monitor/tunnels/", "/quality")
+	tunnelID, err := strconv.ParseInt(tunnelIDStr, 10, 64)
+	if err != nil || tunnelID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("无效的隧道ID"))
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	startMs := now - defaultMetricsRangeMs
+	endMs := now
+
+	if s := r.URL.Query().Get("start"); s != "" {
+		if v, err := strconv.ParseInt(s, 10, 64); err == nil {
+			startMs = v
+		}
+	}
+	if e := r.URL.Query().Get("end"); e != "" {
+		if v, err := strconv.ParseInt(e, 10, 64); err == nil {
+			endMs = v
+		}
+	}
+	if startMs <= 0 || endMs <= 0 || endMs < startMs {
+		response.WriteJSON(w, response.ErrDefault("无效的时间范围"))
+		return
+	}
+	if endMs-startMs > maxMetricsRangeMs {
+		response.WriteJSON(w, response.ErrDefault("时间范围过大"))
+		return
+	}
+
+	results, err := h.repo.GetTunnelQualityHistory(tunnelID, startMs, endMs)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OK(results))
+}
+
 func (h *Handler) monitorTunnelMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -216,7 +308,23 @@ func (h *Handler) monitorTunnelMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tunnelIDStr := extractPathParam(r.URL.Path, "/api/v1/monitor/tunnels/", "/metrics")
+	path := r.URL.Path
+	prefix := "/api/v1/monitor/tunnels/"
+	if !strings.HasPrefix(path, prefix) {
+		response.WriteJSON(w, response.ErrDefault("无效的路径"))
+		return
+	}
+
+	rest := strings.TrimPrefix(path, prefix)
+
+	// Route: /api/v1/monitor/tunnels/{id}/quality
+	if strings.HasSuffix(rest, "/quality") {
+		h.monitorTunnelQualityHistory(w, r)
+		return
+	}
+
+	// Route: /api/v1/monitor/tunnels/{id}/metrics (original)
+	tunnelIDStr := extractPathParam(path, prefix, "/metrics")
 	tunnelID, err := strconv.ParseInt(tunnelIDStr, 10, 64)
 	if err != nil || tunnelID <= 0 {
 		response.WriteJSON(w, response.ErrDefault("无效的隧道ID"))

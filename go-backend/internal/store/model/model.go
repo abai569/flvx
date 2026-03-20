@@ -58,34 +58,33 @@ type ForwardPort struct {
 func (ForwardPort) TableName() string { return "forward_port" }
 
 type Node struct {
-	ID                           int64          `gorm:"primaryKey;autoIncrement"`
-	Name                         string         `gorm:"type:varchar(100);not null"`
-	Remark                       sql.NullString `gorm:"column:remark;type:text"`
-	ExpiryTime                   sql.NullInt64  `gorm:"column:expiry_time"`
-	RenewalCycle                 sql.NullString `gorm:"column:renewal_cycle;type:varchar(20)"`
-	ExpiryReminderDismissed      int            `gorm:"column:expiry_reminder_dismissed;not null;default:0"`
-	ExpiryReminderDismissedUntil sql.NullInt64  `gorm:"column:expiry_reminder_dismissed_until"`
-	Secret                       string         `gorm:"type:varchar(100);not null"`
-	ServerIP                     string         `gorm:"column:server_ip;type:varchar(100);not null"`
-	ServerIPV4                   sql.NullString `gorm:"column:server_ip_v4;type:varchar(100)"`
-	ServerIPV6                   sql.NullString `gorm:"column:server_ip_v6;type:varchar(100)"`
-	ExtraIPs                     sql.NullString `gorm:"column:extra_ips;type:text"`
-	Port                         string         `gorm:"type:text;not null"`
-	InterfaceName                sql.NullString `gorm:"column:interface_name;type:varchar(200)"`
-	Version                      sql.NullString `gorm:"type:varchar(100)"`
-	HTTP                         int            `gorm:"column:http;not null;default:0"`
-	TLS                          int            `gorm:"column:tls;not null;default:0"`
-	Socks                        int            `gorm:"not null;default:0"`
-	CreatedTime                  int64          `gorm:"column:created_time;not null"`
-	UpdatedTime                  sql.NullInt64  `gorm:"column:updated_time"`
-	Status                       int            `gorm:"not null"`
-	TCPListenAddr                string         `gorm:"column:tcp_listen_addr;type:varchar(100);not null;default:'[::]'"`
-	UDPListenAddr                string         `gorm:"column:udp_listen_addr;type:varchar(100);not null;default:'[::]'"`
-	Inx                          int            `gorm:"not null;default:0"`
-	IsRemote                     int            `gorm:"column:is_remote;default:0"`
-	RemoteURL                    sql.NullString `gorm:"column:remote_url;type:text"`
-	RemoteToken                  sql.NullString `gorm:"column:remote_token;type:text"`
-	RemoteConfig                 sql.NullString `gorm:"column:remote_config;type:text"`
+	ID                      int64          `gorm:"primaryKey;autoIncrement"`
+	Name                    string         `gorm:"type:varchar(100);not null"`
+	Remark                  sql.NullString `gorm:"column:remark;type:text"`
+	ExpiryTime              sql.NullInt64  `gorm:"column:expiry_time"`
+	RenewalCycle            sql.NullString `gorm:"column:renewal_cycle;type:varchar(20)"`
+	Secret                  string         `gorm:"type:varchar(100);not null"`
+	ServerIP                string         `gorm:"column:server_ip;type:varchar(100);not null"`
+	ServerIPV4              sql.NullString `gorm:"column:server_ip_v4;type:varchar(100)"`
+	ServerIPV6              sql.NullString `gorm:"column:server_ip_v6;type:varchar(100)"`
+	ExtraIPs                sql.NullString `gorm:"column:extra_ips;type:text"`
+	Port                    string         `gorm:"type:text;not null"`
+	InterfaceName           sql.NullString `gorm:"column:interface_name;type:varchar(200)"`
+	Version                 sql.NullString `gorm:"type:varchar(100)"`
+	HTTP                    int            `gorm:"column:http;not null;default:0"`
+	TLS                     int            `gorm:"column:tls;not null;default:0"`
+	Socks                   int            `gorm:"not null;default:0"`
+	CreatedTime             int64          `gorm:"column:created_time;not null"`
+	UpdatedTime             sql.NullInt64  `gorm:"column:updated_time"`
+	Status                  int            `gorm:"not null"`
+	TCPListenAddr           string         `gorm:"column:tcp_listen_addr;type:varchar(100);not null;default:'[::]'"`
+	UDPListenAddr           string         `gorm:"column:udp_listen_addr;type:varchar(100);not null;default:'[::]'"`
+	Inx                     int            `gorm:"not null;default:0"`
+	IsRemote                int            `gorm:"column:is_remote;default:0"`
+	RemoteURL               sql.NullString `gorm:"column:remote_url;type:text"`
+	RemoteToken             sql.NullString `gorm:"column:remote_token;type:text"`
+	RemoteConfig            sql.NullString `gorm:"column:remote_config;type:text"`
+	ExpiryReminderDismissed int            `gorm:"column:expiry_reminder_dismissed;not null;default:0"`
 }
 
 func (Node) TableName() string { return "node" }
@@ -715,3 +714,20 @@ type ServiceMonitorResult struct {
 }
 
 func (ServiceMonitorResult) TableName() string { return "service_monitor_result" }
+
+// TunnelQuality stores periodic probe results for a tunnel.
+// Unlike the old upsert model, rows accumulate for history/charting.
+// Old rows are pruned periodically (default: keep 24h).
+type TunnelQuality struct {
+	ID                 int64   `gorm:"primaryKey;autoIncrement" json:"id"`
+	TunnelID           int64   `gorm:"column:tunnel_id;not null;index:idx_tunnel_quality_tunnel_time,priority:1" json:"tunnelId"`
+	EntryToExitLatency float64 `gorm:"column:entry_to_exit_latency" json:"entryToExitLatency"`
+	ExitToBingLatency  float64 `gorm:"column:exit_to_bing_latency" json:"exitToBingLatency"`
+	EntryToExitLoss    float64 `gorm:"column:entry_to_exit_loss" json:"entryToExitLoss"`
+	ExitToBingLoss     float64 `gorm:"column:exit_to_bing_loss" json:"exitToBingLoss"`
+	Success            int     `gorm:"not null;default:1" json:"success"`
+	ErrorMessage       string  `gorm:"column:error_message;type:text" json:"errorMessage,omitempty"`
+	Timestamp          int64   `gorm:"not null;index:idx_tunnel_quality_tunnel_time,priority:2;index:idx_tunnel_quality_time" json:"timestamp"`
+}
+
+func (TunnelQuality) TableName() string { return "tunnel_quality" }
