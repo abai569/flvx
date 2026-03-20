@@ -702,7 +702,10 @@ const SortableTableRow = ({ copyToClipboard, forward, selectedIds, toggleSelect,
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: forward.id });
   const style = { transform: CSS.Transform.toString(transform), transition: isDragging ? 'none' : transition, opacity: isDragging ? 0.6 : 1, zIndex: isDragging ? 50 : undefined, position: isDragging ? ('relative' as const) : undefined, willChange: 'transform', backgroundColor: isDragging ? "var(--nextui-default-100)" : undefined };
   const rowBg = selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
-  const inAddrOnly = (forward.inIp || "").replace(/:\d+$/, "") || "默认IP";
+  const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, '') : "默认IP";
+  const inAddrNoPorts = rawInIp === "默认IP" ? rawInIp : rawInIp.split(',').map((ip: string) => ip.trim().replace(/:\d+$/, "")).join(',');
+  const inAddrWithPorts = rawInIp === "默认IP" ? `默认IP:${forward.inPort}` : rawInIp.split(',').map((ip: string) => `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`).join(',');
+  const inAddrOnly = inAddrNoPorts; // 兜底变量，绝对防止 ReferenceError 崩溃
   const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
   const remotePortOnly = (forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "-";
 
@@ -721,8 +724,8 @@ const SortableTableRow = ({ copyToClipboard, forward, selectedIds, toggleSelect,
       <TableCell className={`whitespace-nowrap text-black ${rowBg}`}><span className="cursor-pointer hover:text-primary transition-colors text-black" onClick={() => copyToClipboard(forward.name, "规则名")}>{forward.name}</span></TableCell>
       <TableCell className={rowBg}>
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${inAddrOnly}:${forward.inPort}`, "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={inAddrOnly} onClick={() => copyToClipboard(inAddrOnly, "入口地址")}>{inAddrOnly}</span>
+          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(inAddrWithPorts.split(',').join('\n'), "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={inAddrNoPorts} onClick={() => copyToClipboard(inAddrNoPorts.split(',').join('\n'), "入口地址")}>{inAddrNoPorts}</span>
         </div>
       </TableCell>
 
@@ -800,7 +803,10 @@ const SortableCompactTableRow = ({
 
   const rowBg = selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
 
-  const inAddrOnly = (forward.inIp || "").replace(/:\d+$/, "") || "默认 IP";
+  const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, '') : "默认IP";
+  const inAddrNoPorts = rawInIp === "默认IP" ? rawInIp : rawInIp.split(',').map((ip: string) => ip.trim().replace(/:\d+$/, "")).join(',');
+  const inAddrWithPorts = rawInIp === "默认IP" ? `默认IP:${forward.inPort}` : rawInIp.split(',').map((ip: string) => `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`).join(',');
+  const inAddrOnly = inAddrNoPorts; // 兜底变量，绝对防止 ReferenceError 崩溃
   const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
   const remotePortOnly = (forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "-";
 
@@ -827,8 +833,8 @@ const SortableCompactTableRow = ({
 
       <TableCell className={rowBg}>
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${inAddrOnly}:${forward.inPort}`, "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={inAddrOnly} onClick={() => copyToClipboard(inAddrOnly, "入口地址")}>{inAddrOnly}</span>
+          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(inAddrWithPorts.split(',').join('\n'), "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={inAddrNoPorts} onClick={() => copyToClipboard(inAddrNoPorts.split(',').join('\n'), "入口地址")}>{inAddrNoPorts}</span>
         </div>
       </TableCell>
 
@@ -3319,6 +3325,9 @@ export default function ForwardPage() {
 
   // 渲染规则卡片
   const renderForwardCard = (forward: Forward, listeners?: any) => {
+    const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, '') : "默认IP";
+    const inAddrNoPorts = rawInIp === "默认IP" ? rawInIp : rawInIp.split(',').map((ip: string) => ip.trim().replace(/:\d+$/, "")).join(',');
+    const inAddrWithPorts = rawInIp === "默认IP" ? `默认IP:${forward.inPort}` : rawInIp.split(',').map((ip: string) => `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`).join(',');
     const statusDisplay = getStatusDisplay(forward.status);
     const strategyDisplay = getStrategyDisplay(forward.strategy);
 
@@ -3380,8 +3389,8 @@ export default function ForwardPage() {
               <div className="flex gap-1 items-center">
                 <div className="flex-1 min-w-0 h-8 bg-default-100/60 text-red-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center transition-colors">
                   <div className="flex items-center gap-1.5 w-full">
-                    <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${(forward.inIp || "").replace(/:\d+$/, "") || "默认IP"}:${forward.inPort}`, "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                    <code className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]" title={(forward.inIp || "").replace(/:\d+$/, "") || "默认IP"} onClick={() => copyToClipboard((forward.inIp || "").replace(/:\d+$/, "") || "默认IP", "入口地址")}>
+                    <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(inAddrWithPorts.split(',').join('\n'), "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                    <code className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]" title={inAddrNoPorts} onClick={() => copyToClipboard(inAddrNoPorts.split(',').join('\n'), "入口地址")}>
                       {(forward.inIp || "").replace(/:\d+$/, "") || "默认IP"}
                     </code>
                   </div>

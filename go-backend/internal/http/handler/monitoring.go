@@ -695,6 +695,30 @@ func (h *Handler) monitorServiceResultsHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// If start/end time range is provided, use time-based query (mirrors node metrics / tunnel quality pattern).
+	startStr := r.URL.Query().Get("start")
+	endStr := r.URL.Query().Get("end")
+	if startStr != "" && endStr != "" {
+		startMs, err1 := strconv.ParseInt(startStr, 10, 64)
+		endMs, err2 := strconv.ParseInt(endStr, 10, 64)
+		if err1 != nil || err2 != nil || startMs <= 0 || endMs <= 0 || endMs < startMs {
+			response.WriteJSON(w, response.ErrDefault("无效的时间范围"))
+			return
+		}
+		if endMs-startMs > maxMetricsRangeMs {
+			response.WriteJSON(w, response.ErrDefault("时间范围过大"))
+			return
+		}
+		results, err := h.repo.GetServiceMonitorResultsByTimeRange(monitorID, startMs, endMs)
+		if err != nil {
+			response.WriteJSON(w, response.Err(-2, err.Error()))
+			return
+		}
+		response.WriteJSON(w, response.OK(results))
+		return
+	}
+
+	// Fallback: count-based limit query (backward compat).
 	limit := 100
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 1000 {
