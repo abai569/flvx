@@ -4,7 +4,7 @@
 
 ## 背景
 
-PR #322 (https://github.com/abai569/flvx/pull/322) 原本移除了三个功能，用户要求**加回**这些被移除的功能：
+PR #322 (https://github.com/Sagit-chu/flvx/pull/322) 原本移除了三个功能，用户要求**加回**这些被移除的功能：
 1. 批量操作失败详情弹窗（`BatchOperationFailure` 类型及相关处理）
 2. 节点到期提醒关闭功能（`dismissNodeExpiryReminder` API）
 3. 更新通道选择功能（稳定版/开发版切换）
