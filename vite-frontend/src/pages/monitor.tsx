@@ -97,17 +97,22 @@ export default function MonitorPage() {
             >
               {viewMode === "list" ? <Grid3x3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
             </Button>
-            {activeTab === "nodes" && (
-              <Button
-                isLoading={nodesLoading}
+            <Button
+                isLoading={activeTab === "nodes" ? nodesLoading : false}
                 size="sm"
                 variant="flat"
-                onPress={() => loadNodes()}
+                onPress={() => {
+                  if (activeTab === "nodes") {
+                    loadNodes();
+                  } else {
+                    const hiddenBtn = document.getElementById('tunnel-refresh-trigger');
+                    if (hiddenBtn) hiddenBtn.click();
+                  }
+                }}
               >
                 <RefreshCw className="w-4 h-4 mr-1" />
                 刷新
               </Button>
-            )}
           </div>
         </div>
 

@@ -715,8 +715,8 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
             <span>自动探测 · 更新于 {lastQualityUpdate}</span>
           </div>
         )}
-        <div className="ml-auto">
-          <Button isLoading={tunnelsLoading} size="sm" variant="flat" onPress={() => loadTunnels()}>
+        <div className="hidden">
+          <Button id="tunnel-refresh-trigger" isLoading={tunnelsLoading} size="sm" variant="flat" onPress={() => loadTunnels()}>
             <RefreshCw className="w-4 h-4 mr-1" />
             刷新
           </Button>
