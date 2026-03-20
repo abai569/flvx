@@ -487,3 +487,14 @@ export interface MonitorAccessApiData {
   allowed: boolean;
   reason?: string;
 }
+
+export interface TunnelQualityApiItem {
+  tunnelId: number;
+  entryToExitLatency: number;
+  exitToBingLatency: number;
+  entryToExitLoss: number;
+  exitToBingLoss: number;
+  success: boolean;
+  errorMessage?: string;
+  timestamp: number;
+}

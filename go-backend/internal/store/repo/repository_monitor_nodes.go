@@ -12,6 +12,7 @@ func (r *Repository) ListMonitorNodes() ([]model.Node, error) {
 	}
 	var nodes []model.Node
 	err := r.db.Select("id", "inx", "name", "status", "updated_time").
+		Where("is_remote = ?", 0).
 		Order("inx ASC, id ASC").
 		Find(&nodes).Error
 	return nodes, err

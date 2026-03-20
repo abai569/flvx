@@ -2,13 +2,14 @@ import type { MonitorNodeApiItem } from "@/api/types";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { RefreshCw, Grid3x3, List } from "lucide-react";
+import { RefreshCw, Grid3x3, List, Server, ArrowRightLeft } from "lucide-react";
 
 import { AnimatedPage } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { getMonitorNodes } from "@/api";
 import { MonitorView } from "@/pages/node/monitor-view";
+import { TunnelMonitorView } from "@/pages/node/tunnel-monitor-view";
 
 type MonitorNode = {
   id: number;
@@ -16,16 +17,18 @@ type MonitorNode = {
   connectionStatus: "online" | "offline";
 };
 
-type ViewMode = "grid" | "list";
+type MonitorTab = "nodes" | "tunnels";
 
 export default function MonitorPage() {
   const [nodes, setNodes] = useState<MonitorNodeApiItem[]>([]);
   const [nodesLoading, setNodesLoading] = useState(false);
   const [nodesError, setNodesError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [activeTab, setActiveTab] = useState<MonitorTab>("nodes");
 
-  const loadNodes = useCallback(async () => {
-    setNodesLoading(true);
+  const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setNodesLoading(true);
     try {
       const response = await getMonitorNodes();
 
@@ -43,11 +46,11 @@ export default function MonitorPage() {
         return;
       }
 
-      toast.error(response.msg || "加载节点失败");
+      if (!silent) toast.error(response.msg || "加载节点失败");
     } catch {
-      toast.error("加载节点失败");
+      if (!silent) toast.error("加载节点失败");
     } finally {
-      setNodesLoading(false);
+      if (!silent) setNodesLoading(false);
     }
   }, []);
 
@@ -57,7 +60,7 @@ export default function MonitorPage() {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      void loadNodes();
+      void loadNodes({ silent: true });
     }, 30_000);
 
     return () => window.clearInterval(timer);
@@ -82,35 +85,59 @@ export default function MonitorPage() {
           <div className="min-w-0">
             <h2 className="text-xl font-semibold truncate">监控</h2>
             <div className="text-xs text-default-500 truncate">
-              实时节点状态 + 历史指标图表 + 隧道流量 + 服务监控（TCP/ICMP）
+              实时节点状态 + 隧道质量检测 + 历史指标图表 + 服务监控（TCP/ICMP）
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
+              isIconOnly
               size="sm"
               variant="flat"
-              onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-              title={viewMode === "grid" ? "切换到列表视图" : "切换到网格视图"}
+              onPress={() => setViewMode(viewMode === "list" ? "grid" : "list")}
             >
-              {viewMode === "grid" ? (
-                <List className="w-4 h-4" />
-              ) : (
-                <Grid3x3 className="w-4 h-4" />
-              )}
+              {viewMode === "list" ? <Grid3x3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
             </Button>
-            <Button
-              isLoading={nodesLoading}
-              size="sm"
-              variant="flat"
-              onPress={loadNodes}
-            >
-              <RefreshCw className="w-4 h-4 mr-3" />
-              刷新
-            </Button>
+            {activeTab === "nodes" && (
+              <Button
+                isLoading={nodesLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => loadNodes()}
+              >
+                <RefreshCw className="w-4 h-4 mr-1" />
+                刷新
+              </Button>
+            )}
           </div>
         </div>
 
-        {nodesError ? (
+        {/* Tab Switcher */}
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">
+          <button
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "nodes"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-default-500 hover:text-foreground"
+            }`}
+            onClick={() => setActiveTab("nodes")}
+          >
+            <Server className="w-4 h-4" />
+            节点
+          </button>
+          <button
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "tunnels"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-default-500 hover:text-foreground"
+            }`}
+            onClick={() => setActiveTab("tunnels")}
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+            隧道
+          </button>
+        </div>
+
+        {nodesError && activeTab === "nodes" ? (
           <Card>
             <CardHeader>
               <h3 className="text-sm font-semibold">节点列表</h3>
@@ -122,7 +149,11 @@ export default function MonitorPage() {
         ) : null}
       </div>
 
-      <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
+      {activeTab === "nodes" ? (
+        <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
+      ) : (
+        <TunnelMonitorView viewMode={viewMode} />
+      )}
     </AnimatedPage>
   );
 }
