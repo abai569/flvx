@@ -2,7 +2,7 @@ import type { MonitorNodeApiItem } from "@/api/types";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { RefreshCw, Grid3x3, List, Server, ArrowRightLeft } from "lucide-react";
+import { Grid3x3, List, Server, ArrowRightLeft } from "lucide-react";
 
 import { AnimatedPage } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
