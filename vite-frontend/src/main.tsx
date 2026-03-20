@@ -1,4 +1,3 @@
-import { GlobalPullToRefresh } from "@/components/global-pull-to-refresh";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
@@ -13,7 +12,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <Provider>
       <>
-    <GlobalPullToRefresh />
     <App />
   </>
     </Provider>

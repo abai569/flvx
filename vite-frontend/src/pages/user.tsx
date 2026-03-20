@@ -31,6 +31,7 @@ import { Chip } from "@/shadcn-bridge/heroui/chip";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { RadioGroup, Radio } from "@/shadcn-bridge/heroui/radio";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
+import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { DatePicker } from "@/shadcn-bridge/heroui/date-picker";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
@@ -58,6 +59,9 @@ import {
   resetUserFlow,
   resetUserQuota,
   getUserGroupList,
+  getMonitorPermissionList,
+  assignMonitorPermission,
+  removeMonitorPermission,
   getUserGroups,
 } from "@/api";
 import {
@@ -239,6 +243,64 @@ export default function UserPage() {
     onClose: onTunnelModalClose,
   } = useDisclosure();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+    // --- 监控权限相关状态 (来自 user新) ---
+  const [monitorPermissionUserIds, setMonitorPermissionUserIds] = useState<Set<number>>(new Set());
+  const [monitorPermissionLoading, setMonitorPermissionLoading] = useState(false);
+  const [monitorPermissionMutatingUserId, setMonitorPermissionMutatingUserId] = useState<number | null>(null);
+
+  const loadMonitorPermissions = useCallback(async () => {
+    setMonitorPermissionLoading(true);
+    try {
+      const response = await getMonitorPermissionList();
+      if (response.code === 0) {
+        const ids = new Set<number>();
+        if (Array.isArray(response.data)) {
+          response.data.forEach((item: any) => {
+            const id = Number(item?.userId ?? 0);
+            if (id > 0) ids.add(id);
+          });
+        }
+        setMonitorPermissionUserIds(ids);
+      }
+    } catch {} finally {
+      setMonitorPermissionLoading(false);
+    }
+  }, []);
+
+  const setUserMonitorPermission = useCallback(
+    async (userId: number, enabled: boolean) => {
+      if (userId <= 0 || monitorPermissionMutatingUserId === userId) return;
+      const prevEnabled = monitorPermissionUserIds.has(userId);
+      if (prevEnabled === enabled) return;
+
+      setMonitorPermissionMutatingUserId(userId);
+      setMonitorPermissionUserIds((prev) => {
+        const next = new Set(prev);
+        enabled ? next.add(userId) : next.delete(userId);
+        return next;
+      });
+
+      try {
+        const response = enabled ? await assignMonitorPermission(userId) : await removeMonitorPermission(userId);
+        if (response.code === 0) {
+          toast.success(enabled ? "已授权监控" : "已撤销监控");
+        } else {
+          throw new Error();
+        }
+      } catch {
+        setMonitorPermissionUserIds((prev) => {
+          const next = new Set(prev);
+          prevEnabled ? next.add(userId) : next.delete(userId);
+          return next;
+        });
+        toast.error("操作失败");
+      } finally {
+        setMonitorPermissionMutatingUserId(null);
+      }
+    },
+    [monitorPermissionMutatingUserId, monitorPermissionUserIds]
+  );
+
   const [userTunnels, setUserTunnels] = useState<UserTunnel[]>([]);
   const [tunnelListLoading, setTunnelListLoading] = useState(false);
 
@@ -438,6 +500,7 @@ export default function UserPage() {
     void loadTunnels();
     void loadSpeedLimits();
     void loadUserGroups();
+    void loadMonitorPermissions();
   }, [loadSpeedLimits, loadTunnels, loadUserGroups]);
 
   useEffect(() => {
@@ -1535,8 +1598,31 @@ export default function UserPage() {
           <ModalBody>
             <div className="space-y-6">
               {/* 分配新权限部分 */}
+                          <div className="space-y-6">
+              {/* 监控权限部分 (移植自 user新) */}
               <div>
-                <h3 className="text-lg font-semibold mb-4">分配新权限</h3>
+                <h3 className="text-lg font-semibold mb-4">监控权限</h3>
+                <div className="flex items-center justify-between gap-4 bg-default-100 dark:bg-default-50 p-4 rounded-lg border border-default-200 dark:border-default-100/30">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground">
+                      允许访问监控功能
+                    </div>
+                    <div className="text-xs text-default-500 mt-1">
+                      授予后，该用户可以访问监控页面并管理服务监控（TCP/ICMP）。
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {monitorPermissionLoading ? <Spinner size="sm" /> : null}
+                    <Switch
+                      isDisabled={!currentUser || monitorPermissionLoading || monitorPermissionMutatingUserId === currentUser.id}
+                      isSelected={currentUser ? monitorPermissionUserIds.has(currentUser.id) : false}
+                      onValueChange={(v) => currentUser && void setUserMonitorPermission(currentUser.id, v)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 分配新权限部分 */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-2">
                     {/* 顶部触发框 */}
