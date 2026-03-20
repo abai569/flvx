@@ -1726,9 +1726,9 @@ export default function NodePage() {
                   color={viewMode === "grid" ? "primary" : "warning"}
                   size="sm"
                   variant="flat"
-                  onPress={() => setViewMode(viewMode === "grid" ? "grid" : "list")}
+                  onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
                 >
-                  {viewMode === "grid" ? "卡片" : "列表"}
+                  {viewMode === "grid" ? "列表" : "卡片"}
                 </Button>
                 <Button
                   className="h-8 px-3 text-xs min-w-0 shrink-0"
