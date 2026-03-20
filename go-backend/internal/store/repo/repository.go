@@ -677,9 +677,10 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 			"version":       nullableString(n.Version),
 			"http":          n.HTTP, "tls": n.TLS, "socks": n.Socks,
 			"status": n.Status, "isRemote": n.IsRemote,
-			"remoteUrl":    nullableString(n.RemoteURL),
-			"remoteToken":  nullableString(n.RemoteToken),
-			"remoteConfig": nullableString(n.RemoteConfig),
+			"remoteUrl":                 nullableString(n.RemoteURL),
+			"remoteToken":               nullableString(n.RemoteToken),
+			"remoteConfig":              nullableString(n.RemoteConfig),
+			"expiryReminderDismissed":   n.ExpiryReminderDismissed,
 		})
 	}
 	return items, nil
@@ -3565,6 +3566,25 @@ func (r *Repository) GetServiceMonitorResults(monitorID int64, limit int) ([]mod
 		Order("timestamp DESC").
 		Limit(limit).
 		Find(&results).Error
+	return results, err
+}
+
+// GetServiceMonitorResultsByTimeRange returns results for a monitor within [startMs, endMs].
+// Mirrors GetNodeMetrics / GetTunnelMetrics pattern for time-range based charting.
+func (r *Repository) GetServiceMonitorResultsByTimeRange(monitorID int64, startMs, endMs int64) ([]model.ServiceMonitorResult, error) {
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	var results []model.ServiceMonitorResult
+	err := r.db.Where("monitor_id = ? AND timestamp >= ? AND timestamp <= ?", monitorID, startMs, endMs).
+		Order("timestamp DESC").
+		Limit(5000).
+		Find(&results).Error
+	if len(results) > 1 {
+		for i, j := 0, len(results)-1; i < j; i, j = i+1, j-1 {
+			results[i], results[j] = results[j], results[i]
+		}
+	}
 	return results, err
 }
 

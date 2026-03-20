@@ -25,6 +25,8 @@ export default function MonitorPage() {
   const [nodesError, setNodesError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [activeTab, setActiveTab] = useState<MonitorTab>("nodes");
+  const [tunnelsLoading, setTunnelsLoading] = useState(false);
+  const [tunnelRefreshTrigger, setTunnelRefreshTrigger] = useState(0);
 
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -98,21 +100,19 @@ export default function MonitorPage() {
               {viewMode === "list" ? <Grid3x3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
             </Button>
             <Button
-                isLoading={activeTab === "nodes" ? nodesLoading : false}
-                size="sm"
-                variant="flat"
-                onPress={() => {
-                  if (activeTab === "nodes") {
-                    loadNodes();
-                  } else {
-                    const hiddenBtn = document.getElementById('tunnel-refresh-trigger');
-                    if (hiddenBtn) hiddenBtn.click();
-                  }
-                }}
-              >
-                <RefreshCw className="w-4 h-4 mr-1" />
-                刷新
-              </Button>
+              isLoading={activeTab === "nodes" ? nodesLoading : tunnelsLoading}
+              size="sm"
+              variant="flat"
+              onPress={() => {
+                if (activeTab === "nodes") {
+                  loadNodes();
+                } else {
+                  setTunnelRefreshTrigger(prev => prev + 1);
+                }
+              }}
+            >
+              刷新
+            </Button>
           </div>
         </div>
 
@@ -154,11 +154,14 @@ export default function MonitorPage() {
         ) : null}
       </div>
 
-      {activeTab === "nodes" ? (
-        <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
-      ) : (
-        <TunnelMonitorView viewMode={viewMode} />
-      )}
+      <>
+        <div className={activeTab === "nodes" ? "block" : "hidden"}>
+          <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
+        </div>
+        <div className={activeTab === "tunnels" ? "block" : "hidden"}>
+          <TunnelMonitorView viewMode={viewMode} refreshTrigger={tunnelRefreshTrigger} onLoadingChange={setTunnelsLoading} />
+        </div>
+      </>
     </AnimatedPage>
   );
 }

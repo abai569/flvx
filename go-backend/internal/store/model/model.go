@@ -675,9 +675,9 @@ func (NodeMetric) TableName() string { return "node_metric" }
 
 type TunnelMetric struct {
 	ID           int64   `gorm:"primaryKey;autoIncrement" json:"id"`
-	TunnelID     int64   `gorm:"column:tunnel_id;not null;index:idx_tunnel_metric_tunnel_time,priority:1" json:"tunnelId"`
-	NodeID       int64   `gorm:"column:node_id;not null;index:idx_tunnel_metric_tunnel_time,priority:2" json:"nodeId"`
-	Timestamp    int64   `gorm:"not null;index:idx_tunnel_metric_tunnel_time,priority:3;index:idx_tunnel_metric_time" json:"timestamp"`
+	TunnelID     int64   `gorm:"column:tunnel_id;not null;uniqueIndex:idx_tunnel_metric_tunnel_time,priority:1" json:"tunnelId"`
+	NodeID       int64   `gorm:"column:node_id;not null;uniqueIndex:idx_tunnel_metric_tunnel_time,priority:2" json:"nodeId"`
+	Timestamp    int64   `gorm:"not null;uniqueIndex:idx_tunnel_metric_tunnel_time,priority:3;index:idx_tunnel_metric_time" json:"timestamp"`
 	BytesIn      int64   `gorm:"column:bytes_in" json:"bytesIn"`
 	BytesOut     int64   `gorm:"column:bytes_out" json:"bytesOut"`
 	Connections  int64   `gorm:"column:connections" json:"connections"`

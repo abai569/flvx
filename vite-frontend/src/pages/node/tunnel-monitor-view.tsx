@@ -48,6 +48,8 @@ import {
 
 interface TunnelMonitorViewProps {
   viewMode?: "list" | "grid";
+  refreshTrigger?: number;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 const QUALITY_POLL_INTERVAL = 10_000; // 10 seconds
@@ -182,7 +184,7 @@ function UptimeHistoryBar({
   );
 }
 
-export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps) {
+export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoadingChange }: TunnelMonitorViewProps) {
   const [tunnels, setTunnels] = useState<MonitorTunnelApiItem[]>([]);
   const [tunnelsLoading, setTunnelsLoading] = useState(false);
   const [tunnelsError, setTunnelsError] = useState<string | null>(null);
@@ -340,6 +342,19 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
       }
     };
   }, [loadQuality]);
+
+  // 同步 loading 状态给父组件
+  useEffect(() => {
+    if (onLoadingChange) onLoadingChange(tunnelsLoading || qualityLoading);
+  }, [tunnelsLoading, qualityLoading, onLoadingChange]);
+
+  // 监听父组件传来的刷新触发器
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      void loadTunnels();
+      void loadQuality();
+    }
+  }, [refreshTrigger, loadTunnels, loadQuality]);
 
   // --- Load quality history for detail chart ---
   const loadQualityHistory = useCallback(
@@ -715,12 +730,7 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
             <span>自动探测 · 更新于 {lastQualityUpdate}</span>
           </div>
         )}
-        <div className="hidden">
-          <Button id="tunnel-refresh-trigger" isLoading={tunnelsLoading} size="sm" variant="flat" onPress={() => loadTunnels()}>
-            <RefreshCw className="w-4 h-4 mr-1" />
-            刷新
-          </Button>
-        </div>
+        
       </div>
 
       {tunnelsError ? (
