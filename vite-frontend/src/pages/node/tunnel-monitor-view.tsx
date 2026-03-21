@@ -619,7 +619,6 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
                 variant="flat"
                 onPress={() => detailTunnelId && loadQualityHistory(detailTunnelId)}
               >
-                <RefreshCw className="w-4 h-4 mr-1" />
                 刷新
               </Button>
             </div>
@@ -691,7 +690,6 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
                 variant="flat"
                 onPress={() => detailTunnelId && loadTunnelMetrics(detailTunnelId)}
               >
-                <RefreshCw className="w-4 h-4 mr-1" />
                 刷新
               </Button>
             </div>

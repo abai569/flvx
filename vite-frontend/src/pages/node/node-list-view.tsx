@@ -1,6 +1,7 @@
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
+import { Progress } from "@/shadcn-bridge/heroui/progress";
 import {
   Table,
   TableHeader,
@@ -49,6 +50,15 @@ interface Node {
 
 interface NodeListViewProps {
   displayNodes: Node[];
+  realtimeNodeMetrics: Record<number, {
+    uploadTraffic: number;
+    downloadTraffic: number;
+  }>;
+  upgradeProgress: Record<number, {
+    stage: string;
+    percent: number;
+    message: string;
+  }>;
   selectedIds: Set<number>;
   toggleSelect: (nodeId: number) => void;
   toggleSelectAll: (isSelected: boolean) => void;
@@ -63,6 +73,8 @@ interface NodeListViewProps {
 
 function SortableTableRow({
   node,
+  realtimeNodeMetrics,
+  upgradeProgress,
   selectedIds,
   toggleSelect,
   copyToClipboard,
@@ -74,6 +86,15 @@ function SortableTableRow({
   formatTraffic,
 }: {
   node: Node;
+  realtimeNodeMetrics: Record<number, {
+    uploadTraffic: number;
+    downloadTraffic: number;
+  }>;
+  upgradeProgress: Record<number, {
+    stage: string;
+    percent: number;
+    message: string;
+  }>;
   selectedIds: Set<number>;
   toggleSelect: (nodeId: number) => void;
   copyToClipboard: (text: string, label: string) => void;
@@ -84,7 +105,7 @@ function SortableTableRow({
   handleDelete: (node: Node) => void;
   formatTraffic: (bytes: number) => string;
 }) {
-  const { setNodeRef, transform, transition, isDragging } = useSortable({
+  const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
     id: node.id,
   });
 
@@ -95,7 +116,6 @@ function SortableTableRow({
   };
 
   const rowBg = selectedIds.has(node.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
-
   const isRemoteNode = node.isRemote === 1;
   const connectionStatusMeta = getConnectionStatusMeta(node.connectionStatus);
 
@@ -110,7 +130,11 @@ function SortableTableRow({
         </div>
       </TableCell>
       <TableCell className={rowBg}>
-        <div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors">
+        <div
+          className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors"
+          {...attributes}
+          {...listeners}
+        >
           <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
           </svg>
@@ -122,52 +146,52 @@ function SortableTableRow({
             className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
             title={connectionStatusMeta.text}
           />
-          <span className="font-medium text-foreground truncate" title={node.name}>
+          <span className="text-sm font-bold text-foreground truncate" title={node.name}>
             {node.name}
           </span>
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         {node.remark?.trim() ? (
-          <span
-            className="text-sm truncate block max-w-[120px]"
-            title={node.remark.trim()}
-          >
+          <span className="text-sm truncate block max-w-[120px]" title={node.remark.trim()}>
             {node.remark.trim()}
           </span>
         ) : (
           <span className="text-sm text-default-400">-</span>
         )}
       </TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="space-y-0.5">
-          {node.serverIpV4?.trim() && (
+      <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
+        <div className="text-left text-xs min-w-0 flex-1 min-h-[2.125rem]">
+          {node.serverIpV4?.trim() || node.serverIpV6?.trim() ? (
+            <div className="space-y-0.5">
+              {node.serverIpV4?.trim() && (
+                <span
+                  className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit block"
+                  title={node.serverIpV4.trim()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyToClipboard(node.serverIpV4!.trim(), "IPv4 地址");
+                  }}
+                >
+                  {node.serverIpV4.trim()}
+                </span>
+              )}
+              {node.serverIpV6?.trim() && (
+                <span
+                  className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors block max-w-[150px] truncate w-fit"
+                  title={node.serverIpV6.trim()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyToClipboard(node.serverIpV6!.trim(), "IPv6 地址");
+                  }}
+                >
+                  {node.serverIpV6.trim()}
+                </span>
+              )}
+            </div>
+          ) : (
             <span
-              className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
-              title={node.serverIpV4.trim()}
-              onClick={(e) => {
-                e.stopPropagation();
-                copyToClipboard(node.serverIpV4!.trim(), "IPv4 地址");
-              }}
-            >
-              {node.serverIpV4.trim()}
-            </span>
-          )}
-          {node.serverIpV6?.trim() && (
-            <span
-              className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
-              title={node.serverIpV6.trim()}
-              onClick={(e) => {
-                e.stopPropagation();
-                copyToClipboard(node.serverIpV6!.trim(), "IPv6 地址");
-              }}
-            >
-              {node.serverIpV6.trim()}
-            </span>
-          )}
-          {(!node.serverIpV4?.trim() && !node.serverIpV6?.trim()) && (
-            <span
-              className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px]"
+              className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit block"
               title={node.serverIp.trim()}
               onClick={(e) => {
                 e.stopPropagation();
@@ -179,29 +203,37 @@ function SortableTableRow({
           )}
         </div>
       </TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+      <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
         {!isRemoteNode ? (
-          <span className="font-mono text-sm text-default-600">
-            {node.version || "未知"}
-          </span>
+          <div className="flex flex-col gap-1 min-w-[100px] justify-center">
+            {upgradeProgress?.[node.id]?.percent !== undefined && upgradeProgress[node.id].percent < 100 ? (
+              <>
+                <Progress
+                  aria-label="升级进度"
+                  color="warning"
+                  size="sm"
+                  value={upgradeProgress[node.id].percent}
+                  className="w-full"
+                />
+                <span className="text-[10px] text-warning-600 truncate">
+                  {upgradeProgress[node.id].message}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-default-600">{node.version || "未知"}</span>
+            )}
+          </div>
         ) : (
-          <Chip
-            className="h-5 text-[10px] px-1"
-            color="default"
-            size="sm"
-            variant="flat"
-          >
-            远程
-          </Chip>
+          <Chip className="h-5 text-[10px] px-1" size="sm" variant="flat">远程</Chip>
         )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
-          <span className="font-mono text-sm text-danger-600 dark:text-danger-400">
-            {node.connectionStatus === "online" && node.systemInfo
+          <span className="text-sm text-danger-600 dark:text-danger-400">
+            {node.connectionStatus === "online" && realtimeNodeMetrics && realtimeNodeMetrics[node.id]
               ? formatTraffic(
-                  node.systemInfo.uploadTraffic +
-                    node.systemInfo.downloadTraffic,
+                  (realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0) +
+                  (realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0)
                 )
               : "-"}
           </span>
@@ -209,18 +241,18 @@ function SortableTableRow({
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
-          <span className="font-mono text-sm text-primary-700 dark:text-primary-300">
-            {node.connectionStatus === "online" && node.systemInfo
-              ? formatTraffic(node.systemInfo.uploadTraffic)
+          <span className="text-sm text-success-700 dark:text-success-300">
+            {node.connectionStatus === "online" && realtimeNodeMetrics && realtimeNodeMetrics[node.id]
+              ? formatTraffic(realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0)
               : "-"}
           </span>
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
-          <span className="font-mono text-sm text-success-700 dark:text-success-300">
-            {node.connectionStatus === "online" && node.systemInfo
-              ? formatTraffic(node.systemInfo.downloadTraffic)
+          <span className="text-sm text-primary-700 dark:text-primary-300">
+            {node.connectionStatus === "online" && realtimeNodeMetrics && realtimeNodeMetrics[node.id]
+              ? formatTraffic(realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0)
               : "-"}
           </span>
         </div>
@@ -289,6 +321,8 @@ function SortableTableRow({
 
 export function NodeListView({
   displayNodes,
+  realtimeNodeMetrics,
+  upgradeProgress,
   selectedIds,
   toggleSelect,
   toggleSelectAll,
@@ -323,9 +357,9 @@ export function NodeListView({
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">备注</TableColumn> 
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">地址</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>         
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">总流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">上行流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">下行流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">总流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-right">操作</TableColumn>
         </TableHeader>
         <TableBody>
@@ -333,6 +367,8 @@ export function NodeListView({
             <SortableTableRow
               key={node.id}
               node={node}
+              realtimeNodeMetrics={realtimeNodeMetrics}
+              upgradeProgress={upgradeProgress}
               selectedIds={selectedIds}
               toggleSelect={toggleSelect}
               copyToClipboard={copyToClipboard}

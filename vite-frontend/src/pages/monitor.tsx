@@ -113,7 +113,7 @@ export default function MonitorPage() {
           </div>
         </div>
             <div className="text-xs text-default-500 truncate">
-              实时节点状态 + 隧道质量检测 + 历史指标图表 + 服务监控（TCP/ICMP）
+              实时节点状态+隧道质量检测+历史指标图表+服务监控(TCP/ICMP)
             </div>
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">

@@ -18,7 +18,6 @@ import {
 } from "recharts";
 import {
   MoreVertical,
-  Plus,
   RefreshCw,
   Trash2,
   Edit,
@@ -1254,7 +1253,6 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                   <SelectItem key={String(24 * 60 * 60 * 1000)}>24小时</SelectItem>
                 </Select>
                 <Button isLoading={metricsLoading} size="sm" variant="flat" onPress={() => selectedNodeId && loadMetrics(selectedNodeId)}>
-                  <RefreshCw className="w-4 h-4 mr-1" />
                   刷新
                 </Button>
               </div>
@@ -1361,12 +1359,10 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                           void loadMonitorResults(resolvedActiveMonitorId, serviceMonitorRangeLimit);
                         }}
                       >
-                        <RefreshCw className="w-4 h-4 mr-1" />
                         刷新
                       </Button>
                     )}
                     <Button color="primary" size="sm" variant="flat" onPress={() => handleOpenEditModal()}>
-                      <Plus className="w-4 h-4 mr-1" />
                       添加监控
                     </Button>
                   </div>
@@ -1537,7 +1533,6 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                   variant="flat"
                   onPress={() => void loadResultsForModal()}
                 >
-                  <RefreshCw className="w-4 h-4 mr-1" />
                   刷新
                 </Button>
               </div>

@@ -268,7 +268,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       {mobileMenuVisible && (
         <button
           aria-label="关闭菜单"
-          className="fixed inset-0 backdrop-blur-sm bg-white/50 dark:bg-black/30 z-40 w-full h-full border-0 p-0 m-0 cursor-default"
+          className="fixed inset-0 bg-white/50 dark:bg-black/30 z-40 w-full h-full border-0 p-0 m-0 cursor-default"
           type="button"
           onClick={hideMobileMenu}
         />
@@ -276,7 +276,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
 
       {/* 侧边滑动 Drawer */}
       <aside
-        className={`fixed ${!mobileMenuVisible ? "-translate-x-full" : "translate-x-0"} w-64 bg-white dark:bg-black shadow-2xl border-r border-gray-200 dark:border-gray-600 z-50 transition-transform duration-300 ease-in-out flex flex-col h-[100dvh] top-0 left-0`}
+        className={`fixed ${!mobileMenuVisible ? "-translate-x-full" : "translate-x-0"} w-[36] min-w-[140px] bg-white dark:bg-black shadow-2xl border-r border-gray-200 dark:border-gray-600 z-50 transition-transform duration-300 ease-in-out flex flex-col h-[100dvh] top-0 left-0`}
       >
         <div className="px-5 h-14 flex items-center overflow-hidden whitespace-nowrap box-border border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
           <div className="flex-shrink-0 flex items-center justify-center w-10">
@@ -333,7 +333,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       {/* 修改密码弹窗 */}
       <Modal
         classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
-        backdrop="blur"
+        backdrop="opaque"
         isOpen={isOpen}
         placement="center"
         scrollBehavior="outside"

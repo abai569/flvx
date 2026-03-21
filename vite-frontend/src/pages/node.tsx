@@ -275,7 +275,7 @@ const SortableItem = ({
   };
 
   return (
-    <div ref={setNodeRef} className="overflow-visible h-full" style={style}>
+    <div ref={setNodeRef} className="overflow-hidden h-full" style={style}>
       {children(listeners, attributes)}
     </div>
   );
@@ -285,6 +285,26 @@ export default function NodePage() {
   const [nodeList, setNodeList] = useState<Node[]>([]);
   const [nodeOrder, setNodeOrder] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // 独立存储实时指标数据，避免与 systemInfo 合并导致流量数据闪烁
+  const [realtimeNodeMetrics, setRealtimeNodeMetrics] = useState<
+    Record<number, {
+      uploadTraffic: number;
+      downloadTraffic: number;
+      uploadSpeed: number;
+      downloadSpeed: number;
+      cpuUsage: number;
+      memoryUsage: number;
+      diskUsage: number;
+      uptime: number;
+      load1: number;
+      load5: number;
+      load15: number;
+      tcpConns: number;
+      udpConns: number;
+    }>
+  >({});
+  
   const [localSearchKeyword, setLocalSearchKeyword] = useLocalStorageState(
     "node-search-keyword-local",
     "",
@@ -373,7 +393,7 @@ export default function NodePage() {
   const [installSelectorOpen, setInstallSelectorOpen] = useState(false);
   const [installTargetNode, setInstallTargetNode] = useState<Node | null>(null);
   const [installChannel, setInstallChannel] =
-    useState<ReleaseChannel>("stable");
+    useState<ReleaseChannel>("dev");
 
   // 升级相关状态
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -394,7 +414,7 @@ export default function NodePage() {
   >([]);
   const [releasesLoading, setReleasesLoading] = useState(false);
   const [releaseChannel, setReleaseChannel] =
-    useState<ReleaseChannel>("stable");
+    useState<ReleaseChannel>("dev");
   const [selectedVersion, setSelectedVersion] = useState("");
   const [batchUpgradeLoading, setBatchUpgradeLoading] = useState(false);
   const [upgradeProgress, setUpgradeProgress] = useState<
@@ -453,6 +473,13 @@ export default function NodePage() {
         } as Node;
       }),
     );
+    
+    // 清除实时指标数据
+    setRealtimeNodeMetrics((prev) => {
+      const next = { ...prev };
+      delete next[nodeId];
+      return next;
+    });
   }, []);
 
   const { clearOfflineTimer, scheduleNodeOffline } = useNodeOfflineTimers({
@@ -618,44 +645,48 @@ export default function NodePage() {
               message: progressData.message || "",
             },
           }));
+
+          // 核心修复：如果进度达到 100%，触发静默刷新以获取最新版本号
+          if (progressData.data.percent >= 100) {
+            setTimeout(() => {
+              loadNodes({ silent: true });
+              // 3秒后清除进度条显示，让版本号露出来
+              setUpgradeProgress(prev => {
+                const next = { ...prev };
+                delete next[nodeId];
+                return next;
+              });
+            }, 1000);
+          }
         }
       } catch {
         // ignore parse errors
       }
     } else if (type === "metric") {
       clearOfflineTimer(nodeId);
+      const metric = typeof messageData === "string" ? JSON.parse(messageData) : messageData;
+      
+      console.log(`📊 收到节点 ${nodeId} 流量推送:`, metric); // 调试日志
+
+      setRealtimeNodeMetrics((prev) => {
+        // 强制创建一个新对象，确保 React 监听到变化
+        return {
+          ...prev,
+          [nodeId]: {
+            ...prev[nodeId],
+            uploadTraffic: Number(metric.netOutBytes ?? metric.bytes_transmitted ?? prev[nodeId]?.uploadTraffic ?? 0),
+            downloadTraffic: Number(metric.netInBytes ?? metric.bytes_received ?? prev[nodeId]?.downloadTraffic ?? 0),
+          }
+        };
+      });
+      
+      // 同时更新节点在线状态
       setNodeList((prev) =>
         prev.map((node) => {
           if (node.id !== nodeId) return node;
-
-          const metric =
-            typeof messageData === "string"
-              ? JSON.parse(messageData)
-              : messageData;
-
-          if (!metric || typeof metric !== "object") return node;
-
           return {
             ...node,
             connectionStatus: "online",
-            systemInfo: {
-              cpuUsage: metric.cpuUsage ?? metric.cpu_usage ?? 0,
-              memoryUsage: metric.memoryUsage ?? metric.memory_usage ?? 0,
-              uploadTraffic:
-                metric.netOutBytes ?? metric.bytes_transmitted ?? 0,
-              downloadTraffic: metric.netInBytes ?? metric.bytes_received ?? 0,
-              uploadSpeed: metric.netOutSpeed ?? metric.net_out_speed ?? 0,
-              downloadSpeed: metric.netInSpeed ?? metric.net_in_speed ?? 0,
-              uptime: metric.uptime ?? 0,
-              diskUsage: metric.diskUsage ?? metric.disk_usage,
-              load1: metric.load1,
-              load5: metric.load5,
-              load15: metric.load15,
-              tcpConns: metric.tcpConns ?? metric.tcp_conns,
-              udpConns: metric.udpConns ?? metric.udp_conns,
-              netInSpeed: metric.netInSpeed ?? metric.net_in_speed,
-              netOutSpeed: metric.netOutSpeed ?? metric.net_out_speed,
-            },
           };
         }),
       );
@@ -980,7 +1011,7 @@ export default function NodePage() {
 
   const openInstallSelector = (node: Node) => {
     setInstallTargetNode(node);
-    setInstallChannel("stable");
+    setInstallChannel("dev");
     setInstallSelectorOpen(true);
   };
 
@@ -1101,7 +1132,7 @@ export default function NodePage() {
     target: "single" | "batch",
     nodeId?: number,
   ) => {
-    const defaultChannel: ReleaseChannel = "stable";
+    const defaultChannel: ReleaseChannel = "dev";
 
     setUpgradeTarget(target);
     setUpgradeTargetNodeId(nodeId || null);
@@ -1845,7 +1876,7 @@ export default function NodePage() {
                         {(listeners) => (
                           <Card
                             key={node.id}
-                            className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? '' : expiryMeta.accentClassName}`}
+                            className={`group relative overflow-hidden shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? '' : expiryMeta.accentClassName}`}
                             data-node-card="true"
                           >
                             <CardHeader className="pb-3 md:pb-3">
@@ -2010,13 +2041,13 @@ export default function NodePage() {
                                   <span className="text-default-600 flex-shrink-0">
                                     地址
                                   </span>
-                                  <div className="text-right text-xs min-w-0 flex-1 ml-2 min-h-[2.125rem]">
+                                  <div className="text-right text-xs min-w-0 flex-shrink-0 ml-2 min-h-[2.125rem] flex flex-col items-end gap-1">
                                     {node.serverIpV4?.trim() ||
                                       node.serverIpV6?.trim() ? (
-                                      <div className="space-y-0.5">
+                                      <>
                                         {node.serverIpV4?.trim() && (
                                           <span
-                                            className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block"
+                                            className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
                                             title={node.serverIpV4.trim()}
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -2028,7 +2059,7 @@ export default function NodePage() {
                                         )}
                                         {node.serverIpV6?.trim() && (
                                           <span
-                                            className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px] ml-auto"
+                                            className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
                                             title={node.serverIpV6.trim()}
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -2038,10 +2069,10 @@ export default function NodePage() {
                                             {node.serverIpV6.trim()}
                                           </span>
                                         )}
-                                      </div>
+                                      </>
                                     ) : (
                                       <span
-                                        className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block"
+                                        className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
                                         title={node.serverIp.trim()}
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -2065,10 +2096,10 @@ export default function NodePage() {
                                       <span className="text-default-600">总流量</span>
                                       <span className="font-mono text-sm text-danger-600 dark:text-danger-400">
                                         {node.connectionStatus === "online" &&
-                                          node.systemInfo
+                                          realtimeNodeMetrics[node.id]
                                           ? formatTraffic(
-                                            node.systemInfo.uploadTraffic +
-                                            node.systemInfo.downloadTraffic,
+                                            (realtimeNodeMetrics[node.id]?.uploadTraffic ?? 0) +
+                                            (realtimeNodeMetrics[node.id]?.downloadTraffic ?? 0),
                                           )
                                           : "-"}
                                       </span>
@@ -2245,9 +2276,9 @@ export default function NodePage() {
                                       </div>
                                       <div className="font-mono text-sm text-primary-700 dark:text-primary-300">
                                         {node.connectionStatus === "online" &&
-                                          node.systemInfo
+                                          realtimeNodeMetrics[node.id]
                                           ? formatTraffic(
-                                            node.systemInfo.uploadTraffic,
+                                            realtimeNodeMetrics[node.id]?.uploadTraffic ?? 0,
                                           )
                                           : "-"}
                                       </div>
@@ -2258,9 +2289,9 @@ export default function NodePage() {
                                       </div>
                                       <div className="font-mono text-sm text-success-700 dark:text-success-300">
                                         {node.connectionStatus === "online" &&
-                                          node.systemInfo
+                                          realtimeNodeMetrics[node.id]
                                           ? formatTraffic(
-                                            node.systemInfo.downloadTraffic,
+                                            realtimeNodeMetrics[node.id]?.downloadTraffic ?? 0,
                                           )
                                           : "-"}
                                       </div>
@@ -2357,6 +2388,8 @@ export default function NodePage() {
               >
                 <NodeListView
                   displayNodes={displayNodes}
+                  realtimeNodeMetrics={realtimeNodeMetrics}
+                  upgradeProgress={upgradeProgress}
                   selectedIds={selectedIds}
                   toggleSelect={toggleSelect}
                   toggleSelectAll={handleSelectAllToggle}
@@ -2906,15 +2939,11 @@ export default function NodePage() {
                     onSelectionChange={(keys) => {
                       const selected = Array.from(keys)[0] as ReleaseChannel;
 
-                      setInstallChannel(selected || "stable");
+                      setInstallChannel(selected || "dev");
                     }}
                   >
-                    <SelectItem key="stable" textValue="stable">
-                      正式版（纯数字版本，如 2.1.4）
-                    </SelectItem>
-                    <SelectItem key="dev" textValue="dev">
-                      测试版（含 alpha / beta / rc）
-                    </SelectItem>
+                    <SelectItem key="dev" textValue="测试版">测试版</SelectItem>
+                    <SelectItem key="stable" textValue="稳定版">稳定版</SelectItem>
                   </Select>
                 </div>
               </ModalBody>
@@ -3029,12 +3058,8 @@ export default function NodePage() {
                         void loadReleasesByChannel(selected);
                       }}
                     >
-                      <SelectItem key="stable" textValue="stable">
-                        正式版（纯数字版本，如 2.1.4）
-                      </SelectItem>
-                      <SelectItem key="dev" textValue="dev">
-                        测试版（含 alpha / beta / rc）
-                      </SelectItem>
+                      <SelectItem key="dev" textValue="测试版">测试版</SelectItem>
+                    <SelectItem key="stable" textValue="稳定版">稳定版</SelectItem>
                     </Select>
                     <Select
                       label="选择版本"
@@ -3082,7 +3107,7 @@ export default function NodePage() {
                   取消
                 </Button>
                 <Button
-                  color="warning"
+                  color="primary"
                   isDisabled={releasesLoading}
                   onPress={handleConfirmUpgrade}
                 >
