@@ -23,6 +23,7 @@ import {
   ArrowRightLeft,
   Wifi,
   WifiOff,
+  Eye
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -528,29 +529,37 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
     return (
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button size="sm" variant="flat" onPress={() => {
-            setDetailTunnelId(null);
-            setQualityHistory([]);
-            setTunnelMetrics([]);
-          }}>
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            返回隧道列表
-          </Button>
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-between items-center w-full">
+            <Button size="sm" className="bg-gray-300 hover:bg-gray-400 border-none" onPress={() => {
+              setDetailTunnelId(null);
+              setQualityHistory([]);
+              setTunnelMetrics([]);
+            }}>
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              返回隧道列表
+            </Button>
+            <div className="flex items-center gap-2 text-xs text-default-500">
+              <LiveDot />
+              <span>实时已连接</span>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
+            
             <ArrowRightLeft className={`w-5 h-5 ${detailTunnel.status === 1 ? "text-success" : "text-default-400"}`} />
             <h3 className="text-lg font-semibold">{detailTunnel.name}</h3>
             <Chip size="sm" color={detailTunnel.status === 1 ? "success" : "danger"} variant="flat">
               {detailTunnel.status === 1 ? "启用" : "禁用"}
             </Chip>
+          
           </div>
         </div>
 
         {/* Quality KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card className="border border-divider/60 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-background to-default-50/50">
-            <CardBody className="py-3 px-4 flex flex-col items-center justify-center min-h-[5rem]">
-              <span className="text-[11px] text-default-500 mb-1.5 flex items-center gap-1">
+            <CardBody className="py-3 px-4 flex flex-col items-center justify-center gap-1.5 min-h-[5rem]">
+              <span className="text-[11px] text-default-500 flex items-center gap-1">
                 <Zap className="w-3 h-3" />
                 入口 → 出口 延迟
               </span>
@@ -558,8 +567,8 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
             </CardBody>
           </Card>
           <Card className="border border-divider/60 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-background to-default-50/50">
-            <CardBody className="py-3 px-4 flex flex-col items-center justify-center min-h-[5rem]">
-              <span className="text-[11px] text-default-500 mb-1.5 flex items-center gap-1">
+            <CardBody className="py-3 px-4 flex flex-col items-center justify-center gap-1.5 min-h-[5rem]">
+              <span className="text-[11px] text-default-500 flex items-center gap-1">
                 <Globe className="w-3 h-3" />
                 出口 → Bing 延迟
               </span>
@@ -567,16 +576,16 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
             </CardBody>
           </Card>
           <Card className="border border-divider/60 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-background to-default-50/50">
-            <CardBody className="py-3 px-4 flex flex-col items-center justify-center min-h-[5rem]">
-              <span className="text-[11px] text-default-500 mb-1.5">入口 → 出口 丢包</span>
+            <CardBody className="py-3 px-4 flex flex-col items-center justify-center gap-1.5 min-h-[5rem]">
+              <span className="text-[11px] text-default-500">入口 → 出口 丢包</span>
               <span className={`text-sm font-semibold font-mono ${(quality?.entryToExitLoss ?? 0) > 0 ? "text-warning" : ""}`}>
                 {quality?.entryToExitLoss !== undefined ? `${quality.entryToExitLoss.toFixed(1)}%` : "-"}
               </span>
             </CardBody>
           </Card>
           <Card className="border border-divider/60 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-background to-default-50/50">
-            <CardBody className="py-3 px-4 flex flex-col items-center justify-center min-h-[5rem]">
-              <span className="text-[11px] text-default-500 mb-1.5">出口 → Bing 丢包</span>
+            <CardBody className="py-3 px-4 flex flex-col items-center justify-center gap-1.5 min-h-[5rem]">
+              <span className="text-[11px] text-default-500">出口 → Bing 丢包</span>
               <span className={`text-sm font-semibold font-mono ${(quality?.exitToBingLoss ?? 0) > 0 ? "text-warning" : ""}`}>
                 {quality?.exitToBingLoss !== undefined ? `${quality.exitToBingLoss.toFixed(1)}%` : "-"}
               </span>
@@ -814,13 +823,14 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
             aria-label="隧道列表"
             className="overflow-x-auto min-w-full"
             classNames={{
-              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider whitespace-nowrap",
               td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
               tr: "hover:bg-default-50/50 transition-colors",
             }}
           >
             <TableHeader>
-              <TableColumn>状态</TableColumn>
+              <TableColumn align="center" className="w-[60px] text-center">状态</TableColumn>
+              <TableColumn align="center" className="w-[60px] text-center">查看</TableColumn>
               <TableColumn>名称</TableColumn>
               <TableColumn>入口→出口</TableColumn>
               <TableColumn>出口→Bing</TableColumn>
@@ -834,12 +844,24 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
                 return (
                   <TableRow key={tunnel.id} className="cursor-pointer" onClick={() => setDetailTunnelId(tunnel.id)}>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex justify-center items-center w-full gap-1.5">
                         {isEnabled ? (
                           <Wifi className="w-3.5 h-3.5 text-success" />
                         ) : (
                           <WifiOff className="w-3.5 h-3.5 text-danger" />
                         )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-center w-full">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          onPress={() => setDetailTunnelId(tunnel.id)}
+                        >
+                          <Eye className="w-4 h-4 text-default-500" />
+                        </Button>
                       </div>
                     </TableCell>
                     <TableCell>

@@ -151,7 +151,7 @@ const formatUptime = (seconds: number) => {
   if (!seconds) return "-";
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
-  if (days > 0) return `${days} 天 ${hours} 小时`;
+  if (days > 0) return `${days}Day ${hours}H`;
   return `${hours} 小时`;
 };
 
@@ -1069,13 +1069,14 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 aria-label="节点列表"
                 className="overflow-x-auto min-w-full"
                 classNames={{
-                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider whitespace-nowrap",
                   td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                   tr: "hover:bg-default-50/50 transition-colors",
                 }}
               >
                 <TableHeader>
-                  <TableColumn>状态</TableColumn>
+                  <TableColumn align="center" className="w-[60px] text-center">状态</TableColumn>
+                  <TableColumn align="center" className="w-[60px] text-center">查看</TableColumn>
                   <TableColumn>名称</TableColumn>
                   <TableColumn>速率</TableColumn>
                   <TableColumn>流量</TableColumn>
@@ -1084,17 +1085,33 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                   <TableColumn>CPU</TableColumn>
                   <TableColumn>RAM</TableColumn>
                   <TableColumn>存储</TableColumn>
-                  <TableColumn align="center">操作</TableColumn>
-                </TableHeader>
+                  </TableHeader>
                 <TableBody emptyContent="暂无节点">
                   {nodes.map((node) => {
                     const metric = realtimeNodeMetrics[node.id] || null;
                     const isOnline = node.connectionStatus === "online";
 
                     return (
-                      <TableRow key={node.id}>
+                      <TableRow key={node.id} className="cursor-pointer" onClick={() => { setDetailNodeId(node.id); setSelectedNodeId(node.id); }}>
                         <TableCell>
-                          <div className={`w-2 h-2 rounded-full ml-1 ${isOnline ? "bg-success" : "bg-danger"}`} />
+                          <div className="flex justify-center w-full">
+                            <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-success" : "bg-danger"}`} />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center w-full">
+                        <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              onPress={() => {
+                                setDetailNodeId(node.id);
+                                setSelectedNodeId(node.id);
+                              }}
+                            >
+                              <Eye className="w-4 h-4 text-default-500" />
+                            </Button>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <span className="font-semibold text-sm whitespace-nowrap">{node.name}</span>
@@ -1125,7 +1142,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1.5 text-xs font-mono text-default-500">
+                          <div className="flex flex-col gap-1.5 text-xs font-mono text-default-500 whitespace-nowrap">
                             <div>TCP {isOnline && metric ? metric.tcpConns : "-"}</div>
                             <div>UDP {isOnline && metric ? metric.udpConns : "-"}</div>
                           </div>
@@ -1160,21 +1177,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                             <span className="text-xs font-mono w-9 text-right text-default-500">{isOnline && metric ? `${metric.diskUsage.toFixed(1)}%` : "-"}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex justify-center">
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              onPress={() => {
-                                setDetailNodeId(node.id);
-                                setSelectedNodeId(node.id);
-                              }}
-                            >
-                              <Eye className="w-4 h-4 text-default-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        
                       </TableRow>
                     );
                   })}
@@ -1186,28 +1189,30 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
       )}
 
       {/* ====== DETAIL VIEW ====== */}
-      {!accessDenied && detailNodeId && (
-        <>
-          {/* Header */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button size="sm" variant="flat" onPress={() => setDetailNodeId(null)}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              返回总览
-            </Button>
-            <div className="flex items-center gap-2">
-              <Server className={`w-5 h-5 ${detailNode?.connectionStatus === "online" ? "text-success" : "text-default-400"}`} />
-              <h3 className="text-lg font-semibold">{detailNode?.name || `节点 #${detailNodeId}`}</h3>
-              <Chip size="sm" color={detailNode?.connectionStatus === "online" ? "success" : "danger"} variant="flat">
-                {detailNode?.connectionStatus === "online" ? "在线" : "离线"}
-              </Chip>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-default-500 ml-auto">
-              <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-success" : wsConnecting ? "bg-warning" : "bg-default-300"}`} />
-              <span>{wsConnected ? "实时已连接" : wsConnecting ? "实时连接中" : "实时未连接"}</span>
-            </div>
-          </div>
+          {!accessDenied && detailNodeId && (
+            <>
+              {/* Header */}
+              <div className="flex flex-col gap-3">
+                <div className="flex justify-between items-center w-full">
+                  <Button size="sm" className="bg-default-300 hover:bg-default-400 border-none" onPress={() => setDetailNodeId(null)}>
+                    <ArrowLeft className="w-4 h-4 mr-1" />
+                    返回节点列表
+                  </Button>
+                  <div className="flex items-center gap-2 text-xs text-default-500">
+                    <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-success" : wsConnecting ? "bg-warning" : "bg-default-300"}`} />
+                    <span>{wsConnected ? "实时已连接" : wsConnecting ? "实时连接中" : "实时未连接"}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Server className={`w-5 h-5 ${detailNode?.connectionStatus === "online" ? "text-success" : "text-default-400"}`} />
+                  <h3 className="text-lg font-semibold">{detailNode?.name || `节点 #${detailNodeId}`}</h3>
+                  <Chip size="sm" color={detailNode?.connectionStatus === "online" ? "success" : "danger"} variant="flat">
+                    {detailNode?.connectionStatus === "online" ? "在线" : "离线"}
+                  </Chip>
+                </div>
+              </div>
 
-          {/* Realtime KPI cards */}
+              {/* Realtime KPI cards */}
           {detailRealtimeMetric && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
               {[
@@ -1219,8 +1224,8 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 { label: "运行时间", value: formatUptime(detailRealtimeMetric.uptime), color: "default" as const },
               ].map((item) => (
                 <Card key={item.label} className="border border-divider/60 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-background to-default-50/50">
-                  <CardBody className="py-3 px-4 flex flex-col items-center justify-center min-h-[5rem]">
-                    <span className="text-[11px] text-default-500 mb-1.5">{item.label}</span>
+                  <CardBody className="py-3 px-4 flex flex-col items-center justify-center gap-1.5 min-h-[5rem]">
+                    <span className="text-[11px] text-default-500">{item.label}</span>
                     <span className={`text-sm font-semibold font-mono ${item.color === 'danger' ? 'text-danger' : item.color === 'warning' ? 'text-warning' : item.color === 'success' ? 'text-success' : item.color === 'primary' ? 'text-primary' : ''}`}>
                       {item.value}
                     </span>
@@ -1548,7 +1553,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 aria-label="监控记录"
                 className="w-full overflow-x-auto"
                 classNames={{
-                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider whitespace-nowrap",
                   td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                   tr: "hover:bg-default-50/50 transition-colors",
                 }}
