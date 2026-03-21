@@ -86,9 +86,6 @@ export default function MonitorPage() {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-xl font-semibold truncate">监控</h2>
-            <div className="text-xs text-default-500 truncate">
-              实时节点状态 + 隧道质量检测 + 历史指标图表 + 服务监控（TCP/ICMP）
-            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -115,7 +112,9 @@ export default function MonitorPage() {
             </Button>
           </div>
         </div>
-
+            <div className="text-xs text-default-500 truncate">
+              实时节点状态 + 隧道质量检测 + 历史指标图表 + 服务监控（TCP/ICMP）
+            </div>
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">
           <button

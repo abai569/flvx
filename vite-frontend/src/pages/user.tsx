@@ -1602,7 +1602,7 @@ export default function UserPage() {
               {/* 监控权限部分 (移植自 user新) */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">监控权限</h3>
-                <div className="flex items-center justify-between gap-4 bg-default-100 dark:bg-default-50 p-4 rounded-lg border border-default-200 dark:border-default-100/30">
+                <div className="w-[60%] sm:w-full flex items-center justify-between gap-4 bg-default-100 dark:bg-default-50 p-4 rounded-lg border border-default-200 dark:border-default-100/30">
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-foreground">
                       允许访问监控功能
@@ -1624,7 +1624,7 @@ export default function UserPage() {
 
               {/* 分配新权限部分 */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="w-[60%] sm:w-full flex items-center justify-between">
                     {/* 顶部触发框 */}
                     <div
                       className={`group flex items-center justify-between px-4 h-9 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex-1 ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
