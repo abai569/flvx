@@ -1229,6 +1229,13 @@ export default function NodePage() {
     const node = nodeToRollback;
 
     setRollbackModalOpen(false);
+    
+    // 初始化回退进度
+    setUpgradeProgress((prev) => ({
+      ...prev,
+      [node.id]: { stage: "rollback", percent: 0, message: "准备回退..." },
+    }));
+    
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, rollbackLoading: true } : n)),
     );
@@ -1241,9 +1248,21 @@ export default function NodePage() {
         window.__pendingNodeRefresh.add(node.id);
       } else {
         toast.error(res.msg || "回退失败");
+        // 清除进度
+        setUpgradeProgress((prev) => {
+          const next = { ...prev };
+          delete next[node.id];
+          return next;
+        });
       }
     } catch {
       toast.error("网络错误，请重试");
+      // 清除进度
+      setUpgradeProgress((prev) => {
+        const next = { ...prev };
+        delete next[node.id];
+        return next;
+      });
     } finally {
       if (window.__pendingNodeRefresh?.has(node.id)) {
         setTimeout(() => setNodeList((prev) => prev.map((n) => n.id === node.id ? { ...n, rollbackLoading: false } : n)), 15000);
