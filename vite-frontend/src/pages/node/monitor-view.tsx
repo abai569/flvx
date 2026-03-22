@@ -193,7 +193,7 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
         </div>
       </CardHeader>
       
-      <CardBody className="py-3 px-5 flex-1 flex flex-col justify-end gap-4 z-10 w-full overflow-hidden">
+      <CardBody className="py-3 px-5 flex-1 flex flex-col justify-between gap-4 z-10 w-full overflow-hidden">
         <div className="grid grid-cols-2 gap-5 w-full">
           <div className="space-y-1.5 min-w-0">
             <div className="flex justify-between items-center text-xs">

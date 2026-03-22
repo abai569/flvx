@@ -780,7 +780,7 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
                   </div>
                 </CardHeader>
 
-                <CardBody className="py-3 px-5 flex-1 flex flex-col justify-end gap-3 z-10 w-full overflow-hidden">
+                <CardBody className="py-3 px-5 flex-1 flex flex-col justify-between gap-3 z-10 w-full overflow-hidden">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <div className="text-[10px] text-default-500 flex items-center gap-1">
