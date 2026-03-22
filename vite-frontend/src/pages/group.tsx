@@ -131,6 +131,8 @@ export default function GroupPage() {
     onClose: onUserAssignModalClose,
     onOpenChange: onUserAssignModalChange,
   } = useDisclosure();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{ title: string; content: string; action: () => Promise<void> } | null>(null);
 
   const [editingTunnelGroup, setEditingTunnelGroup] =
     useState<TunnelGroup | null>(null);
@@ -331,34 +333,30 @@ export default function GroupPage() {
     }
   };
 
-  const handleDeleteTunnelGroup = async (id: number) => {
-    try {
-      const res = await deleteTunnelGroup(id);
-
-      if (res.code === 0) {
-        toast.success("删除成功");
-        loadData();
-      } else {
-        toast.error(res.msg || "删除失败");
+  const handleDeleteTunnelGroup = (item: TunnelGroup) => {
+    setConfirmConfig({
+      title: "确认删除隧道分组",
+      content: `确定要删除隧道分组 "${item.name}" 吗？此操作不可撤销。`,
+      action: async () => {
+        const res = await deleteTunnelGroup(item.id);
+        if (res.code === 0) { toast.success("删除成功"); loadData(); }
+        else { toast.error(res.msg || "删除失败"); }
       }
-    } catch {
-      toast.error("删除失败");
-    }
+    });
+    setIsConfirmOpen(true);
   };
 
-  const handleDeleteUserGroup = async (id: number) => {
-    try {
-      const res = await deleteUserGroup(id);
-
-      if (res.code === 0) {
-        toast.success("删除成功");
-        loadData();
-      } else {
-        toast.error(res.msg || "删除失败");
+  const handleDeleteUserGroup = (item: UserGroup) => {
+    setConfirmConfig({
+      title: "确认删除用户分组",
+      content: `确定要删除用户分组 "${item.name}" 吗？此操作不可撤销。`,
+      action: async () => {
+        const res = await deleteUserGroup(item.id);
+        if (res.code === 0) { toast.success("删除成功"); loadData(); }
+        else { toast.error(res.msg || "删除失败"); }
       }
-    } catch {
-      toast.error("删除失败");
-    }
+    });
+    setIsConfirmOpen(true);
   };
 
   const openAssignTunnels = (group: TunnelGroup) => {
@@ -447,19 +445,17 @@ export default function GroupPage() {
     }
   };
 
-  const handleRemovePermission = async (id: number) => {
-    try {
-      const res = await removeGroupPermission(id);
-
-      if (res.code === 0) {
-        toast.success("权限回收成功");
-        loadData();
-      } else {
-        toast.error(res.msg || "权限回收失败");
+  const handleRemovePermission = (item: GroupPermission) => {
+    setConfirmConfig({
+      title: "确认回收权限",
+      content: `确定要回收该关联权限吗？`,
+      action: async () => {
+        const res = await removeGroupPermission(item.id);
+        if (res.code === 0) { toast.success("权限回收成功"); loadData(); }
+        else { toast.error(res.msg || "回收失败"); }
       }
-    } catch {
-      toast.error("权限回收失败");
-    }
+    });
+    setIsConfirmOpen(true);
   };
 
   const toggleTunnelGroupExpand = (groupId: number) => {
@@ -619,7 +615,7 @@ export default function GroupPage() {
                             color="danger"
                             size="sm"
                             variant="flat"
-                            onPress={() => handleDeleteTunnelGroup(item.id)}
+                            onPress={() => handleDeleteTunnelGroup(item)}
                           >
                             删除
                           </Button>
@@ -745,7 +741,7 @@ export default function GroupPage() {
                             color="danger"
                             size="sm"
                             variant="flat"
-                            onPress={() => handleDeleteUserGroup(item.id)}
+                            onPress={() => handleDeleteUserGroup(item)}
                           >
                             删除
                           </Button>
@@ -844,7 +840,7 @@ export default function GroupPage() {
                           color="danger"
                           size="sm"
                           variant="flat"
-                          onPress={() => handleRemovePermission(item.id)}
+                          onPress={() => handleRemovePermission(item)}
                         >
                           回收
                         </Button>
@@ -1034,6 +1030,32 @@ export default function GroupPage() {
               保存
             </Button>
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+        isOpen={isConfirmOpen}
+        onOpenChange={setIsConfirmOpen}
+        size="md"
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="text-danger">{confirmConfig?.title}</ModalHeader>
+              <ModalBody>
+                <p className="text-default-600">{confirmConfig?.content}</p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>取消</Button>
+                <Button color="danger" onPress={async () => {
+                  if (confirmConfig?.action) {
+                    await confirmConfig.action();
+                    onClose();
+                  }
+                }}>确认执行</Button>
+              </ModalFooter>
+            </>
+          )}
         </ModalContent>
       </Modal>
     </div>
