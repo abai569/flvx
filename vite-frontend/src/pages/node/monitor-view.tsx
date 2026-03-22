@@ -23,7 +23,6 @@ import {
   Edit,
   Activity,
   Play,
-  Server,
   Clock,
   ArrowLeft,
   ArrowUp,
@@ -686,10 +685,8 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
   const loadMonitorResults = useCallback(
     async (monitorId: number, options?: { rangeMs?: number; limit?: number }) => {
       try {
-        const apiOptions = options?.rangeMs != null
-          ? { start: Date.now() - options.rangeMs, end: Date.now() }
-          : { limit: options?.limit ?? 100 };
-        const response = await getServiceMonitorResults(monitorId, apiOptions);
+        const limit = options?.limit ?? 100;
+        const response = await getServiceMonitorResults(monitorId, limit);
 
         if (response.code === 0 && response.data) {
           setMonitorResults((prev) => ({
@@ -1310,7 +1307,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
             <div className="flex justify-between items-center w-full">
               <Button size="sm" className="bg-default-300 hover:bg-default-400 border-none" onPress={() => setDetailNodeId(null)}>
                 <ArrowLeft className="w-4 h-4 mr-1" />
-                返回总览
+                返回节点列表
               </Button>
               <div className="flex items-center gap-2 text-xs text-default-500">
                 {wsConnected ? <LiveDot /> : <div className={`w-2 h-2 rounded-full ${wsConnecting ? "bg-warning" : "bg-default-300"}`} />}

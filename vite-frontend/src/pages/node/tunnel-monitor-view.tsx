@@ -48,6 +48,8 @@ import {
 
 interface TunnelMonitorViewProps {
   viewMode?: "list" | "grid";
+  refreshTrigger?: number;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 const QUALITY_POLL_INTERVAL = 10_000; // 1 second
@@ -326,9 +328,10 @@ const TrafficChartCard = React.memo(function TrafficChartCard({
   );
 });
 
-export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps) {
+export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoadingChange }: TunnelMonitorViewProps) {
   const [tunnels, setTunnels] = useState<MonitorTunnelApiItem[]>([]);
   const [tunnelsLoading, setTunnelsLoading] = useState(false);
+  useEffect(() => { onLoadingChange?.(tunnelsLoading); }, [tunnelsLoading, onLoadingChange]);
   const [tunnelsError, setTunnelsError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState<string | null>(null);
 
@@ -385,9 +388,7 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
     }
   }, []);
 
-  useEffect(() => {
-    void loadTunnels();
-  }, [loadTunnels]);
+  useEffect(() => { void loadTunnels(); }, [loadTunnels, refreshTrigger]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
