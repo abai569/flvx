@@ -1347,7 +1347,7 @@ export default function UserPage() {
         isOpen={isUserModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onClose={onUserModalClose}
       >
         <ModalContent>
@@ -1590,7 +1590,7 @@ export default function UserPage() {
         isOpen={isTunnelModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onClose={onTunnelModalClose}
       >
         <ModalContent>
@@ -1864,7 +1864,7 @@ export default function UserPage() {
         isOpen={isEditTunnelModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="sm"
+        size="md"
         onClose={onEditTunnelModalClose}
       >
         <ModalContent>
@@ -1940,7 +1940,7 @@ export default function UserPage() {
         isOpen={isDeleteModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onClose={onDeleteModalClose}
       >
         <ModalContent>
@@ -1983,7 +1983,7 @@ export default function UserPage() {
         isOpen={isDeleteTunnelModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onClose={onDeleteTunnelModalClose}
       >
         <ModalContent>
@@ -2028,7 +2028,7 @@ export default function UserPage() {
         isOpen={isResetFlowModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onClose={onResetFlowModalClose}
       >
         <ModalContent>
@@ -2117,7 +2117,7 @@ export default function UserPage() {
         isOpen={isResetTunnelFlowModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onClose={onResetTunnelFlowModalClose}
       >
         <ModalContent>
