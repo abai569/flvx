@@ -366,6 +366,7 @@ export default function NodePage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
+  const [batchRollbackModalOpen, setBatchRollbackModalOpen] = useState(false);
 
   const [viewMode, setViewMode] = useLocalStorageState<NodeViewMode>(
     "node-view-mode",
@@ -585,6 +586,11 @@ export default function NodePage() {
 
     if (type === "status") {
       if (messageData === 1) {
+        if (window.__pendingNodeRefresh?.has(nodeId)) {
+        window.__pendingNodeRefresh.delete(nodeId);
+        setNodeList((prev) => prev.map((n) => n.id === nodeId ? { ...n, rollbackLoading: false, upgradeLoading: false } : n));
+        setTimeout(() => loadNodes({ silent: true }), 500);
+      }
         clearOfflineTimer(nodeId);
         setNodeList((prev) =>
           prev.map((node) => {
@@ -604,6 +610,11 @@ export default function NodePage() {
         scheduleNodeOffline(nodeId);
       }
     } else if (type === "info") {
+      if (window.__pendingNodeRefresh?.has(nodeId)) {
+        window.__pendingNodeRefresh.delete(nodeId);
+        setNodeList((prev) => prev.map((n) => n.id === nodeId ? { ...n, rollbackLoading: false, upgradeLoading: false } : n));
+        setTimeout(() => loadNodes({ silent: true }), 500);
+      }
       clearOfflineTimer(nodeId);
       setNodeList((prev) =>
         prev.map((node) => {
@@ -648,15 +659,26 @@ export default function NodePage() {
 
           // 核心修复：如果进度达到 100%，触发静默刷新以获取最新版本号
           if (progressData.data.percent >= 100) {
+            // 1. 顺手兜个底：强行清理 Loading 状态
+            setNodeList((prev) => prev.map((n) => n.id === nodeId ? { ...n, upgradeLoading: false, rollbackLoading: false } : n));
+            
+            // 2. 1.5秒后关闭进度条 UI
             setTimeout(() => {
-              loadNodes({ silent: true });
-              // 3秒后清除进度条显示，让版本号露出来
               setUpgradeProgress(prev => {
                 const next = { ...prev };
                 delete next[nodeId];
                 return next;
               });
-            }, 1000);
+            }, 1500);
+
+            // 3. 终极修复：跨越节点重启的“真空期”
+            // 分别在进度条跑完后的 2秒、5秒、10秒 各静默拉取一次列表。
+            // 这样不管节点重启有多慢，最终一发必定能抓到它上线后的最新版本号！
+            [2000, 5000, 10000].forEach(delay => {
+              setTimeout(() => {
+                loadNodes({ silent: true });
+              }, delay);
+            });
           }
         }
       } catch {
@@ -1235,17 +1257,19 @@ export default function NodePage() {
 
       if (res.code === 0) {
         toast.success(`节点 ${node.name} 回退命令已发送，节点将自动重启`);
+        window.__pendingNodeRefresh = window.__pendingNodeRefresh || new Set();
+        window.__pendingNodeRefresh.add(node.id);
       } else {
         toast.error(res.msg || "回退失败");
       }
     } catch {
       toast.error("网络错误，请重试");
     } finally {
-      setNodeList((prev) =>
-        prev.map((n) =>
-          n.id === node.id ? { ...n, rollbackLoading: false } : n,
-        ),
-      );
+      if (window.__pendingNodeRefresh?.has(node.id)) {
+        setTimeout(() => setNodeList((prev) => prev.map((n) => n.id === node.id ? { ...n, rollbackLoading: false } : n)), 15000);
+      } else {
+        setNodeList((prev) => prev.map((n) => n.id === node.id ? { ...n, rollbackLoading: false } : n));
+      }
       setNodeToRollback(null);
     }
   };
@@ -1456,6 +1480,68 @@ export default function NodePage() {
 
   const deselectAll = () => {
     setSelectedIds(new Set());
+  };
+
+  const handleBatchRollback = async () => {
+    const selectedLocalIds = Array.from(selectedIds).filter((id) => {
+      const matchedNode = nodeList.find((node) => node.id === id);
+      return matchedNode?.isRemote !== 1;
+    });
+
+    if (selectedLocalIds.length === 0) {
+      toast.error("请选择本地节点进行回退");
+      setBatchRollbackModalOpen(false);
+      return;
+    }
+
+    setBatchRollbackModalOpen(false);
+    
+    // 开启批量 Loading
+    setNodeList((prev) =>
+      prev.map((n) => (selectedLocalIds.includes(n.id) ? { ...n, rollbackLoading: true } : n))
+    );
+
+    let successCount = 0;
+    let failCount = 0;
+
+    // 并发发送回退指令
+    await Promise.all(
+      selectedLocalIds.map(async (id) => {
+        try {
+          const res = await rollbackNode(id);
+          if (res.code === 0) {
+            successCount++;
+            window.__pendingNodeRefresh = window.__pendingNodeRefresh || new Set();
+            window.__pendingNodeRefresh.add(id);
+          } else {
+            failCount++;
+            setNodeList((prev) => prev.map((n) => (n.id === id ? { ...n, rollbackLoading: false } : n)));
+          }
+        } catch {
+          failCount++;
+          setNodeList((prev) => prev.map((n) => (n.id === id ? { ...n, rollbackLoading: false } : n)));
+        }
+      })
+    );
+
+    if (successCount > 0) {
+      toast.success(`成功发送 ${successCount} 个节点的回退指令，节点将自动重启`);
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} 个节点回退指令发送失败`);
+    }
+
+    // 15秒兜底取消 Loading (成功发送的由 WS 拦截器负责精确清理，这里仅作硬兜底)
+    setTimeout(() => {
+      setNodeList((prev) =>
+        prev.map((n) => {
+          if (selectedLocalIds.includes(n.id) && window.__pendingNodeRefresh?.has(n.id)) {
+            return { ...n, rollbackLoading: false };
+          }
+          return n;
+        })
+      );
+    }, 15000);
   };
 
   const handleBatchDelete = async () => {
@@ -1740,6 +1826,15 @@ export default function NodePage() {
                   onPress={() => openUpgradeModal("batch")}
                 >
                   升级
+                </Button>
+                <Button
+                  color="secondary"
+                  isDisabled={selectedIds.size === 0 || !canBatchUpgrade}
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setBatchRollbackModalOpen(true)}
+                >
+                  回退
                 </Button>
                 <Button
                   color="danger"
@@ -2041,7 +2136,7 @@ export default function NodePage() {
                                   <span className="text-default-600 flex-shrink-0">
                                     地址
                                   </span>
-                                  <div className="text-right text-xs min-w-0 flex-shrink-0 ml-2 min-h-[2.125rem] flex flex-col items-end gap-1">
+                                  <div className="text-right text-xs min-w-0 flex-1 ml-2 min-h-[2.125rem] flex flex-col items-end gap-1 overflow-hidden">
                                     {node.serverIpV4?.trim() ||
                                       node.serverIpV6?.trim() ? (
                                       <>
@@ -2059,7 +2154,7 @@ export default function NodePage() {
                                         )}
                                         {node.serverIpV6?.trim() && (
                                           <span
-                                            className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
+                                            className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px] text-right"
                                             title={node.serverIpV6.trim()}
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -2991,18 +3086,10 @@ export default function NodePage() {
                   value={installCommand}
                   variant="bordered"
                 />
-                <Button
-                  className="absolute top-2 right-2"
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={handleManualCopy}
-                >
-                  复制
-                </Button>
+                
               </div>
               <div className="text-xs text-default-500">
-                💡 提示：如果复制按钮失效，请手动选择上方文本进行复制
+                💡 提示：请3击或拖拽鼠标选择上方完整文本进行手动复制
               </div>
             </div>
           </ModalBody>
@@ -3112,6 +3199,45 @@ export default function NodePage() {
                   onPress={handleConfirmUpgrade}
                 >
                   确认升级
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 批量回退确认模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={batchRollbackModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onOpenChange={setBatchRollbackModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">确认批量回退</h2>
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  确定要将选中的 <strong>{Array.from(selectedIds).filter((id) => nodeList.find((n) => n.id === id)?.isRemote !== 1).length}</strong> 个本地节点回退到上一个版本吗？
+                </p>
+                <p className="text-small text-default-500">
+                  节点将执行版本回退并自动重启，期间会导致节点短暂离线。
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button color="secondary" onPress={handleBatchRollback}>
+                  确认回退
                 </Button>
               </ModalFooter>
             </>
