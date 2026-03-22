@@ -2023,12 +2023,12 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
         }}
         isOpen={modalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="xl"
         onOpenChange={setModalOpen}
       >
         <ModalContent>
@@ -2958,12 +2958,12 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
         }}
         isOpen={deleteModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="xl"
         onOpenChange={handleDeleteModalOpenChange}
       >
         <ModalContent>
@@ -3129,12 +3129,12 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
         }}
         isOpen={diagnosisModalOpen}
         placement="center"
         scrollBehavior="inside"
-        size="4xl"
+        size="2xl"
         onOpenChange={(open) => {
           setDiagnosisModalOpen(open);
           if (!open) {
