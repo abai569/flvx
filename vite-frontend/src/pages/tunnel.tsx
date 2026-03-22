@@ -115,6 +115,7 @@ interface Node {
   serverIpV4?: string;
   serverIpV6?: string;
   extraIPs?: string;
+  remark?: string;
 }
 
 interface TunnelForm {
@@ -2022,7 +2023,7 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-xl overflow-hidden",
         }}
         isOpen={modalOpen}
         placement="center"
@@ -2194,9 +2195,9 @@ export default function TunnelPage() {
                       }}
                     >
                       {nodes.map((node) => (
-                        <SelectItem key={node.id} textValue={`${node.name}`}>
+                        <SelectItem key={node.id} textValue={node.remark ? `${node.name} (${node.remark})` : node.name}>
                           <div className="flex items-center justify-between">
-                            <span>{node.name}</span>
+                            <span>{node.name}{node.remark && <span className="text-xs text-default-400 ml-1">({node.remark})</span>}</span>
                             <div className="flex items-center gap-2">
                               <Chip
                                 color={
@@ -2361,7 +2362,7 @@ export default function TunnelPage() {
                                           .map((id) => id.toString()),
                                       ]}
                                       dropdownPlacement="top"
-                                      label="节点"
+                                      label="出口节点"
                                       placeholder="选择节点（可多选）"
                                       selectedKeys={groupNodes
                                         .filter((ct) => ct.nodeId !== -1)
@@ -2382,9 +2383,7 @@ export default function TunnelPage() {
                                           textValue={`${node.name}`}
                                         >
                                           <div className="flex items-center justify-between">
-                                            <span className="text-sm">
-                                              {node.name}
-                                            </span>
+                                            <span className="text-sm">{node.name}{node.remark && <span className="text-xs text-default-400 ml-1">({node.remark})</span>}</span>
                                             <div className="flex items-center gap-2">
                                               <Chip
                                                 color={
@@ -2614,7 +2613,7 @@ export default function TunnelPage() {
                                   dropdownPlacement="top"
                                   errorMessage={errors.outNodeId}
                                   isInvalid={!!errors.outNodeId}
-                                  label="节点"
+                                  label="出口节点"
                                   placeholder="请选择出口节点（可多选）"
                                   selectedKeys={
                                     form.outNodeId
@@ -2661,7 +2660,7 @@ export default function TunnelPage() {
                                       textValue={`${node.name}`}
                                     >
                                       <div className="flex items-center justify-between">
-                                        <span>{node.name}</span>
+                                        <span>{node.name}{node.remark && <span className="text-xs text-default-400 ml-1">({node.remark})</span>}</span>
                                         <div className="flex items-center gap-2">
                                           <Chip
                                             color={
@@ -2959,7 +2958,7 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-xl overflow-hidden",
         }}
         isOpen={deleteModalOpen}
         placement="center"
@@ -3130,7 +3129,7 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-xl overflow-hidden",
         }}
         isOpen={diagnosisModalOpen}
         placement="center"
