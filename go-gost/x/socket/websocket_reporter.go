@@ -190,7 +190,7 @@ func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 	return &WebSocketReporter{
 		url:            serverURL,
 		curBackoff:     initialBackoff,   // 当前退避间隔
-		pingInterval:   5 * time.Second,  // 指标上报间隔
+		pingInterval:   1 * time.Second,  // 指标上报间隔（每秒采集）
 		configInterval: 10 * time.Minute, // 配置上报间隔
 		ctx:            ctx,
 		cancel:         cancel,
@@ -348,7 +348,7 @@ func buildWebSocketCandidates(addr string, secret string, version string, http i
 		normalizedAddr = strings.TrimSpace(addr)
 	}
 
-	query := "/system-info?type=1&secret=" + secret + "&version=" + version +
+	query := "/system-info?type=1&secret=" + url.QueryEscape(secret) + "&version=" + url.QueryEscape(version) +
 		"&http=" + strconv.Itoa(http) + "&tls=" + strconv.Itoa(tls) + "&socks=" + strconv.Itoa(socks)
 
 	schemes := []string{"wss", "ws"}
@@ -1338,30 +1338,6 @@ func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
 	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
 		return fmt.Errorf("没有可用的备份文件，无法回退")
 	}
-
-	fmt.Println("🔄 开始回退到旧版本...")
-	
-	// 推送进度：准备中
-	w.sendUpgradeProgress(0, "准备回退...")
-
-	// 执行回退脚本（同升级逻辑，使用 systemd-run 避免 cgroup 问题）
-	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && cp %s %s && systemctl start flux_agent", backupPath, binaryPath)
-	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
-	if err := cmd.Start(); err != nil {
-		w.sendUpgradeProgress(0, "回退失败："+err.Error())
-		return fmt.Errorf("启动回退脚本失败：%v", err)
-	}
-
-	// 推送进度：回退中
-	w.sendUpgradeProgress(50, "回退中...")
-	
-	fmt.Println("🔄 回退脚本已启动，Agent 将在 1 秒后重启...")
-	
-	// 推送进度：完成
-	w.sendUpgradeProgress(100, "回退完成")
-	
-	return nil
-}
 
 	fmt.Println("🔄 开始回退到旧版本...")
 
