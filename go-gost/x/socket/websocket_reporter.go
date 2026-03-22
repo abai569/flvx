@@ -1340,6 +1340,30 @@ func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
 	}
 
 	fmt.Println("🔄 开始回退到旧版本...")
+	
+	// 推送进度：准备中
+	w.sendUpgradeProgress(0, "准备回退...")
+
+	// 执行回退脚本（同升级逻辑，使用 systemd-run 避免 cgroup 问题）
+	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && cp %s %s && systemctl start flux_agent", backupPath, binaryPath)
+	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
+	if err := cmd.Start(); err != nil {
+		w.sendUpgradeProgress(0, "回退失败："+err.Error())
+		return fmt.Errorf("启动回退脚本失败：%v", err)
+	}
+
+	// 推送进度：回退中
+	w.sendUpgradeProgress(50, "回退中...")
+	
+	fmt.Println("🔄 回退脚本已启动，Agent 将在 1 秒后重启...")
+	
+	// 推送进度：完成
+	w.sendUpgradeProgress(100, "回退完成")
+	
+	return nil
+}
+
+	fmt.Println("🔄 开始回退到旧版本...")
 
 	// 执行回退脚本（同升级逻辑，使用 systemd-run 避免 cgroup 问题）
 	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && cp %s %s && systemctl start flux_agent", backupPath, binaryPath)
