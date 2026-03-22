@@ -6,7 +6,7 @@ import type {
   ServiceMonitorLimitsApiData,
 } from "@/api/types";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import {
   MoreVertical,
-  RefreshCw,
+    RefreshCw,
   Trash2,
   Edit,
   Activity,
@@ -26,9 +26,13 @@ import {
   Server,
   Clock,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   Eye,
+
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { DistroIcon, parseDistroFromVersion, getDistroColor } from "@/components/distro-icon";
 
 import {
   getNodeMetrics,
@@ -72,7 +76,7 @@ import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { useNodeRealtime } from "@/pages/node/use-node-realtime";
 
 interface MonitorViewProps {
-  nodeMap: Map<number, { id: number; name: string; connectionStatus: string }>;
+  nodeMap: Map<number, { id: number; name: string; connectionStatus: string; version?: string }>;
   viewMode?: "list" | "grid";
 }
 
@@ -161,9 +165,21 @@ const getColorByUsage = (usage?: number) => {
   if (usage >= 50) return "primary";
   return "success";
 };
+/** Animated pulse dot for live status */
+function LiveDot() {
+  return (
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
+    </span>
+  );
+}
+
 
 function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNodeMetric | null; onPress?: () => void }) {
   const isOnline = node.connectionStatus === "online";
+  const distro = parseDistroFromVersion(node.version);
+  const distroColor = getDistroColor(distro);
   
   return (
     <Card
@@ -180,7 +196,7 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative flex-shrink-0">
             <div className="w-10 h-10 rounded-xl bg-default-100 dark:bg-default-50/10 flex items-center justify-center border border-divider">
-              <Server className={`w-5 h-5 ${isOnline ? "text-success" : "text-danger"}`} />
+              <DistroIcon distro={distro} className="w-5 h-5" style={{ color: isOnline ? distroColor : undefined }} />
             </div>
             <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${isOnline ? "bg-success" : "bg-danger"}`} />
           </div>
@@ -193,7 +209,7 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
         </div>
       </CardHeader>
       
-      <CardBody className="py-3 px-5 flex-1 flex flex-col justify-between gap-4 z-10 w-full overflow-hidden">
+      <CardBody className="py-3 px-5 flex-1 flex flex-col justify-end gap-4 z-10 w-full overflow-hidden">
         <div className="grid grid-cols-2 gap-5 w-full">
           <div className="space-y-1.5 min-w-0">
             <div className="flex justify-between items-center text-xs">
@@ -262,10 +278,146 @@ type MetricType =
 
 const METRICS_MAX_ROWS = 5000;
 
+/* ─── Memoized Node Metrics Chart sub-component ─────────────────── */
+
+interface NodeMetricsChartCardProps {
+  rangeMs: number;
+  onRangeChange: (v: number) => void;
+  activeMetricType: MetricType;
+  onMetricTypeChange: (t: MetricType) => void;
+  loading: boolean;
+  error: string | null;
+  truncated: boolean;
+  maxRows: number;
+  data: Array<Record<string, unknown>>;
+  nodeId: number | null;
+  onRefresh: (id: number) => void;
+}
+
+const METRIC_TYPE_BUTTONS: { key: MetricType; label: string }[] = [
+  { key: "cpu", label: "CPU" },
+  { key: "memory", label: "内存" },
+  { key: "disk", label: "磁盘" },
+  { key: "network", label: "网络" },
+  { key: "load", label: "负载" },
+  { key: "connections", label: "连接" },
+];
+
+const NodeMetricsChartCard = React.memo(function NodeMetricsChartCard({
+  rangeMs, onRangeChange, activeMetricType, onMetricTypeChange,
+  loading, error, truncated, maxRows, data, nodeId, onRefresh,
+}: NodeMetricsChartCardProps) {
+  const chartConfig = (() => {
+    switch (activeMetricType) {
+      case "cpu":    return { lines: [{ dataKey: "cpu", color: "#3b82f6", name: "CPU %" }], yAxisLabel: "使用率 (%)" };
+      case "memory": return { lines: [{ dataKey: "memory", color: "#8b5cf6", name: "内存 %" }], yAxisLabel: "使用率 (%)" };
+      case "disk":   return { lines: [{ dataKey: "disk", color: "#f59e0b", name: "磁盘 %" }], yAxisLabel: "使用率 (%)" };
+      case "network": return { lines: [{ dataKey: "netIn", color: "#10b981", name: "入站速度" }, { dataKey: "netOut", color: "#ef4444", name: "出站速度" }], yAxisLabel: "速度 (bytes/s)" };
+      case "load":   return { lines: [{ dataKey: "load1", color: "#3b82f6", name: "负载 1m" }, { dataKey: "load5", color: "#8b5cf6", name: "负载 5m" }, { dataKey: "load15", color: "#f59e0b", name: "负载 15m" }], yAxisLabel: "负载值" };
+      case "connections": return { lines: [{ dataKey: "tcp", color: "#3b82f6", name: "TCP 连接" }, { dataKey: "udp", color: "#10b981", name: "UDP 连接" }], yAxisLabel: "连接数" };
+    }
+  })();
+
+  const yAxisTickFormatter = (value: unknown) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "";
+    switch (activeMetricType) {
+      case "network": return formatBytesPerSecond(n);
+      case "cpu": case "memory": case "disk": return `${n.toFixed(0)}%`;
+      case "load": return n.toFixed(1);
+      case "connections": return String(Math.round(n));
+    }
+  };
+
+  const tooltipFormatter = (value: unknown) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "-";
+    switch (activeMetricType) {
+      case "network": return formatBytesPerSecond(n);
+      case "cpu": case "memory": case "disk": return `${n.toFixed(1)}%`;
+      case "load": return n.toFixed(2);
+      case "connections": return String(Math.round(n));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <h3 className="text-lg font-semibold">节点指标图表</h3>
+        <div className="flex items-center gap-2">
+          <Select
+            className="w-36"
+            selectedKeys={[String(rangeMs)]}
+            onSelectionChange={(keys) => {
+              const v = Number(Array.from(keys)[0]);
+              if (v > 0) onRangeChange(v);
+            }}
+          >
+            <SelectItem key={String(15 * 60 * 1000)}>15分钟</SelectItem>
+            <SelectItem key={String(60 * 60 * 1000)}>1小时</SelectItem>
+            <SelectItem key={String(6 * 60 * 60 * 1000)}>6小时</SelectItem>
+            <SelectItem key={String(24 * 60 * 60 * 1000)}>24小时</SelectItem>
+          </Select>
+          <Button isLoading={loading} size="sm" variant="flat" onPress={() => nodeId && onRefresh(nodeId)}>
+            刷新
+          </Button>
+        </div>
+      </CardHeader>
+      <CardBody className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {METRIC_TYPE_BUTTONS.map((item) => (
+            <Button
+              key={item.key}
+              color={activeMetricType === item.key ? "primary" : "default"}
+              size="sm"
+              variant={activeMetricType === item.key ? "solid" : "flat"}
+              onPress={() => onMetricTypeChange(item.key)}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-8"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+        ) : error ? (
+          <div className="text-center py-8 text-danger text-sm">{error}</div>
+        ) : data.length > 0 ? (
+          <>
+            <div className="h-64">
+              <ResponsiveContainer height="100%" width="100%">
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time" fontSize={12} />
+                  <YAxis fontSize={12} tickFormatter={yAxisTickFormatter} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "none", borderRadius: "8px" }}
+                    labelStyle={{ color: "#fff" }}
+                    formatter={tooltipFormatter}
+                  />
+                  {chartConfig.lines.map((line) => (
+                    <Line key={line.dataKey} dataKey={line.dataKey} dot={false} name={line.name} stroke={line.color} strokeWidth={2} type="monotone" />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            {truncated && (
+              <div className="text-xs text-default-500">数据点过多，已截断为最近 {maxRows} 条，建议缩小时间范围。</div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-8 text-default-500">暂无指标数据</div>
+        )}
+      </CardBody>
+    </Card>
+  );
+});
+
+
 const DEFAULT_SERVICE_MONITOR_LIMITS: ServiceMonitorLimitsApiData = {
-  checkerScanIntervalSec: 30,
-  minIntervalSec: 30,
-  defaultIntervalSec: 60,
+  checkerScanIntervalSec: 1,
+  minIntervalSec: 1,
+  defaultIntervalSec: 1,
   minTimeoutSec: 1,
   defaultTimeoutSec: 5,
   maxTimeoutSec: 60,
@@ -313,7 +465,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
   });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [activeServiceMonitorId, setActiveServiceMonitorId] = useState<number | null>(null);
-  const [serviceMonitorRangeLimit, setServiceMonitorRangeLimit] = useState(50);
+  const [serviceMonitorRangeMs, setServiceMonitorRangeMs] = useState(60 * 60 * 1000);
 
   const [accessDenied, setAccessDenied] = useState<string | null>(null);
   const [resultsModalOpen, setResultsModalOpen] = useState(false);
@@ -385,27 +537,31 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
 
       const metric = raw as Record<string, unknown>;
       const receivedAt = Date.now();
-      const normalized: RealtimeNodeMetric = {
-        receivedAt,
-        cpuUsage: Number(metric.cpuUsage ?? metric.cpu_usage ?? 0),
-        memoryUsage: Number(metric.memoryUsage ?? metric.memory_usage ?? 0),
-        diskUsage: Number(metric.diskUsage ?? metric.disk_usage ?? 0),
-        netInBytes: Number(metric.netInBytes ?? metric.bytes_received ?? 0),
-        netOutBytes: Number(metric.netOutBytes ?? metric.bytes_transmitted ?? 0),
-        netInSpeed: Number(metric.netInSpeed ?? metric.net_in_speed ?? 0),
-        netOutSpeed: Number(metric.netOutSpeed ?? metric.net_out_speed ?? 0),
-        load1: Number(metric.load1 ?? 0),
-        load5: Number(metric.load5 ?? 0),
-        load15: Number(metric.load15 ?? 0),
-        tcpConns: Number(metric.tcpConns ?? metric.tcp_conns ?? 0),
-        udpConns: Number(metric.udpConns ?? metric.udp_conns ?? 0),
-        uptime: Number(metric.uptime ?? 0),
-      };
+      const incomingUptime = Number(metric.uptime ?? 0);
 
-      setRealtimeNodeMetrics((prev) => ({
-        ...prev,
-        [nodeId]: normalized,
-      }));
+      setRealtimeNodeMetrics((prev) => {
+        const normalized: RealtimeNodeMetric = {
+          receivedAt,
+          cpuUsage: Number(metric.cpuUsage ?? metric.cpu_usage ?? 0),
+          memoryUsage: Number(metric.memoryUsage ?? metric.memory_usage ?? 0),
+          diskUsage: Number(metric.diskUsage ?? metric.disk_usage ?? 0),
+          netInBytes: Number(metric.netInBytes ?? metric.bytes_received ?? 0),
+          netOutBytes: Number(metric.netOutBytes ?? metric.bytes_transmitted ?? 0),
+          netInSpeed: Number(metric.netInSpeed ?? metric.net_in_speed ?? 0),
+          netOutSpeed: Number(metric.netOutSpeed ?? metric.net_out_speed ?? 0),
+          load1: Number(metric.load1 ?? 0),
+          load5: Number(metric.load5 ?? 0),
+          load15: Number(metric.load15 ?? 0),
+          tcpConns: Number(metric.tcpConns ?? metric.tcp_conns ?? 0),
+          udpConns: Number(metric.udpConns ?? metric.udp_conns ?? 0),
+          uptime: incomingUptime || prev[nodeId]?.uptime || 0,
+        };
+
+        return {
+          ...prev,
+          [nodeId]: normalized,
+        };
+      });
       setRealtimeNodeStatus((prev) => ({
         ...prev,
         [nodeId]: "online",
@@ -464,8 +620,11 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
           return;
         }
         setMetricsTruncated(false);
-        setMetricsError(response.msg || "加载指标失败");
-        if (!silent) toast.error(response.msg || "加载指标失败");
+        const msg = response.msg || "加载指标失败";
+        const isTimeout = msg.toLowerCase().includes("timeout");
+        const friendlyMsg = isTimeout ? "加载指标超时，请缩小时间范围后重试" : msg;
+        setMetricsError(friendlyMsg);
+        if (!silent) toast.error(friendlyMsg);
       } catch {
         setMetricsTruncated(false);
         if (!silent) setMetricsError("加载指标失败");
@@ -525,9 +684,12 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
   }, []);
 
   const loadMonitorResults = useCallback(
-    async (monitorId: number, limit = 20) => {
+    async (monitorId: number, options?: { rangeMs?: number; limit?: number }) => {
       try {
-        const response = await getServiceMonitorResults(monitorId, limit);
+        const apiOptions = options?.rangeMs != null
+          ? { start: Date.now() - options.rangeMs, end: Date.now() }
+          : { limit: options?.limit ?? 100 };
+        const response = await getServiceMonitorResults(monitorId, apiOptions);
 
         if (response.code === 0 && response.data) {
           setMonitorResults((prev) => ({
@@ -599,7 +761,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     if (!resultsMonitorId) return;
     setResultsLoading(true);
     try {
-      await loadMonitorResults(resultsMonitorId, resultsLimit);
+      await loadMonitorResults(resultsMonitorId, { limit: resultsLimit });
     } finally {
       setResultsLoading(false);
     }
@@ -615,7 +777,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     const timer = window.setInterval(() => {
       void loadServiceMonitors({ silent: true });
       void loadLatestMonitorResults();
-    }, 30_000);
+    }, 5_000);
 
     return () => window.clearInterval(timer);
   }, [loadLatestMonitorResults, loadServiceMonitors]);
@@ -640,13 +802,27 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     void loadResultsForModal();
   }, [resultsModalOpen, resultsMonitorId, resultsLimit, loadResultsForModal]);
 
-  // Reload results for the active service monitor chart when range limit changes
+  // Auto-load results for the resolved default monitor when entering detail view
+  useEffect(() => {
+    if (!detailNodeId) return;
+    if (activeServiceMonitorId) return; // user already selected one
+    // Find the first monitor belonging to this node (or panel-level)
+    const firstMonitor = serviceMonitors.find(
+      (m) => m.nodeId === detailNodeId || m.nodeId === 0,
+    );
+    if (firstMonitor && (!monitorResults[firstMonitor.id] || monitorResults[firstMonitor.id].length <= 1)) {
+      void loadMonitorResults(firstMonitor.id, { rangeMs: serviceMonitorRangeMs });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailNodeId, serviceMonitors]);
+
+  // Reload results for the active service monitor chart when time range changes
   useEffect(() => {
     if (!activeServiceMonitorId) return;
-    void loadMonitorResults(activeServiceMonitorId, serviceMonitorRangeLimit);
-  }, [activeServiceMonitorId, serviceMonitorRangeLimit, loadMonitorResults]);
+    void loadMonitorResults(activeServiceMonitorId, { rangeMs: serviceMonitorRangeMs });
+  }, [activeServiceMonitorId, serviceMonitorRangeMs, loadMonitorResults]);
 
-  const chartData = metrics.map((m) => ({
+  const chartData = useMemo(() => metrics.map((m) => ({
     time: formatTimestamp(m.timestamp, metricsRangeMs),
     cpu: m.cpuUsage,
     memory: m.memoryUsage,
@@ -658,52 +834,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     load15: m.load15,
     tcp: m.tcpConns,
     udp: m.udpConns,
-  }));
-
-  const getChartConfig = () => {
-    switch (activeMetricType) {
-      case "cpu":
-        return {
-          lines: [{ dataKey: "cpu", color: "#3b82f6", name: "CPU %" }],
-          yAxisLabel: "使用率 (%)",
-        };
-      case "memory":
-        return {
-          lines: [{ dataKey: "memory", color: "#8b5cf6", name: "内存 %" }],
-          yAxisLabel: "使用率 (%)",
-        };
-      case "disk":
-        return {
-          lines: [{ dataKey: "disk", color: "#f59e0b", name: "磁盘 %" }],
-          yAxisLabel: "使用率 (%)",
-        };
-      case "network":
-        return {
-          lines: [
-            { dataKey: "netIn", color: "#10b981", name: "入站速度" },
-            { dataKey: "netOut", color: "#ef4444", name: "出站速度" },
-          ],
-          yAxisLabel: "速度 (bytes/s)",
-        };
-      case "load":
-        return {
-          lines: [
-            { dataKey: "load1", color: "#3b82f6", name: "负载 1m" },
-            { dataKey: "load5", color: "#8b5cf6", name: "负载 5m" },
-            { dataKey: "load15", color: "#f59e0b", name: "负载 15m" },
-          ],
-          yAxisLabel: "负载值",
-        };
-      case "connections":
-        return {
-          lines: [
-            { dataKey: "tcp", color: "#3b82f6", name: "TCP 连接" },
-            { dataKey: "udp", color: "#10b981", name: "UDP 连接" },
-          ],
-          yAxisLabel: "连接数",
-        };
-    }
-  };
+  })), [metrics, metricsRangeMs]);
 
 
 
@@ -914,6 +1045,11 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     [resolvedServiceMonitorLimits.defaultIntervalSec, resolvedServiceMonitorLimits.minIntervalSec],
   );
 
+  // Backend batches DB writes every 30s, but latest API reads from in-memory cache.
+  // The cache timestamp reflects the real check time (every ~1s), so stale detection
+  // should still allow for the batch report interval + scan jitter.
+  const SERVICE_MONITOR_REPORT_INTERVAL_MS = 30_000; // matches backend serviceMonitorReportInterval
+
   const isResultStale = useCallback(
     (monitor: ServiceMonitorApiItem, latestResult: ServiceMonitorResultApiItem | null) => {
       if (monitor.enabled !== 1) {
@@ -924,8 +1060,9 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
 	  }
 
       const intervalMs = resolveMonitorIntervalSec(monitor) * 1000;
+      // Budget = batch report interval + one check interval + scan jitter + grace
       const budgetMs =
-        intervalMs + resolvedServiceMonitorLimits.checkerScanIntervalSec * 1000 + 5000;
+        SERVICE_MONITOR_REPORT_INTERVAL_MS + intervalMs + resolvedServiceMonitorLimits.checkerScanIntervalSec * 1000 + 5000;
 
       return Date.now() - latestResult.timestamp > budgetMs;
     },
@@ -965,46 +1102,6 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     return { disabled, ok, fail, unknown, stale };
   }, [getLatestResult, isResultStale, serviceMonitors]);
 
-  const chartConfig = getChartConfig();
-
-  const nodeYAxisTickFormatter = (value: unknown) => {
-    const n = Number(value);
-
-    if (!Number.isFinite(n)) return "";
-
-    switch (activeMetricType) {
-      case "network":
-        return formatBytesPerSecond(n);
-      case "cpu":
-      case "memory":
-      case "disk":
-        return `${n.toFixed(0)}%`;
-      case "load":
-        return n.toFixed(1);
-      case "connections":
-        return String(Math.round(n));
-    }
-  };
-
-  const nodeTooltipFormatter = (value: unknown) => {
-    const n = Number(value);
-
-    if (!Number.isFinite(n)) return "-";
-
-    switch (activeMetricType) {
-      case "network":
-        return formatBytesPerSecond(n);
-      case "cpu":
-      case "memory":
-      case "disk":
-        return `${n.toFixed(1)}%`;
-      case "load":
-        return n.toFixed(2);
-      case "connections":
-        return String(Math.round(n));
-    }
-  };
-
 
 
   const detailNode = detailNodeId != null ? nodes.find((n) => n.id === detailNodeId) : null;
@@ -1037,7 +1134,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
         <>
           <div className="flex flex-wrap items-center gap-3 mb-1">
             <div className="flex items-center gap-2 text-xs text-default-500">
-              <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-success" : wsConnecting ? "bg-warning" : "bg-default-300"}`} />
+              {wsConnected ? <LiveDot /> : <div className={`w-2 h-2 rounded-full ${wsConnecting ? "bg-warning" : "bg-default-300"}`} />}
               <span>{wsConnected ? "实时已连接" : wsConnecting ? "实时连接中" : "实时未连接"}</span>
             </div>
             <Chip color="primary" size="sm" variant="flat">节点在线 {onlineNodes.length}/{nodes.length}</Chip>
@@ -1064,9 +1161,9 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
             </div>
           ) : (
             <Card className="w-full">
-              <Table
-                aria-label="节点列表"
-                className="overflow-x-auto min-w-full"
+              <Table 
+            aria-label="节点列表"
+            className="overflow-x-auto min-w-full"
                 classNames={{
                   th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider whitespace-nowrap",
                   td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
@@ -1076,11 +1173,12 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 <TableHeader>
                   <TableColumn align="center" className="w-[60px] text-center">状态</TableColumn>
                   <TableColumn align="center" className="w-[60px] text-center">查看</TableColumn>
+                  
                   <TableColumn>名称</TableColumn>
                   <TableColumn>速率</TableColumn>
                   <TableColumn>流量</TableColumn>
                   <TableColumn>开机时长</TableColumn>
-                  <TableColumn>连接数</TableColumn>
+                  <TableColumn className="min-w-[90px]">连接数</TableColumn>
                   <TableColumn>CPU</TableColumn>
                   <TableColumn>RAM</TableColumn>
                   <TableColumn>存储</TableColumn>
@@ -1099,39 +1197,55 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-center w-full">
-                        <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              onPress={() => {
-                                setDetailNodeId(node.id);
-                                setSelectedNodeId(node.id);
+                            <Button 
+                              isIconOnly 
+                              size="sm" 
+                              variant="light" 
+                              onPress={() => { 
+                                setDetailNodeId(node.id); 
+                                setSelectedNodeId(node.id); 
                               }}
                             >
                               <Eye className="w-4 h-4 text-default-500" />
                             </Button>
                           </div>
                         </TableCell>
+                        
                         <TableCell>
-                          <span className="font-semibold text-sm whitespace-nowrap">{node.name}</span>
+                          <div className="flex items-center gap-2">
+                            <DistroIcon distro={parseDistroFromVersion(node.version)} className="w-4 h-4 flex-shrink-0" style={{ color: isOnline ? getDistroColor(parseDistroFromVersion(node.version)) : undefined }} />
+                            <span className="font-semibold text-sm whitespace-nowrap">{node.name}</span>
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1.5 text-xs whitespace-nowrap">
-                            <div className="flex items-center gap-1 font-mono text-success-500">
-                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytesPerSecond(metric.netOutSpeed) : "-"}</span> ↑
+                          <div className="flex flex-col gap-2 py-1 text-xs whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 font-mono text-success-500">
+                              <span className="w-[86px] text-right inline-block">{isOnline && metric ? formatBytesPerSecond(metric.netOutSpeed) : "-"}</span>
+                              <div className="flex items-center justify-center p-[3px] rounded-full bg-success-50 dark:bg-success-500/10 text-success-500">
+                                <ArrowUp className="w-3 h-3" strokeWidth={2.5} />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 font-mono text-primary-500">
-                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytesPerSecond(metric.netInSpeed) : "-"}</span> ↓
+                            <div className="flex items-center gap-1.5 font-mono text-primary-500">
+                              <span className="w-[86px] text-right inline-block">{isOnline && metric ? formatBytesPerSecond(metric.netInSpeed) : "-"}</span>
+                              <div className="flex items-center justify-center p-[3px] rounded-full bg-primary-50 dark:bg-primary-500/10 text-primary-500">
+                                <ArrowDown className="w-3 h-3" strokeWidth={2.5} />
+                              </div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1.5 text-xs whitespace-nowrap">
-                            <div className="flex items-center gap-1 font-mono text-default-600">
-                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytes(metric.netOutBytes) : "-"}</span> ↑
+                          <div className="flex flex-col gap-2 py-1 text-xs whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 font-mono text-default-600">
+                              <span className="w-[86px] text-right inline-block">{isOnline && metric ? formatBytes(metric.netOutBytes) : "-"}</span>
+                              <div className="flex items-center justify-center p-[3px] rounded-full bg-default-100 text-default-500 dark:bg-default-100/50">
+                                <ArrowUp className="w-3 h-3" strokeWidth={2.5} />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 font-mono text-default-600">
-                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytes(metric.netInBytes) : "-"}</span> ↓
+                            <div className="flex items-center gap-1.5 font-mono text-default-600">
+                              <span className="w-[86px] text-right inline-block">{isOnline && metric ? formatBytes(metric.netInBytes) : "-"}</span>
+                              <div className="flex items-center justify-center p-[3px] rounded-full bg-default-100 text-default-500 dark:bg-default-100/50">
+                                <ArrowDown className="w-3 h-3" strokeWidth={2.5} />
+                              </div>
                             </div>
                           </div>
                         </TableCell>
@@ -1141,7 +1255,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1.5 text-xs font-mono text-default-500 whitespace-nowrap">
+                          <div className="flex flex-col gap-1.5 text-xs font-mono text-default-500 px-1">
                             <div>TCP {isOnline && metric ? metric.tcpConns : "-"}</div>
                             <div>UDP {isOnline && metric ? metric.udpConns : "-"}</div>
                           </div>
@@ -1188,30 +1302,33 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
       )}
 
       {/* ====== DETAIL VIEW ====== */}
-          {!accessDenied && detailNodeId && (
-            <>
-              {/* Header */}
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-between items-center w-full">
-                  <Button size="sm" className="bg-default-300 hover:bg-default-400 border-none" onPress={() => setDetailNodeId(null)}>
-                    <ArrowLeft className="w-4 h-4 mr-1" />
-                    返回节点列表
-                  </Button>
-                  <div className="flex items-center gap-2 text-xs text-default-500">
-                    <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-success" : wsConnecting ? "bg-warning" : "bg-default-300"}`} />
-                    <span>{wsConnected ? "实时已连接" : wsConnecting ? "实时连接中" : "实时未连接"}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Server className={`w-5 h-5 ${detailNode?.connectionStatus === "online" ? "text-success" : "text-default-400"}`} />
-                  <h3 className="text-lg font-semibold">{detailNode?.name || `节点 #${detailNodeId}`}</h3>
-                  <Chip size="sm" color={detailNode?.connectionStatus === "online" ? "success" : "danger"} variant="flat">
-                    {detailNode?.connectionStatus === "online" ? "在线" : "离线"}
-                  </Chip>
-                </div>
+      {!accessDenied && detailNodeId && (
+        <>
+          {/* Header - 两行式布局 */}
+          <div className="flex flex-col gap-4">
+            {/* 第一行：返回按钮 + 实时状态（左右分布） */}
+            <div className="flex justify-between items-center w-full">
+              <Button size="sm" className="bg-default-300 hover:bg-default-400 border-none" onPress={() => setDetailNodeId(null)}>
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                返回总览
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-default-500">
+                {wsConnected ? <LiveDot /> : <div className={`w-2 h-2 rounded-full ${wsConnecting ? "bg-warning" : "bg-default-300"}`} />}
+                <span>{wsConnected ? "实时已连接" : wsConnecting ? "实时连接中" : "实时未连接"}</span>
               </div>
+            </div>
 
-              {/* Realtime KPI cards */}
+            {/* 第二行：图标 + 名称（实现下移效果） */}
+            <div className="flex items-center gap-2">
+              <DistroIcon distro={parseDistroFromVersion(detailNode?.version)} className="w-5 h-5" style={{ color: detailNode?.connectionStatus === "online" ? getDistroColor(parseDistroFromVersion(detailNode?.version)) : undefined }} />
+              <h3 className="text-md font-semibold">{detailNode?.name || `节点 #${detailNodeId}`}</h3>
+              <Chip size="sm" color={detailNode?.connectionStatus === "online" ? "success" : "danger"} variant="flat">
+                {detailNode?.connectionStatus === "online" ? "在线" : "离线"}
+              </Chip>
+            </div>
+          </div>
+
+          {/* Realtime KPI cards */}
           {detailRealtimeMetric && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
               {[
@@ -1224,7 +1341,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
               ].map((item) => (
                 <Card key={item.label} className="border border-divider/60 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-background to-default-50/50">
                   <CardBody className="py-3 px-4 flex flex-col items-center justify-center gap-1.5 min-h-[5rem]">
-                    <span className="text-[11px] text-default-500">{item.label}</span>
+                    <span className="text-[11px] text-default-500 mb-1.5">{item.label}</span>
                     <span className={`text-sm font-semibold font-mono ${item.color === 'danger' ? 'text-danger' : item.color === 'warning' ? 'text-warning' : item.color === 'success' ? 'text-success' : item.color === 'primary' ? 'text-primary' : ''}`}>
                       {item.value}
                     </span>
@@ -1235,82 +1352,19 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
           )}
 
           {/* Node metrics chart */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <h3 className="text-lg font-semibold">节点指标图表</h3>
-              <div className="flex items-center gap-2">
-                <Select
-                  className="w-36"
-                  selectedKeys={[String(metricsRangeMs)]}
-                  onSelectionChange={(keys) => {
-                    const v = Number(Array.from(keys)[0]);
-                    if (v > 0) setMetricsRangeMs(v);
-                  }}
-                >
-                  <SelectItem key={String(15 * 60 * 1000)}>15分钟</SelectItem>
-                  <SelectItem key={String(60 * 60 * 1000)}>1小时</SelectItem>
-                  <SelectItem key={String(6 * 60 * 60 * 1000)}>6小时</SelectItem>
-                  <SelectItem key={String(24 * 60 * 60 * 1000)}>24小时</SelectItem>
-                </Select>
-                <Button isLoading={metricsLoading} size="sm" variant="flat" onPress={() => selectedNodeId && loadMetrics(selectedNodeId)}>
-                  刷新
-                </Button>
-              </div>
-            </CardHeader>
-            <CardBody className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {([
-                  { key: "cpu", label: "CPU" },
-                  { key: "memory", label: "内存" },
-                  { key: "disk", label: "磁盘" },
-                  { key: "network", label: "网络" },
-                  { key: "load", label: "负载" },
-                  { key: "connections", label: "连接" },
-                ] as { key: MetricType; label: string }[]).map((item) => (
-                  <Button
-                    key={item.key}
-                    color={activeMetricType === item.key ? "primary" : "default"}
-                    size="sm"
-                    variant={activeMetricType === item.key ? "solid" : "flat"}
-                    onPress={() => setActiveMetricType(item.key)}
-                  >
-                    {item.label}
-                  </Button>
-                ))}
-              </div>
-
-              {metricsLoading ? (
-                <div className="flex justify-center py-8"><RefreshCw className="w-6 h-6 animate-spin" /></div>
-              ) : metricsError ? (
-                <div className="text-center py-8 text-danger text-sm">{metricsError}</div>
-              ) : metrics.length > 0 ? (
-                <>
-                  <div className="h-64">
-                    <ResponsiveContainer height="100%" width="100%">
-                      <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="time" fontSize={12} />
-                        <YAxis fontSize={12} tickFormatter={nodeYAxisTickFormatter} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "none", borderRadius: "8px" }}
-                          labelStyle={{ color: "#fff" }}
-                          formatter={nodeTooltipFormatter}
-                        />
-                        {chartConfig.lines.map((line) => (
-                          <Line key={line.dataKey} dataKey={line.dataKey} dot={false} name={line.name} stroke={line.color} strokeWidth={2} type="monotone" />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                  {metricsTruncated && (
-                    <div className="text-xs text-default-500">数据点过多，已截断为最近 {METRICS_MAX_ROWS} 条，建议缩小时间范围。</div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-8 text-default-500">暂无指标数据</div>
-              )}
-            </CardBody>
-          </Card>
+          <NodeMetricsChartCard
+            rangeMs={metricsRangeMs}
+            onRangeChange={setMetricsRangeMs}
+            activeMetricType={activeMetricType}
+            onMetricTypeChange={setActiveMetricType}
+            loading={metricsLoading}
+            error={metricsError}
+            truncated={metricsTruncated}
+            maxRows={METRICS_MAX_ROWS}
+            data={chartData}
+            nodeId={selectedNodeId}
+            onRefresh={loadMetrics}
+          />
 
 
           {/* Service monitors chart – same style as node metrics */}
@@ -1325,10 +1379,8 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
             const activeStale = resolvedActiveMonitor ? isResultStale(resolvedActiveMonitor, activeLatestResult) : false;
             const activeResults = resolvedActiveMonitorId != null ? (monitorResults[resolvedActiveMonitorId] || []) : [];
             const activeLatencyData = [...activeResults]
-              .slice(0, serviceMonitorRangeLimit)
-              .reverse()
               .map((r) => ({
-                time: formatTimestamp(r.timestamp),
+                time: formatTimestamp(r.timestamp, serviceMonitorRangeMs),
                 latency: r.success === 1 ? r.latencyMs : null,
                 success: r.success,
               }));
@@ -1339,31 +1391,30 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                   <h3 className="text-lg font-semibold">服务监控图表</h3>
                   <div className="flex items-center gap-2">
                     <Select
-                      className="w-28"
-                      selectedKeys={[String(serviceMonitorRangeLimit)]}
+                      className="w-36"
+                      selectedKeys={[String(serviceMonitorRangeMs)]}
                       onSelectionChange={(keys) => {
                         const v = Number(Array.from(keys)[0]);
-                        if (v > 0) setServiceMonitorRangeLimit(v);
+                        if (v > 0) setServiceMonitorRangeMs(v);
                       }}
                     >
-                      <SelectItem key="20">20条</SelectItem>
-                      <SelectItem key="50">50条</SelectItem>
-                      <SelectItem key="100">100条</SelectItem>
-                      <SelectItem key="200">200条</SelectItem>
+                      <SelectItem key={String(60 * 60 * 1000)}>1小时</SelectItem>
+                      <SelectItem key={String(6 * 60 * 60 * 1000)}>6小时</SelectItem>
+                      <SelectItem key={String(24 * 60 * 60 * 1000)}>24小时</SelectItem>
                     </Select>
                     {resolvedActiveMonitorId != null && (
                       <Button
                         size="sm"
                         variant="flat"
                         onPress={() => {
-                          void loadMonitorResults(resolvedActiveMonitorId, serviceMonitorRangeLimit);
+                          void loadMonitorResults(resolvedActiveMonitorId, { rangeMs: serviceMonitorRangeMs });
                         }}
                       >
                         刷新
                       </Button>
                     )}
                     <Button color="primary" size="sm" variant="flat" onPress={() => handleOpenEditModal()}>
-                      添加监控
+                                            添加监控
                     </Button>
                   </div>
                 </CardHeader>
@@ -1392,7 +1443,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                                 setActiveServiceMonitorId(monitor.id);
                                 // Load results for this monitor if not loaded
                                 if (!monitorResults[monitor.id] || monitorResults[monitor.id].length <= 1) {
-                                  void loadMonitorResults(monitor.id, serviceMonitorRangeLimit);
+                                  void loadMonitorResults(monitor.id, { rangeMs: serviceMonitorRangeMs });
                                 }
                               }}
                             >
@@ -1413,7 +1464,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                           <div className="flex items-center gap-3 min-w-0 flex-wrap">
                             <Chip size="sm" color="primary" variant="flat">{resolvedActiveMonitor.type.toUpperCase()}</Chip>
                             <span className="font-mono text-xs text-default-500">{resolvedActiveMonitor.target}</span>
-                            <span className="text-xs text-default-500">间隔 {resolvedActiveMonitor.intervalSec}s</span>
+                            <span className="text-xs text-default-500">每秒测试，30秒上报</span>
                             {activeLatestResult && Number.isFinite(activeLatestResult.latencyMs) ? (
                               <span className="font-mono text-xs font-semibold text-success">{activeLatestResult.latencyMs.toFixed(0)}ms</span>
                             ) : null}
@@ -1548,7 +1599,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 aria-label="监控记录"
                 className="w-full overflow-x-auto"
                 classNames={{
-                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider whitespace-nowrap",
+                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
                   td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                   tr: "hover:bg-default-50/50 transition-colors",
                 }}
