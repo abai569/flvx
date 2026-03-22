@@ -77,6 +77,13 @@ import { useNodeRealtime } from "@/pages/node/use-node-realtime";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { loadStoredOrder, saveOrder } from "@/utils/order-storage";
 
+// TypeScript 全局类型扩展
+declare global {
+  interface Window {
+    __pendingNodeRefresh?: Set<number>;
+  }
+}
+
 const NODE_FALLBACK_REFRESH_INTERVAL_MS = 15000;
 
 interface Node {
@@ -1103,34 +1110,7 @@ export default function NodePage() {
   };
 
   // 手动复制安装命令
-  const handleManualCopy = async () => {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(installCommand);
-        toast.success("安装命令已复制到剪贴板");
-        setInstallCommandModal(false);
-      } else {
-        const textArea = document.createElement("textarea");
-        textArea.value = installCommand;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          toast.success("安装命令已复制到剪贴板");
-          setInstallCommandModal(false);
-        } catch (err) {
-          toast.error("复制失败，请手动选择文本复制");
-        }
-        document.body.removeChild(textArea);
-      }
-    } catch {
-      toast.error("复制失败，请手动选择文本复制");
-    }
-  };
+  
 
   const loadReleasesByChannel = useCallback(async (channel: ReleaseChannel) => {
     setReleasesLoading(true);
