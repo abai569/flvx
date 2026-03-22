@@ -2509,7 +2509,7 @@ export default function NodePage() {
         isOpen={dialogVisible}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="xl"
         onClose={() => setDialogVisible(false)}
       >
         <ModalContent>
@@ -2529,10 +2529,11 @@ export default function NodePage() {
               />
 
               <Textarea
+                classNames={{ inputWrapper: "!min-h-[40px] py-1.5", input: "!min-h-[24px]" }}
                 description="可记录供应商、用途、续费说明等补充信息"
                 label="备注"
-                maxRows={4}
-                minRows={3}
+                maxRows={3}
+                minRows={1}
                 placeholder="例如: 搬瓦工年付，2026-12 续费，日本中转"
                 value={form.remark}
                 variant="bordered"
@@ -2543,6 +2544,7 @@ export default function NodePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
+                  description="支持月、季、年三种周期"
                   label="续费周期"
                   placeholder="选择续费周期"
                   selectedKeys={form.renewalCycle ? [form.renewalCycle] : []}
@@ -2558,20 +2560,19 @@ export default function NodePage() {
                     }));
                   }}
                 >
-                  <SelectItem key="month" textValue="month">
+                  <SelectItem key="month" textValue="月">
                     月付
                   </SelectItem>
-                  <SelectItem key="quarter" textValue="quarter">
+                  <SelectItem key="quarter" textValue="季">
                     季付
                   </SelectItem>
-                  <SelectItem key="year" textValue="year">
+                  <SelectItem key="year" textValue="年">
                     年付
                   </SelectItem>
                 </Select>
-              </div>
 
               <Input
-                description="填写最近一次续费时间或周期起始时间，系统会按月/季/年自动推算下次续费"
+                description="填写购买时间或最近一次续费时间"
                 errorMessage={errors.expiryTime}
                 isInvalid={!!errors.expiryTime}
                 label="续费基准时间"
@@ -2592,10 +2593,11 @@ export default function NodePage() {
                   }))
                 }
               />
+            </div>
 
               <Alert
                 color="primary"
-                description="例如选择月付并填写 2026-03-01，系统会自动按每月同日推算下次续费时间。"
+                description="例如选择月并填写 2026-03-22 系统会自动按每月同日推算下次续费时间"
                 variant="flat"
               />
 
@@ -2930,7 +2932,7 @@ export default function NodePage() {
         isOpen={rollbackModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onOpenChange={setRollbackModalOpen}
       >
         <ModalContent>
@@ -2971,7 +2973,7 @@ export default function NodePage() {
         isOpen={deleteModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onOpenChange={setDeleteModalOpen}
       >
         <ModalContent>
