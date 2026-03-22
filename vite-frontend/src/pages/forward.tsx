@@ -4051,7 +4051,7 @@ export default function ForwardPage() {
         isOpen={modalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="xl"
         onOpenChange={setModalOpen}
       >
         <ModalContent>
@@ -4264,7 +4264,7 @@ export default function ForwardPage() {
         isOpen={deleteModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onOpenChange={setDeleteModalOpen}
       >
         <ModalContent>
@@ -4350,7 +4350,7 @@ export default function ForwardPage() {
         isOpen={exportModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onClose={() => {
           setExportModalOpen(false);
           setSelectedTunnelForExport(null);
@@ -4507,7 +4507,7 @@ export default function ForwardPage() {
         isOpen={importModalOpen}
         placement="center"
         scrollBehavior="outside"
-        size="2xl"
+        size="md"
         onClose={() => setImportModalOpen(false)}
       >
         <ModalContent>
@@ -4719,7 +4719,7 @@ export default function ForwardPage() {
         isOpen={diagnosisModalOpen}
         placement="center"
         scrollBehavior="inside"
-        size="4xl"
+        size="2xl"
         onOpenChange={(open) => {
           setDiagnosisModalOpen(open);
           if (!open) {
