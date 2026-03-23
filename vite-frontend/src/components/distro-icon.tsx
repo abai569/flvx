@@ -94,29 +94,45 @@ type DistroIconProps = SVGProps<SVGSVGElement> & {
 
 /**
  * Detect the Linux distro from a version string like "v1.0.0 (ubuntu/amd64)"
- * and return the normalized distro key.
+ * or "Debian GNU/Linux 11" and return the normalized distro key.
  */
 export function parseDistroFromVersion(version?: string): string {
   if (!version) return "linux";
   const lower = version.toLowerCase();
 
-  // Try to extract from parenthetical format: (distro/arch)
-  const match = lower.match(/\(([^/)\s]+)/);
-  if (match) {
-    return match[1].trim();
-  }
+  console.log('🔍 检测系统类型，version:', version);
 
-  // Fallback: check for known distro names anywhere in the string
+  // 优先检查常见发行版名称
   const knownDistros = [
     "ubuntu", "debian", "centos", "rocky", "alma", "alpine",
     "fedora", "arch", "opensuse", "suse", "rhel", "redhat",
     "oracle", "amazon", "amzn", "kali", "mint", "gentoo",
     "void", "nixos", "manjaro",
   ];
+  
+  // 首先检查已知发行版名称
   for (const d of knownDistros) {
-    if (lower.includes(d)) return d;
+    if (lower.includes(d)) {
+      console.log('✅ 识别为:', d);
+      return d;
+    }
   }
 
+  // 尝试从括号格式提取：(distro/arch)
+  const match = lower.match(/\(([^/)\s]+)/);
+  if (match) {
+    const extracted = match[1].trim().toLowerCase();
+    console.log('📦 括号中提取:', extracted);
+    // 验证提取的内容是否是已知发行版
+    for (const d of knownDistros) {
+      if (extracted.includes(d)) {
+        console.log('✅ 识别为:', d);
+        return d;
+      }
+    }
+  }
+
+  console.log('❌ 未识别，返回 linux');
   return "linux";
 }
 
