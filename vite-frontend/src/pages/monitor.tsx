@@ -15,6 +15,7 @@ type MonitorNode = {
   id: number;
   name: string;
   connectionStatus: "online" | "offline";
+  version?: string;
 };
 
 type MonitorTab = "nodes" | "tunnels";
@@ -75,6 +76,7 @@ export default function MonitorPage() {
         id: Number(n.id),
         name: String(n.name ?? ""),
         connectionStatus: n.status === 1 ? "online" : "offline",
+        version: n.version,
       }));
 
     return new Map<number, MonitorNode>(list.map((n) => [n.id, n]));
@@ -85,8 +87,8 @@ export default function MonitorPage() {
       <div className="mb-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs text-default-500 truncate">
-              实时节点状态+隧道质量检测+历史指标图表+服务监控(TCP/ICMP)
-            </div>
+            实时节点状态+隧道质量检测+历史指标图表+服务监控(TCP/ICMP)
+          </div>
           <div className="flex items-center gap-2">
             <Button
               color={viewMode === "grid" ? "primary" : "warning"}
@@ -113,26 +115,24 @@ export default function MonitorPage() {
             </Button>
           </div>
         </div>
-            
+
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">
           <button
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              activeTab === "nodes"
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "nodes"
                 ? "bg-background shadow-sm text-foreground"
                 : "text-default-500 hover:text-foreground"
-            }`}
+              }`}
             onClick={() => setActiveTab("nodes")}
           >
             <Server className="w-4 h-4" />
             节点
           </button>
           <button
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              activeTab === "tunnels"
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "tunnels"
                 ? "bg-background shadow-sm text-foreground"
                 : "text-default-500 hover:text-foreground"
-            }`}
+              }`}
             onClick={() => setActiveTab("tunnels")}
           >
             <ArrowRightLeft className="w-4 h-4" />
