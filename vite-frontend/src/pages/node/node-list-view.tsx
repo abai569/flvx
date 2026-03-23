@@ -15,7 +15,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { getConnectionStatusMeta } from "./display";
 import type { NodeRenewalCycle } from "./renewal";
 import type { NodeSystemInfo } from "./system-info";
-
+import { DistroIcon, parseDistroFromVersion, getDistroColor } from "@/components/distro-icon";
 interface Node {
   id: number;
   inx?: number;
@@ -220,7 +220,20 @@ function SortableTableRow({
                 </span>
               </>
             ) : (
-              <span className="text-sm text-default-600">{node.version || "未知"}</span>
+              /* 👇 这里就是修改后的带图标版本号展示 👇 */
+              <div className="flex items-center gap-1.5">
+                {node.version && (
+                  <DistroIcon
+                    distro={parseDistroFromVersion(node.version)}
+                    className="w-4 h-4 shrink-0"
+                    // 👇 关键改动：利用 getDistroColor 获取专属品牌色，并强行覆盖 currentColor
+                    style={{ color: getDistroColor(parseDistroFromVersion(node.version)) }}
+                  />
+                )}
+                <span className="text-sm font-mono text-default-600">
+                  {node.version ? node.version.split(' ')[0] : "未知"}
+                </span>
+              </div>
             )}
           </div>
         ) : (
@@ -232,9 +245,9 @@ function SortableTableRow({
           <span className="text-sm text-danger-600 dark:text-danger-400">
             {node.connectionStatus === "online" && realtimeNodeMetrics && realtimeNodeMetrics[node.id]
               ? formatTraffic(
-                  (realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0) +
-                  (realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0)
-                )
+                (realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0) +
+                (realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0)
+              )
               : "-"}
           </span>
         </div>
@@ -354,9 +367,9 @@ export function NodeListView({
           </TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[250px] text-left">节点名称</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">备注</TableColumn> 
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">备注</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">地址</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>         
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">总流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">上行流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">下行流量</TableColumn>
