@@ -71,6 +71,7 @@ type monitorNodeListItem struct {
 	Inx         int    `json:"inx"`
 	Name        string `json:"name"`
 	Status      int    `json:"status"`
+	Version     string `json:"version"`
 	UpdatedTime int64  `json:"updatedTime"`
 }
 
@@ -745,6 +746,16 @@ func (h *Handler) monitorServiceLatestResultsHandler(w http.ResponseWriter, r *h
 		return
 	}
 
+	// Try in-memory cache first (updated every 1s)
+	if h.healthCheck != nil {
+		cached := h.healthCheck.GetLatestCached()
+		if len(cached) > 0 {
+			response.WriteJSON(w, response.OK(cached))
+			return
+		}
+	}
+
+	// Fallback to database
 	results, err := h.repo.GetLatestServiceMonitorResults()
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))

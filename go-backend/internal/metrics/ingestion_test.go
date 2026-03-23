@@ -36,7 +36,7 @@ func TestRecordNodeMetric(t *testing.T) {
 	svc.RecordNodeMetric(1, info)
 	svc.flushNodeMetrics()
 
-	metrics, err := r.GetNodeMetrics(1, 0, time.Now().UnixMilli()+1000)
+	metrics, err := r.GetNodeMetrics(1, time.Now().UnixMilli()-60000, time.Now().UnixMilli()+1000)
 	if err != nil {
 		t.Fatalf("get metrics: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestRecordNodeMetricAutoFlush(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	metrics, err := r.GetNodeMetrics(1, 0, time.Now().UnixMilli()+1000)
+	metrics, err := r.GetNodeMetrics(1, time.Now().UnixMilli()-60000, time.Now().UnixMilli()+1000)
 	if err != nil {
 		t.Fatalf("get metrics: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestIngestionServiceStart(t *testing.T) {
 
 	<-ctx.Done()
 
-	metrics, err := r.GetNodeMetrics(1, 0, time.Now().UnixMilli()+1000)
+	metrics, err := r.GetNodeMetrics(1, time.Now().UnixMilli()-60000, time.Now().UnixMilli()+1000)
 	if err != nil {
 		t.Fatalf("get metrics: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestGetMetricsWithTimeRange(t *testing.T) {
 
 	svc.flushNodeMetrics()
 
-	metrics, err := svc.GetMetrics(1, 0, now+1000)
+	metrics, err := svc.GetMetrics(1, now-60000, now+1000)
 	if err != nil {
 		t.Fatalf("get metrics: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestPruneMetrics(t *testing.T) {
 
 	svc.pruneMetrics()
 
-	metrics, err := r.GetNodeMetrics(1, 0, time.Now().UnixMilli()+1000)
+	metrics, err := r.GetNodeMetrics(1, time.Now().UnixMilli()-60000, time.Now().UnixMilli()+1000)
 	if err != nil {
 		t.Fatalf("get metrics: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestMultipleNodes(t *testing.T) {
 	svc.flushNodeMetrics()
 
 	for nodeID := int64(1); nodeID <= 3; nodeID++ {
-		metrics, err := r.GetNodeMetrics(nodeID, 0, time.Now().UnixMilli()+1000)
+		metrics, err := r.GetNodeMetrics(nodeID, time.Now().UnixMilli()-60000, time.Now().UnixMilli()+1000)
 		if err != nil {
 			t.Fatalf("get metrics for node %d: %v", nodeID, err)
 		}
@@ -279,7 +279,7 @@ func TestZeroValues(t *testing.T) {
 	svc.RecordNodeMetric(1, info)
 	svc.flushNodeMetrics()
 
-	metrics, err := r.GetNodeMetrics(1, 0, time.Now().UnixMilli()+1000)
+	metrics, err := r.GetNodeMetrics(1, time.Now().UnixMilli()-60000, time.Now().UnixMilli()+1000)
 	if err != nil {
 		t.Fatalf("get metrics: %v", err)
 	}
