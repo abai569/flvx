@@ -1052,7 +1052,7 @@ export default function GroupPage() {
                     await confirmConfig.action();
                     onClose();
                   }
-                }}>确认执行</Button>
+                }}>确认</Button>
               </ModalFooter>
             </>
           )}

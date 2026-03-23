@@ -390,9 +390,9 @@ export default function PanelSharingPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      {/* <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">面板共享 (Panel Peering)</h1>
-      </div>
+      </div> */}
 
       <Tabs
         disableCursorAnimation
@@ -404,10 +404,10 @@ export default function PanelSharingPage() {
           key="my-shares"
           title={
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-foreground">
+              {/* <span className="text-sm font-semibold text-foreground">
                 Provider
-              </span>
-              <span className="text-xs text-default-500">我分享的</span>
+              </span> */}
+              <span className="text-md text-default-500">我分享的</span>
             </div>
           }
         >
@@ -416,7 +416,7 @@ export default function PanelSharingPage() {
               <div className="mt-4 flex flex-col gap-4 rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/20 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">
-                    Provider 共享
+                    共享
                   </h2>
                   <p className="text-sm text-default-500">
                     将本地节点分享给其他面板，统一管理
@@ -442,7 +442,7 @@ export default function PanelSharingPage() {
                     暂无分享
                   </p>
                   <p className="mt-2 text-sm text-default-500">
-                    先创建一个分享，把本地节点开放给其他面板使用。
+                    先创建一个分享，把本地节点共享给其他面板使用。
                   </p>
                   <div className="mt-5 flex justify-center">
                     <Button
@@ -552,10 +552,10 @@ export default function PanelSharingPage() {
           key="remote-nodes"
           title={
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-foreground">
+              {/* <span className="text-sm font-semibold text-foreground">
                 Consumer
-              </span>
-              <span className="text-xs text-default-500">远程节点</span>
+              </span> */}
+              <span className="text-md text-default-500">远程节点</span>
             </div>
           }
         >
@@ -564,7 +564,7 @@ export default function PanelSharingPage() {
               <div className="mt-4 flex flex-col gap-4 rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/20 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">
-                    Consumer 接入
+                    导入
                   </h2>
                   <p className="text-sm text-default-500">
                     导入远程节点后，可在这里查看端口占用和同步状态。
@@ -575,7 +575,7 @@ export default function PanelSharingPage() {
                   color="secondary"
                   onPress={() => setImportNodeOpen(true)}
                 >
-                  导入远程节点
+                  导入节点
                 </Button>
               </div>
 
@@ -597,7 +597,7 @@ export default function PanelSharingPage() {
                       variant="flat"
                       onPress={() => setImportNodeOpen(true)}
                     >
-                      去导入远程节点
+                      导入第一个节点
                     </Button>
                   </div>
                 </div>

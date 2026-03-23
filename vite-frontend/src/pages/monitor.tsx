@@ -2,7 +2,7 @@ import type { MonitorNodeApiItem } from "@/api/types";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Grid3x3, List, Server, ArrowRightLeft } from "lucide-react";
+import { Server, ArrowRightLeft } from "lucide-react";
 
 import { AnimatedPage } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -82,22 +82,23 @@ export default function MonitorPage() {
 
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
-      <div className="mb-6 space-y-3">
+      <div className="mb-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold truncate">监控</h2>
-          </div>
+          <div className="text-xs text-default-500 truncate">
+              实时节点状态+隧道质量检测+历史指标图表+服务监控(TCP/ICMP)
+            </div>
           <div className="flex items-center gap-2">
             <Button
-              isIconOnly
+              color={viewMode === "grid" ? "primary" : "warning"}
               size="sm"
               variant="flat"
               onPress={() => setViewMode(viewMode === "list" ? "grid" : "list")}
             >
-              {viewMode === "list" ? <Grid3x3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
+              {viewMode === "grid" ? "列表" : "卡片"}
             </Button>
             <Button
               isLoading={activeTab === "nodes" ? nodesLoading : tunnelsLoading}
+              color="primary"
               size="sm"
               variant="flat"
               onPress={() => {
@@ -112,9 +113,7 @@ export default function MonitorPage() {
             </Button>
           </div>
         </div>
-            <div className="text-xs text-default-500 truncate">
-              实时节点状态+隧道质量检测+历史指标图表+服务监控(TCP/ICMP)
-            </div>
+            
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">
           <button

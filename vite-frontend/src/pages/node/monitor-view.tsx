@@ -342,10 +342,10 @@ const NodeMetricsChartCard = React.memo(function NodeMetricsChartCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <h3 className="text-lg font-semibold">节点指标图表</h3>
+        <h3 className="text-lg font-semibold">节点指标</h3>
         <div className="flex items-center gap-2">
-          <Select
-            className="w-36"
+          <Select size="sm"
+            className="w-22 sm:w-30"
             selectedKeys={[String(rangeMs)]}
             onSelectionChange={(keys) => {
               const v = Number(Array.from(keys)[0]);
@@ -469,7 +469,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
   const [accessDenied, setAccessDenied] = useState<string | null>(null);
   const [resultsModalOpen, setResultsModalOpen] = useState(false);
   const [resultsMonitorId, setResultsMonitorId] = useState<number | null>(null);
-  const [resultsLimit, setResultsLimit] = useState(50);
+  const [resultsLimit, setResultsLimit] = useState(20);
   const [resultsLoading, setResultsLoading] = useState(false);
 
   const [realtimeNodeStatus, setRealtimeNodeStatus] = useState<
@@ -1110,7 +1110,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     : serviceMonitors;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4 w-full">
       {accessDenied && (
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
@@ -1128,13 +1128,13 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
 
       {/* ====== GRID/LIST VIEW ====== */}
       {!accessDenied && !detailNodeId && (
-        <>
-          <div className="flex flex-wrap items-center gap-3 mb-1">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="flex flex-wrap items-center gap-3 mb-0">
             <div className="flex items-center gap-2 text-xs text-default-500">
               {wsConnected ? <LiveDot /> : <div className={`w-2 h-2 rounded-full ${wsConnecting ? "bg-warning" : "bg-default-300"}`} />}
               <span>{wsConnected ? "实时已连接" : wsConnecting ? "实时连接中" : "实时未连接"}</span>
             </div>
-            <Chip color="primary" size="sm" variant="flat">节点在线 {onlineNodes.length}/{nodes.length}</Chip>
+            <Chip color="primary" size="sm" variant="flat">节点 {onlineNodes.length}/{nodes.length}</Chip>
             <Chip color="success" size="sm" variant="flat">监控 成功 {monitorSummary.ok} / 失败 {monitorSummary.fail}</Chip>
             {monitorSummary.stale > 0 && <Chip color="warning" size="sm" variant="flat">陈旧 {monitorSummary.stale}</Chip>}
           </div>
@@ -1295,14 +1295,14 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
               </Table>
             </Card>
           )}
-        </>
+        </div>
       )}
 
       {/* ====== DETAIL VIEW ====== */}
       {!accessDenied && detailNodeId && (
         <>
           {/* Header - 两行式布局 */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 w-full">
             {/* 第一行：返回按钮 + 实时状态（左右分布） */}
             <div className="flex justify-between items-center w-full">
               <Button size="sm" className="bg-default-300 hover:bg-default-400 border-none" onPress={() => setDetailNodeId(null)}>
@@ -1385,10 +1385,10 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
             return (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <h3 className="text-lg font-semibold">服务监控图表</h3>
+                  <h3 className="text-lg font-semibold">服务监控</h3>
                   <div className="flex items-center gap-2">
-                    <Select
-                      className="w-36"
+                    <Select size="sm"
+                      className="w-22 sm:w-30"
                       selectedKeys={[String(serviceMonitorRangeMs)]}
                       onSelectionChange={(keys) => {
                         const v = Number(Array.from(keys)[0]);
@@ -1411,7 +1411,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                       </Button>
                     )}
                     <Button color="primary" size="sm" variant="flat" onPress={() => handleOpenEditModal()}>
-                                            添加监控
+                                            监控
                     </Button>
                   </div>
                 </CardHeader>
@@ -1473,8 +1473,8 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                               <Button isIconOnly size="sm" variant="light"><MoreVertical className="w-4 h-4" /></Button>
                             </DropdownTrigger>
                             <DropdownMenu>
-                              <DropdownItem startContent={<Play className="w-4 h-4" />} onPress={() => resolvedActiveMonitorId != null && handleRunMonitor(resolvedActiveMonitorId)}>立即检查</DropdownItem>
-                              <DropdownItem startContent={<Activity className="w-4 h-4" />} onPress={() => resolvedActiveMonitorId != null && openResultsModal(resolvedActiveMonitorId)}>查看记录</DropdownItem>
+                              <DropdownItem startContent={<Play className="w-4 h-4" />} onPress={() => resolvedActiveMonitorId != null && handleRunMonitor(resolvedActiveMonitorId)}>检查</DropdownItem>
+                              <DropdownItem startContent={<Activity className="w-4 h-4" />} onPress={() => resolvedActiveMonitorId != null && openResultsModal(resolvedActiveMonitorId)}>记录</DropdownItem>
                               <DropdownItem startContent={<Edit className="w-4 h-4" />} onPress={() => resolvedActiveMonitor && handleOpenEditModal(resolvedActiveMonitor)}>编辑</DropdownItem>
                               <DropdownItem className="text-danger" color="danger" startContent={<Trash2 className="w-4 h-4" />} onPress={() => resolvedActiveMonitorId != null && handleDeleteMonitor(resolvedActiveMonitorId)}>删除</DropdownItem>
                             </DropdownMenu>
@@ -1514,14 +1514,17 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
       )}
 
       <Modal
-        isOpen={resultsModalOpen}
+        backdrop="blur"
+        scrollBehavior="inside"
+        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden max-h-[85vh] sm:max-h-[90vh]" }}
+        size="xl" isOpen={resultsModalOpen}
         onClose={() => {
           setResultsModalOpen(false);
           setResultsMonitorId(null);
         }}
       >
         <ModalContent>
-          <ModalHeader className="flex flex-row items-center justify-between gap-3">
+          <ModalHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-3">
             <div className="min-w-0">
               <div className="text-base font-semibold truncate">
                 监控记录
@@ -1550,8 +1553,8 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
             </div>
             {resultsMonitorId != null ? (
               <div className="flex items-center gap-2 shrink-0">
-                <Select
-                  className="w-28"
+                <Select size="sm"
+                  className="w-22 sm:w-30"
                   selectedKeys={[String(resultsLimit)]}
                   onSelectionChange={(keys) => {
                     const v = Number(Array.from(keys)[0]);
@@ -1572,7 +1575,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                     handleRunMonitor(resultsMonitorId)
                   }
                 >
-                  <Play className="w-4 h-4 mr-1" />
+                  {/* <Play className="w-4 h-4 mr-1" /> */}
                   检查
                 </Button>
                 <Button
@@ -1594,10 +1597,11 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
             ) : modalResults.length > 0 ? (
               <Table
                 aria-label="监控记录"
-                className="w-full overflow-x-auto"
+                className="w-full"
                 classNames={{
-                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
-                  td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                  wrapper: "p-0 shadow-none bg-transparent w-full overflow-x-auto",
+                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider whitespace-nowrap text-left",
+                  td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0 whitespace-nowrap text-left",
                   tr: "hover:bg-default-50/50 transition-colors",
                 }}
               >
@@ -1668,7 +1672,11 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
         </ModalContent>
       </Modal>
 
-      <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)}>
+      <Modal
+        backdrop="blur"
+        scrollBehavior="inside"
+        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden max-h-[85vh] sm:max-h-[90vh]" }}
+        size="xl" isOpen={editModalOpen} onClose={() => setEditModalOpen(false)}>
         <ModalContent>
           <ModalHeader>{editingMonitor ? "编辑监控" : "添加监控"}</ModalHeader>
           <ModalBody className="space-y-4">
@@ -1716,7 +1724,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 setMonitorForm((f) => ({ ...f, target: e.target.value }))
               }
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 description={`最小 ${resolvedServiceMonitorLimits.minIntervalSec}s（扫描周期 ${resolvedServiceMonitorLimits.checkerScanIntervalSec}s）`}
                 errorMessage={

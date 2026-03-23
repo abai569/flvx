@@ -186,8 +186,8 @@ const TIME_RANGE_OPTIONS = [
 
 function TimeRangeSelect({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
-    <Select
-      className="w-36"
+    <Select size="sm"
+      className="w-22 sm:w-30"
       selectedKeys={[String(value)]}
       onSelectionChange={(keys) => {
         const v = Number(Array.from(keys)[0]);
@@ -225,7 +225,7 @@ const QualityChartCard = React.memo(function QualityChartCard({
           </Button>
         </div>
       </CardHeader>
-      <CardBody>
+      <CardBody className="space-y-4">
         {loading ? (
           <div className="flex justify-center py-8"><RefreshCw className="w-6 h-6 animate-spin" /></div>
         ) : error ? (
@@ -298,7 +298,7 @@ const TrafficChartCard = React.memo(function TrafficChartCard({
           </Button>
         </div>
       </CardHeader>
-      <CardBody>
+      <CardBody className="space-y-4">
         {loading ? (
           <div className="flex justify-center py-8"><RefreshCw className="w-6 h-6 animate-spin" /></div>
         ) : error ? (
@@ -421,12 +421,12 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
           const nextMap = { ...prev };
           results.forEach(r => {
             const existing = nextMap[r.id] || [];
-            const merged = [...r.data, ...existing].sort((a,b) => a.timestamp - b.timestamp);
+            const merged = [...r.data, ...existing].sort((a, b) => a.timestamp - b.timestamp);
             const unique: TunnelQualityApiItem[] = [];
             for (const item of merged) {
-               if (unique.length === 0 || unique[unique.length-1].timestamp !== item.timestamp) {
-                   unique.push(item);
-               }
+              if (unique.length === 0 || unique[unique.length - 1].timestamp !== item.timestamp) {
+                unique.push(item);
+              }
             }
             nextMap[r.id] = unique.slice(-UPTIME_KUMA_BARS_COUNT);
           });
@@ -452,15 +452,15 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
 
         // Accumulate locally
         setQualityHistoryMap(prev => {
-           const nextMap = { ...prev };
-           for (const q of response.data) {
-              const currentArr = nextMap[q.tunnelId] || [];
-              const lastItem = currentArr.length > 0 ? currentArr[currentArr.length - 1] : null;
-              if (!lastItem || lastItem.timestamp !== q.timestamp) {
-                  nextMap[q.tunnelId] = [...currentArr, q].slice(-UPTIME_KUMA_BARS_COUNT);
-              }
-           }
-           return nextMap;
+          const nextMap = { ...prev };
+          for (const q of response.data) {
+            const currentArr = nextMap[q.tunnelId] || [];
+            const lastItem = currentArr.length > 0 ? currentArr[currentArr.length - 1] : null;
+            if (!lastItem || lastItem.timestamp !== q.timestamp) {
+              nextMap[q.tunnelId] = [...currentArr, q].slice(-UPTIME_KUMA_BARS_COUNT);
+            }
+          }
+          return nextMap;
         });
       }
     } catch {
@@ -617,7 +617,7 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
           <Activity className="w-5 h-5 text-warning" />
           <h3 className="text-lg font-semibold">监控权限</h3>
         </CardHeader>
-        <CardBody>
+        <CardBody className="space-y-4">
           <div className="text-sm text-default-600">{accessDenied}</div>
           <div className="text-xs text-default-500 mt-2">
             如需使用监控功能，请联系管理员在用户页面授予监控权限。
@@ -738,27 +738,28 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
     );
   }
 
-  // ===== LIST/GRID VIEW (unchanged) =====
+  // ===== LIST/GRID VIEW =====
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3 mb-1">
-        <Chip color="primary" size="sm" variant="flat">隧道 {tunnelStats.enabled}/{tunnelStats.total}</Chip>
+    <div className="flex flex-col gap-4 w-full">
+      <div className="flex flex-wrap items-center gap-3 mb-0">
         {lastQualityUpdate && (
-          <div className="flex items-center gap-1.5 text-xs text-default-500">
+          <div className="flex items-center gap-2 text-xs text-default-500">
+            
             <LiveDot />
             <span>每秒探测 · 更新于 {lastQualityUpdate}</span>
           </div>
         )}
-        <div className="ml-auto">
+        <Chip color="primary" size="sm" variant="flat">隧道 {tunnelStats.enabled}/{tunnelStats.total}</Chip>
+        {/* <div className="ml-auto">
           <Button isLoading={tunnelsLoading} size="sm" variant="flat" onPress={() => loadTunnels()}>
             刷新
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {tunnelsError ? (
         <Card>
-          <CardBody>
+          <CardBody className="space-y-4">
             <div className="text-sm text-default-600">{tunnelsError}</div>
           </CardBody>
         </Card>
@@ -837,7 +838,7 @@ export function TunnelMonitorView({ viewMode = "grid", refreshTrigger, onLoading
             aria-label="隧道列表"
             className="overflow-x-auto min-w-full"
             classNames={{
-              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider whitespace-nowrap",
               td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
               tr: "hover:bg-default-50/50 transition-colors",
             }}
