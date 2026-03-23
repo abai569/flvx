@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go-backend/internal/monitoring"
@@ -20,24 +21,45 @@ type nodeCommander interface {
 	SendCommand(nodeID int64, cmdType string, data interface{}, timeout time.Duration) (ws.CommandResult, error)
 }
 
+const serviceMonitorReportInterval = 30 * time.Second // DB write interval per monitor
+
 type Checker struct {
 	repo      *repo.Repository
 	commander nodeCommander
 	lastRun   map[int64]int64
 	inFlight  map[int64]struct{}
 
-	mu     sync.RWMutex
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	// In-memory latest result per monitor (for real-time API reads)
+	latestResults map[int64]*model.ServiceMonitorResult
+	lastDBWrite   map[int64]int64 // last DB write timestamp per monitorID
+
+	mu       sync.RWMutex
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	checking int32 // atomic flag: 1 = runChecks running, 0 = idle
 }
 
 func NewChecker(repo *repo.Repository, commander nodeCommander) *Checker {
 	return &Checker{
-		repo:      repo,
-		commander: commander,
-		lastRun:   make(map[int64]int64),
-		inFlight:  make(map[int64]struct{}),
+		repo:          repo,
+		commander:     commander,
+		lastRun:       make(map[int64]int64),
+		inFlight:      make(map[int64]struct{}),
+		latestResults: make(map[int64]*model.ServiceMonitorResult),
+		lastDBWrite:   make(map[int64]int64),
 	}
+}
+
+// GetLatestCached returns the in-memory latest results (updated every 1s).
+// Returns nil if no results are cached.
+func (c *Checker) GetLatestCached() []*model.ServiceMonitorResult {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	results := make([]*model.ServiceMonitorResult, 0, len(c.latestResults))
+	for _, r := range c.latestResults {
+		results = append(results, r)
+	}
+	return results
 }
 
 func (c *Checker) Start(ctx context.Context) {
@@ -52,7 +74,7 @@ func (c *Checker) Start(ctx context.Context) {
 		limits := c.loadServiceMonitorLimits()
 		scanInterval := time.Duration(limits.CheckerScanIntervalSec) * time.Second
 		if scanInterval <= 0 {
-			scanInterval = 30 * time.Second
+			scanInterval = 1 * time.Second
 		}
 
 		timer := time.NewTimer(scanInterval)
@@ -87,6 +109,12 @@ func (c *Checker) RunOnce(m *model.ServiceMonitor) (*model.ServiceMonitorResult,
 }
 
 func (c *Checker) runChecks(ctx context.Context) {
+	// Skip if previous round is still running (interval < timeout guard)
+	if !atomic.CompareAndSwapInt32(&c.checking, 0, 1) {
+		return
+	}
+	defer atomic.StoreInt32(&c.checking, 0)
+
 	if c == nil || c.repo == nil {
 		return
 	}
@@ -174,6 +202,8 @@ func (c *Checker) runChecks(ctx context.Context) {
 	}
 	close(jobs)
 
+	reportIntervalMs := int64(serviceMonitorReportInterval / time.Millisecond)
+
 	for i := 0; i < workerLimit; i++ {
 		c.wg.Add(1)
 		go func() {
@@ -188,14 +218,26 @@ func (c *Checker) runChecks(ctx context.Context) {
 					}
 					ts := time.Now().UnixMilli()
 					result := c.executeCheck(&m, ts, limits)
-					if err := c.repo.InsertServiceMonitorResult(result); err != nil {
-						log.Printf("monitoring write failed op=service_monitor_result.insert monitor_id=%d err=%v", result.MonitorID, err)
-					}
 
+					// Always update in-memory cache for real-time reads
 					c.mu.Lock()
+					c.latestResults[m.ID] = result
 					c.lastRun[m.ID] = result.Timestamp
 					delete(c.inFlight, m.ID)
+
+					// Only write to DB every 30s per monitor
+					lastWrite := c.lastDBWrite[m.ID]
+					writeToDB := ts-lastWrite >= reportIntervalMs
+					if writeToDB {
+						c.lastDBWrite[m.ID] = ts
+					}
 					c.mu.Unlock()
+
+					if writeToDB {
+						if err := c.repo.InsertServiceMonitorResult(result); err != nil {
+							log.Printf("monitoring write failed op=service_monitor_result.insert monitor_id=%d err=%v", result.MonitorID, err)
+						}
+					}
 				}
 			}
 		}()
