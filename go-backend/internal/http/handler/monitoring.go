@@ -100,6 +100,7 @@ func (h *Handler) monitorNodeListHandler(w http.ResponseWriter, r *http.Request)
 			Inx:         n.Inx,
 			Name:        n.Name,
 			Status:      n.Status,
+			Version:     n.Version.String,
 			UpdatedTime: updated,
 		})
 	}
