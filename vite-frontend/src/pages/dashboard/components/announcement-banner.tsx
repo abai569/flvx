@@ -19,7 +19,7 @@ export const AnnouncementBanner = ({
 
   return (
     <Card className="mb-6 lg:mb-8 border border-gray-200 dark:border-default-200 shadow-md">
-      <CardHeader className="flex gap-3 border-b border-black-200 dark:border-white/20 pb-3">
+      <CardHeader className="flex gap-3 dark:border-white/20 pb-3">
         <div className="flex items-center gap-2">
           <svg
             aria-hidden="true"
@@ -40,7 +40,7 @@ export const AnnouncementBanner = ({
       </CardHeader>
 
       {/* 下方正文内容 */}
-      <CardBody className="mt-2 pt-4 text-sm text-danger-600 dark:text-white/90 break-words leading-relaxed">
+      <CardBody className="-mt-5 !px-9 pt-4 text-sm text-foreground dark:text-white/90 break-words leading-relaxed">
         <ReactMarkdown
           components={{
             p: ({ children }) => (
@@ -48,7 +48,7 @@ export const AnnouncementBanner = ({
             ),
             a: ({ children, href }) => (
               <a
-                className="underline decoration-danger-500/70 underline-offset-2 hover:text-danger-700 dark:hover:text-white"
+                className="underline decoration-blue-500/70 underline-offset-2 hover:text-blue-700 dark:hover:text-blue-100"
                 href={href}
                 rel="noopener noreferrer"
                 target="_blank"
@@ -67,17 +67,17 @@ export const AnnouncementBanner = ({
               </ol>
             ),
             code: ({ children }) => (
-              <code className="rounded bg-danger-100 dark:bg-white/20 px-1 py-0.5 text-[0.92em]">
+              <code className="font-mono rounded bg-blue-100/80 dark:bg-blue-900/40 px-1 py-0.5 text-[0.92em]">
                 {children}
               </code>
             ),
             pre: ({ children }) => (
-              <pre className="mb-2 overflow-x-auto rounded-md bg-danger-50 dark:bg-white/10 p-2.5 text-xs leading-relaxed">
+              <pre className="mb-2 font-mono overflow-x-auto rounded-md bg-blue-100/70 dark:bg-blue-900/40 p-2.5 text-xs leading-relaxed">
                 {children}
               </pre>
             ),
             blockquote: ({ children }) => (
-              <blockquote className="mb-2 border-l-2 border-danger-300 dark:border-white/40 pl-3 italic">
+              <blockquote className="mb-2 border-l-2 border-blue-300/80 dark:border-blue-500/60 pl-3 italic">
                 {children}
               </blockquote>
             ),
