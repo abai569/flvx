@@ -1102,50 +1102,111 @@ func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []in
 		if err != nil {
 			continue
 		}
-		port := pickForwardPortFromRecords(oldPorts)
-		if port <= 0 {
+		referencePort := pickForwardPortFromRecords(oldPorts)
+		if referencePort <= 0 {
 			continue
 		}
 
-		// If the existing port is outside any entry node's allowed range,
-		// pick a new random port that satisfies all entry nodes.
-		if !h.isPortValidForAllEntryNodes(port, entryNodeIDs) {
-			newPort := h.pickTunnelPort(tunnelID)
-			if newPort > 0 {
-				port = newPort
+		// Build a map of existing node → port/inIP from old records.
+		oldPortByNode := make(map[int64]forwardPortRecord)
+		for _, fp := range oldPorts {
+			if fp.NodeID > 0 {
+				oldPortByNode[fp.NodeID] = fp
 			}
 		}
 
-		var entries []forwardPortReplaceEntry
-		if allowInIP {
-			entries = buildForwardPortEntriesWithPreservedInIP(entryNodeIDs, oldPorts, port)
-		} else {
-			entries = make([]forwardPortReplaceEntry, 0, len(entryNodeIDs))
-			for _, nid := range entryNodeIDs {
-				entries = append(entries, forwardPortReplaceEntry{NodeID: nid, Port: port, InIP: ""})
+		entries := make([]forwardPortReplaceEntry, 0, len(entryNodeIDs))
+		for _, nid := range entryNodeIDs {
+			if existing, ok := oldPortByNode[nid]; ok && existing.Port > 0 {
+				// Existing entry node: keep its current port.
+				inIP := existing.InIP
+				if !allowInIP {
+					inIP = ""
+				}
+				entries = append(entries, forwardPortReplaceEntry{NodeID: nid, Port: existing.Port, InIP: inIP})
+				continue
 			}
+
+			// New entry node: try to follow the reference port.
+			port := h.resolvePortForNewEntryNode(nid, referencePort, f.ID)
+			inIP := ""
+			if allowInIP {
+				// For single-entry tunnels, try to preserve inIP from old records.
+				for _, fp := range oldPorts {
+					if strings.TrimSpace(fp.InIP) != "" {
+						inIP = fp.InIP
+						break
+					}
+				}
+			}
+			entries = append(entries, forwardPortReplaceEntry{NodeID: nid, Port: port, InIP: inIP})
 		}
 		_ = h.repo.ReplaceForwardPorts(f.ID, entries)
 	}
 }
 
-func (h *Handler) isPortValidForAllEntryNodes(port int, entryNodeIDs []int64) bool {
-	if port <= 0 {
-		return false
+// resolvePortForNewEntryNode determines the port for a forward on a newly added
+// entry node. It tries to reuse referencePort (from existing entries); if that
+// port is out of range or already occupied, it picks a random available port
+// for this specific node.
+func (h *Handler) resolvePortForNewEntryNode(nodeID int64, referencePort int, forwardID int64) int {
+	node, err := h.getNodeRecord(nodeID)
+	if err != nil {
+		return referencePort
 	}
-	for _, nodeID := range entryNodeIDs {
-		node, err := h.getNodeRecord(nodeID)
-		if err != nil {
-			continue
-		}
-		if validateLocalNodePort(node, port) != nil {
-			return false
-		}
-		if validateRemoteNodePort(node, port) != nil {
-			return false
+
+	// Check if referencePort is within the node's allowed range.
+	if validateLocalNodePort(node, referencePort) == nil &&
+		validateRemoteNodePort(node, referencePort) == nil {
+		// In range — check availability.
+		occupied, occErr := h.repo.HasOtherForwardOnNodePort(nodeID, referencePort, forwardID)
+		if occErr == nil && !occupied {
+			return referencePort
 		}
 	}
-	return true
+
+	// referencePort doesn't work for this node; pick a random one.
+	newPort := h.pickRandomPortForNode(nodeID)
+	if newPort > 0 {
+		return newPort
+	}
+	return referencePort // last resort fallback
+}
+
+// pickRandomPortForNode picks a random available port from a single node's
+// port range, excluding ports already occupied by other forwards or chains.
+func (h *Handler) pickRandomPortForNode(nodeID int64) int {
+	portRange, err := h.repo.GetNodePortRange(nodeID)
+	if err != nil {
+		return 0
+	}
+	if portRange == "" {
+		portRange = "1000-65535"
+	}
+
+	nodePorts, err := parsePorts(portRange)
+	if err != nil || len(nodePorts) == 0 {
+		return 0
+	}
+
+	used, err := h.getUsedPorts(nodeID)
+	if err != nil {
+		return 0
+	}
+
+	var available []int
+	for _, p := range nodePorts {
+		if !used[p] {
+			available = append(available, p)
+		}
+	}
+
+	if len(available) == 0 {
+		return 0
+	}
+
+	idx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(available))))
+	return available[idx.Int64()]
 }
 
 func (h *Handler) tunnelDelete(w http.ResponseWriter, r *http.Request) {
