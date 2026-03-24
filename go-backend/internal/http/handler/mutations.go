@@ -453,7 +453,7 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/abai569/flvx/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, version, processServerAddress(panelAddr), secret)
+	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flvx/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, version, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 
@@ -1107,6 +1107,15 @@ func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []in
 			continue
 		}
 
+		// If the existing port is outside any entry node's allowed range,
+		// pick a new random port that satisfies all entry nodes.
+		if !h.isPortValidForAllEntryNodes(port, entryNodeIDs) {
+			newPort := h.pickTunnelPort(tunnelID)
+			if newPort > 0 {
+				port = newPort
+			}
+		}
+
 		var entries []forwardPortReplaceEntry
 		if allowInIP {
 			entries = buildForwardPortEntriesWithPreservedInIP(entryNodeIDs, oldPorts, port)
@@ -1118,6 +1127,25 @@ func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []in
 		}
 		_ = h.repo.ReplaceForwardPorts(f.ID, entries)
 	}
+}
+
+func (h *Handler) isPortValidForAllEntryNodes(port int, entryNodeIDs []int64) bool {
+	if port <= 0 {
+		return false
+	}
+	for _, nodeID := range entryNodeIDs {
+		node, err := h.getNodeRecord(nodeID)
+		if err != nil {
+			continue
+		}
+		if validateLocalNodePort(node, port) != nil {
+			return false
+		}
+		if validateRemoteNodePort(node, port) != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func (h *Handler) tunnelDelete(w http.ResponseWriter, r *http.Request) {
