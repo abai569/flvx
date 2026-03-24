@@ -677,10 +677,10 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 			"version":       nullableString(n.Version),
 			"http":          n.HTTP, "tls": n.TLS, "socks": n.Socks,
 			"status": n.Status, "isRemote": n.IsRemote,
-			"remoteUrl":                 nullableString(n.RemoteURL),
-			"remoteToken":               nullableString(n.RemoteToken),
-			"remoteConfig":              nullableString(n.RemoteConfig),
-			"expiryReminderDismissed":   n.ExpiryReminderDismissed,
+			"remoteUrl":               nullableString(n.RemoteURL),
+			"remoteToken":             nullableString(n.RemoteToken),
+			"remoteConfig":            nullableString(n.RemoteConfig),
+			"expiryReminderDismissed": n.ExpiryReminderDismissed,
 		})
 	}
 	return items, nil
@@ -3320,15 +3320,60 @@ func (r *Repository) GetNodeMetrics(nodeID int64, startMs, endMs int64) ([]model
 	if r == nil || r.db == nil {
 		return nil, nil
 	}
+
+	rangeMs := endMs - startMs
+	const maxRawRangeMs = int64(60 * 60 * 1000) // 1 hour — return raw data for short ranges
+	const targetPoints = 500                    // target number of chart points for downsampled data
+
+	// For short ranges, return raw data (full resolution).
+	if rangeMs <= maxRawRangeMs {
+		var metrics []model.NodeMetric
+		err := r.db.Where("node_id = ? AND timestamp >= ? AND timestamp <= ?", nodeID, startMs, endMs).
+			Order("timestamp ASC").
+			Limit(5000).
+			Find(&metrics).Error
+		return metrics, err
+	}
+
+	// For longer ranges, downsample via SQL aggregation to keep the response small and fast.
+	bucketMs := rangeMs / targetPoints
+	if bucketMs < 1000 {
+		bucketMs = 1000 // minimum 1-second buckets
+	}
+
+	bucketExpr := fmt.Sprintf("(timestamp / %d * %d)", bucketMs, bucketMs)
+	groupExpr := fmt.Sprintf("timestamp / %d", bucketMs)
+
 	var metrics []model.NodeMetric
-	err := r.db.Where("node_id = ? AND timestamp >= ? AND timestamp <= ?", nodeID, startMs, endMs).
-		Order("timestamp DESC").
-		Limit(5000).
-		Find(&metrics).Error
-	if len(metrics) > 1 {
-		for i, j := 0, len(metrics)-1; i < j; i, j = i+1, j-1 {
-			metrics[i], metrics[j] = metrics[j], metrics[i]
-		}
+	err := r.db.Model(&model.NodeMetric{}).
+		Select(
+			fmt.Sprintf(
+				"%d AS node_id, "+
+					"CAST(%s AS BIGINT) AS timestamp, "+
+					"AVG(cpu_usage) AS cpu_usage, "+
+					"AVG(mem_usage) AS mem_usage, "+
+					"AVG(disk_usage) AS disk_usage, "+
+					"CAST(AVG(net_in_bytes) AS BIGINT) AS net_in_bytes, "+
+					"CAST(AVG(net_out_bytes) AS BIGINT) AS net_out_bytes, "+
+					"CAST(AVG(net_in_speed) AS BIGINT) AS net_in_speed, "+
+					"CAST(AVG(net_out_speed) AS BIGINT) AS net_out_speed, "+
+					"AVG(load1) AS load1, "+
+					"AVG(load5) AS load5, "+
+					"AVG(load15) AS load15, "+
+					"CAST(AVG(tcp_conns) AS BIGINT) AS tcp_conns, "+
+					"CAST(AVG(udp_conns) AS BIGINT) AS udp_conns, "+
+					"CAST(MAX(uptime) AS BIGINT) AS uptime",
+				nodeID, bucketExpr,
+			),
+		).
+		Where("node_id = ? AND timestamp >= ? AND timestamp <= ?", nodeID, startMs, endMs).
+		Group(groupExpr).
+		Order("timestamp ASC").
+		Limit(targetPoints + 100). // safety margin
+		Scan(&metrics).Error
+
+	if metrics == nil {
+		metrics = make([]model.NodeMetric, 0)
 	}
 	return metrics, err
 }
@@ -3422,10 +3467,10 @@ func (r *Repository) UpsertTunnelMetricBuckets(metrics []*model.TunnelMetric) er
 	return r.db.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "tunnel_id"}, {Name: "node_id"}, {Name: "timestamp"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"bytes_in":    gorm.Expr("bytes_in + excluded.bytes_in"),
-			"bytes_out":   gorm.Expr("bytes_out + excluded.bytes_out"),
-			"connections": gorm.Expr("connections + excluded.connections"),
-			"errors":      gorm.Expr("errors + excluded.errors"),
+			"bytes_in":    gorm.Expr("tunnel_metric.bytes_in + excluded.bytes_in"),
+			"bytes_out":   gorm.Expr("tunnel_metric.bytes_out + excluded.bytes_out"),
+			"connections": gorm.Expr("tunnel_metric.connections + excluded.connections"),
+			"errors":      gorm.Expr("tunnel_metric.errors + excluded.errors"),
 			// avg_latency_ms is not additive; keep the existing bucket value.
 		}),
 	}).CreateInBatches(rows, 100).Error
