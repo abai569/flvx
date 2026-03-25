@@ -3805,6 +3805,7 @@ export default function ForwardPage() {
                   >
                     <Table
                       aria-label="全部规则列表"
+                      className={FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}
                       classNames={{
                         th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
                         td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
@@ -3829,8 +3830,8 @@ export default function ForwardPage() {
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] pl-4 text-left" align="left" >操作</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left" align="left" >操作</TableColumn>
                       </TableHeader>
                       <TableBody
                         emptyContent="暂无规则配置"
@@ -4009,7 +4010,7 @@ export default function ForwardPage() {
                                   return (
                                     <Table
                                       aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
-                                      className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
+                                      className={FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}
                                       classNames={{
                                         th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
                                         td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
@@ -4024,15 +4025,15 @@ export default function ForwardPage() {
                                           </div>
                                         </TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">规则名</TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[220px] text-left">规则名</TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">速度限制</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">入口地址</TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">入口地址</TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">落地地址</TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] pl-4 text-left" align="left" >操作</TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">用量</TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left" align="left" >操作</TableColumn>
                                       </TableHeader>
                                       <TableBody emptyContent="暂无规则配置" items={tunnel.items}>
                                         {(forward) => (
