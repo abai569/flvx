@@ -199,6 +199,13 @@ func autoMigrateAll(db *gorm.DB) error {
 		return db.AutoMigrate(models...)
 	}
 
+	// 手动迁移：为 user 表添加 name 字段（备注）
+	if !db.Migrator().HasColumn(&model.User{}, "name") {
+		if err := db.Migrator().AddColumn(&model.User{}, "name"); err != nil {
+			return fmt.Errorf("add user.name column: %w", err)
+		}
+	}
+
 	m := db.Migrator()
 	hasNode := m.HasTable(&model.Node{})
 	hasTunnel := m.HasTable(&model.Tunnel{})

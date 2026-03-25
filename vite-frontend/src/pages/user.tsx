@@ -37,7 +37,7 @@ import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import {
   User,
-  UserForm,
+
   UserGroup,
   UserTunnel,
   TunnelAssignItem,
@@ -214,8 +214,22 @@ export default function UserPage() {
     onClose: onUserModalClose,
   } = useDisclosure();
   const [isEdit, setIsEdit] = useState(false);
-  const [userForm, setUserForm] = useState<UserForm>({
+  const [userForm, setUserForm] = useState<{
+    id?: number;
+    user: string;
+    name: string;
+    pwd: string;
+    status: number;
+    flow: number;
+    dailyQuotaGB: number;
+    monthlyQuotaGB: number;
+    num: number;
+    expTime: Date | null;
+    flowResetTime: number;
+    groupIds: number[];
+  }>({
     user: "",
+    name: "",
     pwd: "",
     status: 1,
     flow: 1000,
@@ -224,6 +238,7 @@ export default function UserPage() {
     num: 10,
     expTime: null,
     flowResetTime: 0,
+    groupIds: [],
   });
   const [userFormLoading, setUserFormLoading] = useState(false);
   const [quotaResetLoading, setQuotaResetLoading] = useState(false);
@@ -565,7 +580,7 @@ export default function UserPage() {
 
     setUserForm({
       id: user.id,
-      name: user.name,
+      name: user.name || "",
       user: user.user,
       pwd: "",
       status: user.status,
