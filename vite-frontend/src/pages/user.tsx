@@ -536,6 +536,7 @@ export default function UserPage() {
   const handleAdd = () => {
     setIsEdit(false);
     setUserForm({
+      name: "",
       user: "",
       pwd: "",
       status: 1,
@@ -1370,6 +1371,15 @@ export default function UserPage() {
                 value={userForm.pwd}
                 onChange={(e) =>
                   setUserForm((prev) => ({ ...prev, pwd: e.target.value }))
+                }
+              />
+              {/* 👇 加上这段代码，新增备注输入框 */}
+              <Input
+                label="备注名称"
+                placeholder="选填 (例如：张三、朋友A)"
+                value={userForm.name || ""}
+                onChange={(e) =>
+                  setUserForm((prev) => ({ ...prev, name: e.target.value }))
                 }
               />
               <Input

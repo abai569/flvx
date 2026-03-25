@@ -58,11 +58,7 @@ import {
   batchRedeployTunnels,
   previewBatchTunnelDelete,
   previewTunnelDelete,
-  getTunnelListList,
-  createTunnelList,
-  updateTunnelList,
 } from "@/api";
-import type { TunnelListApiItem } from "@/api/types";
 import { PageLoadingState } from "@/components/page-state";
 import {
   buildDiagnosisFallbackResult,
@@ -296,12 +292,6 @@ export default function TunnelPage() {
     return (stored === "list" || stored === "card") ? stored : "card";
   });
 
-  // 隧道分组状态
-  const [tunnelLists, setTunnelLists] = useState<TunnelListApiItem[]>([]);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
-  const [listModalOpen, setListModalOpen] = useState(false);
-  const [editingList, setEditingList] = useState<TunnelListApiItem | null>(null);
-
   // 列表模式选中行
   const [selectedTunnelIds, setSelectedTunnelIds] = useState<Set<number>>(new Set());
 
@@ -393,29 +383,17 @@ export default function TunnelPage() {
     } catch {}
   }, []);
 
-  // 加载隧道分组
-  const loadTunnelLists = useCallback(async () => {
-    const res = await getTunnelListList();
-    if (res.code === 0) {
-      setTunnelLists(res.data);
-    }
-  }, []);
-
   // 加载所有数据
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        refreshTunnelList(false),
-        refreshNodes(),
-        loadTunnelLists(),
-      ]);
+      await Promise.all([refreshTunnelList(false), refreshNodes()]);
     } catch {
       toast.error("加载数据失败");
     } finally {
       setLoading(false);
     }
-  }, [refreshNodes, refreshTunnelList, loadTunnelLists]);
+  }, [refreshNodes, refreshTunnelList]);
 
   useEffect(() => {
     loadData();
@@ -1316,43 +1294,6 @@ export default function TunnelPage() {
     return sortedByDb;
   }, [tunnels, tunnelOrder, searchKeyword]);
 
-  // 按分组归类隧道
-  const groupedTunnels = useMemo(() => {
-    const result: Array<{
-      listId: number | null;
-      listName: string;
-      tunnels: Tunnel[];
-      inx: number;
-    }> = [];
-
-    // 已分组的隧道
-    tunnelLists.forEach(list => {
-      const tunnelsInList = sortedTunnels.filter(t =>
-        list.tunnelIds.includes(t.id)
-      );
-      result.push({
-        listId: list.id,
-        listName: list.name,
-        tunnels: tunnelsInList,
-        inx: list.inx,
-      });
-    });
-
-    // 未分组的隧道
-    const ungroupedTunnels = sortedTunnels.filter(t =>
-      !tunnelLists.some(l => l.tunnelIds.includes(t.id))
-    );
-    result.push({
-      listId: null,
-      listName: '未分组',
-      tunnels: ungroupedTunnels,
-      inx: 9999,
-    });
-
-    // 按 inx 排序
-    return result.sort((a, b) => a.inx - b.inx);
-  }, [sortedTunnels, tunnelLists]);
-
   const sortableTunnelIds = useMemo(
     () => sortedTunnels.map((t) => t.id),
     [sortedTunnels],
@@ -1552,53 +1493,6 @@ export default function TunnelPage() {
     );
   };
 
-  // 分组头部组件
-  const GroupHeader = ({
-    group,
-    tunnelCount,
-    isCollapsed,
-    onToggleCollapse,
-    onEdit,
-    onDelete,
-  }: {
-    group: { id: number | null; name: string };
-    tunnelCount: number;
-    isCollapsed: boolean;
-    onToggleCollapse: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
-  }) => {
-    return (
-      <div className="flex items-center justify-between p-3 bg-default-100/50 rounded-lg mb-3">
-        <div
-          className="flex items-center gap-2 cursor-pointer flex-1"
-          onClick={onToggleCollapse}
-        >
-          <span className="text-lg text-default-500">
-            {isCollapsed ? "▶" : "▼"}
-          </span>
-          <span className="font-semibold text-foreground">
-            {group.name}
-          </span>
-          <span className="text-sm text-default-500">
-            ({tunnelCount}条隧道)
-          </span>
-        </div>
-
-        {group.id !== null && (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="flat" onPress={onEdit}>
-              编辑
-            </Button>
-            <Button size="sm" color="danger" variant="flat" onPress={onDelete}>
-              删除
-            </Button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   if (loading) {
     return <PageLoadingState message="正在加载..." />;
   }
@@ -1683,17 +1577,6 @@ export default function TunnelPage() {
                 onPress={handleAdd}
               >
                 新增
-              </Button>
-              <Button
-                color="secondary"
-                size="sm"
-                variant="flat"
-                onPress={() => {
-                  setEditingList(null);
-                  setListModalOpen(true);
-                }}
-              >
-                管理分组
               </Button>
             </>
           )}
@@ -4000,85 +3883,6 @@ export default function TunnelPage() {
                   onPress={handleBatchDelete}
                 >
                   {batchLoading ? "删除中..." : batchDeleteConfirmLabel}
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-
-      {/* 分组管理弹窗 */}
-      <Modal
-        isOpen={listModalOpen}
-        onOpenChange={setListModalOpen}
-        size="md"
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>
-                {editingList ? "编辑分组" : "创建分组"}
-              </ModalHeader>
-              <ModalBody>
-                <Input
-                  label="分组名称"
-                  value={editingList?.name || ""}
-                  placeholder="输入分组名称"
-                  onChange={(e) => {
-                    if (editingList) {
-                      setEditingList({ ...editingList, name: e.target.value });
-                    } else {
-                      setEditingList({
-                        id: 0,
-                        name: e.target.value,
-                        inx: 0,
-                        status: 1,
-                        tunnelIds: [],
-                        tunnelNames: [],
-                        createdTime: 0,
-                      } as TunnelListApiItem);
-                    }
-                  }}
-                />
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="primary"
-                  onPress={async () => {
-                    const name = editingList?.name?.trim();
-                    if (!name) {
-                      toast.error("请输入分组名称");
-                      return;
-                    }
-
-                    let res: any;
-                    if (editingList && editingList.id > 0) {
-                      res = await updateTunnelList({
-                        id: editingList.id,
-                        name,
-                        status: editingList.status,
-                        inx: editingList.inx,
-                      });
-                    } else {
-                      res = await createTunnelList({
-                        name,
-                        status: 1,
-                      });
-                    }
-
-                    if (res.code === 0) {
-                      toast.success(editingList ? "更新成功" : "创建成功");
-                      loadTunnelLists();
-                      onClose();
-                    } else {
-                      toast.error(res.msg || "操作失败");
-                    }
-                  }}
-                >
-                  保存
                 </Button>
               </ModalFooter>
             </>

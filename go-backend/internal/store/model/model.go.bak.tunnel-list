@@ -731,26 +731,3 @@ type TunnelQuality struct {
 }
 
 func (TunnelQuality) TableName() string { return "tunnel_quality" }
-
-// TunnelList maps to the "tunnel_list" table for tunnel grouping (display only, independent from tunnel_group).
-type TunnelList struct {
-	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name        string `gorm:"type:varchar(100);not null;uniqueIndex:idx_tunnel_list_name" json:"name"`
-	Inx         int    `gorm:"column:inx;default:0" json:"inx"`
-	CreatedTime int64  `gorm:"column:created_time;not null" json:"createdTime"`
-	UpdatedTime int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
-	Status      int    `gorm:"not null;default:1" json:"status"`
-}
-
-func (TunnelList) TableName() string { return "tunnel_list" }
-
-// TunnelListTunnel maps to the "tunnel_list_tunnel" junction table.
-type TunnelListTunnel struct {
-	ID           int64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	TunnelListID int64 `gorm:"column:tunnel_list_id;not null;uniqueIndex:idx_tunnel_list_tunnel_unique" json:"tunnelListId"`
-	TunnelID     int64 `gorm:"column:tunnel_id;not null;uniqueIndex:idx_tunnel_list_tunnel_unique" json:"tunnelId"`
-	Inx          int   `gorm:"column:inx;default:0" json:"inx"`
-	CreatedTime  int64 `gorm:"column:created_time;not null" json:"createdTime"`
-}
-
-func (TunnelListTunnel) TableName() string { return "tunnel_list_tunnel" }

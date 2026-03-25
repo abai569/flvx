@@ -134,27 +134,6 @@ export interface TunnelGroupApiItem {
   [key: string]: unknown;
 }
 
-// Tunnel List Grouping (display only, independent from tunnel_group)
-export interface TunnelListApiItem {
-  id: number;
-  name: string;
-  inx: number;
-  status: number;
-  tunnelIds: number[];
-  tunnelNames: string[];
-  createdTime: number;
-}
-
-export interface TunnelListOrderPayload {
-  id: number;
-  inx: number;
-}
-
-export interface TunnelListTunnelOrderPayload {
-  tunnelId: number;
-  inx: number;
-}
-
 export interface UserGroupApiItem {
   id: number;
   name: string;
