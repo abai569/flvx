@@ -71,7 +71,7 @@ func (r *Repository) GetUserRoleID(userID int64) (int, error) {
 	return user.RoleID, nil
 }
 
-func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
+func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash, name string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -90,7 +90,7 @@ func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, 
 		}).Error
 }
 
-func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
+func (r *Repository) UpdateUserWithoutPassword(id int64, username, name string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}

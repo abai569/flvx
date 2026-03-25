@@ -168,7 +168,7 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// 在参数里增加了 name
-		if err := h.repo.UpdateUserWithPassword(id, username, name, security.MD5(pwd), flow, num, expTime, flowResetTime, status, now); err != nil {
+		if err := h.repo.UpdateUserWithPassword(id, username, security.MD5(pwd), name, flow, num, expTime, flowResetTime, status, now); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}

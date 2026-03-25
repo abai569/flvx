@@ -14,6 +14,7 @@ type User struct {
 	User          string        `gorm:"column:user;type:varchar(100);not null"`
 	Pwd           string        `gorm:"type:varchar(100);not null"`
 	RoleID        int           `gorm:"column:role_id;not null"`
+	Name          string        `gorm:"column:name;type:varchar(100);default:''"` // 用户备注
 	ExpTime       int64         `gorm:"column:exp_time;not null"`
 	Flow          int64         `gorm:"not null"`
 	InFlow        int64         `gorm:"column:in_flow;not null;default:0"`
