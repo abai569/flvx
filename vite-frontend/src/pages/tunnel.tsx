@@ -297,8 +297,8 @@ export default function TunnelPage() {
   });
 
   // 隧道分组状态
-  const [tunnelLists, setTunnelLists] = useState<TunnelListApiItem[]>([]);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
+  // const [tunnelLists, setTunnelLists] = useState<TunnelListApiItem[]>([]);
+  // const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
   const [listModalOpen, setListModalOpen] = useState(false);
   const [editingList, setEditingList] = useState<TunnelListApiItem | null>(null);
 
@@ -397,7 +397,7 @@ export default function TunnelPage() {
   const loadTunnelLists = useCallback(async () => {
     const res = await getTunnelListList();
     if (res.code === 0) {
-      setTunnelLists(res.data);
+    //       setTunnelLists(res.data);
     }
   }, []);
 
@@ -1317,42 +1317,43 @@ export default function TunnelPage() {
   }, [tunnels, tunnelOrder, searchKeyword]);
 
   // 按分组归类隧道
-  const groupedTunnels = useMemo(() => {
-    const result: Array<{
-      listId: number | null;
-      listName: string;
-      tunnels: Tunnel[];
-      inx: number;
-    }> = [];
-
-    // 已分组的隧道
-    tunnelLists.forEach(list => {
-      const tunnelsInList = sortedTunnels.filter(t =>
-        list.tunnelIds.includes(t.id)
-      );
-      result.push({
-        listId: list.id,
-        listName: list.name,
-        tunnels: tunnelsInList,
-        inx: list.inx,
-      });
-    });
-
-    // 未分组的隧道
-    const ungroupedTunnels = sortedTunnels.filter(t =>
-      !tunnelLists.some(l => l.tunnelIds.includes(t.id))
-    );
-    result.push({
-      listId: null,
-      listName: '未分组',
-      tunnels: ungroupedTunnels,
-      inx: 9999,
-    });
-
-    // 按 inx 排序
-    return result.sort((a, b) => a.inx - b.inx);
-  }, [sortedTunnels, tunnelLists]);
-
+  //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  //   // const groupedTunnels = useMemo(() => {
+  //     const result: Array<{
+  //       listId: number | null;
+  //       listName: string;
+  //       tunnels: Tunnel[];
+  //       inx: number;
+  //     }> = [];
+  // 
+  //     // 已分组的隧道
+  //     tunnelLists.forEach(list => {
+  //       const tunnelsInList = sortedTunnels.filter(t =>
+  //         list.tunnelIds.includes(t.id)
+  //       );
+  //       result.push({
+  //         listId: list.id,
+  //         listName: list.name,
+  //         tunnels: tunnelsInList,
+  //         inx: list.inx,
+  //       });
+  //     });
+  // 
+  //     // 未分组的隧道
+  //     const ungroupedTunnels = sortedTunnels.filter(t =>
+  //       !tunnelLists.some(l => l.tunnelIds.includes(t.id))
+  //     );
+  //     result.push({
+  //       listId: null,
+  //       listName: '未分组',
+  //       tunnels: ungroupedTunnels,
+  //       inx: 9999,
+  //     });
+  // 
+  //     // 按 inx 排序
+  //     return result.sort((a, b) => a.inx - b.inx);
+  //   }, [sortedTunnels, tunnelLists]);
+  // 
   const sortableTunnelIds = useMemo(
     () => sortedTunnels.map((t) => t.id),
     [sortedTunnels],
@@ -1553,51 +1554,52 @@ export default function TunnelPage() {
   };
 
   // 分组头部组件
-  const GroupHeader = ({
-    group,
-    tunnelCount,
-    isCollapsed,
-    onToggleCollapse,
-    onEdit,
-    onDelete,
-  }: {
-    group: { id: number | null; name: string };
-    tunnelCount: number;
-    isCollapsed: boolean;
-    onToggleCollapse: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
-  }) => {
-    return (
-      <div className="flex items-center justify-between p-3 bg-default-100/50 rounded-lg mb-3">
-        <div
-          className="flex items-center gap-2 cursor-pointer flex-1"
-          onClick={onToggleCollapse}
-        >
-          <span className="text-lg text-default-500">
-            {isCollapsed ? "▶" : "▼"}
-          </span>
-          <span className="font-semibold text-foreground">
-            {group.name}
-          </span>
-          <span className="text-sm text-default-500">
-            ({tunnelCount}条隧道)
-          </span>
-        </div>
-
-        {group.id !== null && (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="flat" onPress={onEdit}>
-              编辑
-            </Button>
-            <Button size="sm" color="danger" variant="flat" onPress={onDelete}>
-              删除
-            </Button>
-          </div>
-        )}
-      </div>
-    );
-  };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // const GroupHeader = ({
+  //     group,
+  //     tunnelCount,
+  //     isCollapsed,
+  //     onToggleCollapse,
+  //     onEdit,
+  //     onDelete,
+  //   }: {
+  //     group: { id: number | null; name: string };
+  //     tunnelCount: number;
+  //     isCollapsed: boolean;
+  //     onToggleCollapse: () => void;
+  //     onEdit: () => void;
+  //     onDelete: () => void;
+  //   }) => {
+  //     return (
+  //       <div className="flex items-center justify-between p-3 bg-default-100/50 rounded-lg mb-3">
+  //         <div
+  //           className="flex items-center gap-2 cursor-pointer flex-1"
+  //           onClick={onToggleCollapse}
+  //         >
+  //           <span className="text-lg text-default-500">
+  //             {isCollapsed ? "▶" : "▼"}
+  //           </span>
+  //           <span className="font-semibold text-foreground">
+  //             {group.name}
+  //           </span>
+  //           <span className="text-sm text-default-500">
+  //             ({tunnelCount}条隧道)
+  //           </span>
+  //         </div>
+  // 
+  //         {group.id !== null && (
+  //           <div className="flex items-center gap-2">
+  //             <Button size="sm" variant="flat" onPress={onEdit}>
+  //               编辑
+  //             </Button>
+  //             <Button size="sm" color="danger" variant="flat" onPress={onDelete}>
+  //               删除
+  //             </Button>
+  //           </div>
+  //         )}
+  //       </div>
+  //     );
+  // };
 
   if (loading) {
     return <PageLoadingState message="正在加载..." />;
