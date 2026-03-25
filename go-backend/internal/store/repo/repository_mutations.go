@@ -79,6 +79,7 @@ func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, 
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"user":            username,
+			"name":            name,
 			"pwd":             pwdHash,
 			"flow":            flow,
 			"num":             num,
@@ -97,6 +98,7 @@ func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow i
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"user":            username,
+			"name":            name,
 			"flow":            flow,
 			"num":             num,
 			"exp_time":        expTime,
@@ -1552,4 +1554,142 @@ func advanceByMonths(timestamp int64, months int) int64 {
 	t := time.Unix(timestamp/1000, 0)
 	next := t.AddDate(0, months, 0)
 	return next.UnixMilli()
+}
+
+// ─── Tunnel List Grouping ────────────────────────────────────────────
+
+// ListTunnelLists returns all tunnel lists ordered by inx.
+func (r *Repository) ListTunnelLists() ([]model.TunnelList, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var lists []model.TunnelList
+	err := r.db.Order("inx ASC, id ASC").Find(&lists).Error
+	return lists, err
+}
+
+// CreateTunnelList creates a new tunnel list.
+func (r *Repository) CreateTunnelList(name string, status int, inx int) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("repository not initialized")
+	}
+	now := time.Now().UnixMilli()
+	list := model.TunnelList{
+		Name:        name,
+		Status:      status,
+		Inx:         inx,
+		CreatedTime: now,
+		UpdatedTime: now,
+	}
+	if err := r.db.Create(&list).Error; err != nil {
+		return 0, err
+	}
+	return list.ID, nil
+}
+
+// UpdateTunnelList updates an existing tunnel list.
+func (r *Repository) UpdateTunnelList(id int64, name string, status int, inx int) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	now := time.Now().UnixMilli()
+	return r.db.Model(&model.TunnelList{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"name":         name,
+		"status":       status,
+		"inx":          inx,
+		"updated_time": now,
+	}).Error
+}
+
+// DeleteTunnelList deletes a tunnel list and its associations (cascade).
+func (r *Repository) DeleteTunnelList(id int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Delete associations first (cascade should handle this, but be explicit)
+		if err := tx.Where("tunnel_list_id = ?", id).Delete(&model.TunnelListTunnel{}).Error; err != nil {
+			return err
+		}
+		// Delete the list
+		return tx.Where("id = ?", id).Delete(&model.TunnelList{}).Error
+	})
+}
+
+// ReplaceTunnelListMembersTx replaces all tunnels in a list (delete + insert).
+func (r *Repository) ReplaceTunnelListMembersTx(tx *gorm.DB, listID int64, tunnelIDs []int64, now int64) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	// Delete existing associations
+	if err := tx.Where("tunnel_list_id = ?", listID).Delete(&model.TunnelListTunnel{}).Error; err != nil {
+		return err
+	}
+	// Insert new associations
+	if len(tunnelIDs) == 0 {
+		return nil
+	}
+	rows := make([]model.TunnelListTunnel, 0, len(tunnelIDs))
+	for i, tunnelID := range tunnelIDs {
+		if tunnelID <= 0 {
+			continue
+		}
+		rows = append(rows, model.TunnelListTunnel{
+			TunnelListID: listID,
+			TunnelID:     tunnelID,
+			Inx:          i,
+			CreatedTime:  now,
+		})
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error
+}
+
+// UpdateTunnelListOrderTx updates the order of tunnel lists.
+func (r *Repository) UpdateTunnelListOrderTx(tx *gorm.DB, orders []struct {
+	ID  int64 `json:"id"`
+	Inx int   `json:"inx"`
+}) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	for _, order := range orders {
+		if err := tx.Model(&model.TunnelList{}).Where("id = ?", order.ID).Update("inx", order.Inx).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// UpdateTunnelListTunnelOrderTx updates the order of tunnels within a list.
+func (r *Repository) UpdateTunnelListTunnelOrderTx(tx *gorm.DB, listID int64, orders []struct {
+	TunnelID int64 `json:"tunnelId"`
+	Inx      int   `json:"inx"`
+}) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	for _, order := range orders {
+		if err := tx.Model(&model.TunnelListTunnel{}).
+			Where("tunnel_list_id = ? AND tunnel_id = ?", listID, order.TunnelID).
+			Update("inx", order.Inx).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GetTunnelIDsByTunnelList returns all tunnel IDs in a list.
+func (r *Repository) GetTunnelIDsByTunnelList(listID int64) ([]int64, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var tunnelIDs []int64
+	err := r.db.Model(&model.TunnelListTunnel{}).
+		Where("tunnel_list_id = ?", listID).
+		Order("inx ASC, id ASC").
+		Pluck("tunnel_id", &tunnelIDs).Error
+	return tunnelIDs, err
 }

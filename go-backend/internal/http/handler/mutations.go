@@ -157,14 +157,18 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 	_, hasMonthlyQuota := req["monthlyQuotaGB"]
 	now := time.Now().UnixMilli()
 
+	name := asString(req["name"]) // 解析前端传来的备注名称
 	pwd := asString(req["pwd"])
+
 	if strings.TrimSpace(pwd) == "" {
-		if err := h.repo.UpdateUserWithoutPassword(id, username, flow, num, expTime, flowResetTime, status, now); err != nil {
+		// 在参数里增加了 name
+		if err := h.repo.UpdateUserWithoutPassword(id, username, name, flow, num, expTime, flowResetTime, status, now); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
 	} else {
-		if err := h.repo.UpdateUserWithPassword(id, username, security.MD5(pwd), flow, num, expTime, flowResetTime, status, now); err != nil {
+		// 在参数里增加了 name
+		if err := h.repo.UpdateUserWithPassword(id, username, name, security.MD5(pwd), flow, num, expTime, flowResetTime, status, now); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
@@ -4299,4 +4303,224 @@ func parsePortRangeMinMax(input string) (int, int) {
 		}
 	}
 	return minPort, maxPort
+}
+
+// ─── Tunnel List Grouping ────────────────────────────────────────────
+
+func (h *Handler) tunnelListHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	lists, err := h.repo.ListTunnelLists()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	// Build response with tunnel IDs and names
+	type TunnelListItem struct {
+		model.TunnelList
+		TunnelIDs   []int64  `json:"tunnelIds"`
+		TunnelNames []string `json:"tunnelNames"`
+	}
+	items := make([]TunnelListItem, 0, len(lists))
+	for _, list := range lists {
+		tunnelIDs, err := h.repo.GetTunnelIDsByTunnelList(list.ID)
+		if err != nil {
+			continue
+		}
+		tunnelNames := make([]string, 0, len(tunnelIDs))
+		for _, tid := range tunnelIDs {
+			tunnelName, err := h.repo.GetTunnelName(tid)
+			if err != nil {
+				continue
+			}
+			tunnelNames = append(tunnelNames, tunnelName)
+		}
+		items = append(items, TunnelListItem{
+			TunnelList:  list,
+			TunnelIDs:   tunnelIDs,
+			TunnelNames: tunnelNames,
+		})
+	}
+	response.WriteJSON(w, response.OK(items))
+}
+
+func (h *Handler) tunnelListCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		Name   string `json:"name"`
+		Status int    `json:"status"`
+		Inx    int    `json:"inx"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || req.Name == "" {
+		response.WriteJSON(w, response.ErrDefault("分组名称不能为空"))
+		return
+	}
+	if req.Status == 0 {
+		req.Status = 1
+	}
+	id, err := h.repo.CreateTunnelList(req.Name, req.Status, req.Inx)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OK(map[string]interface{}{"id": id}))
+}
+
+func (h *Handler) tunnelListUpdate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		ID     int64  `json:"id"`
+		Name   string `json:"name"`
+		Status int    `json:"status"`
+		Inx    int    `json:"inx"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || req.ID <= 0 || req.Name == "" {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if err := h.repo.UpdateTunnelList(req.ID, req.Name, req.Status, req.Inx); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) tunnelListDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	id := idFromBody(r, w)
+	if id <= 0 {
+		return
+	}
+	if err := h.repo.DeleteTunnelList(id); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) tunnelListAssign(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		ListID    int64   `json:"listId"`
+		TunnelIDs []int64 `json:"tunnelIds"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || req.ListID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	tx := h.repo.BeginTx()
+	if tx.Error != nil {
+		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
+		return
+	}
+	defer func() { tx.Rollback() }()
+	if err := h.repo.ReplaceTunnelListMembersTx(tx, req.ListID, req.TunnelIDs, time.Now().UnixMilli()); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) tunnelListOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		Orders []struct {
+			ID  int64 `json:"id"`
+			Inx int   `json:"inx"`
+		} `json:"orders"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.Orders) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	tx := h.repo.BeginTx()
+	if tx.Error != nil {
+		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
+		return
+	}
+	defer func() { tx.Rollback() }()
+	if err := h.repo.UpdateTunnelListOrderTx(tx, req.Orders); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) tunnelListTunnelOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		ListID int64 `json:"listId"`
+		Orders []struct {
+			TunnelID int64 `json:"tunnelId"`
+			Inx      int   `json:"inx"`
+		} `json:"orders"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || req.ListID <= 0 || len(req.Orders) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	tx := h.repo.BeginTx()
+	if tx.Error != nil {
+		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
+		return
+	}
+	defer func() { tx.Rollback() }()
+	if err := h.repo.UpdateTunnelListTunnelOrderTx(tx, req.ListID, req.Orders); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
 }
