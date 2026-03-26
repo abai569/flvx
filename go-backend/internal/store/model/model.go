@@ -86,6 +86,7 @@ type Node struct {
 	RemoteToken             sql.NullString `gorm:"column:remote_token;type:text"`
 	RemoteConfig            sql.NullString `gorm:"column:remote_config;type:text"`
 	ExpiryReminderDismissed int            `gorm:"column:expiry_reminder_dismissed;not null;default:0"`
+	GroupID                 sql.NullInt64  `gorm:"column:group_id;index:idx_node_group_id"`
 }
 
 func (Node) TableName() string { return "node" }
@@ -756,3 +757,36 @@ type TunnelListTunnel struct {
 }
 
 func (TunnelListTunnel) TableName() string { return "tunnel_list_tunnel" }
+
+// NodeGroup maps to the "node_group" table for node grouping.
+type NodeGroup struct {
+	ID          int64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex:idx_node_group_name" json:"name"`
+	Description sql.NullString `gorm:"column:description;type:text" json:"description"`
+	Color       string         `gorm:"type:varchar(20);default:'#3b82f6'" json:"color"`
+	Inx         int            `gorm:"column:inx;default:0" json:"inx"`
+	CreatedTime int64          `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime sql.NullInt64  `gorm:"column:updated_time" json:"updatedTime"`
+}
+
+func (NodeGroup) TableName() string { return "node_group" }
+
+// NodeTag maps to the "node_tag" table for node tagging.
+type NodeTag struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name        string `gorm:"type:varchar(50);not null;uniqueIndex:idx_node_tag_name" json:"name"`
+	Color       string `gorm:"type:varchar(20);default:'#6b7280'" json:"color"`
+	CreatedTime int64  `gorm:"column:created_time;not null" json:"createdTime"`
+}
+
+func (NodeTag) TableName() string { return "node_tag" }
+
+// NodeTagNode maps to the "node_tag_node" junction table for node-tag many-to-many relationship.
+type NodeTagNode struct {
+	ID        int64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	NodeID    int64 `gorm:"column:node_id;not null;uniqueIndex:idx_node_tag_node_unique" json:"nodeId"`
+	TagID     int64 `gorm:"column:tag_id;not null;uniqueIndex:idx_node_tag_node_unique" json:"tagId"`
+	CreatedAt int64 `gorm:"column:created_at;not null" json:"createdAt"`
+}
+
+func (NodeTagNode) TableName() string { return "node_tag_node" }

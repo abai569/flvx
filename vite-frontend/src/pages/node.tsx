@@ -40,6 +40,9 @@ import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { NodeListView } from "@/pages/node/node-list-view";
+import { NodeGroupManager } from "@/components/node-group-manager";
+import { NodeTagManager } from "@/components/node-tag-manager";
+import { NodeGroupCollapsible } from "@/components/node-group-collapsible";
 import {
   createNode,
   getNodeList,
@@ -54,8 +57,12 @@ import {
   rollbackNode,
   getPeerRemoteUsageList,
   dismissNodeExpiryReminder,
+  getNodeGroupList,
+  getNodeTagList,
+  assignNodeToGroup,
   type ReleaseChannel,
 } from "@/api";
+import type { NodeGroupApiItem, NodeTagApiItem } from "@/api/types";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
 import {
   getConnectionStatusMeta,
@@ -116,6 +123,7 @@ interface Node {
   copyLoading?: boolean;
   upgradeLoading?: boolean;
   rollbackLoading?: boolean;
+  groupId?: number | null;
 }
 
 interface NodeForm {
@@ -138,7 +146,7 @@ interface NodeForm {
 }
 
 type NodeTab = "local" | "remote";
-type NodeViewMode = "grid" | "list";
+type NodeViewMode = "grid" | "list" | "group";
 
 interface RemoteUsageBinding {
   bindingId: number;
@@ -433,6 +441,12 @@ export default function NodePage() {
     Record<number, "left" | "bottom">
   >({});
 
+  // Node group and tag management
+  const [nodeGroups, setNodeGroups] = useState<NodeGroupApiItem[]>([]);
+  const [nodeTags, setNodeTags] = useState<NodeTagApiItem[]>([]);
+  const [groupManagerOpen, setGroupManagerOpen] = useState(false);
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
+
   const updateInfoPopoverPlacement = useCallback(
     (nodeId: number, triggerElement: HTMLElement | null) => {
       if (!triggerElement) {
@@ -494,6 +508,33 @@ export default function NodePage() {
     delayMs: 3000,
     onNodeOffline: handleNodeOffline,
   });
+
+  const loadNodeGroups = useCallback(async () => {
+    try {
+      const res = await getNodeGroupList();
+      if (res.code === 0 && Array.isArray(res.data)) {
+        setNodeGroups(res.data);
+      }
+    } catch (error) {
+      // Silent fail for now
+    }
+  }, []);
+
+  const loadNodeTags = useCallback(async () => {
+    try {
+      const res = await getNodeTagList();
+      if (res.code === 0 && Array.isArray(res.data)) {
+        setNodeTags(res.data);
+      }
+    } catch (error) {
+      // Silent fail for now
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNodeGroups();
+    loadNodeTags();
+  }, [loadNodeGroups, loadNodeTags]);
 
   const loadRemoteUsage = useCallback(async () => {
     try {
@@ -1847,14 +1888,32 @@ export default function NodePage() {
               </>
             ) : (
               <>
-                <Button
-                  color={viewMode === "grid" ? "primary" : "warning"}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-                >
-                  {viewMode === "grid" ? "列表" : "卡片"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    color={viewMode === "grid" ? "primary" : "default"}
+                    size="sm"
+                    variant={viewMode === "grid" ? "solid" : "flat"}
+                    onPress={() => setViewMode("grid")}
+                  >
+                    网格
+                  </Button>
+                  <Button
+                    color={viewMode === "list" ? "primary" : "default"}
+                    size="sm"
+                    variant={viewMode === "list" ? "solid" : "flat"}
+                    onPress={() => setViewMode("list")}
+                  >
+                    列表
+                  </Button>
+                  <Button
+                    color={viewMode === "group" ? "primary" : "default"}
+                    size="sm"
+                    variant={viewMode === "group" ? "solid" : "flat"}
+                    onPress={() => setViewMode("group")}
+                  >
+                    分组
+                  </Button>
+                </div>
                 <Button
                   className="h-8 px-3 text-xs min-w-0 shrink-0"
                   color={
@@ -1889,11 +1948,41 @@ export default function NodePage() {
                 >
                   新增
                 </Button>
+                <Button
+                  color="default"
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setGroupManagerOpen(true)}
+                >
+                  分组管理
+                </Button>
+                <Button
+                  color="default"
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setTagManagerOpen(true)}
+                >
+                  标签管理
+                </Button>
               </>
             )}
           </div>
         </div>
       </div>
+
+      {/* Node Group Manager */}
+      <NodeGroupManager
+        isOpen={groupManagerOpen}
+        onOpenChange={setGroupManagerOpen}
+        onGroupChange={loadNodeGroups}
+      />
+
+      {/* Node Tag Manager */}
+      <NodeTagManager
+        isOpen={tagManagerOpen}
+        onOpenChange={setTagManagerOpen}
+        onTagChange={loadNodeTags}
+      />
 
       {!wsConnected && (
         <Alert
@@ -1933,7 +2022,7 @@ export default function NodePage() {
         />
       ) : (
         <>
-          {viewMode === "grid" ? (
+          {viewMode === "grid" && (
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <SortableContext
                 items={sortableNodeIds}
@@ -2485,7 +2574,9 @@ export default function NodePage() {
                 </div>
               </SortableContext>
             </DndContext>
-          ) : (
+          )}
+
+          {viewMode === "list" && (
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <SortableContext
                 items={sortableNodeIds}
@@ -2508,6 +2599,70 @@ export default function NodePage() {
                 />
               </SortableContext>
             </DndContext>
+          )}
+
+          {viewMode === "group" && (
+            <div className="space-y-4">
+              {/* Ungrouped nodes */}
+              <NodeGroupCollapsible
+                group={null}
+                nodes={displayNodes.filter((n) => !n.groupId || n.groupId === 0)}
+                tags={nodeTags}
+                defaultExpanded={true}
+              >
+                {(node: any) => {
+                  const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
+                  return (
+                    <Card
+                      className={`group relative overflow-hidden shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? '' : expiryMeta.accentClassName}`}
+                      data-node-card="true"
+                    >
+                      <CardBody className="p-4">
+                        <div className="text-sm font-medium truncate">{node.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">{node.ip}</div>
+                      </CardBody>
+                    </Card>
+                  );
+                }}
+              </NodeGroupCollapsible>
+
+              {/* Grouped nodes */}
+              {nodeGroups.map((group) => (
+                <NodeGroupCollapsible
+                  key={group.id}
+                  group={group}
+                  nodes={displayNodes.filter((n) => n.groupId === group.id)}
+                  tags={nodeTags}
+                  defaultExpanded={true}
+                  onEditGroup={() => setGroupManagerOpen(true)}
+                  onDeleteGroup={async () => {
+                    if (confirm(`确定要删除分组"${group.name}"吗？`)) {
+                      try {
+                        await assignNodeToGroup(0, 0);
+                        loadNodeGroups();
+                      } catch (error) {
+                        toast.error("删除分组失败");
+                      }
+                    }
+                  }}
+                >
+                  {(node: any) => {
+                    const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
+                    return (
+                      <Card
+                        className={`group relative overflow-hidden shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? '' : expiryMeta.accentClassName}`}
+                        data-node-card="true"
+                      >
+                        <CardBody className="p-4">
+                          <div className="text-sm font-medium truncate">{node.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">{node.ip}</div>
+                        </CardBody>
+                      </Card>
+                    );
+                  }}
+                </NodeGroupCollapsible>
+              ))}
+            </div>
           )}
         </>
       )}

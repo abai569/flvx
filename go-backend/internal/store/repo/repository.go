@@ -195,6 +195,9 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.TunnelQuality{},
 		&model.TunnelList{},
 		&model.TunnelListTunnel{},
+		&model.NodeGroup{},
+		&model.NodeTag{},
+		&model.NodeTagNode{},
 	}
 
 	if db.Dialector.Name() != "sqlite" {
@@ -661,14 +664,35 @@ func (r *Repository) AddFlow(forwardID, userID int64, userTunnelID int64, inFlow
 
 // ─── List Methods (return map[string]interface{}) ────────────────────
 
-func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
+// ListNodesOptions holds optional filters for ListNodes.
+type ListNodesOptions struct {
+	GroupID *int64 // Filter by group ID (nil = no filter)
+	TagID   *int64 // Filter by tag ID (nil = no filter)
+}
+
+func (r *Repository) ListNodes(opts *ListNodesOptions) ([]map[string]interface{}, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
+
+	query := r.db.Model(&model.Node{})
+
+	// Apply group filter
+	if opts != nil && opts.GroupID != nil {
+		query = query.Where("group_id = ?", *opts.GroupID)
+	}
+
+	// Apply tag filter
+	if opts != nil && opts.TagID != nil {
+		query = query.Joins("JOIN node_tag_node ON node.id = node_tag_node.node_id").
+			Where("node_tag_node.tag_id = ?", *opts.TagID)
+	}
+
 	var nodes []model.Node
-	if err := r.db.Order("inx ASC, id ASC").Find(&nodes).Error; err != nil {
+	if err := query.Order("inx ASC, id ASC").Find(&nodes).Error; err != nil {
 		return nil, err
 	}
+
 	items := make([]map[string]interface{}, 0, len(nodes))
 	for _, n := range nodes {
 		items = append(items, map[string]interface{}{
@@ -690,6 +714,7 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 			"remoteToken":             nullableString(n.RemoteToken),
 			"remoteConfig":            nullableString(n.RemoteConfig),
 			"expiryReminderDismissed": n.ExpiryReminderDismissed,
+			"groupId":                 nullableInt64(n.GroupID),
 		})
 	}
 	return items, nil

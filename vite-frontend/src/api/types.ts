@@ -521,3 +521,36 @@ export interface TunnelQualityApiItem {
   errorMessage?: string;
   timestamp: number;
 }
+
+export interface NodeGroupApiItem {
+  id: number;
+  name: string;
+  description: string;
+  color: string;
+  inx: number;
+  createdTime: number;
+  updatedTime?: number;
+  nodeCount: number;
+}
+
+export interface NodeGroupMutationPayload {
+  id?: number;
+  name: string;
+  description?: string;
+  color?: string;
+  inx?: number;
+}
+
+export interface NodeTagApiItem {
+  id: number;
+  name: string;
+  color: string;
+  createdTime: number;
+  nodeCount: number;
+}
+
+export interface NodeTagMutationPayload {
+  id?: number;
+  name: string;
+  color?: string;
+}

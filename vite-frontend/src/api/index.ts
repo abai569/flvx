@@ -44,6 +44,10 @@ import type {
   MonitorPermissionApiItem,
   MonitorAccessApiData,
   TunnelQualityApiItem,
+  NodeGroupApiItem,
+  NodeGroupMutationPayload,
+  NodeTagApiItem,
+  NodeTagMutationPayload,
 } from "./types";
 
 import axios from "axios";
@@ -540,3 +544,35 @@ export const updateTunnelListOrder = (data: { orders: TunnelListOrderPayload[] }
 
 export const updateTunnelListTunnelOrder = (data: { listId: number; orders: TunnelListTunnelOrderPayload[] }) =>
   Network.post("/tunnel-list/tunnel-order", data);
+
+// ─── Node Group & Tag Management ─────────────────────────────────────
+
+export const getNodeGroupList = () =>
+  Network.post<NodeGroupApiItem[]>("/node-group/list");
+
+export const createNodeGroup = (data: NodeGroupMutationPayload) =>
+  Network.post("/node-group/create", data);
+
+export const updateNodeGroup = (data: NodeGroupMutationPayload) =>
+  Network.post("/node-group/update", data);
+
+export const deleteNodeGroup = (id: number) =>
+  Network.post("/node-group/delete", { id });
+
+export const assignNodeToGroup = (nodeId: number, groupId: number | null) =>
+  Network.post("/node-group/assign", { nodeId, groupId });
+
+export const getNodeTagList = () =>
+  Network.post<NodeTagApiItem[]>("/node-tag/list");
+
+export const createNodeTag = (data: NodeTagMutationPayload) =>
+  Network.post("/node-tag/create", data);
+
+export const updateNodeTag = (data: NodeTagMutationPayload) =>
+  Network.post("/node-tag/update", data);
+
+export const deleteNodeTag = (id: number) =>
+  Network.post("/node-tag/delete", { id });
+
+export const assignTagsToNode = (nodeId: number, tagIds: number[]) =>
+  Network.post("/node-tag/assign", { nodeId, tagIds });

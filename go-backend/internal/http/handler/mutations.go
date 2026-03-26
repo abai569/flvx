@@ -525,7 +525,7 @@ func (h *Handler) nodeCheckStatus(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
-	items, err := h.repo.ListNodes()
+	items, err := h.repo.ListNodes(nil)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return

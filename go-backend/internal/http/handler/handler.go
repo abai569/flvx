@@ -43,7 +43,9 @@ type Handler struct {
 	upgradeMu              sync.Mutex
 	pendingUpgradeRedeploy map[int64]struct{}
 
-	qualityProber *tunnelQualityProber
+	qualityProber    *tunnelQualityProber
+	nodeGroupHandler *NodeGroupHandler
+	nodeTagHandler   *NodeTagHandler
 }
 
 type loginRequest struct {
@@ -115,6 +117,8 @@ func New(repo *repo.Repository, jwtSecret string) *Handler {
 		}
 		h.metrics.RecordNodeMetric(nodeID, metricInfo)
 	})
+	h.nodeGroupHandler = NewNodeGroupHandler(repo)
+	h.nodeTagHandler = NewNodeTagHandler(repo)
 	return h
 }
 
@@ -253,6 +257,18 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/monitor/permission/list", h.monitorPermissionList)
 	mux.HandleFunc("/api/v1/monitor/permission/assign", h.monitorPermissionAssign)
 	mux.HandleFunc("/api/v1/monitor/permission/remove", h.monitorPermissionRemove)
+
+	// Node group and tag management
+	mux.HandleFunc("/api/v1/node-group/list", h.nodeGroupHandler.list)
+	mux.HandleFunc("/api/v1/node-group/create", h.nodeGroupHandler.create)
+	mux.HandleFunc("/api/v1/node-group/update", h.nodeGroupHandler.update)
+	mux.HandleFunc("/api/v1/node-group/delete", h.nodeGroupHandler.delete)
+	mux.HandleFunc("/api/v1/node-group/assign", h.nodeGroupHandler.assign)
+	mux.HandleFunc("/api/v1/node-tag/list", h.nodeTagHandler.list)
+	mux.HandleFunc("/api/v1/node-tag/create", h.nodeTagHandler.create)
+	mux.HandleFunc("/api/v1/node-tag/update", h.nodeTagHandler.update)
+	mux.HandleFunc("/api/v1/node-tag/delete", h.nodeTagHandler.delete)
+	mux.HandleFunc("/api/v1/node-tag/assign", h.nodeTagHandler.assign)
 
 	mux.HandleFunc("/flow/test", h.flowTest)
 	mux.HandleFunc("/flow/config", h.flowConfig)
@@ -427,7 +443,22 @@ func (h *Handler) nodeList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.repo.ListNodes()
+	var req struct {
+		GroupID *int64 `json:"groupId"`
+		TagID   *int64 `json:"tagId"`
+	}
+
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	opts := &repo.ListNodesOptions{
+		GroupID: req.GroupID,
+		TagID:   req.TagID,
+	}
+
+	items, err := h.repo.ListNodes(opts)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
