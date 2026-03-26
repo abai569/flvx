@@ -1699,7 +1699,7 @@ export default function TunnelPage() {
                   setListModalOpen(true);
                 }}
               >
-                管理分组
+                分组
               </Button>
             </>
           )}

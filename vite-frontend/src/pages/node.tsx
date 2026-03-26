@@ -1925,7 +1925,7 @@ export default function NodePage() {
                   variant="flat"
                   onPress={() => setGroupManagerOpen(true)}
                 >
-                  分组管理
+                  分组
                 </Button>
               </>
             )}
