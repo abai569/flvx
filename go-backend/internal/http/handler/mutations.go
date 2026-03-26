@@ -306,6 +306,17 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var groupID interface{}
+	if _, ok := req["groupId"]; ok {
+		if gID, ok := req["groupId"].(float64); ok {
+			if gID > 0 {
+				groupID = int64(gID)
+			} else {
+				groupID = nil
+			}
+		}
+	}
+
 	now := time.Now().UnixMilli()
 	inx := h.repo.NextIndex("node")
 	if err := h.repo.CreateNode(
@@ -320,6 +331,7 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		nullableText(strings.TrimSpace(asString(req["remark"]))),
 		nullableUnixMilli(asInt64(req["expiryTime"], 0)),
 		nullableText(normalizeNodeRenewalCycle(asString(req["renewalCycle"]))),
+		groupID,
 		asInt(req["http"], 0),
 		asInt(req["tls"], 0),
 		asInt(req["socks"], 0),

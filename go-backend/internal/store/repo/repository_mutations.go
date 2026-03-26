@@ -206,7 +206,7 @@ func (r *Repository) GetUserDefaultsForTunnel(userID int64) (flow int64, num int
 	return user.Flow, user.Num, user.ExpTime, user.FlowResetTime, nil
 }
 
-func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version, remark, expiryTime, renewalCycle interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {
+func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -215,6 +215,7 @@ func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serve
 		Remark:        nullStringFromInterface(remark),
 		ExpiryTime:    nullInt64FromInterface(expiryTime),
 		RenewalCycle:  nullStringFromInterface(renewalCycle),
+		GroupID:       nullInt64FromInterface(groupID),
 		Secret:        secret,
 		ServerIP:      serverIP,
 		ServerIPV4:    nullStringFromInterface(serverIPV4),
