@@ -40,7 +40,7 @@ import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { NodeListView } from "@/pages/node/node-list-view";
-import { NodeGroupManager } from "@/components/node-group-manager";
+import { NodeGroupManager } from "./node/node-group-manager";
 import {
   createNode,
   getNodeList,
@@ -344,6 +344,7 @@ export default function NodePage() {
     useLocalStorageState<NodeFilterMode>("node-expiry-filter-mode", "all");
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [filterGroupId, setFilterGroupId] = useState<number | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("");
   const [isEdit, setIsEdit] = useState(false);
@@ -1718,11 +1719,23 @@ export default function NodePage() {
       localSearchKeyword,
     );
 
+    // 1. 先按分组过滤
+    const groupFiltered = filterGroupId
+      ? keywordFiltered.filter((node) => {
+          if (filterGroupId === -1) {
+            // -1 表示"未分组"
+            return !node.groupId || node.groupId === 0;
+          }
+          return node.groupId === filterGroupId;
+        })
+      : keywordFiltered;
+
+    // 2. 再按到期状态过滤
     if (nodeFilterMode === "all") {
-      return keywordFiltered;
+      return groupFiltered;
     }
 
-    return keywordFiltered.filter((node) => {
+    return groupFiltered.filter((node) => {
       const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
 
       switch (nodeFilterMode) {
@@ -1736,7 +1749,7 @@ export default function NodePage() {
           return true;
       }
     });
-  }, [filterNodesByKeyword, localNodes, localSearchKeyword, nodeFilterMode]);
+  }, [filterNodesByKeyword, localNodes, localSearchKeyword, nodeFilterMode, filterGroupId]);
 
   const filteredRemoteNodes = useMemo(
     () => filterNodesByKeyword(remoteNodes, remoteSearchKeyword),
@@ -1757,7 +1770,7 @@ export default function NodePage() {
   const canBatchUpgrade = activeTab === "local";
   const canUseExpiryFilter = activeTab === "local";
   const hasKeywordSearch = currentSearchKeyword.trim().length > 0;
-  const hasActiveFilters = nodeFilterMode !== "all";
+  const hasActiveFilters = nodeFilterMode !== "all" || filterGroupId !== null;
   const isDisplayFiltered =
     hasKeywordSearch || (canUseExpiryFilter && hasActiveFilters);
 
@@ -1897,19 +1910,21 @@ export default function NodePage() {
                 <Button
                   className="h-8 px-3 text-xs min-w-0 shrink-0"
                   color={
-                    canUseExpiryFilter && nodeFilterMode !== "all"
+                    (canUseExpiryFilter && nodeFilterMode !== "all") || filterGroupId
                       ? "secondary"
                       : "danger"
                   }
-                  isDisabled={!canUseExpiryFilter}
+                  isDisabled={!canUseExpiryFilter && !filterGroupId}
                   size="sm"
                   title={
-                    canUseExpiryFilter ? "筛选条件" : "远程节点不支持到期筛选"
+                    canUseExpiryFilter || filterGroupId
+                      ? "筛选条件"
+                      : "远程节点不支持到期筛选"
                   }
                   variant="flat"
                   onPress={() => setIsFilterModalOpen(true)}
                 >
-                  筛选 {canUseExpiryFilter && nodeFilterMode !== "all" && "(1)"}
+                  筛选 {((canUseExpiryFilter && nodeFilterMode !== "all") || filterGroupId) && "(1)"}
                 </Button>
                 <Button
                   color="primary"
@@ -2560,6 +2575,7 @@ export default function NodePage() {
                 strategy={rectSortingStrategy}
               >
                 <NodeListView
+                  nodeGroups={nodeGroups}
                   displayNodes={displayNodes}
                   realtimeNodeMetrics={realtimeNodeMetrics}
                   upgradeProgress={upgradeProgress}
@@ -2595,32 +2611,66 @@ export default function NodePage() {
           <ModalHeader>{dialogTitle}</ModalHeader>
           <ModalBody>
             <div className="space-y-4">
-              <Input
-                errorMessage={errors.name}
-                isInvalid={!!errors.name}
-                label="节点名称"
-                placeholder="请输入节点名称"
-                value={form.name}
-                variant="bordered"
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  errorMessage={errors.name}
+                  isInvalid={!!errors.name}
+                  description=""
+                  label="节点名称"
+                  placeholder="请输入节点名称"
+                  value={form.name}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                />
 
-              <Textarea
-                classNames={{ inputWrapper: "!min-h-[40px] py-1.5", input: "!min-h-[24px]" }}
-                description="可记录供应商、用途、续费说明等补充信息"
-                label="备注"
-                maxRows={3}
-                minRows={1}
-                placeholder="例如: 搬瓦工年付，2026-12 续费，日本中转"
-                value={form.remark}
+                <Textarea
+                  classNames={{ inputWrapper: "!min-h-[20px] py-1.5", input: "!min-h-[20px]" }}
+                  description=""
+                  label="备注"
+                  rows={1}
+                  placeholder="例如: 搬瓦工年付，2026-12 续费，日本中转"
+                  value={form.remark}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, remark: e.target.value }))
+                  }
+                />
+              </div>
+              {/* Node Group Selector */}
+              <Select
+                description="将节点分配到指定分组（可选）"
+                label="分组"
+                placeholder="选择分组"
+                selectedKeys={form.groupId && form.groupId > 0 ? [String(form.groupId)] : []}
                 variant="bordered"
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, remark: e.target.value }))
-                }
-              />
-
+                onSelectionChange={(keys) => {
+                  const selected = Array.from(keys)[0] as string | undefined;
+                  setForm((prev) => ({
+                    ...prev,
+                    groupId: selected ? parseInt(selected) : null,
+                  }));
+                }}
+              >
+                <SelectItem key="none" textValue="未分组">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-gray-300" />
+                    <span>未分组</span>
+                  </div>
+                </SelectItem>
+                {nodeGroups.map((group) => (
+                  <SelectItem key={group.id} textValue={group.name}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: group.color }}
+                      />
+                      <span>{group.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </Select>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
                   description="支持月、季、年三种周期"
@@ -2649,9 +2699,8 @@ export default function NodePage() {
                     年付
                   </SelectItem>
                 </Select>
-
                 <Input
-                  description="填写购买时间或最近一次续费时间"
+                  description="系统会自动按周期同日推算下次续费时间"
                   errorMessage={errors.expiryTime}
                   isInvalid={!!errors.expiryTime}
                   label="续费基准时间"
@@ -2672,89 +2721,45 @@ export default function NodePage() {
                     }))
                   }
                 />
-              </div>
 
-              <Alert
+                {/* <Alert
                 color="primary"
                 description="例如选择月并填写 2026-03-22 系统会自动按每月同日推算下次续费时间"
                 variant="flat"
-              />
+              /> */}
 
-              {/* Node Group Selector */}
-              <div>
-                <label className="block text-sm font-medium mb-1">分组</label>
-                <Select
-                  description="将节点分配到指定分组（可选）"
-                  label="选择分组"
-                  placeholder="选择分组"
-                  selectedKeys={form.groupId && form.groupId > 0 ? [String(form.groupId)] : []}
-                  variant="bordered"
-                  onSelectionChange={(keys) => {
-                    const selected = Array.from(keys)[0] as string | undefined;
-                    setForm((prev) => ({
-                      ...prev,
-                      groupId: selected ? parseInt(selected) : null,
-                    }));
-                  }}
-                >
-                  {nodeGroups.map((group) => (
-                    <SelectItem key={group.id} textValue={group.name}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: group.color }}
-                        />
-                        <span>{group.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                  <SelectItem key="none" textValue="无分组">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-gray-300" />
-                      <span>无分组</span>
-                    </div>
-                  </SelectItem>
-                </Select>
               </div>
 
-              <Input
-                description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
-                errorMessage={errors.serverHost}
-                isInvalid={!!errors.serverHost}
-                label="域名/地址"
-                placeholder="例如：test.example.com"
-                value={form.serverHost}
-                variant="bordered"
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, serverHost: e.target.value }))
-                }
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
+                  errorMessage={errors.serverHost}
+                  isInvalid={!!errors.serverHost}
+                  label="域名/地址"
+                  placeholder="例如：test.example.com"
+                  value={form.serverHost}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, serverHost: e.target.value }))
+                  }
+                />
 
-              <Input
-                description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
-                errorMessage={errors.serverHost}
-                isInvalid={!!errors.serverHost}
-                label="域名/地址"
-                placeholder="例如：test.example.com"
-                value={form.serverHost}
-                variant="bordered"
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, serverHost: e.target.value }))
-                }
-              />
-
-              <Input
-                description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
-                errorMessage={errors.serverHost}
-                isInvalid={!!errors.serverHost}
-                label="域名/地址"
-                placeholder="例如: test.example.com"
-                value={form.serverHost}
-                variant="bordered"
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, serverHost: e.target.value }))
-                }
-              />
+                <Input
+                  classNames={{
+                    input: "font-mono",
+                  }}
+                  description="支持单个端口(80)、多个端口(80,443)或端口范围(10000-65535)，多个可用逗号分隔"
+                  errorMessage={errors.port}
+                  isInvalid={!!errors.port}
+                  label="可用端口"
+                  placeholder="例如: 80,443,10000-65535"
+                  value={form.port}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, port: e.target.value }))
+                  }
+                />
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
@@ -2783,22 +2788,6 @@ export default function NodePage() {
                   }
                 />
               </div>
-
-              <Input
-                classNames={{
-                  input: "font-mono",
-                }}
-                description="支持单个端口(80)、多个端口(80,443)或端口范围(10000-65535)，多个可用逗号分隔"
-                errorMessage={errors.port}
-                isInvalid={!!errors.port}
-                label="可用端口"
-                placeholder="例如: 80,443,10000-65535"
-                value={form.port}
-                variant="bordered"
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, port: e.target.value }))
-                }
-              />
 
               {/* 高级配置 */}
               <Accordion variant="bordered">
@@ -3449,6 +3438,44 @@ export default function NodePage() {
               </ModalHeader>
               <ModalBody>
                 <div className="flex flex-col gap-4 py-2">
+                  {/* 按分组筛选 */}
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-medium">按分组筛选</p>
+                    <Select
+                      aria-label="按分组筛选"
+                      className="w-full"
+                      selectedKeys={filterGroupId ? [String(filterGroupId)] : ["all"]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const selected = Array.from(keys)[0] as string;
+                        setFilterGroupId(selected === "all" ? null : parseInt(selected));
+                      }}
+                    >
+                      <SelectItem key="all">全部分组</SelectItem>
+                      <SelectItem key="ungrouped">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-gray-300" />
+                          <span>未分组</span>
+                        </div>
+                      </SelectItem>
+                      {nodeGroups.map((group) => (
+                        <SelectItem key={group.id} textValue={group.name}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: group.color }}
+                            />
+                            <span>{group.name}</span>
+                            <span className="text-default-400 text-xs ml-auto">
+                              {group.nodeCount}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  </div>
+
+                  {/* 按到期状态筛选 */}
                   <div className="flex flex-col gap-2">
                     <p className="text-sm font-medium">按到期状态筛选</p>
                     <Select
@@ -3466,7 +3493,7 @@ export default function NodePage() {
                     >
                       <SelectItem key="all">全部节点</SelectItem>
                       <SelectItem key="expiringSoon">
-                        7天内续费 ({nodeExpiryStats.expiringSoon})
+                        7 天内续费 ({nodeExpiryStats.expiringSoon})
                       </SelectItem>
                       <SelectItem key="expired">
                         已逾期 ({nodeExpiryStats.expired})
@@ -3482,7 +3509,10 @@ export default function NodePage() {
                 <Button
                   color="default"
                   variant="flat"
-                  onPress={resetNodeFilterMode}
+                  onPress={() => {
+                    resetNodeFilterMode();
+                    setFilterGroupId(null);
+                  }}
                 >
                   重置
                 </Button>
@@ -3509,7 +3539,7 @@ export default function NodePage() {
                 className="cursor-pointer hover:opacity-80"
                 onClick={() => handleAssignNodeToGroup(groupSelectorNode!, null)}
               >
-                无分组
+                未分组
               </Chip>
               {nodeGroups.map((group) => (
                 <Chip

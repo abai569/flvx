@@ -10,6 +10,8 @@ import {
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Textarea } from "@/shadcn-bridge/heroui/input";
+import { Chip } from "@/shadcn-bridge/heroui/chip";
+import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import {
   Table,
   TableBody,
@@ -18,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shadcn-bridge/heroui/table";
+import { Edit, Trash2 } from "lucide-react";
 import {
   getNodeGroupList,
   createNodeGroup,
@@ -115,66 +118,97 @@ export function NodeGroupManager({
 
             {loading ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                <Spinner size="sm" />
               </div>
             ) : groups.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 暂无分组
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableColumn>名称</TableColumn>
-                  <TableColumn>颜色</TableColumn>
-                  <TableColumn>节点数</TableColumn>
-                  <TableColumn>操作</TableColumn>
-                </TableHeader>
-                <TableBody>
-                  {groups.map((group) => (
-                    <TableRow key={group.id}>
-                      <TableCell>
-                        <div className="font-medium">{group.name}</div>
-                        {group.description && (
-                          <div className="text-sm text-gray-500">
-                            {group.description}
+              <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
+                <Table
+                  aria-label="节点分组列表"
+                  classNames={{
+                    th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+                    td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                    tr: "hover:bg-default-50/50 transition-colors",
+                    wrapper: "shadow-none p-0",
+                  }}
+                >
+                  <TableHeader>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">分组名称</TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">颜色</TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">节点数</TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">操作</TableColumn>
+                  </TableHeader>
+                  <TableBody
+                    emptyContent="暂无分组"
+                    items={groups}
+                  >
+                    {(group) => (
+                      <TableRow key={group.id} className="hover:bg-default-50/50 transition-colors">
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: group.color }}
+                            />
+                            <span className="font-bold text-default-700">{group.name}</span>
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-4 h-4 rounded"
-                            style={{ backgroundColor: group.color }}
-                          />
-                          <span className="text-sm text-gray-600">
-                            {group.color}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{group.nodeCount}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
+                          {group.description && (
+                            <div className="text-xs text-default-500 mt-1 truncate max-w-[180px]">
+                              {group.description}
+                            </div>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
+                              style={{ backgroundColor: group.color }}
+                            />
+                            <span className="text-sm text-default-600 font-mono">{group.color}</span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="whitespace-nowrap">
+                          <Chip
                             size="sm"
-                            variant="flat"
-                            onClick={() => handleOpenModal(group)}
+                            variant="flat" // 👇 保留扁平风格
+                            className="bg-purple-500 text-white font-mono font-semibold" // 👈 改为浅紫色背景，深紫色文字
                           >
-                            编辑
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="flat"
-                            color="danger"
-                            onClick={() => handleDelete(group.id)}
-                          >
-                            删除
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                            {group.nodeCount}
+                          </Chip>
+                        </TableCell>
+
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="flat"
+                              className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
+                              onPress={() => handleOpenModal(group)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="flat"
+                              className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
+                              onPress={() => handleDelete(group.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </ModalBody>
           <ModalFooter>
@@ -267,10 +301,11 @@ function GroupEditModal({
                   描述
                 </label>
                 <Textarea
+                  classNames={{ inputWrapper: "!min-h-[20px] py-1.5", input: "!min-h-[20px]" }}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="分组描述（可选）"
-                  rows={2}
+                  rows={1}
                 />
               </div>
 
@@ -283,9 +318,8 @@ function GroupEditModal({
                     <button
                       key={c}
                       type="button"
-                      className={`w-8 h-8 rounded border-2 ${
-                        color === c ? "border-gray-900" : "border-transparent"
-                      }`}
+                      className={`w-8 h-8 rounded border-2 ${color === c ? "border-gray-900" : "border-transparent"
+                        }`}
                       style={{ backgroundColor: c }}
                       onClick={() => setColor(c)}
                     />

@@ -46,6 +46,7 @@ interface Node {
   copyLoading?: boolean;
   upgradeLoading?: boolean;
   rollbackLoading?: boolean;
+  groupId?: number | null;
 }
 
 interface NodeListViewProps {
@@ -69,6 +70,7 @@ interface NodeListViewProps {
   handleEdit: (node: Node) => void;
   handleDelete: (node: Node) => void;
   formatTraffic: (bytes: number) => string;
+  nodeGroups: any[];
 }
 
 function SortableTableRow({
@@ -84,6 +86,7 @@ function SortableTableRow({
   handleEdit,
   handleDelete,
   formatTraffic,
+  nodeGroups,
 }: {
   node: Node;
   realtimeNodeMetrics: Record<number, {
@@ -104,6 +107,7 @@ function SortableTableRow({
   handleEdit: (node: Node) => void;
   handleDelete: (node: Node) => void;
   formatTraffic: (bytes: number) => string;
+  nodeGroups: any[];
 }) {
   const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
     id: node.id,
@@ -150,6 +154,30 @@ function SortableTableRow({
             {node.name}
           </span>
         </div>
+      </TableCell>
+      {/* 👇 分组单元格 👇 */}
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        {node.groupId && node.groupId > 0 ? (
+          (() => {
+            const group = nodeGroups.find((g: any) => g.id == node.groupId);
+            return group ? (
+              <Chip
+                size="sm"
+                variant="flat"
+                style={{
+                  backgroundColor: `${group.color}20`,
+                  color: group.color,
+                }}
+              >
+                {group.name}
+              </Chip>
+            ) : (
+              <Chip size="sm" variant="flat" className="bg-default-100 text-default-500">未分组</Chip>
+            );
+          })()
+        ) : (
+          <Chip size="sm" variant="flat" className="bg-default-100 text-default-500">未分组</Chip>
+        )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         {node.remark?.trim() ? (
@@ -346,6 +374,7 @@ export function NodeListView({
   handleEdit,
   handleDelete,
   formatTraffic,
+  nodeGroups,
 }: NodeListViewProps) {
   const isAllSelected = displayNodes.length > 0 && selectedIds.size === displayNodes.length;
 
@@ -366,7 +395,8 @@ export function NodeListView({
             </div>
           </TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[210px] text-left">节点名称</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[160px] text-left">节点名称</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">分组名</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">备注</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">地址</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>
@@ -380,6 +410,7 @@ export function NodeListView({
             <SortableTableRow
               key={node.id}
               node={node}
+              nodeGroups={nodeGroups}
               realtimeNodeMetrics={realtimeNodeMetrics}
               upgradeProgress={upgradeProgress}
               selectedIds={selectedIds}
