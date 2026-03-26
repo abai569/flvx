@@ -57,7 +57,6 @@ import {
   updateUserTunnel,
   getSpeedLimitList,
   resetUserFlow,
-//  resetUserQuota,
   getUserGroupList,
   getMonitorPermissionList,
   assignMonitorPermission,
@@ -88,16 +87,6 @@ const formatFlow = (value: number, unit: string = "bytes"): string => {
   }
 };
 
-//const formatQuotaLimit = (value?: number): string => {
-//  const limit = Number(value ?? 0);
-//
-//  if (!Number.isFinite(limit) || limit <= 0) {
-//    return "不限";
-//  }
-//
-//  return `${limit} GB`;
-//};
-//
 const formatDate = (timestamp: number): string => {
   return new Date(timestamp).toLocaleString();
 };
@@ -241,8 +230,6 @@ export default function UserPage() {
     groupIds: [],
   });
   const [userFormLoading, setUserFormLoading] = useState(false);
-  // const [quotaResetLoading, setQuotaResetLoading] = useState(false);
-
   const editingUser = useMemo(
     () =>
       userForm.id
@@ -865,29 +852,6 @@ export default function UserPage() {
       setResetFlowLoading(false);
     }
   };
-
-//  // const handleQuotaReset = async (scope: "daily" | "monthly" | "all") => {
-//    const userId = userForm.id;
-//    if (!userId) {
-//      return;
-//    }
-//
-//    setQuotaResetLoading(true);
-//    try {
-//      const response = await resetUserQuota({ userId, scope });
-//
-//      if (response.code === 0) {
-//        toast.success("用户配额已重置");
-//        await loadUsers(searchKeyword);
-//      } else {
-//        toast.error(response.msg || "重置用户配额失败");
-//      }
-//    } catch {
-//      toast.error("重置用户配额失败");
-//    } finally {
-//      setQuotaResetLoading(false);
-//    }
-//  };
 
   // 隧道流量重置相关函数
   const handleResetTunnelFlow = (userTunnel: UserTunnel) => {
