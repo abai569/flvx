@@ -75,8 +75,10 @@ func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash, name st
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
+	// 使用 Select 强制更新所有字段，包括零值
 	return r.db.Model(&model.User{}).
 		Where("id = ?", id).
+		Select("user", "name", "pwd", "flow", "num", "exp_time", "flow_reset_time", "status", "updated_time").
 		Updates(map[string]interface{}{
 			"user":            username,
 			"name":            name,
@@ -94,8 +96,10 @@ func (r *Repository) UpdateUserWithoutPassword(id int64, username, name string, 
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
+	// 使用 Select 强制更新所有字段，包括零值
 	return r.db.Model(&model.User{}).
 		Where("id = ?", id).
+		Select("user", "name", "flow", "num", "exp_time", "flow_reset_time", "status", "updated_time").
 		Updates(map[string]interface{}{
 			"user":            username,
 			"name":            name,
