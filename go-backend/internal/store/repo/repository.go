@@ -193,6 +193,8 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.ServiceMonitor{},
 		&model.ServiceMonitorResult{},
 		&model.TunnelQuality{},
+		&model.TunnelList{},
+		&model.TunnelListTunnel{},
 	}
 
 	if db.Dialector.Name() != "sqlite" {
