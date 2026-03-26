@@ -1998,8 +1998,13 @@ func (h *Handler) forwardPause(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
-	_ = h.repo.UpdateForwardStatus(id, 0, time.Now().UnixMilli())
-	response.WriteJSON(w, response.OKEmpty())
+
+	user, err := h.repo.GetUserByID(id)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, "获取用户信息失败"))
+		return
+	}
+	response.WriteJSON(w, response.OK(user))
 }
 
 func (h *Handler) forwardResume(w http.ResponseWriter, r *http.Request) {
