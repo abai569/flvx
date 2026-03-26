@@ -377,6 +377,16 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UnixMilli()
+	var groupID interface{}
+	if _, ok := req["groupId"]; ok {
+		if gID, ok := req["groupId"].(float64); ok {
+			if gID > 0 {
+				groupID = int64(gID)
+			} else {
+				groupID = nil
+			}
+		}
+	}
 	if err := h.repo.UpdateNode(id,
 		asString(req["name"]),
 		asString(req["serverIp"]),
@@ -388,6 +398,7 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 		nullableText(strings.TrimSpace(asString(req["remark"]))),
 		nullableUnixMilli(asInt64(req["expiryTime"], 0)),
 		nullableText(normalizeNodeRenewalCycle(asString(req["renewalCycle"]))),
+		groupID,
 		newHTTP,
 		newTLS,
 		newSocks,

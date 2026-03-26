@@ -311,6 +311,7 @@ export interface NodeMutationPayload {
   remark?: string;
   expiryTime?: number;
   renewalCycle?: "month" | "quarter" | "year" | "";
+  groupId?: number | null;
   serverIp?: string;
   serverIpV4?: string;
   serverIpV6?: string;

@@ -41,8 +41,6 @@ import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { NodeListView } from "@/pages/node/node-list-view";
 import { NodeGroupManager } from "@/components/node-group-manager";
-import { NodeTagManager } from "@/components/node-tag-manager";
-import { NodeGroupCollapsible } from "@/components/node-group-collapsible";
 import {
   createNode,
   getNodeList,
@@ -58,11 +56,10 @@ import {
   getPeerRemoteUsageList,
   dismissNodeExpiryReminder,
   getNodeGroupList,
-  getNodeTagList,
   assignNodeToGroup,
   type ReleaseChannel,
 } from "@/api";
-import type { NodeGroupApiItem, NodeTagApiItem } from "@/api/types";
+import type { NodeGroupApiItem } from "@/api/types";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
 import {
   getConnectionStatusMeta,
@@ -132,6 +129,7 @@ interface NodeForm {
   remark: string;
   expiryTime: number;
   renewalCycle: NodeRenewalCycle;
+  groupId: number | null;
   serverHost: string;
   serverIpV4: string;
   serverIpV6: string;
@@ -146,7 +144,7 @@ interface NodeForm {
 }
 
 type NodeTab = "local" | "remote";
-type NodeViewMode = "grid" | "list" | "group";
+type NodeViewMode = "grid" | "list";
 
 interface RemoteUsageBinding {
   bindingId: number;
@@ -363,6 +361,7 @@ export default function NodePage() {
     remark: "",
     expiryTime: 0,
     renewalCycle: "",
+    groupId: null,
     serverHost: "",
     serverIpV4: "",
     serverIpV6: "",
@@ -443,9 +442,8 @@ export default function NodePage() {
 
   // Node group and tag management
   const [nodeGroups, setNodeGroups] = useState<NodeGroupApiItem[]>([]);
-  const [nodeTags, setNodeTags] = useState<NodeTagApiItem[]>([]);
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
-  const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [groupSelectorNode, setGroupSelectorNode] = useState<number | null>(null);
 
   const updateInfoPopoverPlacement = useCallback(
     (nodeId: number, triggerElement: HTMLElement | null) => {
@@ -520,21 +518,9 @@ export default function NodePage() {
     }
   }, []);
 
-  const loadNodeTags = useCallback(async () => {
-    try {
-      const res = await getNodeTagList();
-      if (res.code === 0 && Array.isArray(res.data)) {
-        setNodeTags(res.data);
-      }
-    } catch (error) {
-      // Silent fail for now
-    }
-  }, []);
-
   useEffect(() => {
     loadNodeGroups();
-    loadNodeTags();
-  }, [loadNodeGroups, loadNodeTags]);
+  }, [loadNodeGroups]);
 
   const loadRemoteUsage = useCallback(async () => {
     try {
@@ -1007,6 +993,7 @@ export default function NodePage() {
       remark: node.remark || "",
       expiryTime: node.expiryTime || 0,
       renewalCycle: node.renewalCycle || "",
+      groupId: node.groupId || null,
       serverHost: normalizedHost,
       serverIpV4: normalizedV4,
       serverIpV6: normalizedV6,
@@ -1074,8 +1061,27 @@ export default function NodePage() {
         toast.error(res.msg || "操作失败");
       }
     } catch (err) {
-      console.error('Failed to dismiss expiry reminder:', err);
       toast.error("网络错误，请重试");
+    }
+  };
+
+  // Node group and tag handlers
+  const handleOpenGroupSelector = (nodeId: number) => {
+    setGroupSelectorNode(nodeId);
+  };
+
+  const handleAssignNodeToGroup = async (nodeId: number, groupId: number | null) => {
+    try {
+      await assignNodeToGroup(nodeId, groupId);
+      setNodeList((prev) =>
+        prev.map((n) =>
+          n.id === nodeId ? { ...n, groupId } : n,
+        ),
+      );
+      toast.success(groupId ? "分组已更新" : "已移除分组");
+      setGroupSelectorNode(null);
+    } catch (error) {
+      toast.error("操作失败");
     }
   };
 
@@ -1328,6 +1334,7 @@ export default function NodePage() {
         remark: form.remark.trim(),
         expiryTime: form.expiryTime,
         renewalCycle: form.renewalCycle,
+        groupId: form.groupId,
         extraIPs: form.extraIPs,
         serverIp:
           form.serverIpV4?.trim() ||
@@ -1352,6 +1359,7 @@ export default function NodePage() {
                   remark: form.remark.trim(),
                   expiryTime: form.expiryTime,
                   renewalCycle: form.renewalCycle,
+                  groupId: form.groupId,
                   serverIp:
                     form.serverIpV4?.trim() ||
                     form.serverIpV6?.trim() ||
@@ -1393,6 +1401,7 @@ export default function NodePage() {
       remark: "",
       expiryTime: 0,
       renewalCycle: "",
+      groupId: null,
       serverHost: "",
       serverIpV4: "",
       serverIpV6: "",
@@ -1465,17 +1474,6 @@ export default function NodePage() {
     } catch {
       toast.error("保存排序失败，请重试");
     }
-  };
-
-  // 批量操作处理函数
-  const toggleSelectMode = () => {
-    setSelectMode((prev) => {
-      if (prev) {
-        setSelectedIds(new Set());
-      }
-
-      return !prev;
-    });
   };
 
   const toggleSelect = (id: number) => {
@@ -1888,32 +1886,14 @@ export default function NodePage() {
               </>
             ) : (
               <>
-                <div className="flex gap-2">
-                  <Button
-                    color={viewMode === "grid" ? "primary" : "default"}
-                    size="sm"
-                    variant={viewMode === "grid" ? "solid" : "flat"}
-                    onPress={() => setViewMode("grid")}
-                  >
-                    网格
-                  </Button>
-                  <Button
-                    color={viewMode === "list" ? "primary" : "default"}
-                    size="sm"
-                    variant={viewMode === "list" ? "solid" : "flat"}
-                    onPress={() => setViewMode("list")}
-                  >
-                    列表
-                  </Button>
-                  <Button
-                    color={viewMode === "group" ? "primary" : "default"}
-                    size="sm"
-                    variant={viewMode === "group" ? "solid" : "flat"}
-                    onPress={() => setViewMode("group")}
-                  >
-                    分组
-                  </Button>
-                </div>
+                <Button
+                  color={viewMode === "grid" ? "primary" : "warning"}
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                >
+                  {viewMode === "grid" ? "列表" : "卡片"}
+                </Button>
                 <Button
                   className="h-8 px-3 text-xs min-w-0 shrink-0"
                   color={
@@ -1932,15 +1912,6 @@ export default function NodePage() {
                   筛选 {canUseExpiryFilter && nodeFilterMode !== "all" && "(1)"}
                 </Button>
                 <Button
-                  className="bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/45"
-                  color="default"
-                  size="sm"
-                  variant="flat"
-                  onPress={toggleSelectMode}
-                >
-                  批量
-                </Button>
-                <Button
                   color="primary"
                   size="sm"
                   variant="flat"
@@ -1949,20 +1920,12 @@ export default function NodePage() {
                   新增
                 </Button>
                 <Button
-                  color="default"
+                  className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
                   size="sm"
                   variant="flat"
                   onPress={() => setGroupManagerOpen(true)}
                 >
                   分组管理
-                </Button>
-                <Button
-                  color="default"
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setTagManagerOpen(true)}
-                >
-                  标签管理
                 </Button>
               </>
             )}
@@ -1975,13 +1938,6 @@ export default function NodePage() {
         isOpen={groupManagerOpen}
         onOpenChange={setGroupManagerOpen}
         onGroupChange={loadNodeGroups}
-      />
-
-      {/* Node Tag Manager */}
-      <NodeTagManager
-        isOpen={tagManagerOpen}
-        onOpenChange={setTagManagerOpen}
-        onTagChange={loadNodeTags}
       />
 
       {!wsConnected && (
@@ -2086,6 +2042,27 @@ export default function NodePage() {
                                       </svg>
                                     </div>
                                   </div>
+                                  {node.groupId && node.groupId > 0 && (() => {
+                                    const group = nodeGroups.find(g => g.id === node.groupId);
+                                    return group ? (
+                                      <Chip
+                                        size="sm"
+                                        variant="flat"
+                                        style={{
+                                          backgroundColor: `${group.color}20`,
+                                          color: group.color,
+                                        }}
+                                        className="cursor-pointer hover:opacity-80"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenGroupSelector(node.id);
+                                        }}
+                                        title={`分组：${group.name}（点击切换）`}
+                                      >
+                                        {group.name}
+                                      </Chip>
+                                    ) : null;
+                                  })()}
                                   <div className="flex-shrink-0">
                                     {hasInfoTrigger && (
                                       <div className="relative">
@@ -2600,70 +2577,6 @@ export default function NodePage() {
               </SortableContext>
             </DndContext>
           )}
-
-          {viewMode === "group" && (
-            <div className="space-y-4">
-              {/* Ungrouped nodes */}
-              <NodeGroupCollapsible
-                group={null}
-                nodes={displayNodes.filter((n) => !n.groupId || n.groupId === 0)}
-                tags={nodeTags}
-                defaultExpanded={true}
-              >
-                {(node: any) => {
-                  const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
-                  return (
-                    <Card
-                      className={`group relative overflow-hidden shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? '' : expiryMeta.accentClassName}`}
-                      data-node-card="true"
-                    >
-                      <CardBody className="p-4">
-                        <div className="text-sm font-medium truncate">{node.name}</div>
-                        <div className="text-xs text-gray-500 mt-1">{node.ip}</div>
-                      </CardBody>
-                    </Card>
-                  );
-                }}
-              </NodeGroupCollapsible>
-
-              {/* Grouped nodes */}
-              {nodeGroups.map((group) => (
-                <NodeGroupCollapsible
-                  key={group.id}
-                  group={group}
-                  nodes={displayNodes.filter((n) => n.groupId === group.id)}
-                  tags={nodeTags}
-                  defaultExpanded={true}
-                  onEditGroup={() => setGroupManagerOpen(true)}
-                  onDeleteGroup={async () => {
-                    if (confirm(`确定要删除分组"${group.name}"吗？`)) {
-                      try {
-                        await assignNodeToGroup(0, 0);
-                        loadNodeGroups();
-                      } catch (error) {
-                        toast.error("删除分组失败");
-                      }
-                    }
-                  }}
-                >
-                  {(node: any) => {
-                    const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
-                    return (
-                      <Card
-                        className={`group relative overflow-hidden shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? '' : expiryMeta.accentClassName}`}
-                        data-node-card="true"
-                      >
-                        <CardBody className="p-4">
-                          <div className="text-sm font-medium truncate">{node.name}</div>
-                          <div className="text-xs text-gray-500 mt-1">{node.ip}</div>
-                        </CardBody>
-                      </Card>
-                    );
-                  }}
-                </NodeGroupCollapsible>
-              ))}
-            </div>
-          )}
         </>
       )}
       {/* 新增/编辑节点对话框 */}
@@ -2765,6 +2678,69 @@ export default function NodePage() {
                 color="primary"
                 description="例如选择月并填写 2026-03-22 系统会自动按每月同日推算下次续费时间"
                 variant="flat"
+              />
+
+              {/* Node Group Selector */}
+              <div>
+                <label className="block text-sm font-medium mb-1">分组</label>
+                <Select
+                  description="将节点分配到指定分组（可选）"
+                  label="选择分组"
+                  placeholder="选择分组"
+                  selectedKeys={form.groupId && form.groupId > 0 ? [String(form.groupId)] : []}
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as string | undefined;
+                    setForm((prev) => ({
+                      ...prev,
+                      groupId: selected ? parseInt(selected) : null,
+                    }));
+                  }}
+                >
+                  {nodeGroups.map((group) => (
+                    <SelectItem key={group.id} textValue={group.name}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <span>{group.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  <SelectItem key="none" textValue="无分组">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-gray-300" />
+                      <span>无分组</span>
+                    </div>
+                  </SelectItem>
+                </Select>
+              </div>
+
+              <Input
+                description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
+                errorMessage={errors.serverHost}
+                isInvalid={!!errors.serverHost}
+                label="域名/地址"
+                placeholder="例如：test.example.com"
+                value={form.serverHost}
+                variant="bordered"
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, serverHost: e.target.value }))
+                }
+              />
+
+              <Input
+                description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
+                errorMessage={errors.serverHost}
+                isInvalid={!!errors.serverHost}
+                label="域名/地址"
+                placeholder="例如：test.example.com"
+                value={form.serverHost}
+                variant="bordered"
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, serverHost: e.target.value }))
+                }
               />
 
               <Input
@@ -3513,6 +3489,45 @@ export default function NodePage() {
               </ModalFooter>
             </>
           )}
+        </ModalContent>
+      </Modal>
+
+      {/* Group Selector Modal */}
+      <Modal
+        isOpen={groupSelectorNode !== null}
+        onOpenChange={() => setGroupSelectorNode(null)}
+        size="sm"
+      >
+        <ModalContent>
+          <ModalHeader>选择分组</ModalHeader>
+          <ModalBody>
+            <div className="flex flex-wrap gap-2">
+              <Chip
+                key="none"
+                size="sm"
+                variant="flat"
+                className="cursor-pointer hover:opacity-80"
+                onClick={() => handleAssignNodeToGroup(groupSelectorNode!, null)}
+              >
+                无分组
+              </Chip>
+              {nodeGroups.map((group) => (
+                <Chip
+                  key={group.id}
+                  size="sm"
+                  variant="flat"
+                  style={{
+                    backgroundColor: `${group.color}20`,
+                    color: group.color,
+                  }}
+                  className="cursor-pointer hover:opacity-80"
+                  onClick={() => handleAssignNodeToGroup(groupSelectorNode!, group.id)}
+                >
+                  {group.name}
+                </Chip>
+              ))}
+            </div>
+          </ModalBody>
         </ModalContent>
       </Modal>
     </AnimatedPage>
