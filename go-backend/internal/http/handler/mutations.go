@@ -641,6 +641,11 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	if trimmed := strings.TrimSpace(inIP); trimmed != "" {
 		tunnelInIP = sql.NullString{String: trimmed, Valid: true}
 	}
+	listID := asInt64(req["listId"], 0)
+	var tunnelListID sql.NullInt64
+	if listID > 0 {
+		tunnelListID = sql.NullInt64{Int64: listID, Valid: true}
+	}
 	tunnel := model.Tunnel{
 		Name:         name,
 		TrafficRatio: trafficRatio,
@@ -653,6 +658,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		InIP:         tunnelInIP,
 		Inx:          inx,
 		IPPreference: ipPreference,
+		ListID:       tunnelListID,
 	}
 	if err := tx.Create(&tunnel).Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -809,6 +815,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		asInt(req["status"], 1),
 		inIp,
 		ipPreference,
+		asInt64(req["listId"], 0),
 		now,
 	); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))

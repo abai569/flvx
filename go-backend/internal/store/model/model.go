@@ -127,6 +127,7 @@ type Tunnel struct {
 	InIP         sql.NullString `gorm:"column:in_ip;type:text"`
 	Inx          int            `gorm:"not null;default:0"`
 	IPPreference string         `gorm:"column:ip_preference;type:varchar(10);not null;default:''"`
+	ListID       sql.NullInt64  `gorm:"column:list_id;index"` // 所属隧道分组
 }
 
 func (Tunnel) TableName() string { return "tunnel" }

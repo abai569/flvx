@@ -97,18 +97,19 @@ interface Tunnel {
   id: number;
   inx?: number;
   name: string;
-  type: number; // 1: 端口转发, 2: 隧道转发
+  type: number; // 1: 端口转发，2: 隧道转发
   inNodeId: ChainTunnel[]; // 入口节点列表
   outNodeId?: ChainTunnel[]; // 出口节点列表
   chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组
   inIp: string;
   outIp?: string;
   protocol?: string;
-  flow: number; // 1: 单向, 2: 双向
+  flow: number; // 1: 单向，2: 双向
   trafficRatio: number;
   ipPreference?: string;
   status: number;
   createdTime: string;
+  listId?: number | null;
 }
 
 interface Node {
@@ -134,6 +135,7 @@ interface TunnelForm {
   inIp: string; // 入口IP
   ipPreference: string;
   status: number;
+  listId: number | null;
 }
 
 interface BatchProgressState {
@@ -175,6 +177,7 @@ const mapTunnelApiItems = (items: any[]): Tunnel[] => {
     trafficRatio: tunnel.trafficRatio ?? 1,
     status: typeof tunnel.status === "number" ? tunnel.status : 0,
     createdTime: tunnel.createdTime || "",
+    listId: tunnel.listId ?? null,
   }));
 };
 
@@ -297,8 +300,8 @@ export default function TunnelPage() {
   });
 
   // 隧道分组状态
-  // const [tunnelLists, setTunnelLists] = useState<TunnelListApiItem[]>([]);
-  // const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
+  const [tunnelLists, setTunnelLists] = useState<TunnelListApiItem[]>([]);
+  const [_collapsedGroups, _setCollapsedGroups] = useState<Set<number>>(new Set());
   const [listModalOpen, setListModalOpen] = useState(false);
   const [editingList, setEditingList] = useState<TunnelListApiItem | null>(null);
 
@@ -397,7 +400,7 @@ export default function TunnelPage() {
   const loadTunnelLists = useCallback(async () => {
     const res = await getTunnelListList();
     if (res.code === 0) {
-    //       setTunnelLists(res.data);
+      setTunnelLists(res.data);
     }
   }, []);
 
@@ -496,6 +499,7 @@ export default function TunnelPage() {
         : "",
       ipPreference: tunnel.ipPreference || "",
       status: tunnel.status,
+      listId: tunnel.listId || null,
     });
     setErrors({});
     setModalOpen(true);
@@ -2176,6 +2180,27 @@ export default function TunnelPage() {
                       setForm((prev) => ({ ...prev, name: e.target.value }))
                     }
                   />
+
+                  <Select
+                    label="所属分组"
+                    placeholder="选择分组（可选）"
+                    selectedKeys={form.listId ? [form.listId.toString()] : []}
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selectedKey = Array.from(keys)[0] as string;
+                      setForm((prev) => ({
+                        ...prev,
+                        listId: selectedKey ? Number(selectedKey) : null,
+                      }));
+                    }}
+                  >
+                    <SelectItem key="none">不限速</SelectItem>
+                    {tunnelLists.map((list) => (
+                      <SelectItem key={list.id.toString()} textValue={list.name}>
+                        {list.name}
+                      </SelectItem>
+                    ))}
+                  </Select>
 
                   <Select
                     description={isEdit ? "编辑时无法修改隧道类型" : undefined}

@@ -366,9 +366,9 @@ export function NodeListView({
             </div>
           </TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[250px] text-left">节点名称</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">备注</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">地址</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[210px] text-left">节点名称</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">备注</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">地址</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">总流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">上行流量</TableColumn>

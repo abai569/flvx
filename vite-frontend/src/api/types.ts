@@ -53,6 +53,7 @@ export interface TunnelApiItem {
   entryNodeId: number;
   exitNodeId: number;
   inx?: number;
+  listId?: number | null;
   [key: string]: unknown;
 }
 

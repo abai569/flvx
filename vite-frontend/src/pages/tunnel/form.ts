@@ -27,6 +27,7 @@ export const createTunnelFormDefaults = () => {
     inIp: "",
     ipPreference: "",
     status: 1,
+    listId: null as number | null,
   };
 };
 

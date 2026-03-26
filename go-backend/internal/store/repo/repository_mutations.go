@@ -398,22 +398,28 @@ func (r *Repository) UpdateTunnelOrder(tunnelID int64, inx int, now int64) {
 		Updates(map[string]interface{}{"inx": inx, "updated_time": now}).Error
 }
 
-func (r *Repository) UpdateTunnelTx(tx *gorm.DB, tunnelID int64, name string, typeVal int, flow int64, trafficRatio float64, status int, inIP, ipPreference string, now int64) error {
+func (r *Repository) UpdateTunnelTx(tx *gorm.DB, tunnelID int64, name string, typeVal int, flow int64, trafficRatio float64, status int, inIP, ipPreference string, listID int64, now int64) error {
 	if tx == nil {
 		return errors.New("database unavailable")
 	}
+	updates := map[string]interface{}{
+		"name":          name,
+		"type":          typeVal,
+		"flow":          flow,
+		"traffic_ratio": trafficRatio,
+		"status":        status,
+		"in_ip":         nullStringFromInterface(inIP),
+		"ip_preference": ipPreference,
+		"updated_time":  now,
+	}
+	if listID > 0 {
+		updates["list_id"] = listID
+	} else {
+		updates["list_id"] = gorm.Expr("NULL")
+	}
 	return tx.Model(&model.Tunnel{}).
 		Where("id = ?", tunnelID).
-		Updates(map[string]interface{}{
-			"name":          name,
-			"type":          typeVal,
-			"flow":          flow,
-			"traffic_ratio": trafficRatio,
-			"status":        status,
-			"in_ip":         nullStringFromInterface(inIP),
-			"ip_preference": ipPreference,
-			"updated_time":  now,
-		}).Error
+		Updates(updates).Error
 }
 
 func (r *Repository) DeleteChainTunnelsByTunnelTx(tx *gorm.DB, tunnelID int64) error {
