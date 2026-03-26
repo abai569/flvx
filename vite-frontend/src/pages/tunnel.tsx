@@ -46,6 +46,7 @@ import { Alert } from "@/shadcn-bridge/heroui/alert";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Radio, RadioGroup } from "@/shadcn-bridge/heroui/radio";
+import { TunnelGroupManager } from "./tunnel/tunnel-group-manager";
 import {
   createTunnel,
   batchDeleteTunnelsWithForwards,
@@ -59,8 +60,6 @@ import {
   previewBatchTunnelDelete,
   previewTunnelDelete,
   getTunnelListList,
-  createTunnelList,
-  updateTunnelList,
 } from "@/api";
 import type { TunnelListApiItem } from "@/api/types";
 import { PageLoadingState } from "@/components/page-state";
@@ -294,16 +293,11 @@ export default function TunnelPage() {
     useState<BatchResultModalState>(EMPTY_BATCH_RESULT_MODAL_STATE);
 
   // 视图模式状态
-  const [viewMode, setViewMode] = useState<"card" | "list">(() => {
-    const stored = localStorage.getItem(TUNNEL_VIEW_MODE_KEY);
-    return (stored === "list" || stored === "card") ? stored : "card";
-  });
+  const [viewMode, setViewMode] = useLocalStorageState("tunnel-view-mode", "grid");
 
   // 隧道分组状态
   const [tunnelLists, setTunnelLists] = useState<TunnelListApiItem[]>([]);
-  const [_collapsedGroups, _setCollapsedGroups] = useState<Set<number>>(new Set());
-  const [listModalOpen, setListModalOpen] = useState(false);
-  const [editingList, setEditingList] = useState<TunnelListApiItem | null>(null);
+  const [groupManagerOpen, setGroupManagerOpen] = useState(false);
 
   // 列表模式选中行
   const [selectedTunnelIds, setSelectedTunnelIds] = useState<Set<number>>(new Set());
@@ -1691,13 +1685,10 @@ export default function TunnelPage() {
                 新增
               </Button>
               <Button
-                color="secondary"
+                className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
                 size="sm"
                 variant="flat"
-                onPress={() => {
-                  setEditingList(null);
-                  setListModalOpen(true);
-                }}
+                onPress={() => setGroupManagerOpen(true)}
               >
                 分组
               </Button>
@@ -4034,84 +4025,12 @@ export default function TunnelPage() {
         </ModalContent>
       </Modal>
 
-      {/* 分组管理弹窗 */}
-      <Modal
-        isOpen={listModalOpen}
-        onOpenChange={setListModalOpen}
-        size="md"
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>
-                {editingList ? "编辑分组" : "创建分组"}
-              </ModalHeader>
-              <ModalBody>
-                <Input
-                  label="分组名称"
-                  value={editingList?.name || ""}
-                  placeholder="输入分组名称"
-                  onChange={(e) => {
-                    if (editingList) {
-                      setEditingList({ ...editingList, name: e.target.value });
-                    } else {
-                      setEditingList({
-                        id: 0,
-                        name: e.target.value,
-                        inx: 0,
-                        status: 1,
-                        tunnelIds: [],
-                        tunnelNames: [],
-                        createdTime: 0,
-                      } as TunnelListApiItem);
-                    }
-                  }}
-                />
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="primary"
-                  onPress={async () => {
-                    const name = editingList?.name?.trim();
-                    if (!name) {
-                      toast.error("请输入分组名称");
-                      return;
-                    }
-
-                    let res: any;
-                    if (editingList && editingList.id > 0) {
-                      res = await updateTunnelList({
-                        id: editingList.id,
-                        name,
-                        status: editingList.status,
-                        inx: editingList.inx,
-                      });
-                    } else {
-                      res = await createTunnelList({
-                        name,
-                        status: 1,
-                      });
-                    }
-
-                    if (res.code === 0) {
-                      toast.success(editingList ? "更新成功" : "创建成功");
-                      loadTunnelLists();
-                      onClose();
-                    } else {
-                      toast.error(res.msg || "操作失败");
-                    }
-                  }}
-                >
-                  保存
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+      {/* 分组管理组件 */}
+      <TunnelGroupManager
+        isOpen={groupManagerOpen}
+        onOpenChange={setGroupManagerOpen}
+        onGroupChange={loadTunnelLists}
+      />
 
       <BatchActionResultModal
         failures={batchResultModal.failures}

@@ -305,6 +305,15 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 		}
 	}
 
+	if m.HasTable(&model.TunnelGroup{}) {
+		if !m.HasColumn(&model.TunnelGroup{}, "color") {
+			if err := m.AddColumn(&model.TunnelGroup{}, "color"); err != nil {
+				return fmt.Errorf("add tunnel_group.color: %w", err)
+			}
+			db.Exec("UPDATE tunnel_group SET color = '#3b82f6' WHERE color IS NULL OR color = ''")
+		}
+	}
+
 	return nil
 }
 
@@ -1166,9 +1175,10 @@ func (r *Repository) ListTunnelGroups() ([]map[string]interface{}, error) {
 			return nil, err
 		}
 		result = append(result, map[string]interface{}{
-			"id": g.ID, "name": g.Name, "status": g.Status,
+			"id": g.ID, "name": g.Name, "color": g.Color, "status": g.Status,
 			"tunnelIds": ids, "tunnelNames": names,
-			"createdTime": g.CreatedTime,
+			"createdTime": g.CreatedTime, "updatedTime": g.UpdatedTime,
+			"tunnelCount": len(ids),
 		})
 	}
 	return result, nil

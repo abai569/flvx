@@ -206,6 +206,12 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/group/tunnel/update", h.groupTunnelUpdate)
 	mux.HandleFunc("/api/v1/group/tunnel/delete", h.groupTunnelDelete)
 	mux.HandleFunc("/api/v1/group/tunnel/assign", h.groupTunnelAssign)
+	// Tunnel Group Management for Tunnel Page
+	mux.HandleFunc("/api/v1/tunnel-group/list", h.tunnelGroupListForTunnelPage)
+	mux.HandleFunc("/api/v1/tunnel-group/create", h.createTunnelGroupForTunnelPage)
+	mux.HandleFunc("/api/v1/tunnel-group/update", h.updateTunnelGroupForTunnelPage)
+	mux.HandleFunc("/api/v1/tunnel-group/delete", h.deleteTunnelGroupForTunnelPage)
+	mux.HandleFunc("/api/v1/tunnel-group/assign", h.assignTunnelToGroupForTunnelPage)
 	// Tunnel List Grouping (display only, independent from tunnel_group)
 	mux.HandleFunc("/api/v1/tunnel-list/list", h.tunnelListHandler)
 	mux.HandleFunc("/api/v1/tunnel-list/create", h.tunnelListCreate)
@@ -1449,6 +1455,190 @@ func (h *Handler) getAnnouncement(w http.ResponseWriter, r *http.Request) {
 		"content": ann.Content,
 		"enabled": ann.Enabled,
 	}))
+}
+
+// ─── Tunnel Group Management for Tunnel Page ─────────────────────────────
+
+func (h *Handler) tunnelGroupListForTunnelPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	groups, err := h.repo.ListTunnelGroupsComplete()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	// Build response with tunnel count
+	type GroupWithCount struct {
+		ID          int64  `json:"id"`
+		Name        string `json:"name"`
+		Color       string `json:"color"`
+		Description string `json:"description"`
+		Inx         int    `json:"inx"`
+		Status      int    `json:"status"`
+		CreatedTime int64  `json:"createdTime"`
+		UpdatedTime int64  `json:"updatedTime"`
+		TunnelCount int64  `json:"tunnelCount"`
+	}
+
+	result := make([]GroupWithCount, 0, len(groups))
+	for _, g := range groups {
+		count, _ := h.repo.ListTunnelIDsByTunnelGroup(g.ID)
+		result = append(result, GroupWithCount{
+			ID:          g.ID,
+			Name:        g.Name,
+			Color:       g.Color,
+			Description: g.Description,
+			Inx:         g.Inx,
+			Status:      g.Status,
+			CreatedTime: g.CreatedTime,
+			UpdatedTime: g.UpdatedTime,
+			TunnelCount: int64(len(count)),
+		})
+	}
+
+	response.WriteJSON(w, response.OK(result))
+}
+
+func (h *Handler) createTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		Name        string `json:"name"`
+		Color       string `json:"color"`
+		Description string `json:"description"`
+		Inx         int    `json:"inx"`
+		Status      int    `json:"status"`
+	}
+
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	if req.Name == "" {
+		response.WriteJSON(w, response.ErrDefault("分组名称不能为空"))
+		return
+	}
+
+	if req.Color == "" {
+		req.Color = "#3b82f6"
+	}
+
+	now := time.Now().UnixMilli()
+	group, err := h.repo.CreateTunnelGroup(req.Name, req.Color, req.Description, req.Inx, req.Status, now)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OK(group))
+}
+
+func (h *Handler) updateTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		ID          int64  `json:"id"`
+		Name        string `json:"name"`
+		Color       string `json:"color"`
+		Description string `json:"description"`
+		Inx         int    `json:"inx"`
+		Status      int    `json:"status"`
+	}
+
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("分组 ID 无效"))
+		return
+	}
+
+	if req.Name == "" {
+		response.WriteJSON(w, response.ErrDefault("分组名称不能为空"))
+		return
+	}
+
+	if req.Color == "" {
+		req.Color = "#3b82f6"
+	}
+
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpdateTunnelGroup(req.ID, req.Name, req.Color, req.Description, req.Inx, req.Status, now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) deleteTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		ID int64 `json:"id"`
+	}
+
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("分组 ID 无效"))
+		return
+	}
+
+	if err := h.repo.DeleteTunnelGroup(req.ID); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) assignTunnelToGroupForTunnelPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		TunnelId int64   `json:"tunnelId"`
+		GroupIds []int64 `json:"groupIds"`
+	}
+
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	if req.TunnelId <= 0 {
+		response.WriteJSON(w, response.ErrDefault("隧道 ID 无效"))
+		return
+	}
+
+	if err := h.repo.AssignTunnelToGroup(req.TunnelId, req.GroupIds); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
 }
 
 func (h *Handler) updateAnnouncement(w http.ResponseWriter, r *http.Request) {

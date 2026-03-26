@@ -183,6 +183,9 @@ func (UserTunnel) TableName() string { return "user_tunnel" }
 type TunnelGroup struct {
 	ID          int64  `gorm:"primaryKey;autoIncrement"`
 	Name        string `gorm:"type:varchar(100);not null;uniqueIndex:idx_tunnel_group_name"`
+	Color       string `gorm:"type:varchar(20);default:'#3b82f6'"`
+	Description string `gorm:"type:text"`
+	Inx         int    `gorm:"column:inx;default:0"`
 	CreatedTime int64  `gorm:"column:created_time;not null"`
 	UpdatedTime int64  `gorm:"column:updated_time;not null"`
 	Status      int    `gorm:"not null"`

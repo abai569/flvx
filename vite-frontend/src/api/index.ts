@@ -3,8 +3,12 @@ import type {
   ForwardDiagnosisApiData,
   ForwardApiItem,
   GroupPermissionApiItem,
+  NodeGroupApiItem,
+  NodeGroupMutationPayload,
   NodeReleaseApiItem,
   NodeApiItem,
+  NodeTagApiItem,
+  NodeTagMutationPayload,
   SpeedLimitApiItem,
   TunnelBatchDeletePreviewApiData,
   TunnelBatchDeleteWithForwardsApiData,
@@ -12,6 +16,7 @@ import type {
   TunnelDeleteWithForwardsApiData,
   TunnelDiagnosisApiData,
   TunnelGroupApiItem,
+  TunnelGroupMutationPayload,
   TunnelListApiItem,
   TunnelListOrderPayload,
   TunnelListTunnelOrderPayload,
@@ -44,10 +49,6 @@ import type {
   MonitorPermissionApiItem,
   MonitorAccessApiData,
   TunnelQualityApiItem,
-  NodeGroupApiItem,
-  NodeGroupMutationPayload,
-  NodeTagApiItem,
-  NodeTagMutationPayload,
 } from "./types";
 
 import axios from "axios";
@@ -290,7 +291,8 @@ export const batchChangeTunnel = (data: {
   targetTunnelId: number;
 }) => Network.post<BatchOperationResult>("/forward/batch-change-tunnel", data);
 
-// 分组与权限分配接口
+// ─── Group & Permission Management ───────────────────────────────────
+
 export const getTunnelGroupList = () =>
   Network.post<TunnelGroupApiItem[]>("/group/tunnel/list");
 export const createTunnelGroup = (data: { name: string; status?: number }) =>
@@ -544,6 +546,23 @@ export const updateTunnelListOrder = (data: { orders: TunnelListOrderPayload[] }
 
 export const updateTunnelListTunnelOrder = (data: { listId: number; orders: TunnelListTunnelOrderPayload[] }) =>
   Network.post("/tunnel-list/tunnel-order", data);
+
+// ─── Tunnel Group Management (New API for Tunnel Page) ─────────────────
+
+export const getTunnelGroupListNew = () =>
+  Network.post<TunnelGroupApiItem[]>("/tunnel-group/list");
+
+export const createTunnelGroupNew = (data: TunnelGroupMutationPayload) =>
+  Network.post("/tunnel-group/create", data);
+
+export const updateTunnelGroupNew = (data: TunnelGroupMutationPayload) =>
+  Network.post("/tunnel-group/update", data);
+
+export const deleteTunnelGroupNew = (id: number) =>
+  Network.post("/tunnel-group/delete", { id });
+
+export const assignTunnelToGroupNew = (tunnelId: number, groupIds: number[]) =>
+  Network.post("/tunnel-group/assign", { tunnelId, groupIds });
 
 // ─── Node Group & Tag Management ─────────────────────────────────────
 

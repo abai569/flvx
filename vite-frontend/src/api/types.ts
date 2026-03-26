@@ -128,10 +128,25 @@ export interface SpeedLimitApiItem {
 export interface TunnelGroupApiItem {
   id: number;
   name: string;
+  color?: string;
+  description?: string;
+  inx?: number;
   status: number;
   tunnelIds: number[];
   tunnelNames: string[];
   createdTime: number;
+  updatedTime?: number;
+  tunnelCount?: number;
+  [key: string]: unknown;
+}
+
+export interface TunnelGroupMutationPayload {
+  id?: number;
+  name: string;
+  description?: string;
+  color?: string;
+  inx?: number;
+  status?: number;
   [key: string]: unknown;
 }
 
