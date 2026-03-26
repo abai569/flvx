@@ -714,7 +714,7 @@ func (r *Repository) ListUsers() ([]map[string]interface{}, error) {
 	items := make([]map[string]interface{}, 0, len(users))
 	for _, u := range users {
 		item := map[string]interface{}{
-			"id": u.ID, "user": u.User, "name": u.User,
+			"id": u.ID, "user": u.User, "name": u.Name,
 			"roleId": u.RoleID, "status": u.Status,
 			"flow": u.Flow, "num": u.Num, "expTime": u.ExpTime,
 			"flowResetTime": u.FlowResetTime, "createdTime": u.CreatedTime,

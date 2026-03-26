@@ -57,5 +57,28 @@
 
 - [x] 在后端添加调试日志（不需要，直接修复）
 - [x] 使用 GORM Select 强制更新
+- [x] 修复 ListUsers 返回数据错误（根本原因）
 - [ ] 测试更新备注功能
 - [ ] 检查数据库中的实际值
+
+## 根本原因
+
+在 `go-backend/internal/store/repo/repository.go:717` 的 `ListUsers()` 函数中，返回用户列表时错误地将 `u.User`（用户名）赋值给了 `name` 字段，而不是使用 `u.Name`（备注）：
+
+```go
+// 错误的代码
+item := map[string]interface{}{
+    "id": u.ID, "user": u.User, "name": u.User,  // ❌ 应该是 u.Name
+    ...
+}
+```
+
+这导致即使数据库中 `name` 字段被正确更新了，前端获取到的用户列表中 `name` 字段仍然是用户名的值。
+
+## 修复内容
+
+1. **Repository 更新方法** (`repository_mutations.go`):
+   - 在 `UpdateUserWithPassword` 和 `UpdateUserWithoutPassword` 中添加了 `Select()` 明确指定更新字段
+
+2. **用户列表查询** (`repository.go:717`):
+   - 将 `"name": u.User` 改为 `"name": u.Name`
