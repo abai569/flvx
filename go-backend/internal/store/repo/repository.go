@@ -1187,11 +1187,12 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 			"id": t.ID, "inx": t.Inx, "name": t.Name,
 			"type": t.Type, "flow": t.Flow, "trafficRatio": t.TrafficRatio,
 			"status": t.Status, "createdTime": t.CreatedTime,
-			"inIp":         nullableString(t.InIP),
-			"ipPreference": t.IPPreference,
-			"inNodeId":     make([]map[string]interface{}, 0),
-			"outNodeId":    make([]map[string]interface{}, 0),
-			"chainNodes":   make([][]map[string]interface{}, 0),
+			"inIp":          nullableString(t.InIP),
+			"ipPreference":  t.IPPreference,
+			"inNodeId":      make([]map[string]interface{}, 0),
+			"outNodeId":     make([]map[string]interface{}, 0),
+			"chainNodes":    make([][]map[string]interface{}, 0),
+			"tunnelGroupId": t.TunnelGroupID,
 		}
 		orderedIDs = append(orderedIDs, t.ID)
 	}

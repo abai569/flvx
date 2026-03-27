@@ -774,6 +774,8 @@ export default function TunnelPage() {
         inIp: inIpString,
         outNodeId: cleanedOutNodeId,
         chainNodes: cleanedChainNodes,
+        // 👇 修复 3：不管后端认驼峰还是下划线，咱们两手准备，强行把值传过去！
+        tunnel_group_id: form.tunnelGroupId,
       };
       
       console.log('Sending data to API:', data);
@@ -1653,16 +1655,16 @@ export default function TunnelPage() {
                         </div>
                       </th>
                       <th className="py-3 px-4 w-[56px] text-center align-middle">排序</th>
-                      <th className="py-3 px-4 w-[200px] align-middle">隧道名</th>
-                      <th className="py-3 px-4 w-[100px] align-middle">类型</th>
+                      <th className="py-3 px-4 w-[200px] align-middle">隧道名称</th>
                       <th className="py-3 px-4 w-[120px] align-middle">分组名</th>
+                      <th className="py-3 px-4 w-[100px] align-middle">类型</th>
                       <th className="py-3 px-4 w-[100px] text-center align-middle">入口</th>
                       <th className="py-3 px-4 w-[80px] text-center align-middle">跳数</th>
                       <th className="py-3 px-4 w-[100px] text-center align-middle">出口</th>
                       <th className="py-3 px-4 w-[100px] text-center align-middle">流量</th>
                       <th className="py-3 px-4 w-[80px] text-center align-middle">倍率</th>
                       <th className="py-3 px-4 w-[80px] text-center align-middle">偏好</th>
-                      <th className="py-3 px-4 w-[280px] align-middle">操作</th>
+                      <th className="py-3 px-4 w-[280px] align-middle text-right">操作</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1715,16 +1717,6 @@ export default function TunnelPage() {
                                 <span className="font-medium text-foreground truncate">{tunnel.name}</span>
                               </td>
                               <td className="py-3 px-4 align-middle">
-                                <Chip
-                                  className={typeDisplay.color === "primary" ? "text-xs bg-primary-100 text-primary-800 border-primary-300 dark:bg-primary-900/45 dark:text-primary-200 dark:border-primary-700" : "text-xs bg-success-100 text-success-800 border-success-300 dark:bg-success-900/35 dark:text-success-200 dark:border-success-700"}
-                                  color={typeDisplay.color as any}
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {typeDisplay.text}
-                                </Chip>
-                              </td>
-                              <td className="py-3 px-4 align-middle">
                                 {tunnel.tunnelGroupId && tunnel.tunnelGroupId > 0 ? (
                                   (() => {
                                     const group = tunnelGroupsNew.find(g => g.id === tunnel.tunnelGroupId);
@@ -1750,6 +1742,16 @@ export default function TunnelPage() {
                                     未分组
                                   </Chip>
                                 )}
+                              </td>
+                              <td className="py-3 px-4 align-middle">
+                                <Chip
+                                  className={typeDisplay.color === "primary" ? "text-xs bg-primary-100 text-primary-800 border-primary-300 dark:bg-primary-900/45 dark:text-primary-200 dark:border-primary-700" : "text-xs bg-success-100 text-success-800 border-success-300 dark:bg-success-900/35 dark:text-success-200 dark:border-success-700"}
+                                  color={typeDisplay.color as any}
+                                  size="sm"
+                                  variant="flat"
+                                >
+                                  {typeDisplay.text}
+                                </Chip>
                               </td>
                               <td className="py-3 px-4 text-center align-middle">
                                 <span className="font-medium text-foreground">{inCount}个</span>
@@ -2204,17 +2206,24 @@ export default function TunnelPage() {
                   <Select
                     label="分组"
                     placeholder="选择分组（可选）"
-                    selectedKeys={form.tunnelGroupId ? [form.tunnelGroupId.toString()] : []}
+                    // 👇 修复 1：正确处理 0 或 null 显示为“未分组”
+                    selectedKeys={form.tunnelGroupId && form.tunnelGroupId > 0 ? [form.tunnelGroupId.toString()] : ["none"]}
                     variant="bordered"
                     onSelectionChange={(keys) => {
-                      const selected = Array.from(keys)[0] as string;
+                      const selected = Array.from(keys)[0] as string | undefined;
                       setForm((prev) => ({
                         ...prev,
-                        tunnelGroupId: selected ? Number(selected) : null,
+                        // 👇 修复 2：防止选“未分组”时变成 NaN 导致后端崩溃
+                        tunnelGroupId: selected && selected !== "none" ? parseInt(selected) : 0,
                       }));
                     }}
                   >
-                    <SelectItem key="none">未分组</SelectItem>
+                    <SelectItem key="none" textValue="未分组">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-gray-300" />
+                        <span>未分组</span>
+                      </div>
+                    </SelectItem>
                     {tunnelGroupsNew.map((group) => (
                       <SelectItem key={group.id.toString()} textValue={group.name}>
                         <div className="flex items-center gap-2">
