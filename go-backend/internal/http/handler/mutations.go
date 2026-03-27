@@ -595,6 +595,18 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	inx := h.repo.NextIndex("tunnel")
 	localDomain := h.federationLocalDomain()
 
+	// Handle tunnelGroupId the same way as node groupId
+	var tunnelGroupID interface{}
+	if _, ok := req["tunnelGroupId"]; ok {
+		if gID, ok := req["tunnelGroupId"].(float64); ok {
+			if gID > 0 {
+				tunnelGroupID = int64(gID)
+			} else {
+				tunnelGroupID = nil
+			}
+		}
+	}
+
 	tx := h.repo.BeginTx()
 	if tx.Error != nil {
 		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
@@ -669,10 +681,11 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	if listID > 0 {
 		tunnelListID = sql.NullInt64{Int64: listID, Valid: true}
 	}
-	tunnelGroupID := asInt64(req["tunnelGroupId"], 0)
 	var tunnelTunnelGroupID sql.NullInt64
-	if tunnelGroupID > 0 {
-		tunnelTunnelGroupID = sql.NullInt64{Int64: tunnelGroupID, Valid: true}
+	if tunnelGroupID != nil {
+		if groupID, ok := tunnelGroupID.(int64); ok && groupID > 0 {
+			tunnelTunnelGroupID = sql.NullInt64{Int64: groupID, Valid: true}
+		}
 	}
 	tunnel := model.Tunnel{
 		Name:          name,
@@ -808,6 +821,18 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	ipPreference := asString(req["ipPreference"])
 	localDomain := h.federationLocalDomain()
 
+	// Handle tunnelGroupId the same way as node groupId
+	var tunnelGroupID interface{}
+	if _, ok := req["tunnelGroupId"]; ok {
+		if gID, ok := req["tunnelGroupId"].(float64); ok {
+			if gID > 0 {
+				tunnelGroupID = int64(gID)
+			} else {
+				tunnelGroupID = nil
+			}
+		}
+	}
+
 	tx := h.repo.BeginTx()
 	if tx.Error != nil {
 		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
@@ -845,7 +870,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		inIp,
 		ipPreference,
 		asInt64(req["listId"], 0),
-		asInt64(req["tunnelGroupId"], 0),
+		tunnelGroupID,
 		now,
 	); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
