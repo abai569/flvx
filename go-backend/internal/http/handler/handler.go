@@ -206,6 +206,12 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/group/tunnel/update", h.groupTunnelUpdate)
 	mux.HandleFunc("/api/v1/group/tunnel/delete", h.groupTunnelDelete)
 	mux.HandleFunc("/api/v1/group/tunnel/assign", h.groupTunnelAssign)
+	// Tunnel Group Management for Tunnel Page (New)
+	mux.HandleFunc("/api/v1/tunnel-group-new/list", h.tunnelGroupNewList)
+	mux.HandleFunc("/api/v1/tunnel-group-new/create", h.tunnelGroupNewCreate)
+	mux.HandleFunc("/api/v1/tunnel-group-new/update", h.tunnelGroupNewUpdate)
+	mux.HandleFunc("/api/v1/tunnel-group-new/delete", h.tunnelGroupNewDelete)
+	mux.HandleFunc("/api/v1/tunnel-group-new/assign", h.tunnelGroupNewAssign)
 	// Tunnel Group Management for Tunnel Page
 	mux.HandleFunc("/api/v1/tunnel-group/list", h.tunnelGroupListNew)
 	mux.HandleFunc("/api/v1/tunnel-group/create", h.createTunnelGroupNew)

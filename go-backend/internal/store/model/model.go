@@ -116,20 +116,21 @@ type StatisticsFlow struct {
 func (StatisticsFlow) TableName() string { return "statistics_flow" }
 
 type Tunnel struct {
-	ID           int64          `gorm:"primaryKey;autoIncrement"`
-	Name         string         `gorm:"type:varchar(100);not null"`
-	TrafficRatio float64        `gorm:"column:traffic_ratio;not null;default:1.0"`
-	Type         int            `gorm:"not null"`
-	Protocol     string         `gorm:"type:varchar(10);not null;default:'tls'"`
-	Flow         int64          `gorm:"not null"`
-	CreatedTime  int64          `gorm:"column:created_time;not null"`
-	UpdatedTime  int64          `gorm:"column:updated_time;not null"`
-	Status       int            `gorm:"not null"`
-	InIP         sql.NullString `gorm:"column:in_ip;type:text"`
-	Inx          int            `gorm:"not null;default:0"`
-	IPPreference string         `gorm:"column:ip_preference;type:varchar(10);not null;default:''"`
-	ListID       sql.NullInt64  `gorm:"column:list_id;index"` // 所属隧道分组
-	Remark       sql.NullString `gorm:"column:remark;type:text"`
+	ID            int64          `gorm:"primaryKey;autoIncrement"`
+	Name          string         `gorm:"type:varchar(100);not null"`
+	TrafficRatio  float64        `gorm:"column:traffic_ratio;not null;default:1.0"`
+	Type          int            `gorm:"not null"`
+	Protocol      string         `gorm:"type:varchar(10);not null;default:'tls'"`
+	Flow          int64          `gorm:"not null"`
+	CreatedTime   int64          `gorm:"column:created_time;not null"`
+	UpdatedTime   int64          `gorm:"column:updated_time;not null"`
+	Status        int            `gorm:"not null"`
+	InIP          sql.NullString `gorm:"column:in_ip;type:text"`
+	Inx           int            `gorm:"not null;default:0"`
+	IPPreference  string         `gorm:"column:ip_preference;type:varchar(10);not null;default:''"`
+	ListID        sql.NullInt64  `gorm:"column:list_id;index"`         // 所属隧道分组（旧字段，保留兼容）
+	TunnelGroupID sql.NullInt64  `gorm:"column:tunnel_group_id;index"` // 所属隧道分组（新字段）
+	Remark        sql.NullString `gorm:"column:remark;type:text"`
 }
 
 func (Tunnel) TableName() string { return "tunnel" }
@@ -193,6 +194,28 @@ type TunnelGroup struct {
 }
 
 func (TunnelGroup) TableName() string { return "tunnel_group" }
+
+type TunnelGroupNew struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement"`
+	Name        string `gorm:"type:varchar(100);not null;uniqueIndex:idx_tunnel_group_new_name"`
+	Color       string `gorm:"type:varchar(20);default:'#3b82f6'"`
+	Description string `gorm:"type:text"`
+	Inx         int    `gorm:"column:inx;default:0"`
+	CreatedTime int64  `gorm:"column:created_time;not null"`
+	UpdatedTime int64  `gorm:"column:updated_time;not null"`
+	Status      int    `gorm:"not null;default:1"`
+}
+
+func (TunnelGroupNew) TableName() string { return "tunnel_group_new" }
+
+type TunnelGroupTunnelNew struct {
+	ID            int64 `gorm:"primaryKey;autoIncrement"`
+	TunnelGroupID int64 `gorm:"column:tunnel_group_id;not null;uniqueIndex:idx_tunnel_group_tunnel_new_unique"`
+	TunnelID      int64 `gorm:"column:tunnel_id;not null;uniqueIndex:idx_tunnel_group_tunnel_new_unique"`
+	CreatedTime   int64 `gorm:"column:created_time;not null"`
+}
+
+func (TunnelGroupTunnelNew) TableName() string { return "tunnel_group_tunnel_new" }
 
 type UserGroup struct {
 	ID          int64  `gorm:"primaryKey;autoIncrement"`

@@ -54,6 +54,7 @@ export interface TunnelApiItem {
   exitNodeId: number;
   inx?: number;
   listId?: number | null;
+  tunnelGroupId?: number | null;
   remark?: string;
   [key: string]: unknown;
 }
@@ -141,7 +142,20 @@ export interface TunnelGroupApiItem {
   [key: string]: unknown;
 }
 
-export interface TunnelGroupMutationPayload {
+export interface TunnelGroupNewApiItem {
+  id: number;
+  name: string;
+  description: string;
+  color: string;
+  inx: number;
+  status: number;
+  createdTime: number;
+  updatedTime?: number;
+  tunnelCount: number;
+  [key: string]: unknown;
+}
+
+export interface TunnelGroupNewMutationPayload {
   id?: number;
   name: string;
   description?: string;
@@ -362,6 +376,7 @@ export interface TunnelMutationPayload {
   inNodeId?: TunnelChainNodePayload[];
   outNodeId?: TunnelChainNodePayload[];
   chainNodes?: TunnelChainNodePayload[][];
+  tunnelGroupId?: number | null;
   remark?: string;
 }
 

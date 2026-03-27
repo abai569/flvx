@@ -16,7 +16,8 @@ import type {
   TunnelDeleteWithForwardsApiData,
   TunnelDiagnosisApiData,
   TunnelGroupApiItem,
-  TunnelGroupMutationPayload,
+  TunnelGroupNewApiItem,
+  TunnelGroupNewMutationPayload,
   TunnelListApiItem,
   TunnelListOrderPayload,
   TunnelListTunnelOrderPayload,
@@ -549,20 +550,20 @@ export const updateTunnelListTunnelOrder = (data: { listId: number; orders: Tunn
 
 // ─── Tunnel Group Management (New API for Tunnel Page) ─────────────────
 
-export const getTunnelGroupListNew = () =>
-  Network.post<TunnelGroupApiItem[]>("/tunnel-group/list");
+export const getTunnelGroupNewList = () =>
+  Network.post<TunnelGroupNewApiItem[]>("/tunnel-group-new/list");
 
-export const createTunnelGroupNew = (data: TunnelGroupMutationPayload) =>
-  Network.post("/tunnel-group/create", data);
+export const createTunnelGroupNew = (data: TunnelGroupNewMutationPayload) =>
+  Network.post("/tunnel-group-new/create", data);
 
-export const updateTunnelGroupNew = (data: TunnelGroupMutationPayload) =>
-  Network.post("/tunnel-group/update", data);
+export const updateTunnelGroupNew = (data: TunnelGroupNewMutationPayload) =>
+  Network.post("/tunnel-group-new/update", data);
 
 export const deleteTunnelGroupNew = (id: number) =>
-  Network.post("/tunnel-group/delete", { id });
+  Network.post("/tunnel-group-new/delete", { id });
 
 export const assignTunnelToGroupNew = (tunnelId: number, groupIds: number[]) =>
-  Network.post("/tunnel-group/assign", { tunnelId, groupIds });
+  Network.post("/tunnel-group-new/assign", { tunnelId, groupIds });
 
 // ─── Node Group & Tag Management ─────────────────────────────────────
 

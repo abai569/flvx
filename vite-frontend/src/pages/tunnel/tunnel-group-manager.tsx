@@ -22,12 +22,12 @@ import {
 } from "@/shadcn-bridge/heroui/table";
 import { Edit, Trash2 } from "lucide-react";
 import {
-  getTunnelGroupListNew,
+  getTunnelGroupNewList,
   createTunnelGroupNew,
   updateTunnelGroupNew,
   deleteTunnelGroupNew,
 } from "@/api";
-import type { TunnelGroupApiItem, TunnelGroupMutationPayload } from "@/api/types";
+import type { TunnelGroupNewApiItem, TunnelGroupNewMutationPayload } from "@/api/types";
 
 interface TunnelGroupManagerProps {
   isOpen: boolean;
@@ -40,15 +40,15 @@ export function TunnelGroupManager({
   onOpenChange,
   onGroupChange,
 }: TunnelGroupManagerProps) {
-  const [groups, setGroups] = useState<TunnelGroupApiItem[]>([]);
+  const [groups, setGroups] = useState<TunnelGroupNewApiItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<TunnelGroupApiItem | null>(null);
+  const [editingGroup, setEditingGroup] = useState<TunnelGroupNewApiItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadGroups = async () => {
     setLoading(true);
     try {
-      const res = await getTunnelGroupListNew();
+      const res = await getTunnelGroupNewList();
       setGroups(res.data || []);
     } catch (error) {
       toast.error("加载分组列表失败");
@@ -63,7 +63,7 @@ export function TunnelGroupManager({
     }
   }, [isOpen]);
 
-  const handleOpenModal = (group?: TunnelGroupApiItem) => {
+  const handleOpenModal = (group?: TunnelGroupNewApiItem) => {
     setEditingGroup(group || null);
     setIsModalOpen(true);
   };
@@ -73,7 +73,7 @@ export function TunnelGroupManager({
     setEditingGroup(null);
   };
 
-  const handleSave = async (data: TunnelGroupMutationPayload) => {
+  const handleSave = async (data: TunnelGroupNewMutationPayload) => {
     try {
       if (editingGroup) {
         await updateTunnelGroupNew({ ...data, id: editingGroup.id });
@@ -232,8 +232,8 @@ export function TunnelGroupManager({
 interface GroupEditModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  group: TunnelGroupApiItem | null;
-  onSave: (data: TunnelGroupMutationPayload) => void;
+  group: TunnelGroupNewApiItem | null;
+  onSave: (data: TunnelGroupNewMutationPayload) => void;
 }
 
 function GroupEditModal({

@@ -176,6 +176,8 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.ChainTunnel{},
 		&model.UserTunnel{},
 		&model.TunnelGroup{},
+		&model.TunnelGroupNew{},
+		&model.TunnelGroupTunnelNew{},
 		&model.UserGroup{},
 		&model.TunnelGroupTunnel{},
 		&model.UserGroupUser{},
@@ -201,7 +203,20 @@ func autoMigrateAll(db *gorm.DB) error {
 	}
 
 	if db.Dialector.Name() != "sqlite" {
-		return db.AutoMigrate(models...)
+		if err := db.AutoMigrate(models...); err != nil {
+			return err
+		}
+	} else {
+		for _, item := range models {
+			if err := db.AutoMigrate(item); err != nil {
+				return err
+			}
+		}
+	}
+
+	// 执行数据迁移
+	if err := migrateTunnelGroupNew(db); err != nil {
+		return fmt.Errorf("migrate tunnel group new: %w", err)
 	}
 
 	// 手动迁移：为 user 表添加 name 字段（备注）
@@ -229,6 +244,11 @@ func autoMigrateAll(db *gorm.DB) error {
 		if err := db.AutoMigrate(item); err != nil {
 			return err
 		}
+	}
+
+	// 执行数据迁移
+	if err := migrateTunnelGroupNew(db); err != nil {
+		return fmt.Errorf("migrate tunnel group new: %w", err)
 	}
 
 	return nil
@@ -329,6 +349,101 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 			if err := m.AddColumn(&model.Tunnel{}, "remark"); err != nil {
 				return fmt.Errorf("add tunnel.remark: %w", err)
 			}
+		}
+		if !m.HasColumn(&model.Tunnel{}, "tunnel_group_id") {
+			if err := m.AddColumn(&model.Tunnel{}, "tunnel_group_id"); err != nil {
+				return fmt.Errorf("add tunnel.tunnel_group_id: %w", err)
+			}
+			// 迁移现有 list_id 数据到 tunnel_group_id
+			db.Exec("UPDATE tunnel SET tunnel_group_id = list_id WHERE list_id IS NOT NULL")
+		}
+	}
+
+	return nil
+}
+
+// migrateTunnelGroupNew migrates data from tunnel_list to tunnel_group_new
+func migrateTunnelGroupNew(db *gorm.DB) error {
+	if db == nil || db.Dialector.Name() != "sqlite" {
+		return nil
+	}
+
+	// Check if tunnel_group_new table exists
+	if !db.Migrator().HasTable(&model.TunnelGroupNew{}) {
+		// Create tunnel_group_new table
+		if err := db.Migrator().CreateTable(&model.TunnelGroupNew{}); err != nil {
+			return fmt.Errorf("create tunnel_group_new table: %w", err)
+		}
+	}
+
+	if !db.Migrator().HasTable(&model.TunnelGroupTunnelNew{}) {
+		// Create tunnel_group_tunnel_new table
+		if err := db.Migrator().CreateTable(&model.TunnelGroupTunnelNew{}); err != nil {
+			return fmt.Errorf("create tunnel_group_tunnel_new table: %w", err)
+		}
+	}
+
+	// Migrate data from tunnel_list to tunnel_group_new
+	var tunnelLists []model.TunnelList
+	if err := db.Find(&tunnelLists).Error; err != nil {
+		return fmt.Errorf("query tunnel_list: %w", err)
+	}
+
+	for _, tl := range tunnelLists {
+		// Check if already migrated
+		var count int64
+		db.Model(&model.TunnelGroupNew{}).Where("id = ?", tl.ID).Count(&count)
+		if count > 0 {
+			continue
+		}
+
+		// Insert into tunnel_group_new
+		group := model.TunnelGroupNew{
+			ID:          tl.ID,
+			Name:        tl.Name,
+			Color:       "#3b82f6",
+			Description: "",
+			Inx:         tl.Inx,
+			CreatedTime: tl.CreatedTime,
+			UpdatedTime: tl.UpdatedTime,
+			Status:      tl.Status,
+		}
+		if err := db.Create(&group).Error; err != nil {
+			return fmt.Errorf("migrate tunnel_list %d: %w", tl.ID, err)
+		}
+	}
+
+	// Migrate data from tunnel_list_tunnel to tunnel_group_tunnel_new
+	type TunnelListTunnel struct {
+		ID           int64 `gorm:"primaryKey;autoIncrement"`
+		TunnelListID int64 `gorm:"column:tunnel_list_id;not null"`
+		TunnelID     int64 `gorm:"column:tunnel_id;not null"`
+		CreatedTime  int64 `gorm:"column:created_time;not null"`
+	}
+
+	var tunnelListTunnels []TunnelListTunnel
+	if err := db.Table("tunnel_list_tunnel").Find(&tunnelListTunnels).Error; err != nil {
+		return fmt.Errorf("query tunnel_list_tunnel: %w", err)
+	}
+
+	for _, tlt := range tunnelListTunnels {
+		// Check if already migrated
+		var count int64
+		db.Model(&model.TunnelGroupTunnelNew{}).
+			Where("tunnel_group_id = ? AND tunnel_id = ?", tlt.TunnelListID, tlt.TunnelID).
+			Count(&count)
+		if count > 0 {
+			continue
+		}
+
+		// Insert into tunnel_group_tunnel_new
+		relation := model.TunnelGroupTunnelNew{
+			TunnelGroupID: tlt.TunnelListID,
+			TunnelID:      tlt.TunnelID,
+			CreatedTime:   tlt.CreatedTime,
+		}
+		if err := db.Create(&relation).Error; err != nil {
+			return fmt.Errorf("migrate tunnel_list_tunnel %d->%d: %w", tlt.TunnelListID, tlt.TunnelID, err)
 		}
 	}
 
