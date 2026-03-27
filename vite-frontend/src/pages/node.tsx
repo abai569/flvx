@@ -1067,7 +1067,7 @@ export default function NodePage() {
   };
 
   // Node group and tag handlers
-  const handleOpenGroupSelector = (nodeId: number) => {
+
     setGroupSelectorNode(nodeId);
   };
 

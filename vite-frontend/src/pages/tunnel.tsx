@@ -51,17 +51,16 @@ import {
   getTunnelGroupNewList,
   createTunnel,
   batchDeleteTunnelsWithForwards,
-  getTunnelList,
+,
   updateTunnel,
   deleteTunnelWithForwards,
-  getNodeList,
+,
   diagnoseTunnel,
   updateTunnelOrder,
   batchRedeployTunnels,
   previewBatchTunnelDelete,
   previewTunnelDelete,
 } from "@/api";
-import type { TunnelGroupNewApiItem, TunnelListApiItem } from "@/api/types";
 import { PageLoadingState } from "@/components/page-state";
 import {
   buildDiagnosisFallbackResult,
@@ -76,7 +75,6 @@ import {
   validateTunnelForm,
 } from "@/pages/tunnel/form";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
-import { loadStoredOrder, saveOrder } from "@/utils/order-storage";
 import {
   buildBatchFailureMessage,
   extractBatchFailures,
@@ -192,7 +190,6 @@ const DEFAULT_TUNNEL_DELETE_ACTION: TunnelDeleteAction = "replace";
 const TUNNEL_ORDER_KEY = "tunnel-order";
 const TUNNEL_VIEW_MODE_KEY = "tunnel_view_mode";
 
-const mapTunnelApiItems = (items: any[]): Tunnel[] => {
   return (items || []).map((tunnel) => ({
     ...tunnel,
     inx: tunnel.inx ?? 0,
@@ -212,7 +209,6 @@ export default function TunnelPage() {
   const [loading, setLoading] = useState(true);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [tunnelOrder, setTunnelOrder] = useState<number[]>([]);
-  const [nodes, setNodes] = useState<Node[]>([]);
   const [searchKeyword, setSearchKeyword] = useLocalStorageState(
     "tunnel-search-keyword",
     "",
