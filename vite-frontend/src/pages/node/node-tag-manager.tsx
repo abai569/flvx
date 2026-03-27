@@ -1,5 +1,8 @@
+import type { NodeTagApiItem, NodeTagMutationPayload } from "@/api/types";
+
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+
 import {
   Modal,
   ModalContent,
@@ -23,7 +26,6 @@ import {
   updateNodeTag,
   deleteNodeTag,
 } from "@/api";
-import type { NodeTagApiItem, NodeTagMutationPayload } from "@/api/types";
 
 interface NodeTagManagerProps {
   isOpen: boolean;
@@ -45,6 +47,7 @@ export function NodeTagManager({
     setLoading(true);
     try {
       const res = await getNodeTagList();
+
       setTags(res.data || []);
     } catch (error) {
       toast.error("加载标签列表失败");
@@ -102,7 +105,7 @@ export function NodeTagManager({
 
   return (
     <>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
+      <Modal isOpen={isOpen} size="2xl" onOpenChange={onOpenChange}>
         <ModalContent>
           <ModalHeader>节点标签管理</ModalHeader>
           <ModalBody>
@@ -117,9 +120,7 @@ export function NodeTagManager({
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
             ) : tags.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                暂无标签
-              </div>
+              <div className="text-center py-8 text-gray-500">暂无标签</div>
             ) : (
               <Table>
                 <TableHeader>
@@ -156,9 +157,9 @@ export function NodeTagManager({
                             编辑
                           </Button>
                           <Button
+                            color="danger"
                             size="sm"
                             variant="flat"
-                            color="danger"
                             onClick={() => handleDelete(tag.id)}
                           >
                             删除
@@ -181,8 +182,8 @@ export function NodeTagManager({
 
       <TagEditModal
         isOpen={isModalOpen}
-        onOpenChange={setIsModalOpen}
         tag={editingTag}
+        onOpenChange={setIsModalOpen}
         onSave={handleSave}
       />
     </>
@@ -219,23 +220,28 @@ function TagEditModal({
     e.preventDefault();
     if (!name.trim()) {
       toast.error("标签名称不能为空");
+
       return;
     }
     onSave({ name, color });
   };
 
   const presetColors = [
-    "#6b7280", "#ef4444", "#22c55e", "#f59e0b",
-    "#3b82f6", "#8b5cf6", "#ec4899", "#06b6d4",
+    "#6b7280",
+    "#ef4444",
+    "#22c55e",
+    "#f59e0b",
+    "#3b82f6",
+    "#8b5cf6",
+    "#ec4899",
+    "#06b6d4",
   ];
 
   return (
     <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalContent>
         <form onSubmit={handleSubmit}>
-          <ModalHeader>
-            {tag ? "编辑标签" : "创建标签"}
-          </ModalHeader>
+          <ModalHeader>{tag ? "编辑标签" : "创建标签"}</ModalHeader>
           <ModalBody>
             <div className="space-y-4">
               <div>
@@ -243,41 +249,39 @@ function TagEditModal({
                   标签名称 *
                 </label>
                 <Input
+                  required
+                  placeholder="输入标签名称"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="输入标签名称"
-                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  颜色
-                </label>
+                <label className="block text-sm font-medium mb-1">颜色</label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {presetColors.map((c) => (
                     <button
                       key={c}
-                      type="button"
                       className={`w-8 h-8 rounded border-2 ${
                         color === c ? "border-gray-900" : "border-transparent"
                       }`}
                       style={{ backgroundColor: c }}
+                      type="button"
                       onClick={() => setColor(c)}
                     />
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
                   <input
+                    className="w-10 h-10 border rounded cursor-pointer"
                     type="color"
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
-                    className="w-10 h-10 border rounded cursor-pointer"
                   />
                   <Input
+                    className="flex-1"
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
-                    className="flex-1"
                   />
                 </div>
               </div>
@@ -291,7 +295,7 @@ function TagEditModal({
             >
               取消
             </Button>
-            <Button type="submit" color="primary">
+            <Button color="primary" type="submit">
               保存
             </Button>
           </ModalFooter>

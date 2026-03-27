@@ -1,3 +1,11 @@
+import type { NodeRenewalCycle } from "./renewal";
+import type { NodeSystemInfo } from "./system-info";
+
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+import { getConnectionStatusMeta } from "./display";
+
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
@@ -10,12 +18,11 @@ import {
   TableRow,
   TableCell,
 } from "@/shadcn-bridge/heroui/table";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { getConnectionStatusMeta } from "./display";
-import type { NodeRenewalCycle } from "./renewal";
-import type { NodeSystemInfo } from "./system-info";
-import { DistroIcon, parseDistroFromVersion, getDistroColor } from "@/components/distro-icon";
+import {
+  DistroIcon,
+  parseDistroFromVersion,
+  getDistroColor,
+} from "@/components/distro-icon";
 interface Node {
   id: number;
   inx?: number;
@@ -51,15 +58,21 @@ interface Node {
 
 interface NodeListViewProps {
   displayNodes: Node[];
-  realtimeNodeMetrics: Record<number, {
-    uploadTraffic: number;
-    downloadTraffic: number;
-  }>;
-  upgradeProgress: Record<number, {
-    stage: string;
-    percent: number;
-    message: string;
-  }>;
+  realtimeNodeMetrics: Record<
+    number,
+    {
+      uploadTraffic: number;
+      downloadTraffic: number;
+    }
+  >;
+  upgradeProgress: Record<
+    number,
+    {
+      stage: string;
+      percent: number;
+      message: string;
+    }
+  >;
   selectedIds: Set<number>;
   toggleSelect: (nodeId: number) => void;
   toggleSelectAll: (isSelected: boolean) => void;
@@ -89,15 +102,21 @@ function SortableTableRow({
   nodeGroups,
 }: {
   node: Node;
-  realtimeNodeMetrics: Record<number, {
-    uploadTraffic: number;
-    downloadTraffic: number;
-  }>;
-  upgradeProgress: Record<number, {
-    stage: string;
-    percent: number;
-    message: string;
-  }>;
+  realtimeNodeMetrics: Record<
+    number,
+    {
+      uploadTraffic: number;
+      downloadTraffic: number;
+    }
+  >;
+  upgradeProgress: Record<
+    number,
+    {
+      stage: string;
+      percent: number;
+      message: string;
+    }
+  >;
   selectedIds: Set<number>;
   toggleSelect: (nodeId: number) => void;
   copyToClipboard: (text: string, label: string) => void;
@@ -109,7 +128,14 @@ function SortableTableRow({
   formatTraffic: (bytes: number) => string;
   nodeGroups: any[];
 }) {
-  const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    attributes,
+    listeners,
+  } = useSortable({
     id: node.id,
   });
 
@@ -119,12 +145,19 @@ function SortableTableRow({
     opacity: isDragging ? 0.6 : 1,
   };
 
-  const rowBg = selectedIds.has(node.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
+  const rowBg = selectedIds.has(node.id)
+    ? "bg-primary-50/70 dark:bg-primary-900/40"
+    : "";
   const isRemoteNode = node.isRemote === 1;
   const connectionStatusMeta = getConnectionStatusMeta(node.connectionStatus);
 
   return (
-    <TableRow ref={setNodeRef} key={node.id} className="cursor-default" style={style}>
+    <TableRow
+      key={node.id}
+      ref={setNodeRef}
+      className="cursor-default"
+      style={style}
+    >
       <TableCell className={rowBg}>
         <div className="flex items-center justify-center h-full">
           <Checkbox
@@ -139,7 +172,12 @@ function SortableTableRow({
           {...attributes}
           {...listeners}
         >
-          <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <svg
+            aria-hidden="true"
+            className="w-4 h-4"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
             <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
           </svg>
         </div>
@@ -150,7 +188,10 @@ function SortableTableRow({
             className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
             title={connectionStatusMeta.text}
           />
-          <span className="text-sm font-bold text-foreground truncate" title={node.name}>
+          <span
+            className="text-sm font-bold text-foreground truncate"
+            title={node.name}
+          >
             {node.name}
           </span>
         </div>
@@ -160,28 +201,44 @@ function SortableTableRow({
         {node.groupId && node.groupId > 0 ? (
           (() => {
             const group = nodeGroups.find((g: any) => g.id == node.groupId);
+
             return group ? (
               <Chip
                 size="sm"
-                variant="flat"
                 style={{
                   backgroundColor: `${group.color}20`,
                   color: group.color,
                 }}
+                variant="flat"
               >
                 {group.name}
               </Chip>
             ) : (
-              <Chip size="sm" variant="flat" className="bg-default-100 text-default-500">未分组</Chip>
+              <Chip
+                className="bg-default-100 text-default-500"
+                size="sm"
+                variant="flat"
+              >
+                未分组
+              </Chip>
             );
           })()
         ) : (
-          <Chip size="sm" variant="flat" className="bg-default-100 text-default-500">未分组</Chip>
+          <Chip
+            className="bg-default-100 text-default-500"
+            size="sm"
+            variant="flat"
+          >
+            未分组
+          </Chip>
         )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         {node.remark?.trim() ? (
-          <span className="text-sm truncate block max-w-[120px]" title={node.remark.trim()}>
+          <span
+            className="text-sm truncate block max-w-[120px]"
+            title={node.remark.trim()}
+          >
             {node.remark.trim()}
           </span>
         ) : (
@@ -234,14 +291,15 @@ function SortableTableRow({
       <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
         {!isRemoteNode ? (
           <div className="flex flex-col gap-1 min-w-[100px] justify-center">
-            {upgradeProgress?.[node.id]?.percent !== undefined && upgradeProgress[node.id].percent < 100 ? (
+            {upgradeProgress?.[node.id]?.percent !== undefined &&
+            upgradeProgress[node.id].percent < 100 ? (
               <>
                 <Progress
                   aria-label="升级进度"
+                  className="w-full"
                   color="warning"
                   size="sm"
                   value={upgradeProgress[node.id].percent}
-                  className="w-full"
                 />
                 <span className="text-[10px] text-warning-600 truncate">
                   {upgradeProgress[node.id].message}
@@ -259,23 +317,27 @@ function SortableTableRow({
                   />
                 )}
                 <span className="text-sm font-mono text-default-600">
-                  {node.version ? node.version.split(' ')[0] : "未知"}
+                  {node.version ? node.version.split(" ")[0] : "未知"}
                 </span>
               </div>
             )}
           </div>
         ) : (
-          <Chip className="h-5 text-[10px] px-1" size="sm" variant="flat">远程</Chip>
+          <Chip className="h-5 text-[10px] px-1" size="sm" variant="flat">
+            远程
+          </Chip>
         )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
           <span className="text-sm text-danger-600 dark:text-danger-400">
-            {node.connectionStatus === "online" && realtimeNodeMetrics && realtimeNodeMetrics[node.id]
+            {node.connectionStatus === "online" &&
+            realtimeNodeMetrics &&
+            realtimeNodeMetrics[node.id]
               ? formatTraffic(
-                (realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0) +
-                (realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0)
-              )
+                  (realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0) +
+                    (realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0),
+                )
               : "-"}
           </span>
         </div>
@@ -283,8 +345,12 @@ function SortableTableRow({
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
           <span className="text-sm text-success-700 dark:text-success-300">
-            {node.connectionStatus === "online" && realtimeNodeMetrics && realtimeNodeMetrics[node.id]
-              ? formatTraffic(realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0)
+            {node.connectionStatus === "online" &&
+            realtimeNodeMetrics &&
+            realtimeNodeMetrics[node.id]
+              ? formatTraffic(
+                  realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0,
+                )
               : "-"}
           </span>
         </div>
@@ -292,8 +358,12 @@ function SortableTableRow({
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end">
           <span className="text-sm text-primary-700 dark:text-primary-300">
-            {node.connectionStatus === "online" && realtimeNodeMetrics && realtimeNodeMetrics[node.id]
-              ? formatTraffic(realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0)
+            {node.connectionStatus === "online" &&
+            realtimeNodeMetrics &&
+            realtimeNodeMetrics[node.id]
+              ? formatTraffic(
+                  realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0,
+                )
               : "-"}
           </span>
         </div>
@@ -376,7 +446,8 @@ export function NodeListView({
   formatTraffic,
   nodeGroups,
 }: NodeListViewProps) {
-  const isAllSelected = displayNodes.length > 0 && selectedIds.size === displayNodes.length;
+  const isAllSelected =
+    displayNodes.length > 0 && selectedIds.size === displayNodes.length;
 
   return (
     <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
@@ -391,37 +462,61 @@ export function NodeListView({
         <TableHeader>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center">
             <div className="flex items-center justify-center h-full">
-              <Checkbox isSelected={isAllSelected} onValueChange={toggleSelectAll} aria-label="全选" />
+              <Checkbox
+                aria-label="全选"
+                isSelected={isAllSelected}
+                onValueChange={toggleSelectAll}
+              />
             </div>
           </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[160px] text-left">节点名称</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">分组名</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">备注</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">地址</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">总流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">上行流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">下行流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-right">操作</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">
+            排序
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[160px] text-left">
+            节点名称
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">
+            分组名
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">
+            备注
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+            地址
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">
+            版本
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
+            总流量
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
+            上行流量
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
+            下行流量
+          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-right">
+            操作
+          </TableColumn>
         </TableHeader>
         <TableBody>
           {displayNodes.map((node) => (
             <SortableTableRow
               key={node.id}
+              copyToClipboard={copyToClipboard}
+              formatTraffic={formatTraffic}
+              handleDelete={handleDelete}
+              handleEdit={handleEdit}
+              handleRollbackNode={handleRollbackNode}
               node={node}
               nodeGroups={nodeGroups}
-              realtimeNodeMetrics={realtimeNodeMetrics}
-              upgradeProgress={upgradeProgress}
-              selectedIds={selectedIds}
-              toggleSelect={toggleSelect}
-              copyToClipboard={copyToClipboard}
               openInstallSelector={openInstallSelector}
               openUpgradeModal={openUpgradeModal}
-              handleRollbackNode={handleRollbackNode}
-              handleEdit={handleEdit}
-              handleDelete={handleDelete}
-              formatTraffic={formatTraffic}
+              realtimeNodeMetrics={realtimeNodeMetrics}
+              selectedIds={selectedIds}
+              toggleSelect={toggleSelect}
+              upgradeProgress={upgradeProgress}
             />
           ))}
         </TableBody>

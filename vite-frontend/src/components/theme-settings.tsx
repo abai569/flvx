@@ -7,13 +7,14 @@
  *  • "Reset to default" option
  */
 
+import type { ThemeMode } from "@/themes/registry";
+
 import React from "react";
 import toast from "react-hot-toast";
 
 import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { useThemeContext } from "@/themes/context";
-import type { ThemeMode } from "@/themes/registry";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -39,12 +40,14 @@ export const ThemeSettings: React.FC = () => {
   const handleModeChange = (m: ThemeMode) => {
     setMode(m);
     const label = m === "light" ? "亮色" : m === "dark" ? "暗色" : "跟随系统";
+
     toast.success(`已切换为${label}模式`);
   };
 
   const handleThemeSelect = (id: string) => {
     switchTheme(id);
     const theme = themes.find((t) => t.id === id);
+
     toast.success(`已切换主题「${theme?.name ?? id}」`);
   };
 
@@ -56,7 +59,9 @@ export const ThemeSettings: React.FC = () => {
   return (
     <Card className="border border-gray-200 dark:border-gray-700">
       <CardBody className="p-6">
-        <div><h2 className="text-xl font-semibold">主题设置</h2></div>
+        <div>
+          <h2 className="text-xl font-semibold">主题设置</h2>
+        </div>
         {/* ── Mode toggle ────────────────────────────────────── */}
         <div className="mb-6">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -122,7 +127,13 @@ export const ThemeSettings: React.FC = () => {
                     <div className="flex-1" style={{ background: secondary }} />
                     <div className="flex-1" style={{ background: success }} />
                     <div className="flex-1" style={{ background: danger }} />
-                    <div className="flex-1" style={{ background: bg, borderLeft: "1px solid rgba(0,0,0,0.06)" }} />
+                    <div
+                      className="flex-1"
+                      style={{
+                        background: bg,
+                        borderLeft: "1px solid rgba(0,0,0,0.06)",
+                      }}
+                    />
                   </div>
 
                   {/* Info */}

@@ -1,5 +1,9 @@
+import type { NodeGroupApiItem, NodeGroupMutationPayload } from "@/api/types";
+
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { Edit, Trash2 } from "lucide-react";
+
 import {
   Modal,
   ModalContent,
@@ -20,14 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/shadcn-bridge/heroui/table";
-import { Edit, Trash2 } from "lucide-react";
 import {
   getNodeGroupList,
   createNodeGroup,
   updateNodeGroup,
   deleteNodeGroup,
 } from "@/api";
-import type { NodeGroupApiItem, NodeGroupMutationPayload } from "@/api/types";
 
 interface NodeGroupManagerProps {
   isOpen: boolean;
@@ -42,13 +44,16 @@ export function NodeGroupManager({
 }: NodeGroupManagerProps) {
   const [groups, setGroups] = useState<NodeGroupApiItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<NodeGroupApiItem | null>(null);
+  const [editingGroup, setEditingGroup] = useState<NodeGroupApiItem | null>(
+    null,
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadGroups = async () => {
     setLoading(true);
     try {
       const res = await getNodeGroupList();
+
       setGroups(res.data || []);
     } catch (error) {
       toast.error("加载分组列表失败");
@@ -106,7 +111,7 @@ export function NodeGroupManager({
 
   return (
     <>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
+      <Modal isOpen={isOpen} size="2xl" onOpenChange={onOpenChange}>
         <ModalContent>
           <ModalHeader>节点分组管理</ModalHeader>
           <ModalBody>
@@ -121,9 +126,7 @@ export function NodeGroupManager({
                 <Spinner size="sm" />
               </div>
             ) : groups.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                暂无分组
-              </div>
+              <div className="text-center py-8 text-gray-500">暂无分组</div>
             ) : (
               <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
                 <Table
@@ -136,24 +139,34 @@ export function NodeGroupManager({
                   }}
                 >
                   <TableHeader>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">分组名称</TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">颜色</TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">节点数</TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">操作</TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                      分组名称
+                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                      颜色
+                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                      节点数
+                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                      操作
+                    </TableColumn>
                   </TableHeader>
-                  <TableBody
-                    emptyContent="暂无分组"
-                    items={groups}
-                  >
+                  <TableBody emptyContent="暂无分组" items={groups}>
                     {(group) => (
-                      <TableRow key={group.id} className="hover:bg-default-50/50 transition-colors">
+                      <TableRow
+                        key={group.id}
+                        className="hover:bg-default-50/50 transition-colors"
+                      >
                         <TableCell className="whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <div
                               className="w-3 h-3 rounded-full flex-shrink-0"
                               style={{ backgroundColor: group.color }}
                             />
-                            <span className="font-bold text-default-700">{group.name}</span>
+                            <span className="font-bold text-default-700">
+                              {group.name}
+                            </span>
                           </div>
                           {group.description && (
                             <div className="text-xs text-default-500 mt-1 truncate max-w-[180px]">
@@ -168,15 +181,17 @@ export function NodeGroupManager({
                               className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
                               style={{ backgroundColor: group.color }}
                             />
-                            <span className="text-sm text-default-600 font-mono">{group.color}</span>
+                            <span className="text-sm text-default-600 font-mono">
+                              {group.color}
+                            </span>
                           </div>
                         </TableCell>
 
                         <TableCell className="whitespace-nowrap">
                           <Chip
+                            className="bg-purple-500 text-white font-mono font-semibold" // 👈 改为浅紫色背景，深紫色文字
                             size="sm"
                             variant="flat" // 👇 保留扁平风格
-                            className="bg-purple-500 text-white font-mono font-semibold" // 👈 改为浅紫色背景，深紫色文字
                           >
                             {group.nodeCount}
                           </Chip>
@@ -186,18 +201,18 @@ export function NodeGroupManager({
                           <div className="flex items-center gap-2">
                             <Button
                               isIconOnly
+                              className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
                               size="sm"
                               variant="flat"
-                              className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
                               onPress={() => handleOpenModal(group)}
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               isIconOnly
+                              className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
                               size="sm"
                               variant="flat"
-                              className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
                               onPress={() => handleDelete(group.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -220,9 +235,9 @@ export function NodeGroupManager({
       </Modal>
 
       <GroupEditModal
+        group={editingGroup}
         isOpen={isModalOpen}
         onOpenChange={setIsModalOpen}
-        group={editingGroup}
         onSave={handleSave}
       />
     </>
@@ -265,23 +280,28 @@ function GroupEditModal({
     e.preventDefault();
     if (!name.trim()) {
       toast.error("分组名称不能为空");
+
       return;
     }
     onSave({ name, description, color, inx });
   };
 
   const presetColors = [
-    "#3b82f6", "#ef4444", "#22c55e", "#f59e0b",
-    "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16",
+    "#3b82f6",
+    "#ef4444",
+    "#22c55e",
+    "#f59e0b",
+    "#8b5cf6",
+    "#ec4899",
+    "#06b6d4",
+    "#84cc16",
   ];
 
   return (
     <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalContent>
         <form onSubmit={handleSubmit}>
-          <ModalHeader>
-            {group ? "编辑分组" : "创建分组"}
-          </ModalHeader>
+          <ModalHeader>{group ? "编辑分组" : "创建分组"}</ModalHeader>
           <ModalBody>
             <div className="space-y-4">
               <div>
@@ -289,66 +309,64 @@ function GroupEditModal({
                   分组名称 *
                 </label>
                 <Input
+                  required
+                  placeholder="输入分组名称"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="输入分组名称"
-                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  描述
-                </label>
+                <label className="block text-sm font-medium mb-1">描述</label>
                 <Textarea
-                  classNames={{ inputWrapper: "!min-h-[20px] py-1.5", input: "!min-h-[20px]" }}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  classNames={{
+                    inputWrapper: "!min-h-[20px] py-1.5",
+                    input: "!min-h-[20px]",
+                  }}
                   placeholder="分组描述（可选）"
                   rows={1}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  颜色
-                </label>
+                <label className="block text-sm font-medium mb-1">颜色</label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {presetColors.map((c) => (
                     <button
                       key={c}
-                      type="button"
-                      className={`w-8 h-8 rounded border-2 ${color === c ? "border-gray-900" : "border-transparent"
-                        }`}
+                      className={`w-8 h-8 rounded border-2 ${
+                        color === c ? "border-gray-900" : "border-transparent"
+                      }`}
                       style={{ backgroundColor: c }}
+                      type="button"
                       onClick={() => setColor(c)}
                     />
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
                   <input
+                    className="w-10 h-10 border rounded cursor-pointer"
                     type="color"
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
-                    className="w-10 h-10 border rounded cursor-pointer"
                   />
                   <Input
+                    className="flex-1"
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
-                    className="flex-1"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  排序
-                </label>
+                <label className="block text-sm font-medium mb-1">排序</label>
                 <Input
+                  placeholder="数字越小越靠前"
                   type="number"
                   value={inx}
                   onChange={(e) => setInx(parseInt(e.target.value) || 0)}
-                  placeholder="数字越小越靠前"
                 />
               </div>
             </div>
@@ -361,7 +379,7 @@ function GroupEditModal({
             >
               取消
             </Button>
-            <Button type="submit" color="primary">
+            <Button color="primary" type="submit">
               保存
             </Button>
           </ModalFooter>

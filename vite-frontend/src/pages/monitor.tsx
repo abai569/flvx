@@ -31,6 +31,7 @@ export default function MonitorPage() {
 
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
+
     if (!silent) setNodesLoading(true);
     try {
       const response = await getMonitorNodes();
@@ -99,15 +100,15 @@ export default function MonitorPage() {
               {viewMode === "grid" ? "列表" : "卡片"}
             </Button>
             <Button
-              isLoading={activeTab === "nodes" ? nodesLoading : tunnelsLoading}
               color="primary"
+              isLoading={activeTab === "nodes" ? nodesLoading : tunnelsLoading}
               size="sm"
               variant="flat"
               onPress={() => {
                 if (activeTab === "nodes") {
                   loadNodes();
                 } else {
-                  setTunnelRefreshTrigger(prev => prev + 1);
+                  setTunnelRefreshTrigger((prev) => prev + 1);
                 }
               }}
             >
@@ -119,20 +120,22 @@ export default function MonitorPage() {
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">
           <button
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "nodes"
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "nodes"
                 ? "bg-background shadow-sm text-foreground"
                 : "text-default-500 hover:text-foreground"
-              }`}
+            }`}
             onClick={() => setActiveTab("nodes")}
           >
             <Server className="w-4 h-4" />
             节点
           </button>
           <button
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "tunnels"
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "tunnels"
                 ? "bg-background shadow-sm text-foreground"
                 : "text-default-500 hover:text-foreground"
-              }`}
+            }`}
             onClick={() => setActiveTab("tunnels")}
           >
             <ArrowRightLeft className="w-4 h-4" />
@@ -157,7 +160,11 @@ export default function MonitorPage() {
           <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
         </div>
         <div className={activeTab === "tunnels" ? "block" : "hidden"}>
-          <TunnelMonitorView viewMode={viewMode} refreshTrigger={tunnelRefreshTrigger} onLoadingChange={setTunnelsLoading} />
+          <TunnelMonitorView
+            refreshTrigger={tunnelRefreshTrigger}
+            viewMode={viewMode}
+            onLoadingChange={setTunnelsLoading}
+          />
         </div>
       </>
     </AnimatedPage>

@@ -5,6 +5,8 @@
  * re-renders when the active theme changes.
  */
 
+import type { ThemePackage, ComponentKey, LayoutKey, PageKey } from "./types";
+
 import React, {
   createContext,
   useContext,
@@ -14,7 +16,6 @@ import React, {
   useMemo,
 } from "react";
 
-import type { ThemePackage, ComponentKey, LayoutKey, PageKey } from "./types";
 import {
   subscribe,
   getActiveTheme,
@@ -59,11 +60,20 @@ interface ThemeContextValue {
   unregister: (id: string) => void;
 
   /** Resolve a component (returns themed override or fallback). */
-  component: <P = any>(key: ComponentKey, fallback: React.ComponentType<P>) => React.ComponentType<P>;
+  component: <P = any>(
+    key: ComponentKey,
+    fallback: React.ComponentType<P>,
+  ) => React.ComponentType<P>;
   /** Resolve a layout. */
-  layout: (key: LayoutKey, fallback: React.ComponentType<{ children: React.ReactNode }>) => React.ComponentType<{ children: React.ReactNode }>;
+  layout: (
+    key: LayoutKey,
+    fallback: React.ComponentType<{ children: React.ReactNode }>,
+  ) => React.ComponentType<{ children: React.ReactNode }>;
   /** Resolve a page. */
-  page: <P = any>(key: PageKey, fallback: React.ComponentType<P>) => React.ComponentType<P>;
+  page: <P = any>(
+    key: PageKey,
+    fallback: React.ComponentType<P>,
+  ) => React.ComponentType<P>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -73,6 +83,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 // We use a monotonic counter to create new snapshot references when the
 // registry notifies.
 let snapshotCounter = 0;
+
 function getSnapshot() {
   return snapshotCounter;
 }
@@ -81,6 +92,7 @@ const originalSubscribe = (onStoreChange: () => void) => {
     snapshotCounter++;
     onStoreChange();
   });
+
   return unsub;
 };
 
@@ -98,7 +110,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => reapplyActiveTheme();
+
     mq.addEventListener("change", handler);
+
     return () => mq.removeEventListener("change", handler);
   }, []);
 
@@ -115,27 +129,27 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const register = useCallback((pkg: ThemePackage) => registerTheme(pkg), []);
   const unregister = useCallback((id: string) => unregisterTheme(id), []);
 
-  const value = useMemo<ThemeContextValue>(() => ({
-    activeTheme: getActiveTheme(),
-    activeThemeId: getActiveThemeId(),
-    themes: getRegisteredThemes(),
-    mode: getSavedMode(),
-    effectiveMode: getEffectiveMode(),
-    switchTheme,
-    resetTheme,
-    setMode,
-    register,
-    unregister,
-    component: resolveComponent,
-    layout: resolveLayout,
-    page: resolvePage,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [snapshotCounter, switchTheme, resetTheme, setMode, register, unregister]);
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      activeTheme: getActiveTheme(),
+      activeThemeId: getActiveThemeId(),
+      themes: getRegisteredThemes(),
+      mode: getSavedMode(),
+      effectiveMode: getEffectiveMode(),
+      switchTheme,
+      resetTheme,
+      setMode,
+      register,
+      unregister,
+      component: resolveComponent,
+      layout: resolveLayout,
+      page: resolvePage,
+    }),
+    [snapshotCounter, switchTheme, resetTheme, setMode, register, unregister],
+  );
 
   return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 };
 
@@ -144,7 +158,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 /** Access the full theme context. */
 export function useThemeContext(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error("useThemeContext must be used within <ThemeProvider>");
+
+  if (!ctx)
+    throw new Error("useThemeContext must be used within <ThemeProvider>");
+
   return ctx;
 }
 
@@ -166,6 +183,7 @@ export function useThemedComponent<P = any>(
   fallback: React.ComponentType<P>,
 ): React.ComponentType<P> {
   const ctx = useThemeContext();
+
   return ctx.component(key, fallback);
 }
 
@@ -175,6 +193,7 @@ export function useThemedLayout(
   fallback: React.ComponentType<{ children: React.ReactNode }>,
 ): React.ComponentType<{ children: React.ReactNode }> {
   const ctx = useThemeContext();
+
   return ctx.layout(key, fallback);
 }
 
@@ -184,5 +203,6 @@ export function useThemedPage<P = any>(
   fallback: React.ComponentType<P>,
 ): React.ComponentType<P> {
   const ctx = useThemeContext();
+
   return ctx.page(key, fallback);
 }

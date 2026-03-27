@@ -7,11 +7,16 @@ interface ErrorPayload {
 
 export const extractBatchFailures = (data: any): any[] => {
   if (!data) return [];
+
   return data.failures || [];
 };
 
-export const buildBatchFailureMessage = (result: any, summary: string): string => {
+export const buildBatchFailureMessage = (
+  result: any,
+  summary: string,
+): string => {
   const failCount = result.failCount || 0;
+
   return `${summary} (失败: ${failCount})`;
 };
 

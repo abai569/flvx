@@ -132,7 +132,11 @@ export default function GroupPage() {
     onOpenChange: onUserAssignModalChange,
   } = useDisclosure();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [confirmConfig, setConfirmConfig] = useState<{ title: string; content: string; action: () => Promise<void> } | null>(null);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string;
+    content: string;
+    action: () => Promise<void>;
+  } | null>(null);
 
   const [editingTunnelGroup, setEditingTunnelGroup] =
     useState<TunnelGroup | null>(null);
@@ -339,9 +343,14 @@ export default function GroupPage() {
       content: `确定要删除隧道分组 "${item.name}" 吗？此操作不可撤销。`,
       action: async () => {
         const res = await deleteTunnelGroup(item.id);
-        if (res.code === 0) { toast.success("删除成功"); loadData(); }
-        else { toast.error(res.msg || "删除失败"); }
-      }
+
+        if (res.code === 0) {
+          toast.success("删除成功");
+          loadData();
+        } else {
+          toast.error(res.msg || "删除失败");
+        }
+      },
     });
     setIsConfirmOpen(true);
   };
@@ -352,9 +361,14 @@ export default function GroupPage() {
       content: `确定要删除用户分组 "${item.name}" 吗？此操作不可撤销。`,
       action: async () => {
         const res = await deleteUserGroup(item.id);
-        if (res.code === 0) { toast.success("删除成功"); loadData(); }
-        else { toast.error(res.msg || "删除失败"); }
-      }
+
+        if (res.code === 0) {
+          toast.success("删除成功");
+          loadData();
+        } else {
+          toast.error(res.msg || "删除失败");
+        }
+      },
     });
     setIsConfirmOpen(true);
   };
@@ -451,9 +465,14 @@ export default function GroupPage() {
       content: `确定要回收该关联权限吗？`,
       action: async () => {
         const res = await removeGroupPermission(item.id);
-        if (res.code === 0) { toast.success("权限回收成功"); loadData(); }
-        else { toast.error(res.msg || "回收失败"); }
-      }
+
+        if (res.code === 0) {
+          toast.success("权限回收成功");
+          loadData();
+        } else {
+          toast.error(res.msg || "回收失败");
+        }
+      },
     });
     setIsConfirmOpen(true);
   };
@@ -461,11 +480,13 @@ export default function GroupPage() {
   const toggleTunnelGroupExpand = (groupId: number) => {
     setExpandedTunnelGroups((prev) => {
       const next = new Set(prev);
+
       if (next.has(groupId)) {
         next.delete(groupId);
       } else {
         next.add(groupId);
       }
+
       return next;
     });
   };
@@ -473,11 +494,13 @@ export default function GroupPage() {
   const toggleUserGroupExpand = (groupId: number) => {
     setExpandedUserGroups((prev) => {
       const next = new Set(prev);
+
       if (next.has(groupId)) {
         next.delete(groupId);
       } else {
         next.add(groupId);
       }
+
       return next;
     });
   };
@@ -507,10 +530,10 @@ export default function GroupPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <h3 className="text-lg font-semibold">隧道分组</h3>
-          <Button 
-            color="primary" 
-            size="md" 
-            className="h-9 px-4 text-xs font-medium min-w-0 shadow-sm" 
+          <Button
+            className="h-9 px-4 text-xs font-medium min-w-0 shadow-sm"
+            color="primary"
+            size="md"
             onPress={openCreateTunnelGroup}
           >
             新建
@@ -528,102 +551,144 @@ export default function GroupPage() {
               }}
             >
               <TableHeader>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">名称</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[300px] text-left">隧道</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">创建时间</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[280px] text-left">操作</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                  名称
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[300px] text-left">
+                  隧道
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                  状态
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                  创建时间
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[280px] text-left">
+                  操作
+                </TableColumn>
               </TableHeader>
               <TableBody>
-                {tunnelGroups.length === 0 ? null : (
-                  tunnelGroups.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="font-medium text-foreground truncate">{item.name}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {item.tunnelNames.length > 0 ? (
-                          <div className="flex flex-nowrap gap-1 items-center" title={item.tunnelNames.join("、")}>
-                            {item.tunnelNames.length > 2 && !expandedTunnelGroups.has(item.id) ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
-                                  onPress={() => toggleTunnelGroupExpand(item.id)}
-                                >
-                                  <ChevronDown className="h-4 w-4 transition-transform duration-200" />
-                                  <span className="sr-only">展开</span>
-                                </Button>
-                                {item.tunnelNames.slice(0, 2).map((name: string, idx: number) => (
-                                  <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap">{name}</Chip>
-                                ))}
-                              </>
-                            ) : (
-                              <div className="flex flex-nowrap gap-1 items-center overflow-x-auto max-w-[400px]">
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
-                                  onPress={() => toggleTunnelGroupExpand(item.id)}
-                                >
-                                  <ChevronDown className="h-4 w-4 transition-transform duration-200 rotate-180" />
-                                  <span className="sr-only">收起</span>
-                                </Button>
-                                {item.tunnelNames.map((name: string, idx: number) => (
-                                  <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0">{name}</Chip>
-                                ))}
-                              </div>
-                            )}
+                {tunnelGroups.length === 0
+                  ? null
+                  : tunnelGroups.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="font-medium text-foreground truncate">
+                            {item.name}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {item.tunnelNames.length > 0 ? (
+                            <div
+                              className="flex flex-nowrap gap-1 items-center"
+                              title={item.tunnelNames.join("、")}
+                            >
+                              {item.tunnelNames.length > 2 &&
+                              !expandedTunnelGroups.has(item.id) ? (
+                                <>
+                                  <Button
+                                    className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() =>
+                                      toggleTunnelGroupExpand(item.id)
+                                    }
+                                  >
+                                    <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                                    <span className="sr-only">展开</span>
+                                  </Button>
+                                  {item.tunnelNames
+                                    .slice(0, 2)
+                                    .map((name: string, idx: number) => (
+                                      <Chip
+                                        key={idx}
+                                        className="max-w-[120px] truncate whitespace-nowrap"
+                                        size="sm"
+                                        variant="flat"
+                                      >
+                                        {name}
+                                      </Chip>
+                                    ))}
+                                </>
+                              ) : (
+                                <div className="flex flex-nowrap gap-1 items-center overflow-x-auto max-w-[400px]">
+                                  <Button
+                                    className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() =>
+                                      toggleTunnelGroupExpand(item.id)
+                                    }
+                                  >
+                                    <ChevronDown className="h-4 w-4 transition-transform duration-200 rotate-180" />
+                                    <span className="sr-only">收起</span>
+                                  </Button>
+                                  {item.tunnelNames.map(
+                                    (name: string, idx: number) => (
+                                      <Chip
+                                        key={idx}
+                                        className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0"
+                                        size="sm"
+                                        variant="flat"
+                                      >
+                                        {name}
+                                      </Chip>
+                                    ),
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Chip
+                            color={item.status === 1 ? "success" : "danger"}
+                            size="sm"
+                            variant="flat"
+                          >
+                            {item.status === 1 ? "启用" : "停用"}
+                          </Chip>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-sm text-default-600">
+                            {formatDate(item.createdTime)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex gap-1.5">
+                            <Button
+                              className="min-h-7 min-w-[64px]"
+                              color="primary"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => openAssignTunnels(item)}
+                            >
+                              分配隧道
+                            </Button>
+                            <Button
+                              className="min-h-7 min-w-[64px]"
+                              color="default"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => openEditTunnelGroup(item)}
+                            >
+                              编辑
+                            </Button>
+                            <Button
+                              className="min-h-7 min-w-[64px]"
+                              color="danger"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleDeleteTunnelGroup(item)}
+                            >
+                              删除
+                            </Button>
                           </div>
-                        ) : "-"}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <Chip
-                          color={item.status === 1 ? "success" : "danger"}
-                          size="sm"
-                          variant="flat"
-                        >
-                          {item.status === 1 ? "启用" : "停用"}
-                        </Chip>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="text-sm text-default-600">{formatDate(item.createdTime)}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <div className="flex gap-1.5">
-                          <Button
-                            className="min-h-7 min-w-[64px]"
-                            color="primary"
-                            size="sm"
-                            variant="flat"
-                            onPress={() => openAssignTunnels(item)}
-                          >
-                            分配隧道
-                          </Button>
-                          <Button
-                            className="min-h-7 min-w-[64px]"
-                            color="default"
-                            size="sm"
-                            variant="flat"
-                            onPress={() => openEditTunnelGroup(item)}
-                          >
-                            编辑
-                          </Button>
-                          <Button
-                            className="min-h-7 min-w-[64px]"
-                            color="danger"
-                            size="sm"
-                            variant="flat"
-                            onPress={() => handleDeleteTunnelGroup(item)}
-                          >
-                            删除
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
               </TableBody>
             </Table>
           </div>
@@ -633,10 +698,10 @@ export default function GroupPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <h3 className="text-lg font-semibold">用户分组</h3>
-          <Button 
-            color="primary" 
-            size="md" 
-            className="h-9 px-4 text-xs font-medium min-w-0 shadow-sm" 
+          <Button
+            className="h-9 px-4 text-xs font-medium min-w-0 shadow-sm"
+            color="primary"
+            size="md"
             onPress={openCreateUserGroup}
           >
             新建
@@ -654,102 +719,144 @@ export default function GroupPage() {
               }}
             >
               <TableHeader>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">名称</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[300px] text-left">用户</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">创建时间</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[280px] text-left">操作</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                  名称
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[300px] text-left">
+                  用户
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                  状态
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                  创建时间
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[280px] text-left">
+                  操作
+                </TableColumn>
               </TableHeader>
               <TableBody>
-                {userGroups.length === 0 ? null : (
-                  userGroups.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="font-medium text-foreground truncate">{item.name}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {item.userNames.length > 0 ? (
-                          <div className="flex flex-nowrap gap-1 items-center" title={item.userNames.join("、")}>
-                            {item.userNames.length > 2 && !expandedUserGroups.has(item.id) ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
-                                  onPress={() => toggleUserGroupExpand(item.id)}
-                                >
-                                  <ChevronDown className="h-4 w-4 transition-transform duration-200" />
-                                  <span className="sr-only">展开</span>
-                                </Button>
-                                {item.userNames.slice(0, 2).map((name: string, idx: number) => (
-                                  <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap">{name}</Chip>
-                                ))}
-                              </>
-                            ) : (
-                              <div className="flex flex-nowrap gap-1 items-center overflow-x-auto max-w-[400px]">
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
-                                  onPress={() => toggleUserGroupExpand(item.id)}
-                                >
-                                  <ChevronDown className="h-4 w-4 transition-transform duration-200 rotate-180" />
-                                  <span className="sr-only">收起</span>
-                                </Button>
-                                {item.userNames.map((name: string, idx: number) => (
-                                  <Chip key={idx} size="sm" variant="flat" className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0">{name}</Chip>
-                                ))}
-                              </div>
-                            )}
+                {userGroups.length === 0
+                  ? null
+                  : userGroups.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="font-medium text-foreground truncate">
+                            {item.name}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {item.userNames.length > 0 ? (
+                            <div
+                              className="flex flex-nowrap gap-1 items-center"
+                              title={item.userNames.join("、")}
+                            >
+                              {item.userNames.length > 2 &&
+                              !expandedUserGroups.has(item.id) ? (
+                                <>
+                                  <Button
+                                    className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() =>
+                                      toggleUserGroupExpand(item.id)
+                                    }
+                                  >
+                                    <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                                    <span className="sr-only">展开</span>
+                                  </Button>
+                                  {item.userNames
+                                    .slice(0, 2)
+                                    .map((name: string, idx: number) => (
+                                      <Chip
+                                        key={idx}
+                                        className="max-w-[120px] truncate whitespace-nowrap"
+                                        size="sm"
+                                        variant="flat"
+                                      >
+                                        {name}
+                                      </Chip>
+                                    ))}
+                                </>
+                              ) : (
+                                <div className="flex flex-nowrap gap-1 items-center overflow-x-auto max-w-[400px]">
+                                  <Button
+                                    className="min-h-5 min-w-5 h-5 w-5 p-0 flex-shrink-0"
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() =>
+                                      toggleUserGroupExpand(item.id)
+                                    }
+                                  >
+                                    <ChevronDown className="h-4 w-4 transition-transform duration-200 rotate-180" />
+                                    <span className="sr-only">收起</span>
+                                  </Button>
+                                  {item.userNames.map(
+                                    (name: string, idx: number) => (
+                                      <Chip
+                                        key={idx}
+                                        className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0"
+                                        size="sm"
+                                        variant="flat"
+                                      >
+                                        {name}
+                                      </Chip>
+                                    ),
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Chip
+                            color={item.status === 1 ? "success" : "danger"}
+                            size="sm"
+                            variant="flat"
+                          >
+                            {item.status === 1 ? "启用" : "停用"}
+                          </Chip>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-sm text-default-600">
+                            {formatDate(item.createdTime)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex gap-1.5">
+                            <Button
+                              className="min-h-7 min-w-[64px]"
+                              color="primary"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => openAssignUsers(item)}
+                            >
+                              分配用户
+                            </Button>
+                            <Button
+                              className="min-h-7 min-w-[64px]"
+                              color="default"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => openEditUserGroup(item)}
+                            >
+                              编辑
+                            </Button>
+                            <Button
+                              className="min-h-7 min-w-[64px]"
+                              color="danger"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleDeleteUserGroup(item)}
+                            >
+                              删除
+                            </Button>
                           </div>
-                        ) : "-"}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <Chip
-                          color={item.status === 1 ? "success" : "danger"}
-                          size="sm"
-                          variant="flat"
-                        >
-                          {item.status === 1 ? "启用" : "停用"}
-                        </Chip>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="text-sm text-default-600">{formatDate(item.createdTime)}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <div className="flex gap-1.5">
-                          <Button
-                            className="min-h-7 min-w-[64px]"
-                            color="primary"
-                            size="sm"
-                            variant="flat"
-                            onPress={() => openAssignUsers(item)}
-                          >
-                            分配用户
-                          </Button>
-                          <Button
-                            className="min-h-7 min-w-[64px]"
-                            color="default"
-                            size="sm"
-                            variant="flat"
-                            onPress={() => openEditUserGroup(item)}
-                          >
-                            编辑
-                          </Button>
-                          <Button
-                            className="min-h-7 min-w-[64px]"
-                            color="danger"
-                            size="sm"
-                            variant="flat"
-                            onPress={() => handleDeleteUserGroup(item)}
-                          >
-                            删除
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
               </TableBody>
             </Table>
           </div>
@@ -763,11 +870,13 @@ export default function GroupPage() {
         <CardBody className="space-y-4">
           <div className="flex flex-row items-end gap-2 w-full">
             <Select
-              className="flex-1 min-w-0" size="md" items={userGroups}
+              className="flex-1 min-w-0"
+              items={userGroups}
               label="用户分组"
               selectedKeys={
                 selectedUserGroupId ? [String(selectedUserGroupId)] : []
               }
+              size="md"
               onSelectionChange={(keys) => {
                 const key = Array.from(keys as Set<React.Key>)[0];
 
@@ -777,11 +886,13 @@ export default function GroupPage() {
               {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
             </Select>
             <Select
-              className="flex-1 min-w-0" size="md" items={tunnelGroups}
+              className="flex-1 min-w-0"
+              items={tunnelGroups}
               label="隧道分组"
               selectedKeys={
                 selectedTunnelGroupId ? [String(selectedTunnelGroupId)] : []
               }
+              size="md"
               onSelectionChange={(keys) => {
                 const key = Array.from(keys as Set<React.Key>)[0];
 
@@ -812,49 +923,71 @@ export default function GroupPage() {
               }}
             >
               <TableHeader>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">ID</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">用户分组</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">隧道分组</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">创建时间</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">操作</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                  ID
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                  用户分组
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                  隧道分组
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                  创建时间
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                  操作
+                </TableColumn>
               </TableHeader>
               <TableBody>
-                {permissions.length === 0 ? null : (
-                  permissions.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="text-sm text-default-600">{item.id}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="text-sm text-foreground">{item.userGroupName || item.userGroupId}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="text-sm text-foreground">{item.tunnelGroupName || item.tunnelGroupId}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="text-sm text-default-600">{formatDate(item.createdTime)}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <Button
-                          className="min-h-7 min-w-[64px]"
-                          color="danger"
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleRemovePermission(item)}
-                        >
-                          回收
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                {permissions.length === 0
+                  ? null
+                  : permissions.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-sm text-default-600">
+                            {item.id}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-sm text-foreground">
+                            {item.userGroupName || item.userGroupId}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-sm text-foreground">
+                            {item.tunnelGroupName || item.tunnelGroupId}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-sm text-default-600">
+                            {formatDate(item.createdTime)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Button
+                            className="min-h-7 min-w-[64px]"
+                            color="danger"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleRemovePermission(item)}
+                          >
+                            回收
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
               </TableBody>
             </Table>
           </div>
         </CardBody>
       </Card>
 
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={tunnelGroupModalOpen}
         onOpenChange={onTunnelGroupModalChange}
       >
@@ -898,7 +1031,14 @@ export default function GroupPage() {
         </ModalContent>
       </Modal>
 
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }} isOpen={userGroupModalOpen} onOpenChange={onUserGroupModalChange}>
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={userGroupModalOpen}
+        onOpenChange={onUserGroupModalChange}
+      >
         <ModalContent>
           <ModalHeader>
             {editingUserGroup ? "编辑用户分组" : "新建用户分组"}
@@ -939,7 +1079,11 @@ export default function GroupPage() {
         </ModalContent>
       </Modal>
 
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={tunnelAssignModalOpen}
         onOpenChange={onTunnelAssignModalChange}
       >
@@ -986,7 +1130,11 @@ export default function GroupPage() {
         </ModalContent>
       </Modal>
 
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={userAssignModalOpen}
         onOpenChange={onUserAssignModalChange}
       >
@@ -1033,26 +1181,39 @@ export default function GroupPage() {
         </ModalContent>
       </Modal>
 
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={isConfirmOpen}
-        onOpenChange={setIsConfirmOpen}
         size="md"
+        onOpenChange={setIsConfirmOpen}
       >
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="text-danger">{confirmConfig?.title}</ModalHeader>
+              <ModalHeader className="text-danger">
+                {confirmConfig?.title}
+              </ModalHeader>
               <ModalBody>
                 <p className="text-default-600">{confirmConfig?.content}</p>
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={onClose}>取消</Button>
-                <Button color="danger" onPress={async () => {
-                  if (confirmConfig?.action) {
-                    await confirmConfig.action();
-                    onClose();
-                  }
-                }}>确认</Button>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="danger"
+                  onPress={async () => {
+                    if (confirmConfig?.action) {
+                      await confirmConfig.action();
+                      onClose();
+                    }
+                  }}
+                >
+                  确认
+                </Button>
               </ModalFooter>
             </>
           )}

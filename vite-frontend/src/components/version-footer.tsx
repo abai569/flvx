@@ -95,7 +95,8 @@ export function VersionFooter({
         )}
       </p>
       <p className={poweredClassName}>
-        Powered by Flvx{/* {" "}
+        Powered by Flvx
+        {/* {" "}
         <a
           className="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           href={siteConfig.github_repo}

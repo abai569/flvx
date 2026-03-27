@@ -677,7 +677,11 @@ export default function PanelSharingPage() {
       </Tabs>
 
       {/* Create Share Modal */}
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={createShareOpen}
         scrollBehavior="inside"
         onClose={() => setCreateShareOpen(false)}
@@ -784,7 +788,11 @@ export default function PanelSharingPage() {
       </Modal>
 
       {/* Edit Share Modal */}
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={editShareOpen}
         scrollBehavior="inside"
         onClose={() => setEditShareOpen(false)}
@@ -883,7 +891,14 @@ export default function PanelSharingPage() {
       </Modal>
 
       {/* Import Node Modal */}
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }} isOpen={importNodeOpen} onClose={() => setImportNodeOpen(false)}>
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={importNodeOpen}
+        onClose={() => setImportNodeOpen(false)}
+      >
         <ModalContent>
           <ModalHeader>导入远程节点</ModalHeader>
           <ModalBody>

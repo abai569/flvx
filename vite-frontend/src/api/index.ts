@@ -158,9 +158,12 @@ export const deleteTunnelWithForwards = (data: {
     data,
   );
 export const previewBatchTunnelDelete = (ids: number[]) =>
-  Network.post<TunnelBatchDeletePreviewApiData>("/tunnel/batch-delete-preview", {
-    ids,
-  });
+  Network.post<TunnelBatchDeletePreviewApiData>(
+    "/tunnel/batch-delete-preview",
+    {
+      ids,
+    },
+  );
 export const batchDeleteTunnelsWithForwards = (data: {
   ids: number[];
   action: "replace" | "delete_forwards";
@@ -530,23 +533,35 @@ export const removeMonitorPermission = (userId: number) =>
 export const getTunnelListList = () =>
   Network.post<TunnelListApiItem[]>("/tunnel-list/list");
 
-export const createTunnelList = (data: { name: string; status?: number; inx?: number }) =>
-  Network.post("/tunnel-list/create", data);
+export const createTunnelList = (data: {
+  name: string;
+  status?: number;
+  inx?: number;
+}) => Network.post("/tunnel-list/create", data);
 
-export const updateTunnelList = (data: { id: number; name: string; status?: number; inx?: number }) =>
-  Network.post("/tunnel-list/update", data);
+export const updateTunnelList = (data: {
+  id: number;
+  name: string;
+  status?: number;
+  inx?: number;
+}) => Network.post("/tunnel-list/update", data);
 
 export const deleteTunnelList = (id: number) =>
   Network.post("/tunnel-list/delete", { id });
 
-export const assignTunnelsToList = (data: { listId: number; tunnelIds: number[] }) =>
-  Network.post("/tunnel-list/assign", data);
+export const assignTunnelsToList = (data: {
+  listId: number;
+  tunnelIds: number[];
+}) => Network.post("/tunnel-list/assign", data);
 
-export const updateTunnelListOrder = (data: { orders: TunnelListOrderPayload[] }) =>
-  Network.post("/tunnel-list/order", data);
+export const updateTunnelListOrder = (data: {
+  orders: TunnelListOrderPayload[];
+}) => Network.post("/tunnel-list/order", data);
 
-export const updateTunnelListTunnelOrder = (data: { listId: number; orders: TunnelListTunnelOrderPayload[] }) =>
-  Network.post("/tunnel-list/tunnel-order", data);
+export const updateTunnelListTunnelOrder = (data: {
+  listId: number;
+  orders: TunnelListTunnelOrderPayload[];
+}) => Network.post("/tunnel-list/tunnel-order", data);
 
 // ─── Tunnel Group Management (New API for Tunnel Page) ─────────────────
 

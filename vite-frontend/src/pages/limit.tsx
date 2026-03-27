@@ -65,7 +65,8 @@ export default function LimitPage() {
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {
     const stored = localStorage.getItem(LIMIT_VIEW_MODE_KEY);
-    return (stored === "list" || stored === "card") ? stored : "card";
+
+    return stored === "list" || stored === "card" ? stored : "card";
   });
 
   // 列表模式选中行
@@ -255,7 +256,10 @@ export default function LimitPage() {
             onOpen={() => {
               setIsSearchVisible(true);
               setTimeout(() => {
-                const searchInput = document.querySelector('input[placeholder*="搜索"]');
+                const searchInput = document.querySelector(
+                  'input[placeholder*="搜索"]',
+                );
+
                 if (searchInput) (searchInput as HTMLElement).focus();
               }, 150);
             }}
@@ -268,7 +272,9 @@ export default function LimitPage() {
             color={viewMode === "card" ? "primary" : "warning"}
             size="sm"
             variant="flat"
-            onPress={() => handleViewModeToggle(viewMode === "card" ? "list" : "card")}
+            onPress={() =>
+              handleViewModeToggle(viewMode === "card" ? "list" : "card")
+            }
           >
             {viewMode === "card" ? "列表" : "卡片"}
           </Button>
@@ -292,12 +298,24 @@ export default function LimitPage() {
               }}
             >
               <TableHeader>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">规则名</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">速度限制</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">创建时间</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">更新时间</TableColumn>
-                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">操作</TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                  规则名
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                  速度限制
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                  状态
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                  创建时间
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                  更新时间
+                </TableColumn>
+                <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                  操作
+                </TableColumn>
               </TableHeader>
               <TableBody>
                 {filteredRules.map((rule) => (

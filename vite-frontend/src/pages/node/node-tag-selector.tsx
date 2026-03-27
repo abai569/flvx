@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
 import type { NodeTagApiItem } from "@/api/types";
+
+import { useState } from "react";
+
+import { Chip } from "@/shadcn-bridge/heroui/chip";
 
 interface NodeTagSelectorProps {
   availableTags: NodeTagApiItem[];
@@ -16,11 +18,11 @@ export function NodeTagSelector({
   const [isOpen, setIsOpen] = useState(false);
 
   const selectedTags = availableTags.filter((tag) =>
-    selectedTagIds.includes(tag.id)
+    selectedTagIds.includes(tag.id),
   );
 
   const availableTagsForSelection = availableTags.filter(
-    (tag) => !selectedTagIds.includes(tag.id)
+    (tag) => !selectedTagIds.includes(tag.id),
   );
 
   const handleAddTag = (tagId: number) => {
@@ -38,17 +40,17 @@ export function NodeTagSelector({
           <Chip
             key={tag.id}
             size="sm"
-            variant="flat"
             style={{
               backgroundColor: `${tag.color}20`,
               color: tag.color,
             }}
+            variant="flat"
           >
             {tag.name}
             <button
+              className="ml-1 hover:opacity-70"
               type="button"
               onClick={() => handleRemoveTag(tag.id)}
-              className="ml-1 hover:opacity-70"
             >
               ×
             </button>
@@ -56,9 +58,9 @@ export function NodeTagSelector({
         ))}
 
         <button
+          className="px-2 py-1 text-sm border border-dashed border-gray-300 rounded hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-gray-600 dark:hover:bg-gray-800 transition-colors"
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="px-2 py-1 text-sm border border-dashed border-gray-300 rounded hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-gray-600 dark:hover:bg-gray-800 transition-colors"
         >
           {isOpen ? "取消" : "+ 添加标签"}
         </button>
@@ -70,16 +72,16 @@ export function NodeTagSelector({
             {availableTagsForSelection.map((tag) => (
               <Chip
                 key={tag.id}
+                className="cursor-pointer hover:opacity-80"
                 size="sm"
-                variant="flat"
                 style={{
                   backgroundColor: `${tag.color}20`,
                   color: tag.color,
                 }}
+                variant="flat"
                 onClick={() => {
                   handleAddTag(tag.id);
                 }}
-                className="cursor-pointer hover:opacity-80"
               >
                 {tag.name}
               </Chip>

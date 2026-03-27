@@ -1,8 +1,8 @@
-import { SearchBar } from "@/components/search-bar";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import { parseDate } from "@internationalized/date";
 
+import { SearchBar } from "@/components/search-bar";
 import {
   AnimatedPage,
   StaggerList,
@@ -37,7 +37,6 @@ import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import {
   User,
-
   UserGroup,
   UserTunnel,
   TunnelAssignItem,
@@ -63,11 +62,7 @@ import {
   removeMonitorPermission,
   getUserGroups,
 } from "@/api";
-import {
-  EditIcon,
-  DeleteIcon,
-  SettingsIcon,
-} from "@/components/icons";
+import { EditIcon, DeleteIcon, SettingsIcon } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { removeItemsById, replaceItemById } from "@/utils/list-state";
@@ -175,7 +170,8 @@ export default function UserPage() {
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {
     const stored = localStorage.getItem(USER_VIEW_MODE_KEY);
-    return (stored === "list" || stored === "card") ? stored : "card";
+
+    return stored === "list" || stored === "card" ? stored : "card";
   });
 
   // 列表模式选中行
@@ -246,25 +242,33 @@ export default function UserPage() {
   } = useDisclosure();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   // --- 监控权限相关状态 (来自 user新) ---
-  const [monitorPermissionUserIds, setMonitorPermissionUserIds] = useState<Set<number>>(new Set());
-  const [monitorPermissionLoading, setMonitorPermissionLoading] = useState(false);
-  const [monitorPermissionMutatingUserId, setMonitorPermissionMutatingUserId] = useState<number | null>(null);
+  const [monitorPermissionUserIds, setMonitorPermissionUserIds] = useState<
+    Set<number>
+  >(new Set());
+  const [monitorPermissionLoading, setMonitorPermissionLoading] =
+    useState(false);
+  const [monitorPermissionMutatingUserId, setMonitorPermissionMutatingUserId] =
+    useState<number | null>(null);
 
   const loadMonitorPermissions = useCallback(async () => {
     setMonitorPermissionLoading(true);
     try {
       const response = await getMonitorPermissionList();
+
       if (response.code === 0) {
         const ids = new Set<number>();
+
         if (Array.isArray(response.data)) {
           response.data.forEach((item: any) => {
             const id = Number(item?.userId ?? 0);
+
             if (id > 0) ids.add(id);
           });
         }
         setMonitorPermissionUserIds(ids);
       }
-    } catch { } finally {
+    } catch {
+    } finally {
       setMonitorPermissionLoading(false);
     }
   }, []);
@@ -273,17 +277,23 @@ export default function UserPage() {
     async (userId: number, enabled: boolean) => {
       if (userId <= 0 || monitorPermissionMutatingUserId === userId) return;
       const prevEnabled = monitorPermissionUserIds.has(userId);
+
       if (prevEnabled === enabled) return;
 
       setMonitorPermissionMutatingUserId(userId);
       setMonitorPermissionUserIds((prev) => {
         const next = new Set(prev);
+
         enabled ? next.add(userId) : next.delete(userId);
+
         return next;
       });
 
       try {
-        const response = enabled ? await assignMonitorPermission(userId) : await removeMonitorPermission(userId);
+        const response = enabled
+          ? await assignMonitorPermission(userId)
+          : await removeMonitorPermission(userId);
+
         if (response.code === 0) {
           toast.success(enabled ? "已授权监控" : "已撤销监控");
         } else {
@@ -292,7 +302,9 @@ export default function UserPage() {
       } catch {
         setMonitorPermissionUserIds((prev) => {
           const next = new Set(prev);
+
           prevEnabled ? next.add(userId) : next.delete(userId);
+
           return next;
         });
         toast.error("操作失败");
@@ -300,7 +312,7 @@ export default function UserPage() {
         setMonitorPermissionMutatingUserId(null);
       }
     },
-    [monitorPermissionMutatingUserId, monitorPermissionUserIds]
+    [monitorPermissionMutatingUserId, monitorPermissionUserIds],
   );
 
   const [userTunnels, setUserTunnels] = useState<UserTunnel[]>([]);
@@ -445,7 +457,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
-    } catch { }
+    } catch {}
   }, []);
 
   const loadSpeedLimits = useCallback(async () => {
@@ -455,15 +467,15 @@ export default function UserPage() {
       if (response.code === 0) {
         const speedLimitList = Array.isArray(response.data)
           ? response.data.map((item) => ({
-            ...item,
-            uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
-            downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
-          }))
+              ...item,
+              uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
+              downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
+            }))
           : [];
 
         setSpeedLimits(speedLimitList);
       }
-    } catch { }
+    } catch {}
   }, []);
 
   const loadUserGroups = useCallback(async () => {
@@ -473,7 +485,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
-    } catch { }
+    } catch {}
   }, []);
 
   const loadUserTunnels = useCallback(async (userId: number) => {
@@ -563,7 +575,7 @@ export default function UserPage() {
       if (groupRes.code === 0) {
         currentGroupIds = groupRes.data || [];
       }
-    } catch { }
+    } catch {}
 
     setUserForm({
       id: user.id,
@@ -769,10 +781,10 @@ export default function UserPage() {
             speedLimitName:
               normalizeSpeedId(editTunnelForm.speedId) !== null
                 ? speedLimits.find(
-                  (speedLimit) =>
-                    speedLimit.id ===
-                    normalizeSpeedId(editTunnelForm.speedId),
-                )?.name
+                    (speedLimit) =>
+                      speedLimit.id ===
+                      normalizeSpeedId(editTunnelForm.speedId),
+                  )?.name
                 : undefined,
           });
 
@@ -949,7 +961,10 @@ export default function UserPage() {
             onOpen={() => {
               setIsSearchVisible(true);
               setTimeout(() => {
-                const searchInput = document.querySelector('input[placeholder*="搜索"]');
+                const searchInput = document.querySelector(
+                  'input[placeholder*="搜索"]',
+                );
+
                 if (searchInput) (searchInput as HTMLElement).focus();
               }, 150);
             }}
@@ -962,7 +977,9 @@ export default function UserPage() {
             color={viewMode === "card" ? "primary" : "warning"}
             size="sm"
             variant="flat"
-            onPress={() => handleViewModeToggle(viewMode === "card" ? "list" : "card")}
+            onPress={() =>
+              handleViewModeToggle(viewMode === "card" ? "list" : "card")
+            }
           >
             {viewMode === "card" ? "列表" : "卡片"}
           </Button>
@@ -998,19 +1015,37 @@ export default function UserPage() {
             }}
           >
             <TableHeader>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">用户名</TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">流量限制</TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">剩余流量</TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">规则数</TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">重置日期</TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">过期时间</TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[240px] text-left">操作</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                用户名
+              </TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                状态
+              </TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                流量限制
+              </TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                剩余流量
+              </TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                规则数
+              </TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                重置日期
+              </TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                过期时间
+              </TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[240px] text-left">
+                操作
+              </TableColumn>
             </TableHeader>
             <TableBody>
               {users.map((user) => {
                 const userStatus = getUserStatus(user);
-                const expStatus = user.expTime ? getExpireStatus(user.expTime) : null;
+                const expStatus = user.expTime
+                  ? getExpireStatus(user.expTime)
+                  : null;
                 const usedFlow = calculateUserTotalUsedFlow(user);
 
                 return (
@@ -1047,25 +1082,38 @@ export default function UserPage() {
                     <TableCell className="whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         <span className="text-sm font-medium text-success">
-                          {user.flow > 0 ? formatFlow((user.flow * 1024 * 1024 * 1024) - usedFlow) : "不限"}
+                          {user.flow > 0
+                            ? formatFlow(
+                                user.flow * 1024 * 1024 * 1024 - usedFlow,
+                              )
+                            : "不限"}
                         </span>
                         {user.flow > 0 && (
                           <Progress
-                            aria-label={`剩余流量 ${Math.min(((user.flow * 1024 * 1024 * 1024) - usedFlow) / (user.flow * 1024 * 1024 * 1024) * 100, 100).toFixed(1)}%`}
+                            aria-label={`剩余流量 ${Math.min(((user.flow * 1024 * 1024 * 1024 - usedFlow) / (user.flow * 1024 * 1024 * 1024)) * 100, 100).toFixed(1)}%`}
                             className="w-24"
                             color="success"
                             size="sm"
-                            value={Math.min((((user.flow * 1024 * 1024 * 1024) - usedFlow) / (user.flow * 1024 * 1024 * 1024)) * 100, 100)}
+                            value={Math.min(
+                              ((user.flow * 1024 * 1024 * 1024 - usedFlow) /
+                                (user.flow * 1024 * 1024 * 1024)) *
+                                100,
+                              100,
+                            )}
                           />
                         )}
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <span className="text-sm text-foreground">{user.num}</span>
+                      <span className="text-sm text-foreground">
+                        {user.num}
+                      </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <span className="text-sm text-default-600">
-                        {user.flowResetTime === 0 ? "不重置" : `每月${user.flowResetTime}号`}
+                        {user.flowResetTime === 0
+                          ? "不重置"
+                          : `每月${user.flowResetTime}号`}
                       </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
@@ -1145,9 +1193,9 @@ export default function UserPage() {
             const flowPercent =
               user.flow > 0
                 ? Math.min(
-                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
-                  100,
-                )
+                    (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
+                    100,
+                  )
                 : 0;
 
             return (
@@ -1199,7 +1247,11 @@ export default function UserPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">剩余流量</span>
                           <span className="font-medium text-xs text-success">
-                            {user.flow > 0 ? formatFlow((user.flow * 1024 * 1024 * 1024) - usedFlow) : "不限"}
+                            {user.flow > 0
+                              ? formatFlow(
+                                  user.flow * 1024 * 1024 * 1024 - usedFlow,
+                                )
+                              : "不限"}
                           </span>
                         </div>
                         <Progress
@@ -1322,8 +1374,11 @@ export default function UserPage() {
       )}
 
       {/* 用户表单模态框 */}
-      <Modal classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl" }}
+      <Modal
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
         isOpen={isUserModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -1360,7 +1415,10 @@ export default function UserPage() {
                   selectedKeys={new Set((userForm.groupIds ?? []).map(String))}
                   selectionMode="multiple"
                   onSelectionChange={(keys) => {
-                    const selected = Array.from(keys as Set<string>).map(Number);
+                    const selected = Array.from(keys as Set<string>).map(
+                      Number,
+                    );
+
                     setUserForm((prev) => ({ ...prev, groupIds: selected }));
                   }}
                 >
@@ -1391,6 +1449,7 @@ export default function UserPage() {
                     Math.max(Number(e.target.value) || 0, 1),
                     99999,
                   );
+
                   setUserForm((prev) => ({ ...prev, flow: value }));
                 }}
               />
@@ -1406,6 +1465,7 @@ export default function UserPage() {
                     Math.max(Number(e.target.value) || 0, 1),
                     99999,
                   );
+
                   setUserForm((prev) => ({ ...prev, num: value }));
                 }}
               />
@@ -1414,6 +1474,7 @@ export default function UserPage() {
                 selectedKeys={[userForm.flowResetTime.toString()]}
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
+
                   setUserForm((prev) => ({
                     ...prev,
                     flowResetTime: Number(value),
@@ -1441,8 +1502,8 @@ export default function UserPage() {
                 value={
                   userForm.expTime
                     ? (parseDate(
-                      userForm.expTime.toISOString().split("T")[0],
-                    ) as any)
+                        userForm.expTime.toISOString().split("T")[0],
+                      ) as any)
                     : null
                 }
                 onChange={(date) => {
@@ -1455,12 +1516,13 @@ export default function UserPage() {
                       59,
                       59,
                     );
+
                     setUserForm((prev) => ({ ...prev, expTime: jsDate }));
                   } else {
                     setUserForm((prev) => ({ ...prev, expTime: null }));
                   }
                 }}
-              /> 
+              />
             </div>
 
             {/* 配额状态保持原样 */}
@@ -1533,9 +1595,20 @@ export default function UserPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       {monitorPermissionLoading ? <Spinner size="sm" /> : null}
                       <Switch
-                        isDisabled={!currentUser || monitorPermissionLoading || monitorPermissionMutatingUserId === currentUser.id}
-                        isSelected={currentUser ? monitorPermissionUserIds.has(currentUser.id) : false}
-                        onValueChange={(v) => currentUser && void setUserMonitorPermission(currentUser.id, v)}
+                        isDisabled={
+                          !currentUser ||
+                          monitorPermissionLoading ||
+                          monitorPermissionMutatingUserId === currentUser.id
+                        }
+                        isSelected={
+                          currentUser
+                            ? monitorPermissionUserIds.has(currentUser.id)
+                            : false
+                        }
+                        onValueChange={(v) =>
+                          currentUser &&
+                          void setUserMonitorPermission(currentUser.id, v)
+                        }
                       />
                     </div>
                   </div>
@@ -1547,14 +1620,30 @@ export default function UserPage() {
                     {/* 顶部触发框 */}
                     <div
                       className={`group flex items-center justify-between px-4 h-9 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex-1 ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
-                      onClick={() => setIsTunnelListExpanded(!isTunnelListExpanded)}
+                      onClick={() =>
+                        setIsTunnelListExpanded(!isTunnelListExpanded)
+                      }
                     >
-                      <span className={`text-sm truncate ${batchTunnelSelections.size > 0 ? "text-primary-500 font-bold" : "text-default-400"}`}>
+                      <span
+                        className={`text-sm truncate ${batchTunnelSelections.size > 0 ? "text-primary-500 font-bold" : "text-default-400"}`}
+                      >
                         {batchTunnelSelections.size > 0
-                          ? `已选 ${batchTunnelSelections.size} 项：` + Array.from(batchTunnelSelections.keys()).map(id => tunnels.find(t => t.id === id)?.name).join('、')
+                          ? `已选 ${batchTunnelSelections.size} 项：` +
+                            Array.from(batchTunnelSelections.keys())
+                              .map(
+                                (id) => tunnels.find((t) => t.id === id)?.name,
+                              )
+                              .join("、")
                           : "请选择隧道（勾选后配置限速）"}
                       </span>
-                      <svg className={`w-5 h-5 text-default-400 transition-transform ${isTunnelListExpanded ? "rotate-180 text-primary" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth={2.5} /></svg>
+                      <svg
+                        className={`w-5 h-5 text-default-400 transition-transform ${isTunnelListExpanded ? "rotate-180 text-primary" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M19 9l-7 7-7-7" strokeWidth={2.5} />
+                      </svg>
                     </div>
 
                     <Button
@@ -1585,17 +1674,31 @@ export default function UserPage() {
                           }}
                         >
                           <TableHeader>
-                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-left">选择</TableColumn>
-                            <TableColumn className="whitespace-nowrap flex-shrink-0 text-left">隧道名称</TableColumn>
-                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">限速</TableColumn>
-                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-left">
+                              选择
+                            </TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 text-left">
+                              隧道名称
+                            </TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                              限速
+                            </TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                              状态
+                            </TableColumn>
                           </TableHeader>
                           <TableBody>
                             {tunnels.map((tunnel) => {
                               const isAssigned = isTunnelAssigned(tunnel.id);
-                              const isSelected = batchTunnelSelections.has(tunnel.id);
-                              const tunnelSpeedLimits = getSpeedLimitsForTunnel(tunnel.id);
-                              const currentSpeedId = batchTunnelSelections.get(tunnel.id);
+                              const isSelected = batchTunnelSelections.has(
+                                tunnel.id,
+                              );
+                              const tunnelSpeedLimits = getSpeedLimitsForTunnel(
+                                tunnel.id,
+                              );
+                              const currentSpeedId = batchTunnelSelections.get(
+                                tunnel.id,
+                              );
 
                               return (
                                 <TableRow
@@ -1605,8 +1708,8 @@ export default function UserPage() {
                                   <TableCell className="whitespace-nowrap">
                                     <Checkbox
                                       color="primary"
-                                      isSelected={isSelected}
                                       isDisabled={isAssigned}
+                                      isSelected={isSelected}
                                       onClick={(e) => {
                                         if (isAssigned) return;
                                         e.stopPropagation();
@@ -1616,7 +1719,9 @@ export default function UserPage() {
                                   </TableCell>
 
                                   <TableCell className="whitespace-nowrap">
-                                    <span className={`text-sm font-medium ${isSelected ? "text-primary-700" : "text-default-700"}`}>
+                                    <span
+                                      className={`text-sm font-medium ${isSelected ? "text-primary-700" : "text-default-700"}`}
+                                    >
                                       {tunnel.name}
                                     </span>
                                   </TableCell>
@@ -1627,28 +1732,49 @@ export default function UserPage() {
                                         <Select
                                           aria-label="限速选择"
                                           className="w-32"
+                                          placeholder="不限速"
+                                          selectedKeys={
+                                            currentSpeedId
+                                              ? [currentSpeedId.toString()]
+                                              : []
+                                          }
                                           size="sm"
                                           variant="flat"
-                                          placeholder="不限速"
-                                          selectedKeys={currentSpeedId ? [currentSpeedId.toString()] : []}
                                           onSelectionChange={(keys) => {
-                                            const selectedKey = Array.from(keys)[0];
-                                            updateTunnelSpeedLimit(tunnel.id, selectedKey ? Number(selectedKey) : null);
+                                            const selectedKey =
+                                              Array.from(keys)[0];
+
+                                            updateTunnelSpeedLimit(
+                                              tunnel.id,
+                                              selectedKey
+                                                ? Number(selectedKey)
+                                                : null,
+                                            );
                                           }}
                                         >
-                                          {tunnelSpeedLimits.map(sl => <SelectItem key={sl.id.toString()}>{sl.name}</SelectItem>)}
+                                          {tunnelSpeedLimits.map((sl) => (
+                                            <SelectItem key={sl.id.toString()}>
+                                              {sl.name}
+                                            </SelectItem>
+                                          ))}
                                         </Select>
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-default-400">-</span>
+                                      <span className="text-sm text-default-400">
+                                        -
+                                      </span>
                                     )}
                                   </TableCell>
 
                                   <TableCell className="whitespace-nowrap">
                                     {isAssigned ? (
-                                      <span className="text-xs text-default-400 italic">已分配</span>
+                                      <span className="text-xs text-default-400 italic">
+                                        已分配
+                                      </span>
                                     ) : (
-                                      <span className="text-xs text-default-400">-</span>
+                                      <span className="text-xs text-default-400">
+                                        -
+                                      </span>
                                     )}
                                   </TableCell>
                                 </TableRow>
@@ -1658,7 +1784,15 @@ export default function UserPage() {
                         </Table>
                       </div>
                       <div className="bg-default-50/80 border-t p-3 flex justify-end">
-                        <Button size="md" variant="light" color="primary" className="font-bold" onPress={() => setIsTunnelListExpanded(false)}>完成配置</Button>
+                        <Button
+                          className="font-bold"
+                          color="primary"
+                          size="md"
+                          variant="light"
+                          onPress={() => setIsTunnelListExpanded(false)}
+                        >
+                          完成配置
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -1679,11 +1813,21 @@ export default function UserPage() {
                     }}
                   >
                     <TableHeader>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道名称</TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">流量统计</TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">限速</TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">操作</TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                        隧道名称
+                      </TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                        流量统计
+                      </TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                        限速
+                      </TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                        状态
+                      </TableColumn>
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                        操作
+                      </TableColumn>
                     </TableHeader>
                     <TableBody
                       emptyContent="暂无隧道权限"
@@ -1692,7 +1836,10 @@ export default function UserPage() {
                       loadingContent={<Spinner />}
                     >
                       {(userTunnel) => (
-                        <TableRow key={userTunnel.id} className="hover:bg-default-50/50 transition-colors">
+                        <TableRow
+                          key={userTunnel.id}
+                          className="hover:bg-default-50/50 transition-colors"
+                        >
                           <TableCell className="whitespace-nowrap">
                             <span className="font-bold text-default-700">
                               {userTunnel.tunnelName}
@@ -1702,7 +1849,9 @@ export default function UserPage() {
                           <TableCell className="whitespace-nowrap">
                             <div className="flex items-center gap-1 text-sm">
                               <span className="text-danger font-mono font-bold">
-                                {formatFlow(calculateTunnelUsedFlow(userTunnel))}
+                                {formatFlow(
+                                  calculateTunnelUsedFlow(userTunnel),
+                                )}
                               </span>
                               <span className="text-default-300">/</span>
                               <span className="text-default-500 font-mono">
@@ -1713,12 +1862,19 @@ export default function UserPage() {
 
                           <TableCell className="whitespace-nowrap">
                             <span className="text-sm text-default-700">
-                              {userTunnel.speedLimitName ? userTunnel.speedLimitName.replace(/^限速\s*/, "") : "不限"}
+                              {userTunnel.speedLimitName
+                                ? userTunnel.speedLimitName.replace(
+                                    /^限速\s*/,
+                                    "",
+                                  )
+                                : "不限"}
                             </span>
                           </TableCell>
 
                           <TableCell className="whitespace-nowrap">
-                            <span className={`text-sm font-medium ${userTunnel.status === 1 ? "text-success" : "text-danger"}`}>
+                            <span
+                              className={`text-sm font-medium ${userTunnel.status === 1 ? "text-success" : "text-danger"}`}
+                            >
                               {userTunnel.status === 1 ? "正常" : "禁用"}
                             </span>
                           </TableCell>
@@ -1727,29 +1883,39 @@ export default function UserPage() {
                             <div className="flex items-center gap-2">
                               <Button
                                 isIconOnly
+                                className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
                                 size="sm"
                                 variant="flat"
-                                className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
                                 onPress={() => handleEditTunnel(userTunnel)}
                               >
                                 <EditIcon className="w-4 h-4" />
                               </Button>
                               <Button
                                 isIconOnly
+                                className="bg-orange-50 text-orange-600 hover:bg-orange-100 w-8 h-8 min-w-8"
                                 size="sm"
                                 variant="flat"
-                                className="bg-orange-50 text-orange-600 hover:bg-orange-100 w-8 h-8 min-w-8"
-                                onPress={() => handleResetTunnelFlow(userTunnel)}
+                                onPress={() =>
+                                  handleResetTunnelFlow(userTunnel)
+                                }
                               >
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                  <path clipRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" fillRule="evenodd" />
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    clipRule="evenodd"
+                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                    fillRule="evenodd"
+                                  />
                                 </svg>
                               </Button>
                               <Button
                                 isIconOnly
+                                className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
                                 size="sm"
                                 variant="flat"
-                                className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
                                 onPress={() => handleRemoveTunnel(userTunnel)}
                               >
                                 <DeleteIcon className="w-4 h-4" />
@@ -1766,9 +1932,9 @@ export default function UserPage() {
           </ModalBody>
           <ModalFooter className="justify-end">
             <Button
-              onPress={onTunnelModalClose}
               color="primary"
               variant="flat" // 建议加个 variant 保持和你其他按钮风格一致
+              onPress={onTunnelModalClose}
             >
               关闭
             </Button>
@@ -1777,8 +1943,11 @@ export default function UserPage() {
       </Modal>
 
       {/* 编辑隧道权限模态框 */}
-      <Modal classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl" }}
+      <Modal
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
         isDismissable={false}
         isOpen={isEditTunnelModalOpen}
         placement="center"
@@ -1807,9 +1976,9 @@ export default function UserPage() {
                     setEditTunnelForm((prev) =>
                       prev
                         ? {
-                          ...prev,
-                          speedId: selectedKey ? Number(selectedKey) : null,
-                        }
+                            ...prev,
+                            speedId: selectedKey ? Number(selectedKey) : null,
+                          }
                         : null,
                     );
                   }}
@@ -1854,8 +2023,11 @@ export default function UserPage() {
       </Modal>
 
       {/* 删除确认对话框 */}
-      <Modal classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl" }}
+      <Modal
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
         isOpen={isDeleteModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -1897,8 +2069,11 @@ export default function UserPage() {
       </Modal>
 
       {/* 删除隧道权限确认对话框 */}
-      <Modal classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl" }}
+      <Modal
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
         isOpen={isDeleteTunnelModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -1942,8 +2117,11 @@ export default function UserPage() {
       </Modal>
 
       {/* 重置流量确认对话框 */}
-      <Modal classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl" }}
+      <Modal
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
         isOpen={isResetFlowModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -2031,8 +2209,11 @@ export default function UserPage() {
       </Modal>
 
       {/* 重置隧道流量确认对话框 */}
-      <Modal classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl" }}
+      <Modal
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
         isOpen={isResetTunnelFlowModalOpen}
         placement="center"
         scrollBehavior="outside"
