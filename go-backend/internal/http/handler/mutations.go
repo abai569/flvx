@@ -669,19 +669,25 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	if listID > 0 {
 		tunnelListID = sql.NullInt64{Int64: listID, Valid: true}
 	}
+	tunnelGroupID := asInt64(req["tunnelGroupId"], 0)
+	var tunnelTunnelGroupID sql.NullInt64
+	if tunnelGroupID > 0 {
+		tunnelTunnelGroupID = sql.NullInt64{Int64: tunnelGroupID, Valid: true}
+	}
 	tunnel := model.Tunnel{
-		Name:         name,
-		TrafficRatio: trafficRatio,
-		Type:         typeVal,
-		Protocol:     "tls",
-		Flow:         flow,
-		CreatedTime:  now,
-		UpdatedTime:  now,
-		Status:       status,
-		InIP:         tunnelInIP,
-		Inx:          inx,
-		IPPreference: ipPreference,
-		ListID:       tunnelListID,
+		Name:          name,
+		TrafficRatio:  trafficRatio,
+		Type:          typeVal,
+		Protocol:      "tls",
+		Flow:          flow,
+		CreatedTime:   now,
+		UpdatedTime:   now,
+		Status:        status,
+		InIP:          tunnelInIP,
+		Inx:           inx,
+		IPPreference:  ipPreference,
+		ListID:        tunnelListID,
+		TunnelGroupID: tunnelTunnelGroupID,
 	}
 	if err := tx.Create(&tunnel).Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -839,6 +845,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		inIp,
 		ipPreference,
 		asInt64(req["listId"], 0),
+		asInt64(req["tunnelGroupId"], 0),
 		now,
 	); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))

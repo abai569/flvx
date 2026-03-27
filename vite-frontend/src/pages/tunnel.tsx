@@ -48,6 +48,7 @@ import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Radio, RadioGroup } from "@/shadcn-bridge/heroui/radio";
 import { TunnelGroupManager } from "./tunnel/tunnel-group-manager";
 import {
+  getTunnelGroupNewList,
   createTunnel,
   batchDeleteTunnelsWithForwards,
   getTunnelList,
@@ -59,9 +60,8 @@ import {
   batchRedeployTunnels,
   previewBatchTunnelDelete,
   previewTunnelDelete,
-  getTunnelListList,
 } from "@/api";
-import type { TunnelListApiItem } from "@/api/types";
+import type { TunnelGroupNewApiItem, TunnelListApiItem } from "@/api/types";
 import { PageLoadingState } from "@/components/page-state";
 import {
   buildDiagnosisFallbackResult,
@@ -108,7 +108,34 @@ interface Tunnel {
   ipPreference?: string;
   status: number;
   createdTime: string;
-  listId?: number | null;
+  tunnelGroupId?: number | null;
+}
+
+interface Node {
+  id: number;
+  name: string;
+  status: number; // 1: 在线，0: 离线
+  serverIp?: string;
+  serverIpV4?: string;
+  serverIpV6?: string;
+  extraIPs?: string;
+  remark?: string;
+}
+
+interface TunnelForm {
+  id?: number;
+  name: string;
+  type: number;
+  inNodeId: ChainTunnel[];
+  outNodeId?: ChainTunnel[];
+  chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组，外层是跳数，内层是该跳的节点
+  flow: number;
+  trafficRatio: number;
+  inIp: string; // 入口 IP
+  ipPreference: string;
+  status: number;
+  tunnelGroupId: number | null;
+  remark?: string;
 }
 
 interface Node {
@@ -134,7 +161,7 @@ interface TunnelForm {
   inIp: string; // 入口 IP
   ipPreference: string;
   status: number;
-  listId: number | null;
+  tunnelGroupId: number | null;
   remark?: string;
 }
 
@@ -177,7 +204,7 @@ const mapTunnelApiItems = (items: any[]): Tunnel[] => {
     trafficRatio: tunnel.trafficRatio ?? 1,
     status: typeof tunnel.status === "number" ? tunnel.status : 0,
     createdTime: tunnel.createdTime || "",
-    listId: tunnel.listId ?? null,
+    tunnelGroupId: tunnel.tunnelGroupId ?? null,
   }));
 };
 
@@ -297,7 +324,7 @@ export default function TunnelPage() {
   const [viewMode, setViewMode] = useLocalStorageState("tunnel-view-mode", "grid");
 
   // 隧道分组状态
-  const [tunnelLists, setTunnelLists] = useState<TunnelListApiItem[]>([]);
+  const [tunnelGroupsNew, setTunnelGroupsNew] = useState<TunnelGroupNewApiItem[]>([]);
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
 
   // 列表模式选中行
@@ -312,90 +339,21 @@ export default function TunnelPage() {
     setSelectedTunnelIds(new Set());
   }, []);
 
-  const isAllTunnelsSelected = useMemo(() => {
-    return tunnels.length > 0 && selectedTunnelIds.size === tunnels.length;
-  }, [tunnels, selectedTunnelIds]);
+  const isAllTunnelsSelected = tunnels.length > 0 && selectedTunnelIds.size === tunnels.length;
 
-  const handleSelectAllTunnelsToggle = useCallback((isSelected: boolean) => {
-    if (isSelected) {
-      selectAllTunnels();
-    } else {
+  const handleSelectAllTunnelsToggle = useCallback(() => {
+    if (isAllTunnelsSelected) {
       deselectAllTunnels();
+    } else {
+      selectAllTunnels();
     }
-  }, [selectAllTunnels, deselectAllTunnels]);
-
-  useEffect(() => {
-    return () => {
-      diagnosisAbortRef.current?.abort();
-      diagnosisAbortRef.current = null;
-    };
-  }, []);
-
-  const applyTunnelList = useCallback((items: Tunnel[]) => {
-    setTunnels(items);
-
-    const hasDbOrdering = items.some(
-      (tunnel) => tunnel.inx !== undefined && tunnel.inx !== 0,
-    );
-
-    if (hasDbOrdering) {
-      const dbOrder = [...items]
-        .sort((a, b) => (a.inx ?? 0) - (b.inx ?? 0))
-        .map((tunnel) => tunnel.id);
-
-      setTunnelOrder(dbOrder);
-
-      return;
-    }
-
-    setTunnelOrder(
-      loadStoredOrder(
-        TUNNEL_ORDER_KEY,
-        items.map((tunnel) => tunnel.id),
-      ),
-    );
-  }, []);
-
-  const refreshTunnelList = useCallback(
-    async (withLoading = true) => {
-      if (withLoading) {
-        setLoading(true);
-      }
-
-      try {
-        const tunnelsRes = await getTunnelList();
-
-        if (tunnelsRes.code === 0) {
-          applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));
-        } else {
-          toast.error(tunnelsRes.msg || "获取隧道列表失败");
-        }
-      } catch {
-        toast.error("获取隧道列表失败");
-      } finally {
-        if (withLoading) {
-          setLoading(false);
-        }
-      }
-    },
-    [applyTunnelList],
-  );
-
-  const refreshNodes = useCallback(async () => {
-    try {
-      const nodesRes = await getNodeList();
-
-      if (nodesRes.code === 0) {
-        setNodes(nodesRes.data || []);
-      }
-    } catch { }
-  }, []);
+  }, [isAllTunnelsSelected, selectAllTunnels, deselectAllTunnels]);
 
   // 加载隧道分组
-  const loadTunnelLists = useCallback(async () => {
-    const res = await getTunnelListList();
+  const loadTunnelGroupsNew = useCallback(async () => {
+    const res = await getTunnelGroupNewList();
     if (res.code === 0) {
-      setTunnelLists(res.data);
+      setTunnelGroupsNew(res.data);
     }
   }, []);
 
@@ -404,16 +362,16 @@ export default function TunnelPage() {
     setLoading(true);
     try {
       await Promise.all([
-        refreshTunnelList(false),
-        refreshNodes(),
-        loadTunnelLists(),
+        loadData(),
+        
+        loadTunnelGroupsNew(),
       ]);
     } catch {
       toast.error("加载数据失败");
     } finally {
       setLoading(false);
     }
-  }, [refreshNodes, refreshTunnelList, loadTunnelLists]);
+  }, [ loadTunnelGroupsNew]);
 
   useEffect(() => {
     loadData();
@@ -488,13 +446,13 @@ export default function TunnelPage() {
       trafficRatio: tunnel.trafficRatio,
       inIp: tunnel.inIp
         ? tunnel.inIp
-          .split(",")
-          .map((ip: string) => ip.trim())
-          .join("\n")
+            .split(",")
+            .map((ip: string) => ip.trim())
+            .join("\n")
         : "",
       ipPreference: tunnel.ipPreference || "",
       status: tunnel.status,
-      listId: tunnel.listId || null,
+      tunnelGroupId: tunnel.tunnelGroupId || null,
     });
     setErrors({});
     setModalOpen(true);
@@ -783,7 +741,7 @@ export default function TunnelPage() {
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
         setModalOpen(false);
-        await refreshTunnelList(false);
+        await loadData();
       } else {
         toast.error(response.msg || (isEdit ? "更新失败" : "创建失败"));
       }
@@ -1172,7 +1130,7 @@ export default function TunnelPage() {
           label: `删除完成：成功 ${result.successCount} 项，正在刷新列表...`,
           percent: 100,
         });
-        await refreshTunnelList(false);
+        await loadData();
       } else {
         toast.error(res.msg || "删除失败");
       }
@@ -1229,7 +1187,7 @@ export default function TunnelPage() {
           label: `重新下发完成：成功 ${result.successCount} 项，正在刷新列表...`,
           percent: 100,
         });
-        await refreshTunnelList(false);
+        await loadData();
       } else {
         toast.error(res.msg || "下发失败");
       }
@@ -2206,24 +2164,6 @@ export default function TunnelPage() {
                       <SelectItem key="1">端口转发</SelectItem>
                       <SelectItem key="2">隧道转发</SelectItem>
                     </Select>
-                    <Select
-                      label="分组"
-                      selectedKeys={form.listId ? [form.listId.toString()] : []}
-                      variant="bordered"
-                      onSelectionChange={(keys) => {
-                        const selectedKey = Array.from(keys)[0] as string;
-                        setForm((prev) => ({
-                          ...prev,
-                          listId: selectedKey ? Number(selectedKey) : null,
-                        }));
-                      }}
-                    >
-                      {tunnelLists.map((list) => (
-                        <SelectItem key={list.id.toString()} textValue={list.name}>
-                          {list.name}
-                        </SelectItem>
-                      ))}
-                    </Select>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2268,6 +2208,33 @@ export default function TunnelPage() {
                       }
                     />
                   </div>
+
+                  <Select
+                    label="分组"
+                    placeholder="选择分组（可选）"
+                    selectedKeys={form.tunnelGroupId ? [form.tunnelGroupId.toString()] : []}
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selectedKey = Array.from(keys)[0] as string;
+                      setForm((prev) => ({
+                        ...prev,
+                        tunnelGroupId: selectedKey ? Number(selectedKey) : null,
+                      }));
+                    }}
+                  >
+                    <SelectItem key="none">未分组</SelectItem>
+                    {tunnelGroupsNew.map((group) => (
+                      <SelectItem key={group.id.toString()} textValue={group.name}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: group.color }}
+                          />
+                          <span>{group.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </Select>
 
                   <Textarea
                     classNames={{ inputWrapper: "!min-h-[20px] py-1.5", input: "!min-h-[20px]" }}
@@ -4034,7 +4001,7 @@ export default function TunnelPage() {
       <TunnelGroupManager
         isOpen={groupManagerOpen}
         onOpenChange={setGroupManagerOpen}
-        onGroupChange={loadTunnelLists}
+        onGroupChange={loadTunnelGroupsNew}
       />
 
       <BatchActionResultModal

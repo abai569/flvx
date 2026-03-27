@@ -1722,12 +1722,12 @@ export default function NodePage() {
     // 1. 先按分组过滤
     const groupFiltered = filterGroupId
       ? keywordFiltered.filter((node) => {
-          if (filterGroupId === -1) {
-            // -1 表示"未分组"
-            return !node.groupId || node.groupId === 0;
-          }
-          return node.groupId === filterGroupId;
-        })
+        if (filterGroupId === -1) {
+          // -1 表示"未分组"
+          return !node.groupId || node.groupId === 0;
+        }
+        return node.groupId === filterGroupId;
+      })
       : keywordFiltered;
 
     // 2. 再按到期状态过滤
@@ -2057,27 +2057,35 @@ export default function NodePage() {
                                       </svg>
                                     </div>
                                   </div>
-                                  {node.groupId && node.groupId > 0 && (() => {
-                                    const group = nodeGroups.find(g => g.id === node.groupId);
-                                    return group ? (
-                                      <Chip
-                                        size="sm"
-                                        variant="flat"
-                                        style={{
-                                          backgroundColor: `${group.color}20`,
-                                          color: group.color,
-                                        }}
-                                        className="cursor-pointer hover:opacity-80"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOpenGroupSelector(node.id);
-                                        }}
-                                        title={`分组：${group.name}（点击切换）`}
-                                      >
-                                        {group.name}
-                                      </Chip>
-                                    ) : null;
-                                  })()}
+                                  {/* 👇 替换为这个完整的判断逻辑 👇 */}
+                                  {node.groupId && node.groupId > 0 ? (
+                                    (() => {
+                                      const group = (nodeGroups || []).find((g: any) => g.id == node.groupId);
+                                      return group ? (
+                                        <Chip
+                                          size="sm"
+                                          variant="flat"
+                                          className="flex-shrink-0"
+                                          style={{
+                                            backgroundColor: `${group.color}20`,
+                                            color: group.color,
+                                          }}
+                                        >
+                                          {group.name}
+                                        </Chip>
+                                      ) : (
+                                        // 💡 重点：这里处理有 id 但没找到 group 的情况（防呆）
+                                        <Chip size="sm" variant="flat" className="flex-shrink-0 bg-default-100 text-default-500">
+                                          未分组
+                                        </Chip>
+                                      );
+                                    })()
+                                  ) : (
+                                    // 💡 重点：这里处理完全没有 groupId 的情况
+                                    <Chip size="sm" variant="flat" className="flex-shrink-0 bg-default-100 text-default-500">
+                                      未分组
+                                    </Chip>
+                                  )}
                                   <div className="flex-shrink-0">
                                     {hasInfoTrigger && (
                                       <div className="relative">
