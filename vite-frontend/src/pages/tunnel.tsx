@@ -2205,27 +2205,20 @@ export default function TunnelPage() {
 
                   <Select
                     label="分组"
-                    placeholder="选择分组"
-                    // 👇 修复 1：正确处理 0 或 null 显示为“未分组”
-                    selectedKeys={form.tunnelGroupId}
+                    placeholder="选择分组（可选）"
+                    selectedKeys={form.tunnelGroupId ? [String(form.tunnelGroupId)] : []}
                     variant="bordered"
                     onSelectionChange={(keys) => {
-                      const selected = Array.from(keys)[0] as string | undefined;
+                      const selected = Array.from(keys)[0] as string;
                       setForm((prev) => ({
                         ...prev,
-                        // 👇 修复 2：防止选“未分组”时变成 NaN 导致后端崩溃
-                        tunnelGroupId: selected,
+                        tunnelGroupId: selected ? parseInt(selected) : null,
                       }));
                     }}
                   >
-                    <SelectItem key="none" textValue="未分组">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gray-300" />
-                        <span>未分组</span>
-                      </div>
-                    </SelectItem>
+                    <SelectItem key="none">未分组</SelectItem>
                     {tunnelGroupsNew.map((group) => (
-                      <SelectItem key={group.id.toString()} textValue={group.name}>
+                      <SelectItem key={String(group.id)} textValue={group.name}>
                         <div className="flex items-center gap-2">
                           <div
                             className="w-3 h-3 rounded-full"
