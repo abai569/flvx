@@ -307,6 +307,7 @@ export default function TunnelPage() {
 
   // 筛选状态
   const [tunnelFilterMode, setTunnelFilterMode] = useLocalStorageState<"all" | "enabled" | "disabled">("tunnel-filter-mode", "all");
+  const [filterGroupId, setFilterGroupId] = useState<number | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // 列表模式选中行
@@ -1286,6 +1287,16 @@ export default function TunnelPage() {
 
     let filteredTunnels = tunnels;
 
+    // 按分组筛选
+    if (filterGroupId !== null) {
+      if (filterGroupId === -1) {
+        // -1 表示未分组
+        filteredTunnels = filteredTunnels.filter((t) => !t.tunnelGroupId || t.tunnelGroupId === 0);
+      } else {
+        filteredTunnels = filteredTunnels.filter((t) => t.tunnelGroupId === filterGroupId);
+      }
+    }
+
     // 按状态筛选
     if (tunnelFilterMode !== "all") {
       if (tunnelFilterMode === "enabled") {
@@ -1339,7 +1350,7 @@ export default function TunnelPage() {
     }
 
     return sortedByDb;
-  }, [tunnels, tunnelOrder, searchKeyword, tunnelFilterMode]);
+  }, [tunnels, tunnelOrder, searchKeyword, tunnelFilterMode, filterGroupId]);
 
   const sortableTunnelIds = useMemo(
     () => sortedTunnels.map((t) => t.id),
@@ -1626,21 +1637,21 @@ export default function TunnelPage() {
                 新增
               </Button>
               <Button
+                className={tunnelFilterMode !== "all" || filterGroupId !== null ? "bg-secondary text-white" : "bg-danger text-white"}
+                color="default"
+                size="sm"
+                variant="flat"
+                onPress={() => setIsFilterModalOpen(true)}
+              >
+                筛选 {(tunnelFilterMode !== "all" || filterGroupId !== null) && "(1)"}
+              </Button>
+              <Button
                 className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
                 size="sm"
                 variant="flat"
                 onPress={() => setGroupManagerOpen(true)}
               >
                 分组管理
-              </Button>
-              <Button
-                className={tunnelFilterMode !== "all" ? "bg-secondary text-white" : "bg-danger text-white"}
-                color="default"
-                size="sm"
-                variant="flat"
-                onPress={() => setIsFilterModalOpen(true)}
-              >
-                筛选 {tunnelFilterMode !== "all" && "(1)"}
               </Button>
             </>
           )}
@@ -4081,6 +4092,42 @@ export default function TunnelPage() {
           </ModalHeader>
           <ModalBody>
             <div className="flex flex-col gap-4 py-2">
+              {/* 按分组筛选 */}
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">按分组筛选</p>
+                <Select
+                  aria-label="按分组筛选"
+                  className="w-full"
+                  selectedKeys={filterGroupId !== null ? [String(filterGroupId)] : ["all"]}
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as string;
+                    if (selected === "all") {
+                      setFilterGroupId(null);
+                    } else if (selected === "-1") {
+                      setFilterGroupId(-1); // -1 表示未分组
+                    } else {
+                      setFilterGroupId(parseInt(selected));
+                    }
+                  }}
+                >
+                  <SelectItem key="all">全部分组</SelectItem>
+                  <SelectItem key="-1">未分组</SelectItem>
+                  {tunnelGroupsNew.map((group) => (
+                    <SelectItem key={String(group.id)} textValue={group.name}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <span>{group.name}</span>
+                        <span className="text-default-400 text-xs ml-auto">{group.tunnelCount}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+
               {/* 按状态筛选 */}
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium">按状态筛选</p>
@@ -4106,6 +4153,7 @@ export default function TunnelPage() {
               color="default"
               variant="flat"
               onPress={() => {
+                setFilterGroupId(null);
                 setTunnelFilterMode("all");
                 setIsFilterModalOpen(false);
               }}

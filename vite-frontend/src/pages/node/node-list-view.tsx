@@ -233,18 +233,6 @@ function SortableTableRow({
           </Chip>
         )}
       </TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        {node.remark?.trim() ? (
-          <span
-            className="text-sm truncate block max-w-[120px]"
-            title={node.remark.trim()}
-          >
-            {node.remark.trim()}
-          </span>
-        ) : (
-          <span className="text-sm text-default-400">-</span>
-        )}
-      </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
         <div className="text-left text-xs min-w-0 flex-1 min-h-[2.125rem]">
           {node.serverIpV4?.trim() || node.serverIpV6?.trim() ? (
@@ -292,7 +280,7 @@ function SortableTableRow({
         {!isRemoteNode ? (
           <div className="flex flex-col gap-1 min-w-[100px] justify-center">
             {upgradeProgress?.[node.id]?.percent !== undefined &&
-            upgradeProgress[node.id].percent < 100 ? (
+              upgradeProgress[node.id].percent < 100 ? (
               <>
                 <Progress
                   aria-label="升级进度"
@@ -332,12 +320,12 @@ function SortableTableRow({
         <div className="flex justify-end">
           <span className="text-sm text-danger-600 dark:text-danger-400">
             {node.connectionStatus === "online" &&
-            realtimeNodeMetrics &&
-            realtimeNodeMetrics[node.id]
+              realtimeNodeMetrics &&
+              realtimeNodeMetrics[node.id]
               ? formatTraffic(
-                  (realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0) +
-                    (realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0),
-                )
+                (realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0) +
+                (realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0),
+              )
               : "-"}
           </span>
         </div>
@@ -346,11 +334,11 @@ function SortableTableRow({
         <div className="flex justify-end">
           <span className="text-sm text-success-700 dark:text-success-300">
             {node.connectionStatus === "online" &&
-            realtimeNodeMetrics &&
-            realtimeNodeMetrics[node.id]
+              realtimeNodeMetrics &&
+              realtimeNodeMetrics[node.id]
               ? formatTraffic(
-                  realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0,
-                )
+                realtimeNodeMetrics?.[node.id]?.uploadTraffic || 0,
+              )
               : "-"}
           </span>
         </div>
@@ -359,14 +347,26 @@ function SortableTableRow({
         <div className="flex justify-end">
           <span className="text-sm text-primary-700 dark:text-primary-300">
             {node.connectionStatus === "online" &&
-            realtimeNodeMetrics &&
-            realtimeNodeMetrics[node.id]
+              realtimeNodeMetrics &&
+              realtimeNodeMetrics[node.id]
               ? formatTraffic(
-                  realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0,
-                )
+                realtimeNodeMetrics?.[node.id]?.downloadTraffic || 0,
+              )
               : "-"}
           </span>
         </div>
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        {node.remark?.trim() ? (
+          <span
+            className="text-sm truncate block max-w-[120px]"
+            title={node.remark.trim()}
+          >
+            {node.remark.trim()}
+          </span>
+        ) : (
+          <span className="text-sm text-default-400">-</span>
+        )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-end gap-1">
@@ -469,36 +469,16 @@ export function NodeListView({
               />
             </div>
           </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">
-            排序
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[160px] text-left">
-            节点名称
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">
-            分组名
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">
-            备注
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
-            地址
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">
-            版本
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
-            总流量
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
-            上行流量
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
-            下行流量
-          </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-            操作
-          </TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[160px] text-left">节点名称</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">分组名</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">地址</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">版本</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">总流量</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">上行流量</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">下行流量</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">备注</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">操作</TableColumn>
         </TableHeader>
         <TableBody>
           {displayNodes.map((node) => (
