@@ -109,6 +109,7 @@ interface Tunnel {
   status: number;
   createdTime: string;
   tunnelGroupId?: number | null;
+  remark?: string;
 }
 
 interface Node {
@@ -135,6 +136,7 @@ interface TunnelForm {
   ipPreference: string;
   status: number;
   tunnelGroupId: number | null;
+  remark: string;
 }
 
 interface BatchProgressState {
@@ -177,6 +179,7 @@ const mapTunnelApiItems = (items: any[]): Tunnel[] => {
     status: typeof tunnel.status === "number" ? tunnel.status : 0,
     createdTime: tunnel.createdTime || "",
     tunnelGroupId: tunnel.tunnelGroupId ?? null,
+    remark: tunnel.remark || "",
   }));
 };
 
@@ -301,6 +304,10 @@ export default function TunnelPage() {
   // 隧道分组状态
   const [tunnelGroupsNew, setTunnelGroupsNew] = useState<TunnelGroupNewApiItem[]>([]);
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
+
+  // 筛选状态
+  const [tunnelFilterMode, setTunnelFilterMode] = useLocalStorageState<"all" | "enabled" | "disabled">("tunnel-filter-mode", "all");
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // 列表模式选中行
   const [selectedTunnelIds, setSelectedTunnelIds] = useState<Set<number>>(new Set());
@@ -493,6 +500,7 @@ export default function TunnelPage() {
       ipPreference: tunnel.ipPreference || "",
       status: tunnel.status,
       tunnelGroupId: tunnel.tunnelGroupId ?? null,
+      remark: tunnel.remark || "",
     });
     setErrors({});
     setModalOpen(true);
@@ -1278,13 +1286,24 @@ export default function TunnelPage() {
 
     let filteredTunnels = tunnels;
 
+    // 按状态筛选
+    if (tunnelFilterMode !== "all") {
+      if (tunnelFilterMode === "enabled") {
+        filteredTunnels = filteredTunnels.filter((t) => t.status === 1);
+      } else if (tunnelFilterMode === "disabled") {
+        filteredTunnels = filteredTunnels.filter((t) => t.status === 0);
+      }
+    }
+
+    // 按关键词搜索
     if (searchKeyword.trim()) {
       const lowerKeyword = searchKeyword.toLowerCase();
 
       filteredTunnels = filteredTunnels.filter(
         (t) =>
           (t.name && t.name.toLowerCase().includes(lowerKeyword)) ||
-          (t.inIp && t.inIp.toLowerCase().includes(lowerKeyword)),
+          (t.inIp && t.inIp.toLowerCase().includes(lowerKeyword)) ||
+          (t.remark && t.remark.toLowerCase().includes(lowerKeyword)),
       );
     }
 
@@ -1320,7 +1339,7 @@ export default function TunnelPage() {
     }
 
     return sortedByDb;
-  }, [tunnels, tunnelOrder, searchKeyword]);
+  }, [tunnels, tunnelOrder, searchKeyword, tunnelFilterMode]);
 
   const sortableTunnelIds = useMemo(
     () => sortedTunnels.map((t) => t.id),
@@ -1612,7 +1631,16 @@ export default function TunnelPage() {
                 variant="flat"
                 onPress={() => setGroupManagerOpen(true)}
               >
-                分组
+                分组管理
+              </Button>
+              <Button
+                className={tunnelFilterMode !== "all" ? "bg-secondary text-white" : "bg-danger text-white"}
+                color="default"
+                size="sm"
+                variant="flat"
+                onPress={() => setIsFilterModalOpen(true)}
+              >
+                筛选 {tunnelFilterMode !== "all" && "(1)"}
               </Button>
             </>
           )}
@@ -1664,6 +1692,7 @@ export default function TunnelPage() {
                       <th className="py-3 px-4 w-[100px] text-center align-middle">流量</th>
                       <th className="py-3 px-4 w-[80px] text-center align-middle">倍率</th>
                       <th className="py-3 px-4 w-[80px] text-center align-middle">偏好</th>
+                      <th className="py-3 px-4 w-[150px] align-middle">备注</th>
                       <th className="py-3 px-4 w-[280px] align-middle">操作</th>
                     </tr>
                   </thead>
@@ -1770,6 +1799,18 @@ export default function TunnelPage() {
                               </td>
                               <td className="py-3 px-4 text-center align-middle">
                                 <span className="font-medium text-foreground">{tunnel.ipPreference === "v6" ? "IPv6" : "IPv4"}</span>
+                              </td>
+                              <td className="py-3 px-4 align-middle">
+                                {tunnel.remark ? (
+                                  <div
+                                    className="text-sm text-default-600 truncate max-w-[140px]"
+                                    title={tunnel.remark}
+                                  >
+                                    {tunnel.remark}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-default-400">-</span>
+                                )}
                               </td>
                               <td className="py-3 px-4 align-middle">
                                 <div className="flex gap-1.5">
@@ -1969,6 +2010,16 @@ export default function TunnelPage() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* 备注 */}
+                            {tunnel.remark && (
+                              <div className="pt-2 border-t border-divider">
+                                <div className="text-xs text-default-500">
+                                  <span className="font-medium">备注：</span>
+                                  <span className="truncate block">{tunnel.remark}</span>
+                                </div>
+                              </div>
+                            )}
 
                             {/* 流量配置 */}
                             <div
@@ -2202,6 +2253,19 @@ export default function TunnelPage() {
                       }
                     />
                   </div>
+
+                  <Textarea
+                    classNames={{ inputWrapper: "!min-h-[20px] py-1.5", input: "!min-h-[20px]" }}
+                    label="备注"
+                    maxRows={3}
+                    minRows={1}
+                    placeholder="可记录供应商、用途、续费说明等补充信息"
+                    value={form.remark}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, remark: e.target.value }))
+                    }
+                  />
 
                   <Select
                     label="分组"
@@ -4004,6 +4068,53 @@ export default function TunnelPage() {
         onOpenChange={setGroupManagerOpen}
         onGroupChange={loadTunnelGroupsNew}
       />
+
+      {/* 筛选 Modal */}
+      <Modal
+        isOpen={isFilterModalOpen}
+        onOpenChange={setIsFilterModalOpen}
+        size="sm"
+      >
+        <ModalContent>
+          <ModalHeader>
+            筛选条件
+          </ModalHeader>
+          <ModalBody>
+            <div className="flex flex-col gap-4 py-2">
+              {/* 按状态筛选 */}
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">按状态筛选</p>
+                <Select
+                  aria-label="按状态筛选"
+                  className="w-full"
+                  selectedKeys={[tunnelFilterMode]}
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as "all" | "enabled" | "disabled";
+                    setTunnelFilterMode(selected);
+                  }}
+                >
+                  <SelectItem key="all">全部</SelectItem>
+                  <SelectItem key="enabled">正常</SelectItem>
+                  <SelectItem key="disabled">停用</SelectItem>
+                </Select>
+              </div>
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="default"
+              variant="flat"
+              onPress={() => {
+                setTunnelFilterMode("all");
+                setIsFilterModalOpen(false);
+              }}
+            >
+              重置
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <BatchActionResultModal
         failures={batchResultModal.failures}
