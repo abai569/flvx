@@ -418,14 +418,14 @@ func (r *Repository) UpdateTunnelTx(tx *gorm.DB, tunnelID int64, name string, ty
 		"updated_time":  now,
 	}
 	if listID > 0 {
-		updates["list_id"] = listID
+		updates["list_id"] = sql.NullInt64{Int64: listID, Valid: true}
 	} else {
-		updates["list_id"] = gorm.Expr("NULL")
+		updates["list_id"] = sql.NullInt64{Int64: 0, Valid: false}
 	}
 	if tunnelGroupID > 0 {
-		updates["tunnel_group_id"] = tunnelGroupID
+		updates["tunnel_group_id"] = sql.NullInt64{Int64: tunnelGroupID, Valid: true}
 	} else {
-		updates["tunnel_group_id"] = gorm.Expr("NULL")
+		updates["tunnel_group_id"] = sql.NullInt64{Int64: 0, Valid: false}
 	}
 	return tx.Model(&model.Tunnel{}).
 		Where("id = ?", tunnelID).
