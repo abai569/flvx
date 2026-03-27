@@ -496,7 +496,7 @@ export function NodeListView({
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
             下行流量
           </TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-right">
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
             操作
           </TableColumn>
         </TableHeader>

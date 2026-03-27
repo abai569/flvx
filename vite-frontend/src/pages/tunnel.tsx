@@ -1664,7 +1664,7 @@ export default function TunnelPage() {
                       <th className="py-3 px-4 w-[100px] text-center align-middle">流量</th>
                       <th className="py-3 px-4 w-[80px] text-center align-middle">倍率</th>
                       <th className="py-3 px-4 w-[80px] text-center align-middle">偏好</th>
-                      <th className="py-3 px-4 w-[280px] align-middle text-right">操作</th>
+                      <th className="py-3 px-4 w-[280px] align-middle">操作</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2205,16 +2205,16 @@ export default function TunnelPage() {
 
                   <Select
                     label="分组"
-                    placeholder="选择分组（可选）"
+                    placeholder="选择分组"
                     // 👇 修复 1：正确处理 0 或 null 显示为“未分组”
-                    selectedKeys={form.tunnelGroupId && form.tunnelGroupId > 0 ? [form.tunnelGroupId.toString()] : ["none"]}
+                    selectedKeys={form.tunnelGroupId}
                     variant="bordered"
                     onSelectionChange={(keys) => {
                       const selected = Array.from(keys)[0] as string | undefined;
                       setForm((prev) => ({
                         ...prev,
                         // 👇 修复 2：防止选“未分组”时变成 NaN 导致后端崩溃
-                        tunnelGroupId: selected && selected !== "none" ? parseInt(selected) : 0,
+                        tunnelGroupId: selected,
                       }));
                     }}
                   >

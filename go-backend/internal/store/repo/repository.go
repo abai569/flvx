@@ -1183,6 +1183,14 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 	orderedIDs := make([]int64, 0, len(tunnels))
 
 	for _, t := range tunnels {
+		// Convert sql.NullInt64 to interface{} (int64 or nil)
+		var tunnelGroupID interface{}
+		if t.TunnelGroupID.Valid {
+			tunnelGroupID = t.TunnelGroupID.Int64
+		} else {
+			tunnelGroupID = nil
+		}
+
 		tunnelMap[t.ID] = map[string]interface{}{
 			"id": t.ID, "inx": t.Inx, "name": t.Name,
 			"type": t.Type, "flow": t.Flow, "trafficRatio": t.TrafficRatio,
@@ -1192,7 +1200,7 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 			"inNodeId":      make([]map[string]interface{}, 0),
 			"outNodeId":     make([]map[string]interface{}, 0),
 			"chainNodes":    make([][]map[string]interface{}, 0),
-			"tunnelGroupId": t.TunnelGroupID,
+			"tunnelGroupId": tunnelGroupID,
 		}
 		orderedIDs = append(orderedIDs, t.ID)
 	}
