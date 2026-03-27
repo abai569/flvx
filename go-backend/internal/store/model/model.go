@@ -129,6 +129,7 @@ type Tunnel struct {
 	Inx          int            `gorm:"not null;default:0"`
 	IPPreference string         `gorm:"column:ip_preference;type:varchar(10);not null;default:''"`
 	ListID       sql.NullInt64  `gorm:"column:list_id;index"` // 所属隧道分组
+	Remark       sql.NullString `gorm:"column:remark;type:text"`
 }
 
 func (Tunnel) TableName() string { return "tunnel" }

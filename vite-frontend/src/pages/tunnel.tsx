@@ -131,10 +131,11 @@ interface TunnelForm {
   chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组，外层是跳数，内层是该跳的节点
   flow: number;
   trafficRatio: number;
-  inIp: string; // 入口IP
+  inIp: string; // 入口 IP
   ipPreference: string;
   status: number;
   listId: number | null;
+  remark?: string;
 }
 
 interface BatchProgressState {
@@ -2293,6 +2294,18 @@ export default function TunnelPage() {
                     </Select>
                   )}
 
+                  <Textarea
+                    classNames={{ inputWrapper: "!min-h-[20px] py-1.5", input: "!min-h-[20px]" }}
+                    label="备注"
+                    rows={1}
+                    placeholder="例如：搬瓦工年付，2026-12 续费，日本中转"
+                    value={form.remark || ""}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, remark: e.target.value }))
+                    }
+                  />
+
                   <Divider />
                   <h3 className="text-lg font-semibold">入口配置</h3>
 
@@ -2300,7 +2313,7 @@ export default function TunnelPage() {
                     <Select
                       disabledKeys={[
                         ...nodes
-                          .filter((node) => node.status !== 1)
+                          .filter((node) => node.status !== 1 && !form.inNodeId.some(ct => ct.nodeId === node.id))
                           .map((node) => node.id.toString()),
                         ...(form.outNodeId || []).map((ct) =>
                           ct.nodeId.toString(),
@@ -2478,7 +2491,7 @@ export default function TunnelPage() {
                                       }}
                                       disabledKeys={[
                                         ...nodes
-                                          .filter((node) => node.status !== 1)
+                                          .filter((node) => node.status !== 1 && !form.inNodeId.some(ct => ct.nodeId === node.id))
                                           .map((node) => node.id.toString()),
                                         ...form.inNodeId.map((ct) =>
                                           ct.nodeId.toString(),
@@ -2736,7 +2749,7 @@ export default function TunnelPage() {
                                   }}
                                   disabledKeys={[
                                     ...nodes
-                                      .filter((node) => node.status !== 1)
+                                      .filter((node) => node.status !== 1 && !form.inNodeId.some(ct => ct.nodeId === node.id))
                                       .map((node) => node.id.toString()),
                                     ...form.inNodeId.map((ct) =>
                                       ct.nodeId.toString(),

@@ -54,6 +54,7 @@ export interface TunnelApiItem {
   exitNodeId: number;
   inx?: number;
   listId?: number | null;
+  remark?: string;
   [key: string]: unknown;
 }
 
@@ -361,6 +362,7 @@ export interface TunnelMutationPayload {
   inNodeId?: TunnelChainNodePayload[];
   outNodeId?: TunnelChainNodePayload[];
   chainNodes?: TunnelChainNodePayload[][];
+  remark?: string;
 }
 
 export interface UserQuotaResetPayload {

@@ -81,8 +81,8 @@ func (r *Repository) ListGroupPermissionPairsByTunnelGroup(tunnelGroupID int64) 
 
 // ─── Tunnel Group Management for Tunnel Page ─────────────────────────────
 
-// ListTunnelGroupsComplete returns all tunnel groups with complete information.
-func (r *Repository) ListTunnelGroupsComplete() ([]model.TunnelGroup, error) {
+// ListTunnelGroupsNew returns all tunnel groups with complete information.
+func (r *Repository) ListTunnelGroupsNew() ([]model.TunnelGroup, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
@@ -91,8 +91,8 @@ func (r *Repository) ListTunnelGroupsComplete() ([]model.TunnelGroup, error) {
 	return groups, err
 }
 
-// CreateTunnelGroup creates a new tunnel group.
-func (r *Repository) CreateTunnelGroup(name, color, description string, inx, status int, now int64) (*model.TunnelGroup, error) {
+// CreateTunnelGroupNew creates a new tunnel group.
+func (r *Repository) CreateTunnelGroupNew(name, color, description string, inx, status int, now int64) (*model.TunnelGroup, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
@@ -111,8 +111,8 @@ func (r *Repository) CreateTunnelGroup(name, color, description string, inx, sta
 	return group, nil
 }
 
-// UpdateTunnelGroup updates an existing tunnel group.
-func (r *Repository) UpdateTunnelGroup(id int64, name, color, description string, inx, status int, now int64) error {
+// UpdateTunnelGroupNew updates an existing tunnel group.
+func (r *Repository) UpdateTunnelGroupNew(id int64, name, color, description string, inx, status int, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -126,8 +126,8 @@ func (r *Repository) UpdateTunnelGroup(id int64, name, color, description string
 	}).Error
 }
 
-// DeleteTunnelGroup deletes a tunnel group by ID.
-func (r *Repository) DeleteTunnelGroup(id int64) error {
+// DeleteTunnelGroupNew deletes a tunnel group by ID.
+func (r *Repository) DeleteTunnelGroupNew(id int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -141,8 +141,8 @@ func (r *Repository) DeleteTunnelGroup(id int64) error {
 	})
 }
 
-// AssignTunnelToGroup assigns a tunnel to groups (replaces existing assignments).
-func (r *Repository) AssignTunnelToGroup(tunnelId int64, groupIds []int64) error {
+// AssignTunnelToGroupNew assigns a tunnel to groups (replaces existing assignments).
+func (r *Repository) AssignTunnelToGroupNew(tunnelId int64, groupIds []int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}

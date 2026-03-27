@@ -207,11 +207,11 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/group/tunnel/delete", h.groupTunnelDelete)
 	mux.HandleFunc("/api/v1/group/tunnel/assign", h.groupTunnelAssign)
 	// Tunnel Group Management for Tunnel Page
-	mux.HandleFunc("/api/v1/tunnel-group/list", h.tunnelGroupListForTunnelPage)
-	mux.HandleFunc("/api/v1/tunnel-group/create", h.createTunnelGroupForTunnelPage)
-	mux.HandleFunc("/api/v1/tunnel-group/update", h.updateTunnelGroupForTunnelPage)
-	mux.HandleFunc("/api/v1/tunnel-group/delete", h.deleteTunnelGroupForTunnelPage)
-	mux.HandleFunc("/api/v1/tunnel-group/assign", h.assignTunnelToGroupForTunnelPage)
+	mux.HandleFunc("/api/v1/tunnel-group/list", h.tunnelGroupListNew)
+	mux.HandleFunc("/api/v1/tunnel-group/create", h.createTunnelGroupNew)
+	mux.HandleFunc("/api/v1/tunnel-group/update", h.updateTunnelGroupNew)
+	mux.HandleFunc("/api/v1/tunnel-group/delete", h.deleteTunnelGroupNew)
+	mux.HandleFunc("/api/v1/tunnel-group/assign", h.assignTunnelToGroupNew)
 	// Tunnel List Grouping (display only, independent from tunnel_group)
 	mux.HandleFunc("/api/v1/tunnel-list/list", h.tunnelListHandler)
 	mux.HandleFunc("/api/v1/tunnel-list/create", h.tunnelListCreate)
@@ -1459,13 +1459,13 @@ func (h *Handler) getAnnouncement(w http.ResponseWriter, r *http.Request) {
 
 // ─── Tunnel Group Management for Tunnel Page ─────────────────────────────
 
-func (h *Handler) tunnelGroupListForTunnelPage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) tunnelGroupListNew(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
 
-	groups, err := h.repo.ListTunnelGroupsComplete()
+	groups, err := h.repo.ListTunnelGroupsNew()
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1503,7 +1503,7 @@ func (h *Handler) tunnelGroupListForTunnelPage(w http.ResponseWriter, r *http.Re
 	response.WriteJSON(w, response.OK(result))
 }
 
-func (h *Handler) createTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createTunnelGroupNew(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
@@ -1532,7 +1532,7 @@ func (h *Handler) createTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.
 	}
 
 	now := time.Now().UnixMilli()
-	group, err := h.repo.CreateTunnelGroup(req.Name, req.Color, req.Description, req.Inx, req.Status, now)
+	group, err := h.repo.CreateTunnelGroupNew(req.Name, req.Color, req.Description, req.Inx, req.Status, now)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1541,7 +1541,7 @@ func (h *Handler) createTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.
 	response.WriteJSON(w, response.OK(group))
 }
 
-func (h *Handler) updateTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) updateTunnelGroupNew(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
@@ -1576,7 +1576,7 @@ func (h *Handler) updateTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.
 	}
 
 	now := time.Now().UnixMilli()
-	if err := h.repo.UpdateTunnelGroup(req.ID, req.Name, req.Color, req.Description, req.Inx, req.Status, now); err != nil {
+	if err := h.repo.UpdateTunnelGroupNew(req.ID, req.Name, req.Color, req.Description, req.Inx, req.Status, now); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -1584,7 +1584,7 @@ func (h *Handler) updateTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.
 	response.WriteJSON(w, response.OKEmpty())
 }
 
-func (h *Handler) deleteTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) deleteTunnelGroupNew(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
@@ -1604,7 +1604,7 @@ func (h *Handler) deleteTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if err := h.repo.DeleteTunnelGroup(req.ID); err != nil {
+	if err := h.repo.DeleteTunnelGroupNew(req.ID); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -1612,7 +1612,7 @@ func (h *Handler) deleteTunnelGroupForTunnelPage(w http.ResponseWriter, r *http.
 	response.WriteJSON(w, response.OKEmpty())
 }
 
-func (h *Handler) assignTunnelToGroupForTunnelPage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) assignTunnelToGroupNew(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
@@ -1633,7 +1633,7 @@ func (h *Handler) assignTunnelToGroupForTunnelPage(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if err := h.repo.AssignTunnelToGroup(req.TunnelId, req.GroupIds); err != nil {
+	if err := h.repo.AssignTunnelToGroupNew(req.TunnelId, req.GroupIds); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}

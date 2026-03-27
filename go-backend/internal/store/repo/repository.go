@@ -312,6 +312,24 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 			}
 			db.Exec("UPDATE tunnel_group SET color = '#3b82f6' WHERE color IS NULL OR color = ''")
 		}
+		if !m.HasColumn(&model.TunnelGroup{}, "description") {
+			if err := m.AddColumn(&model.TunnelGroup{}, "description"); err != nil {
+				return fmt.Errorf("add tunnel_group.description: %w", err)
+			}
+		}
+		if !m.HasColumn(&model.TunnelGroup{}, "inx") {
+			if err := m.AddColumn(&model.TunnelGroup{}, "inx"); err != nil {
+				return fmt.Errorf("add tunnel_group.inx: %w", err)
+			}
+		}
+	}
+
+	if m.HasTable(&model.Tunnel{}) {
+		if !m.HasColumn(&model.Tunnel{}, "remark") {
+			if err := m.AddColumn(&model.Tunnel{}, "remark"); err != nil {
+				return fmt.Errorf("add tunnel.remark: %w", err)
+			}
+		}
 	}
 
 	return nil
