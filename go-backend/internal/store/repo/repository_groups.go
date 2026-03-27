@@ -82,21 +82,21 @@ func (r *Repository) ListGroupPermissionPairsByTunnelGroup(tunnelGroupID int64) 
 // ─── Tunnel Group Management for Tunnel Page ─────────────────────────────
 
 // ListTunnelGroupsNew returns all tunnel groups with complete information.
-func (r *Repository) ListTunnelGroupsNew() ([]model.TunnelGroup, error) {
+func (r *Repository) ListTunnelGroupsNew() ([]model.TunnelGroupNew, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
-	var groups []model.TunnelGroup
+	var groups []model.TunnelGroupNew
 	err := r.db.Order("inx ASC, id ASC").Find(&groups).Error
 	return groups, err
 }
 
 // CreateTunnelGroupNew creates a new tunnel group.
-func (r *Repository) CreateTunnelGroupNew(name, color, description string, inx, status int, now int64) (*model.TunnelGroup, error) {
+func (r *Repository) CreateTunnelGroupNew(name, color, description string, inx, status int, now int64) (*model.TunnelGroupNew, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
-	group := &model.TunnelGroup{
+	group := &model.TunnelGroupNew{
 		Name:        name,
 		Color:       color,
 		Description: description,
@@ -116,7 +116,7 @@ func (r *Repository) UpdateTunnelGroupNew(id int64, name, color, description str
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
-	return r.db.Model(&model.TunnelGroup{}).Where("id = ?", id).Updates(map[string]interface{}{
+	return r.db.Model(&model.TunnelGroupNew{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"name":         name,
 		"color":        color,
 		"description":  description,
@@ -133,11 +133,11 @@ func (r *Repository) DeleteTunnelGroupNew(id int64) error {
 	}
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// Delete junction records first
-		if err := tx.Where("tunnel_group_id = ?", id).Delete(&model.TunnelGroupTunnel{}).Error; err != nil {
+		if err := tx.Where("tunnel_group_id = ?", id).Delete(&model.TunnelGroupTunnelNew{}).Error; err != nil {
 			return err
 		}
 		// Delete the group
-		return tx.Delete(&model.TunnelGroup{}, id).Error
+		return tx.Delete(&model.TunnelGroupNew{}, id).Error
 	})
 }
 
@@ -148,15 +148,15 @@ func (r *Repository) AssignTunnelToGroupNew(tunnelId int64, groupIds []int64) er
 	}
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// Delete existing assignments
-		if err := tx.Where("tunnel_id = ?", tunnelId).Delete(&model.TunnelGroupTunnel{}).Error; err != nil {
+		if err := tx.Where("tunnel_id = ?", tunnelId).Delete(&model.TunnelGroupTunnelNew{}).Error; err != nil {
 			return err
 		}
 		// Insert new assignments
 		if len(groupIds) > 0 {
 			now := time.Now().UnixMilli()
-			relations := make([]model.TunnelGroupTunnel, len(groupIds))
+			relations := make([]model.TunnelGroupTunnelNew, len(groupIds))
 			for i, groupId := range groupIds {
-				relations[i] = model.TunnelGroupTunnel{
+				relations[i] = model.TunnelGroupTunnelNew{
 					TunnelGroupID: groupId,
 					TunnelID:      tunnelId,
 					CreatedTime:   now,
