@@ -290,10 +290,10 @@ const SortableItem = ({
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
-          ...transform,
-          x: Math.round(transform.x),
-          y: Math.round(transform.y),
-        })
+        ...transform,
+        x: Math.round(transform.x),
+        y: Math.round(transform.y),
+      })
       : undefined,
     transition: isDragging ? undefined : transition || undefined,
     opacity: isDragging ? 0.5 : 1,
@@ -301,7 +301,7 @@ const SortableItem = ({
   };
 
   return (
-    <div ref={setNodeRef} className="overflow-hidden h-full" style={style}>
+    <div ref={setNodeRef} className="h-full z-10 hover:z-50 focus-within:z-50" style={style}>
       {children(listeners, attributes)}
     </div>
   );
@@ -780,15 +780,15 @@ export default function NodePage() {
             ...prev[nodeId],
             uploadTraffic: Number(
               metric.netOutBytes ??
-                metric.bytes_transmitted ??
-                prev[nodeId]?.uploadTraffic ??
-                0,
+              metric.bytes_transmitted ??
+              prev[nodeId]?.uploadTraffic ??
+              0,
             ),
             downloadTraffic: Number(
               metric.netInBytes ??
-                metric.bytes_received ??
-                prev[nodeId]?.downloadTraffic ??
-                0,
+              metric.bytes_received ??
+              prev[nodeId]?.downloadTraffic ??
+              0,
             ),
           },
         };
@@ -1425,30 +1425,30 @@ export default function NodePage() {
             prev.map((n) =>
               n.id === form.id
                 ? ({
-                    ...n,
-                    name: form.name,
-                    remark: form.remark.trim(),
-                    expiryTime: form.expiryTime,
-                    renewalCycle: form.renewalCycle,
-                    groupId: form.groupId,
-                    serverIp:
-                      form.serverIpV4?.trim() ||
-                      form.serverIpV6?.trim() ||
-                      form.serverHost?.trim() ||
-                      "",
-                    serverIpV4: form.serverIpV4,
-                    serverIpV6: form.serverIpV6,
-                    port: form.port,
-                    tcpListenAddr: form.tcpListenAddr,
-                    udpListenAddr: form.udpListenAddr,
-                    interfaceName: form.interfaceName,
-                    http: form.http,
-                    tls: form.tls,
-                    socks: form.socks,
-                    expiryReminderDismissed: n.expiryReminderDismissed ?? 0,
-                    expiryReminderDismissedUntil:
-                      n.expiryReminderDismissedUntil ?? null,
-                  } as Node)
+                  ...n,
+                  name: form.name,
+                  remark: form.remark.trim(),
+                  expiryTime: form.expiryTime,
+                  renewalCycle: form.renewalCycle,
+                  groupId: form.groupId,
+                  serverIp:
+                    form.serverIpV4?.trim() ||
+                    form.serverIpV6?.trim() ||
+                    form.serverHost?.trim() ||
+                    "",
+                  serverIpV4: form.serverIpV4,
+                  serverIpV6: form.serverIpV6,
+                  port: form.port,
+                  tcpListenAddr: form.tcpListenAddr,
+                  udpListenAddr: form.udpListenAddr,
+                  interfaceName: form.interfaceName,
+                  http: form.http,
+                  tls: form.tls,
+                  socks: form.socks,
+                  expiryReminderDismissed: n.expiryReminderDismissed ?? 0,
+                  expiryReminderDismissedUntil:
+                    n.expiryReminderDismissedUntil ?? null,
+                } as Node)
                 : n,
             ),
           );
@@ -1813,13 +1813,13 @@ export default function NodePage() {
     // 1. 先按分组过滤
     const groupFiltered = filterGroupId
       ? keywordFiltered.filter((node) => {
-          if (filterGroupId === -1) {
-            // -1 表示"未分组"
-            return !node.groupId || node.groupId === 0;
-          }
+        if (filterGroupId === -1) {
+          // -1 表示"未分组"
+          return !node.groupId || node.groupId === 0;
+        }
 
-          return node.groupId === filterGroupId;
-        })
+        return node.groupId === filterGroupId;
+      })
       : keywordFiltered;
 
     // 2. 再按到期状态过滤
@@ -1917,9 +1917,8 @@ export default function NodePage() {
 
         <div className="flex flex-row items-center justify-between gap-3 overflow-x-auto pb-1">
           <div
-            className={`flex-1 max-w-sm flex items-center gap-2 shrink-0 ${
-              isSearchVisible ? "min-w-[200px]" : "min-w-0"
-            }`}
+            className={`flex-1 max-w-sm flex items-center gap-2 shrink-0 ${isSearchVisible ? "min-w-[200px]" : "min-w-0"
+              }`}
           >
             <SearchBar
               isVisible={isSearchVisible}
@@ -2012,7 +2011,7 @@ export default function NodePage() {
                   className="h-8 px-3 text-xs min-w-0 shrink-0"
                   color={
                     (canUseExpiryFilter && nodeFilterMode !== "all") ||
-                    filterGroupId
+                      filterGroupId
                       ? "secondary"
                       : "danger"
                   }
@@ -2120,12 +2119,12 @@ export default function NodePage() {
                     const hasRemark = Boolean(node.remark?.trim());
                     const hasExpiryInfo = Boolean(
                       node.expiryTime &&
-                        node.expiryTime > 0 &&
-                        node.renewalCycle &&
-                        (node.expiryReminderDismissed !== 1 ||
-                          (node.expiryReminderDismissedUntil &&
-                            node.expiryReminderDismissedUntil * 1000 <
-                              Date.now())),
+                      node.expiryTime > 0 &&
+                      node.renewalCycle &&
+                      (node.expiryReminderDismissed !== 1 ||
+                        (node.expiryReminderDismissedUntil &&
+                          node.expiryReminderDismissedUntil * 1000 <
+                          Date.now())),
                     );
                     const hasInfoTrigger = hasRemark || hasExpiryInfo;
                     const infoCount = Number(hasExpiryInfo) + Number(hasRemark);
@@ -2137,7 +2136,7 @@ export default function NodePage() {
                         {(listeners) => (
                           <Card
                             key={node.id}
-                            className={`group relative overflow-hidden shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName}`}
+                            className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName}`}
                             data-node-card="true"
                           >
                             <CardHeader className="pb-3 md:pb-3">
@@ -2257,15 +2256,13 @@ export default function NodePage() {
                                           )}
                                         </button>
                                         <div
-                                          className={`absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur transition-all duration-150 ${
-                                            infoPopoverOpenId === node.id
+                                          className={`absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur transition-all duration-150 ${infoPopoverOpenId === node.id
                                               ? "visible opacity-100 pointer-events-auto"
                                               : "invisible opacity-0 pointer-events-none"
-                                          } ${
-                                            infoPlacement === "bottom"
+                                            } ${infoPlacement === "bottom"
                                               ? "right-0 top-[calc(100%+0.75rem)] translate-y-1"
                                               : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1"
-                                          }`}
+                                            }`}
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             e.nativeEvent.stopImmediatePropagation();
@@ -2358,7 +2355,7 @@ export default function NodePage() {
                                   </span>
                                   <div className="text-right text-xs min-w-0 flex-1 ml-2 min-h-[2.125rem] flex flex-col items-end gap-1 overflow-hidden">
                                     {node.serverIpV4?.trim() ||
-                                    node.serverIpV6?.trim() ? (
+                                      node.serverIpV6?.trim() ? (
                                       <>
                                         {node.serverIpV4?.trim() && (
                                           <span
@@ -2445,19 +2442,19 @@ export default function NodePage() {
                                       </span>
                                       <span className="font-mono text-sm text-danger-600 dark:text-danger-400">
                                         {node.connectionStatus === "online" &&
-                                        realtimeNodeMetrics[node.id]
+                                          realtimeNodeMetrics[node.id]
                                           ? formatTraffic(
-                                              (realtimeNodeMetrics[node.id]
-                                                ?.uploadTraffic ?? 0) +
-                                                (realtimeNodeMetrics[node.id]
-                                                  ?.downloadTraffic ?? 0),
-                                            )
+                                            (realtimeNodeMetrics[node.id]
+                                              ?.uploadTraffic ?? 0) +
+                                            (realtimeNodeMetrics[node.id]
+                                              ?.downloadTraffic ?? 0),
+                                          )
                                           : "-"}
                                       </span>
                                     </div>
                                     {upgradeProgress[node.id] &&
                                       upgradeProgress[node.id].percent <
-                                        100 && (
+                                      100 && (
                                         <div className="mt-1">
                                           <Progress
                                             showValueLabel
@@ -2524,8 +2521,8 @@ export default function NodePage() {
                                           <span className="font-mono">
                                             {remoteUsage.maxBandwidth > 0
                                               ? formatSpeed(
-                                                  remoteUsage.maxBandwidth,
-                                                )
+                                                remoteUsage.maxBandwidth,
+                                              )
                                               : "不限"}
                                           </span>
                                         </div>
@@ -2540,8 +2537,8 @@ export default function NodePage() {
                                             {remoteUsage.usedPorts.length}/
                                             {Math.max(
                                               remoteUsage.portRangeEnd -
-                                                remoteUsage.portRangeStart +
-                                                1,
+                                              remoteUsage.portRangeStart +
+                                              1,
                                               0,
                                             )}
                                           </span>
@@ -2639,11 +2636,11 @@ export default function NodePage() {
                                       </div>
                                       <div className="font-mono text-sm text-primary-700 dark:text-primary-300">
                                         {node.connectionStatus === "online" &&
-                                        realtimeNodeMetrics[node.id]
+                                          realtimeNodeMetrics[node.id]
                                           ? formatTraffic(
-                                              realtimeNodeMetrics[node.id]
-                                                ?.uploadTraffic ?? 0,
-                                            )
+                                            realtimeNodeMetrics[node.id]
+                                              ?.uploadTraffic ?? 0,
+                                          )
                                           : "-"}
                                       </div>
                                     </div>
@@ -2653,11 +2650,11 @@ export default function NodePage() {
                                       </div>
                                       <div className="font-mono text-sm text-success-700 dark:text-success-300">
                                         {node.connectionStatus === "online" &&
-                                        realtimeNodeMetrics[node.id]
+                                          realtimeNodeMetrics[node.id]
                                           ? formatTraffic(
-                                              realtimeNodeMetrics[node.id]
-                                                ?.downloadTraffic ?? 0,
-                                            )
+                                            realtimeNodeMetrics[node.id]
+                                              ?.downloadTraffic ?? 0,
+                                          )
                                           : "-"}
                                       </div>
                                     </div>

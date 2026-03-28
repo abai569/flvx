@@ -369,7 +369,7 @@ function SortableTableRow({
         )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="flex justify-end gap-1">
+        <div className="flex justify-start gap-1">
           {!isRemoteNode && (
             <>
               <Button
@@ -477,8 +477,8 @@ export function NodeListView({
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">总流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">上行流量</TableColumn>
           <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">下行流量</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">备注</TableColumn>
-          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">操作</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">备注</TableColumn>
+          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[160px] text-left">操作</TableColumn>
         </TableHeader>
         <TableBody>
           {displayNodes.map((node) => (
