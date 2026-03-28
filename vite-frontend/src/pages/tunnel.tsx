@@ -482,7 +482,7 @@ export default function TunnelPage() {
   const handleEdit = (tunnel: Tunnel) => {
     setIsEdit(true);
 
-    // 直接使用列表数据，getAllTunnels 已经包含完整的节点信息
+    // 直接使用列表数据，保持所有节点勾选状态（包括离线节点）
     setForm({
       id: tunnel.id,
       name: tunnel.name,
@@ -494,9 +494,9 @@ export default function TunnelPage() {
       trafficRatio: tunnel.trafficRatio,
       inIp: tunnel.inIp
         ? tunnel.inIp
-          .split(",")
-          .map((ip: string) => ip.trim())
-          .join("\n")
+            .split(",")
+            .map((ip: string) => ip.trim())
+            .join("\n")
         : "",
       ipPreference: tunnel.ipPreference || "",
       status: tunnel.status,
@@ -2358,15 +2358,20 @@ export default function TunnelPage() {
 
                   <div className="space-y-2">
                     <Select
-                      disabledKeys={[
-                        ...nodes
-                          .filter((node) => node.status !== 1)
-                          .map((node) => node.id.toString()),
-                        ...(form.outNodeId || []).map((ct) =>
-                          ct.nodeId.toString(),
-                        ),
-                        ...getSelectedChainNodeIds().map((id) => id.toString()),
-                      ]}
+                      disabledKeys={
+                        isEdit
+                          ? []  // 编辑时不禁用任何节点（允许取消勾选离线节点）
+                          : [
+                              // 新建时禁用离线节点
+                              ...nodes
+                                .filter((node) => node.status !== 1)
+                                .map((node) => node.id.toString()),
+                              ...(form.outNodeId || []).map((ct) =>
+                                ct.nodeId.toString(),
+                              ),
+                              ...getSelectedChainNodeIds().map((id) => id.toString()),
+                            ]
+                      }
                       errorMessage={errors.inNodeId}
                       isInvalid={!!errors.inNodeId}
                       label="入口节点"
@@ -2536,26 +2541,48 @@ export default function TunnelPage() {
                                         label: "text-xs",
                                         value: "text-sm",
                                       }}
-                                      disabledKeys={[
-                                        ...nodes
-                                          .filter((node) => node.status !== 1)
-                                          .map((node) => node.id.toString()),
-                                        ...form.inNodeId.map((ct) =>
-                                          ct.nodeId.toString(),
-                                        ),
-                                        ...(form.outNodeId || []).map((ct) =>
-                                          ct.nodeId.toString(),
-                                        ),
-                                        // 排除其他跳数已选的节点
-                                        ...(form.chainNodes || [])
-                                          .flatMap((group, idx) =>
-                                            idx !== groupIndex
-                                              ? group.map((ct) => ct.nodeId)
-                                              : [],
-                                          )
-                                          .filter((id) => id !== -1)
-                                          .map((id) => id.toString()),
-                                      ]}
+                                      disabledKeys={
+                                        isEdit
+                                          ? [
+                                              // 编辑时只排除冲突节点，不禁用离线节点
+                                              ...form.inNodeId.map((ct) =>
+                                                ct.nodeId.toString(),
+                                              ),
+                                              ...(form.outNodeId || []).map((ct) =>
+                                                ct.nodeId.toString(),
+                                              ),
+                                              // 排除其他跳数已选的节点
+                                              ...(form.chainNodes || [])
+                                                .flatMap((group, idx) =>
+                                                  idx !== groupIndex
+                                                    ? group.map((ct) => ct.nodeId)
+                                                    : [],
+                                                )
+                                                .filter((id) => id !== -1)
+                                                .map((id) => id.toString()),
+                                            ]
+                                          : [
+                                              // 新建时禁用离线节点
+                                              ...nodes
+                                                .filter((node) => node.status !== 1)
+                                                .map((node) => node.id.toString()),
+                                              ...form.inNodeId.map((ct) =>
+                                                ct.nodeId.toString(),
+                                              ),
+                                              ...(form.outNodeId || []).map((ct) =>
+                                                ct.nodeId.toString(),
+                                              ),
+                                              // 排除其他跳数已选的节点
+                                              ...(form.chainNodes || [])
+                                                .flatMap((group, idx) =>
+                                                  idx !== groupIndex
+                                                    ? group.map((ct) => ct.nodeId)
+                                                    : [],
+                                                )
+                                                .filter((id) => id !== -1)
+                                                .map((id) => id.toString()),
+                                            ]
+                                      }
                                       dropdownPlacement="top"
                                       label="出口节点"
                                       placeholder="选择节点（可多选）"

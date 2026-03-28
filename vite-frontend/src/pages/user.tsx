@@ -1076,19 +1076,24 @@ export default function UserPage() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <span className="text-sm text-foreground">
-                        {formatFlow(user.flow, "gb")}
+                        {user.flow > 0 ? formatFlow(user.flow, "gb") : "不限"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <span className={`text-sm ${user.flow < 999999 ? "text-foreground" : "text-success font-medium"}`}>
+                        {user.flow < 999999 ? formatFlow(user.flow, "gb") : "不限"}
                       </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         <span className="text-sm font-medium text-success">
-                          {user.flow > 0
+                          {user.flow < 999999
                             ? formatFlow(
                                 user.flow * 1024 * 1024 * 1024 - usedFlow,
                               )
                             : "不限"}
                         </span>
-                        {user.flow > 0 && (
+                        {user.flow < 999999 && (
                           <Progress
                             aria-label={`剩余流量 ${Math.min(((user.flow * 1024 * 1024 * 1024 - usedFlow) / (user.flow * 1024 * 1024 * 1024)) * 100, 100).toFixed(1)}%`}
                             className="w-24"
@@ -1241,26 +1246,28 @@ export default function UserPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">流量限制</span>
                           <span className="font-medium text-xs">
-                            {formatFlow(user.flow, "gb")}
+                            {user.flow < 999999 ? formatFlow(user.flow, "gb") : "不限"}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">剩余流量</span>
                           <span className="font-medium text-xs text-success">
-                            {user.flow > 0
+                            {user.flow < 999999
                               ? formatFlow(
                                   user.flow * 1024 * 1024 * 1024 - usedFlow,
                                 )
                               : "不限"}
                           </span>
                         </div>
-                        <Progress
-                          aria-label={`剩余流量 ${flowPercent.toFixed(1)}%`}
-                          className="mt-1"
-                          color="success"
-                          size="sm"
-                          value={100 - flowPercent}
-                        />
+                        {user.flow < 999999 && (
+                          <Progress
+                            aria-label={`剩余流量 ${flowPercent.toFixed(1)}%`}
+                            className="mt-1"
+                            color="success"
+                            size="sm"
+                            value={100 - flowPercent}
+                          />
+                        )}
                       </div>
 
                       {/* 其他信息 */}
@@ -1440,16 +1447,19 @@ export default function UserPage() {
               <Input
                 isRequired
                 label="流量限制(GB)"
-                max="99999"
-                min="1"
+                description="填 0 表示不限制流量"
+                max="999999" // 把最大值放宽
+                min="0"
                 type="number"
-                value={userForm.flow.toString()}
+                value={userForm.flow === 999999 ? "0" : userForm.flow.toString()} // 用户看的是 0
                 onChange={(e) => {
-                  const value = Math.min(
-                    Math.max(Number(e.target.value) || 0, 1),
-                    99999,
-                  );
-
+                  let value = Number(e.target.value) || 0;
+                  // 障眼法：如果用户输入 0，我们后台悄悄存 999999
+                  if (value === 0) {
+                    value = 999999;
+                  } else {
+                    value = Math.min(Math.max(value, 1), 999999);
+                  }
                   setUserForm((prev) => ({ ...prev, flow: value }));
                 }}
               />
