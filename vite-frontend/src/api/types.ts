@@ -80,6 +80,7 @@ export interface ForwardApiItem {
 export interface UserTunnelApiItem {
   id: number;
   name: string;
+  remark?: string;
   tunnelId?: number;
   tunnelName?: string;
   inNodePortSta?: number;

@@ -1,5 +1,4 @@
 import type { ForwardApiItem, SpeedLimitApiItem } from "@/api/types";
-
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
@@ -707,6 +706,7 @@ const SortableTableRow = ({
   handleSetSpeedLimit,
   getSpeedLimitName,
   formatFlow,
+  isAdmin,
 }: any) => {
   const {
     attributes,
@@ -787,13 +787,15 @@ const SortableTableRow = ({
           {forward.name}
         </span>
       </TableCell>
-      <TableCell className={rowBg}>
-        <Chip color="secondary" size="sm" variant="solid">
-          {" "}
-          {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
-          {getSpeedLimitName(forward.speedId ?? null)}
-        </Chip>
-      </TableCell>
+      {isAdmin && (
+        <TableCell className={rowBg}>
+          <Chip color="secondary" size="sm" variant="solid">
+            {" "}
+            {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
+            {getSpeedLimitName(forward.speedId ?? null)}
+          </Chip>
+        </TableCell>
+      )}
       <TableCell className={rowBg}>
         <div className="flex items-center gap-1.5 overflow-hidden">
           <svg
@@ -947,28 +949,30 @@ const SortableTableRow = ({
               />
             </svg>
           </Button>
-          <Button
-            isIconOnly
-            className="flex-shrink-0 min-w-[32px]"
-            color="secondary"
-            size="sm"
-            title="限速"
-            variant="flat"
-            onPress={() => handleSetSpeedLimit(forward)}
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
+          {isAdmin && (
+            <Button
+              isIconOnly
+              className="flex-shrink-0 min-w-[32px]"
+              color="secondary"
+              size="sm"
+              title="限速"
+              variant="flat"
+              onPress={() => handleSetSpeedLimit(forward)}
             >
-              <path d="m12 14 4-4" />
-              <path d="M3.34 19a10 10 0 1 1 17.32 0" />
-            </svg>
-          </Button>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="m12 14 4-4" />
+                <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+              </svg>
+            </Button>
+          )}
           <Button
             isIconOnly
             className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
@@ -1006,6 +1010,7 @@ const SortableCompactTableRow = ({
   handleSetSpeedLimit,
   getSpeedLimitName,
   formatFlow,
+  isAdmin,
 }: any) => {
   const {
     attributes,
@@ -1089,13 +1094,15 @@ const SortableCompactTableRow = ({
           {forward.name}
         </span>
       </TableCell>
-      <TableCell className={rowBg}>
-        <Chip color="secondary" size="sm" variant="solid">
-          {" "}
-          {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
-          {getSpeedLimitName(forward.speedId ?? null)}
-        </Chip>
-      </TableCell>
+
+      {isAdmin && (
+        <TableCell className={rowBg}>
+          <Chip color="secondary" size="sm" variant="solid">
+            {getSpeedLimitName(forward.speedId ?? null)}
+          </Chip>
+        </TableCell>
+      )}
+
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex items-center">
           <span className="font-medium text-black text-sm">
@@ -1260,28 +1267,30 @@ const SortableCompactTableRow = ({
               />
             </svg>
           </Button>
-          <Button
-            isIconOnly
-            className="flex-shrink-0 min-w-[32px]"
-            color="secondary"
-            size="sm"
-            title="限速"
-            variant="flat"
-            onPress={() => handleSetSpeedLimit(forward)}
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
+          {isAdmin && (
+            <Button
+              isIconOnly
+              className="flex-shrink-0 min-w-[32px]"
+              color="secondary"
+              size="sm"
+              title="限速"
+              variant="flat"
+              onPress={() => handleSetSpeedLimit(forward)}
             >
-              <path d="m12 14 4-4" />
-              <path d="M3.34 19a10 10 0 1 1 17.32 0" />
-            </svg>
-          </Button>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="m12 14 4-4" />
+                <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+              </svg>
+            </Button>
+          )}
           <Button
             isIconOnly
             className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
@@ -1321,11 +1330,11 @@ export default function ForwardPage() {
   const tokenUserId = JwtUtil.getUserIdFromToken();
   const tokenRoleId = JwtUtil.getRoleIdFromToken();
   const isAdmin = tokenRoleId === 0;
-
   const [searchParams, setSearchParams] = useState({
     name: "",
     userId: tokenUserId ? tokenUserId.toString() : "all",
     tunnelId: "all",
+    speedLimitId: undefined as number | undefined,
     inPort: "",
     remoteAddr: "",
   });
@@ -1337,6 +1346,7 @@ export default function ForwardPage() {
       ? 1
       : 0) +
     (searchParams.tunnelId !== "all" ? 1 : 0) +
+    (searchParams.speedLimitId !== undefined ? 1 : 0) +
     (searchParams.inPort ? 1 : 0) +
     (searchParams.remoteAddr ? 1 : 0);
   const [loading, setLoading] = useState(true);
@@ -3523,6 +3533,20 @@ export default function ForwardPage() {
         (f) => f.tunnelId === targetTunnelId,
       );
     }
+    // 添加限速规则筛选
+    if (searchParams.speedLimitId !== undefined) {
+      if (searchParams.speedLimitId === -1) {
+        // 不限速（speedId 为 null 或 undefined）
+        filteredForwards = filteredForwards.filter(
+          (f) => f.speedId === null || f.speedId === undefined
+        );
+      } else {
+        // 特定限速规则
+        filteredForwards = filteredForwards.filter(
+          (f) => f.speedId === searchParams.speedLimitId
+        );
+      }
+    }
     if (searchParams.name.trim()) {
       const lowerName = searchParams.name.toLowerCase();
 
@@ -3964,11 +3988,13 @@ export default function ForwardPage() {
               >
                 {forward.name}
               </h3>
-              <Chip color="secondary" size="sm" variant="solid">
-                {" "}
-                {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
-                {getSpeedLimitName(forward.speedId ?? null)}
-              </Chip>
+              {isAdmin && (
+                <Chip color="secondary" size="sm" variant="solid">
+                  {" "}
+                  {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
+                  {getSpeedLimitName(forward.speedId ?? null)}
+                </Chip>
+              )}
             </div>
             <div className="text-xs text-foreground font-bold truncate flex items-center mt-0.5">
               <span className="truncate">
@@ -4166,14 +4192,16 @@ export default function ForwardPage() {
             >
               诊断
             </Button>
-            <Button
-              className="flex-1 min-h-8 font-bold flex-shrink-0 bg-secondary/10 text-secondary hover:bg-secondary/20"
-              size="sm"
-              variant="flat"
-              onPress={() => handleSetSpeedLimit(forward)}
-            >
-              限速
-            </Button>
+            {isAdmin && (
+              <Button
+                className="flex-1 min-h-8 font-bold flex-shrink-0 bg-secondary/10 text-secondary hover:bg-secondary/20"
+                size="sm"
+                variant="flat"
+                onPress={() => handleSetSpeedLimit(forward)}
+              >
+                限速
+              </Button>
+            )}
             <Button
               className="flex-1 min-h-8 font-bold flex-shrink-0"
               color="danger"
@@ -4301,6 +4329,7 @@ export default function ForwardPage() {
                         name: "",
                         userId: tokenUserId ? tokenUserId.toString() : "all",
                         tunnelId: "all",
+                        speedLimitId: undefined,
                         inPort: "",
                         remoteAddr: "",
                       })
@@ -4428,42 +4457,17 @@ export default function ForwardPage() {
                             </div>
                           </TableColumn>
                         )}
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">
-                          排序
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
-                          规则名
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                          速度限制
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
-                          隧道倍率
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
-                          入口地址
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
-                          端口
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                          落地地址
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
-                          端口
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                          用量
-                        </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                          状态
-                        </TableColumn>
-                        <TableColumn
-                          align="left"
-                          className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left"
-                        >
-                          操作
-                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">规则名</TableColumn>
+                        {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>}
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道倍率</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">入口地址</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
+                        <TableColumn align="left" className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left">操作</TableColumn>
                       </TableHeader>
                       <TableBody
                         emptyContent="暂无规则配置"
@@ -4484,6 +4488,7 @@ export default function ForwardPage() {
                             handleServiceToggle={handleServiceToggle}
                             handleSetSpeedLimit={handleSetSpeedLimit}
                             hasMultipleAddresses={hasMultipleAddresses}
+                            isAdmin={isAdmin}
                             selectMode={selectMode}
                             selectedIds={selectedIds}
                             showAddressModal={showAddressModal}
@@ -4746,6 +4751,7 @@ export default function ForwardPage() {
                                               handleSetSpeedLimit={
                                                 handleSetSpeedLimit
                                               }
+                                              isAdmin={isAdmin}
                                               selectedIds={selectedIds}
                                               toggleSelect={toggleSelect}
                                             />
@@ -4920,7 +4926,7 @@ export default function ForwardPage() {
                   {isEdit ? "编辑规则" : "新增规则"}
                 </h2>
                 <p className="text-small text-default-500">
-                  {isEdit ? "修改现有规则配置的信息" : "创建新的规则配置"}
+                  {isEdit ? "修改现有规则配置的信息" : "" /* "创建新的规则配置" */}
                 </p>
               </ModalHeader>
               <ModalBody>
@@ -6459,7 +6465,29 @@ export default function ForwardPage() {
                       </SelectItem>
                     ))}
                   </Select>
-
+                  {isAdmin && (
+                    <Select
+                      label="限速规则"
+                      placeholder="选择限速规则"
+                      selectedKeys={[searchParams.speedLimitId || "all"]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const key = Array.from(keys)[0] as string;
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          speedLimitId: key === "all" ? undefined : Number(key),
+                        }));
+                      }}
+                    >
+                      <SelectItem key="all">全部规则</SelectItem>
+                      <SelectItem key="unlimited">不限速</SelectItem>
+                      {availableSpeedLimits.map((speedLimit) => (
+                        <SelectItem key={speedLimit.id.toString()}>
+                          {speedLimit.name || `限速${speedLimit.speed}`} ({speedLimit.speed} Mbps)
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  )}
                   <Input
                     label="入口监听端口 (精确)"
                     placeholder="请输入具体端口号"
@@ -6497,6 +6525,7 @@ export default function ForwardPage() {
                       name: "",
                       userId: tokenUserId ? tokenUserId.toString() : "all",
                       tunnelId: "all",
+                      speedLimitId: undefined,
                       inPort: "",
                       remoteAddr: "",
                     });

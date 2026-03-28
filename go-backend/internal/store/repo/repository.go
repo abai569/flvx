@@ -983,12 +983,13 @@ func (r *Repository) ListUserAccessibleTunnels(userID int64) ([]map[string]inter
 	}
 
 	type row struct {
-		ID   int64
-		Name string
+		ID     int64
+		Name   string
+		Remark sql.NullString
 	}
 	var rows []row
 	err := r.db.Model(&model.UserTunnel{}).
-		Select("tunnel.id, tunnel.name").
+		Select("tunnel.id, tunnel.name, tunnel.remark").
 		Joins("JOIN tunnel ON tunnel.id = user_tunnel.tunnel_id").
 		Where("user_tunnel.user_id = ? AND tunnel.status = 1", userID).
 		Order("tunnel.inx ASC, tunnel.id ASC").
@@ -1005,7 +1006,11 @@ func (r *Repository) ListUserAccessibleTunnels(userID int64) ([]map[string]inter
 
 	items := make([]map[string]interface{}, 0, len(rows))
 	for _, rw := range rows {
-		item := map[string]interface{}{"id": rw.ID, "name": rw.Name}
+		item := map[string]interface{}{
+			"id":     rw.ID,
+			"name":   rw.Name,
+			"remark": nullableString(rw.Remark),
+		}
 		if pr, ok := portRangeMap[rw.ID]; ok {
 			item["portRangeMin"] = pr.min
 			item["portRangeMax"] = pr.max
@@ -1021,11 +1026,12 @@ func (r *Repository) ListEnabledTunnelSummaries() ([]map[string]interface{}, err
 	}
 
 	type row struct {
-		ID   int64
-		Name string
+		ID     int64
+		Name   string
+		Remark sql.NullString
 	}
 	var rows []row
-	err := r.db.Model(&model.Tunnel{}).Select("id, name").Where("status = 1").Order("inx ASC, id ASC").Find(&rows).Error
+	err := r.db.Model(&model.Tunnel{}).Select("id, name, remark").Where("status = 1").Order("inx ASC, id ASC").Find(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1038,7 +1044,11 @@ func (r *Repository) ListEnabledTunnelSummaries() ([]map[string]interface{}, err
 
 	items := make([]map[string]interface{}, 0, len(rows))
 	for _, rw := range rows {
-		item := map[string]interface{}{"id": rw.ID, "name": rw.Name}
+		item := map[string]interface{}{
+			"id":     rw.ID,
+			"name":   rw.Name,
+			"remark": nullableString(rw.Remark),
+		}
 		if pr, ok := portRangeMap[rw.ID]; ok {
 			item["portRangeMin"] = pr.min
 			item["portRangeMax"] = pr.max
