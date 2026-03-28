@@ -1024,9 +1024,16 @@ func (r *Repository) DeleteGroupPermissionByIDTx(tx *gorm.DB, id int64) error {
 	return tx.Where("id = ?", id).Delete(&model.GroupPermission{}).Error
 }
 
-func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID int64, previousUserIDs, currentUserIDs []int64) error {
+// RevokedUserTunnelPair holds the (userID, tunnelID) of a deleted user_tunnel row,
+// so the handler layer can clean up associated forwarding rules.
+type RevokedUserTunnelPair struct {
+	UserID   int64
+	TunnelID int64
+}
+
+func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID int64, previousUserIDs, currentUserIDs []int64) ([]RevokedUserTunnelPair, error) {
 	if tx == nil {
-		return errors.New("database unavailable")
+		return nil, errors.New("database unavailable")
 	}
 	currentSet := make(map[int64]struct{}, len(currentUserIDs))
 	for _, uid := range currentUserIDs {
@@ -1045,7 +1052,7 @@ func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID
 		}
 	}
 	if len(removedUserIDs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	type grantRow struct {
@@ -1060,7 +1067,7 @@ func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID
 			Joins("JOIN user_tunnel ON user_tunnel.id = group_permission_grant.user_tunnel_id").
 			Where("group_permission_grant.user_group_id = ? AND user_tunnel.user_id = ?", userGroupID, userID).
 			Find(&rows).Error; err != nil {
-			return err
+			return revoked, err
 		}
 
 		groupCreatedTunnelIDs := make(map[int64]struct{})
@@ -1073,28 +1080,32 @@ func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID
 		userTunnelIDs := tx.Model(&model.UserTunnel{}).Select("id").Where("user_id = ?", userID)
 		if err := tx.Where("user_group_id = ? AND user_tunnel_id IN (?)", userGroupID, userTunnelIDs).
 			Delete(&model.GroupPermissionGrant{}).Error; err != nil {
-			return err
+			return revoked, err
 		}
 
 		for userTunnelID := range groupCreatedTunnelIDs {
 			var remaining int64
 			if err := tx.Model(&model.GroupPermissionGrant{}).Where("user_tunnel_id = ?", userTunnelID).Count(&remaining).Error; err != nil {
-				return err
+				return revoked, err
 			}
 			if remaining == 0 {
+				var ut model.UserTunnel
+				if lookupErr := tx.Select("user_id", "tunnel_id").Where("id = ?", userTunnelID).First(&ut).Error; lookupErr == nil {
+					revoked = append(revoked, RevokedUserTunnelPair{UserID: ut.UserID, TunnelID: ut.TunnelID})
+				}
 				if err := tx.Where("id = ?", userTunnelID).Delete(&model.UserTunnel{}).Error; err != nil {
-					return err
+					return revoked, err
 				}
 			}
 		}
 	}
 
-	return nil
+	return revoked, nil
 }
 
-func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunnelGroupID int64) error {
+func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunnelGroupID int64) ([]RevokedUserTunnelPair, error) {
 	if tx == nil {
-		return errors.New("database unavailable")
+		return nil, errors.New("database unavailable")
 	}
 
 	type grantRow struct {
@@ -1107,7 +1118,7 @@ func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunne
 		Select("user_tunnel_id, created_by_group").
 		Where("user_group_id = ? AND tunnel_group_id = ?", userGroupID, tunnelGroupID).
 		Find(&rows).Error; err != nil {
-		return err
+		return nil, err
 	}
 
 	groupCreatedTunnelIDs := make(map[int64]struct{})
@@ -1119,22 +1130,26 @@ func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunne
 
 	if err := tx.Where("user_group_id = ? AND tunnel_group_id = ?", userGroupID, tunnelGroupID).
 		Delete(&model.GroupPermissionGrant{}).Error; err != nil {
-		return err
+		return nil, err
 	}
 
 	for userTunnelID := range groupCreatedTunnelIDs {
 		var remaining int64
 		if err := tx.Model(&model.GroupPermissionGrant{}).Where("user_tunnel_id = ?", userTunnelID).Count(&remaining).Error; err != nil {
-			return err
+			return revoked, err
 		}
 		if remaining == 0 {
+			var ut model.UserTunnel
+			if lookupErr := tx.Select("user_id", "tunnel_id").Where("id = ?", userTunnelID).First(&ut).Error; lookupErr == nil {
+				revoked = append(revoked, RevokedUserTunnelPair{UserID: ut.UserID, TunnelID: ut.TunnelID})
+			}
 			if err := tx.Where("id = ?", userTunnelID).Delete(&model.UserTunnel{}).Error; err != nil {
-				return err
+				return revoked, err
 			}
 		}
 	}
 
-	return nil
+	return revoked, nil
 }
 
 func (r *Repository) ReplaceFederationTunnelBindingsTx(tx *gorm.DB, tunnelID int64, bindings []FederationTunnelBinding) error {

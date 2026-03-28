@@ -1625,6 +1625,12 @@ func (h *Handler) userTunnelRemove(w http.ResponseWriter, r *http.Request) {
 	if id <= 0 {
 		return
 	}
+	userID, tunnelID, lookupErr := h.repo.GetUserTunnelUserAndTunnel(id)
+	if lookupErr != nil {
+		response.WriteJSON(w, response.Err(-2, lookupErr.Error()))
+		return
+	}
+	h.cleanupForwardsForUserTunnel(userID, tunnelID)
 	if err := h.repo.DeleteUserTunnel(id); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -2556,13 +2562,17 @@ func (h *Handler) groupUserAssign(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	if err := h.repo.RevokeGroupGrantsForRemovedUsersTx(tx, req.GroupID, previousUserIDs, req.UserIDs); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+	revokedPairs, revokeErr := h.repo.RevokeGroupGrantsForRemovedUsersTx(tx, req.GroupID, previousUserIDs, req.UserIDs)
+	if revokeErr != nil {
+		response.WriteJSON(w, response.Err(-2, revokeErr.Error()))
 		return
 	}
 	if err := tx.Commit().Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
+	}
+	for _, pair := range revokedPairs {
+		h.cleanupForwardsForUserTunnel(pair.UserID, pair.TunnelID)
 	}
 	_ = h.syncPermissionsByUserGroup(req.GroupID)
 	response.WriteJSON(w, response.OKEmpty())
@@ -2607,9 +2617,12 @@ func (h *Handler) groupPermissionRemove(w http.ResponseWriter, r *http.Request) 
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	var revokedPairs []repo.RevokedUserTunnelPair
 	if exists {
-		if err := h.repo.RevokeGroupPermissionPairTx(tx, ug, tg); err != nil {
-			response.WriteJSON(w, response.Err(-2, err.Error()))
+		var revokeErr error
+		revokedPairs, revokeErr = h.repo.RevokeGroupPermissionPairTx(tx, ug, tg)
+		if revokeErr != nil {
+			response.WriteJSON(w, response.Err(-2, revokeErr.Error()))
 			return
 		}
 	}
@@ -2617,6 +2630,9 @@ func (h *Handler) groupPermissionRemove(w http.ResponseWriter, r *http.Request) 
 	if err := tx.Commit().Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
+	}
+	for _, pair := range revokedPairs {
+		h.cleanupForwardsForUserTunnel(pair.UserID, pair.TunnelID)
 	}
 	response.WriteJSON(w, response.OKEmpty())
 }
@@ -4071,6 +4087,27 @@ func (h *Handler) syncUserTunnelForwards(userID, tunnelID int64) error {
 	}
 
 	return nil
+}
+
+// cleanupForwardsForUserTunnel deletes all forwarding rules belonging to a
+// specific user+tunnel pair. It notifies nodes to remove the runtime services
+// first, then deletes the DB records. This is best-effort: individual failures
+// do not abort the overall cleanup so that remaining forwards are still cleaned.
+func (h *Handler) cleanupForwardsForUserTunnel(userID, tunnelID int64) {
+	if userID <= 0 || tunnelID <= 0 {
+		return
+	}
+	forwards, err := h.repo.ListForwardsByUserAndTunnel(userID, tunnelID)
+	if err != nil || len(forwards) == 0 {
+		return
+	}
+	for i := range forwards {
+		f := &forwards[i]
+		if f.Status == 1 {
+			_ = h.controlForwardServices(f, "DeleteService", true)
+		}
+		_ = h.deleteForwardByID(f.ID)
+	}
 }
 
 func (h *Handler) normalizeSpeedLimitReference(speedID *int64) (*int64, error) {
