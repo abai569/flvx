@@ -1015,30 +1015,14 @@ export default function UserPage() {
             }}
           >
             <TableHeader>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
-                用户名
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                状态
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                流量限制
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
-                剩余流量
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
-                规则数
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                重置日期
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                过期时间
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[240px] text-left">
-                操作
-              </TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">用户名</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">流量限制</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">已用流量</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">规则数</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">重置日期</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">过期时间</TableColumn>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[240px] text-left">操作</TableColumn>
             </TableHeader>
             <TableBody>
               {users.map((user) => {
@@ -1075,36 +1059,22 @@ export default function UserPage() {
                       </Chip>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <span className="text-sm text-foreground">
-                        {user.flow > 0 ? formatFlow(user.flow, "gb") : "不限"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <span className={`text-sm ${user.flow < 999999 ? "text-foreground" : "text-success font-medium"}`}>
-                        {user.flow < 999999 ? formatFlow(user.flow, "gb") : "不限"}
+                      <span className={`text-sm ${user.flow === 99999 ? "text-success font-medium" : "text-foreground"}`}>
+                        {user.flow === 99999 ? "不限" : formatFlow(user.flow, "gb")}
                       </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <div className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-success">
-                          {user.flow < 999999
-                            ? formatFlow(
-                                user.flow * 1024 * 1024 * 1024 - usedFlow,
-                              )
-                            : "不限"}
+                        <span className="text-sm font-medium text-primary">
+                          {formatFlow(usedFlow)}
                         </span>
-                        {user.flow < 999999 && (
+                        {user.flow !== 99999 && (
                           <Progress
-                            aria-label={`剩余流量 ${Math.min(((user.flow * 1024 * 1024 * 1024 - usedFlow) / (user.flow * 1024 * 1024 * 1024)) * 100, 100).toFixed(1)}%`}
+                            aria-label="已用流量比例"
                             className="w-24"
-                            color="success"
+                            color={(usedFlow / (user.flow * 1024 * 1024 * 1024)) > 0.8 ? "danger" : "primary"}
                             size="sm"
-                            value={Math.min(
-                              ((user.flow * 1024 * 1024 * 1024 - usedFlow) /
-                                (user.flow * 1024 * 1024 * 1024)) *
-                                100,
-                              100,
-                            )}
+                            value={Math.min(((usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100), 100)}
                           />
                         )}
                       </div>
@@ -1241,37 +1211,30 @@ export default function UserPage() {
 
                   <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
                     <div className="space-y-2">
-                      {/* 流量信息 */}
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-sm">
                           <span className="text-default-600">流量限制</span>
-                          <span className="font-medium text-xs">
-                            {user.flow < 999999 ? formatFlow(user.flow, "gb") : "不限"}
+                          <span className={`font-medium text-xs ${user.flow === 99999 ? "text-success" : ""}`}>
+                            {user.flow === 99999 ? "不限" : formatFlow(user.flow, "gb")}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-default-600">剩余流量</span>
-                          <span className="font-medium text-xs text-success">
-                            {user.flow < 999999
-                              ? formatFlow(
-                                  user.flow * 1024 * 1024 * 1024 - usedFlow,
-                                )
-                              : "不限"}
+                          <span className="text-default-600">已用流量</span>
+                          <span className="font-medium text-xs text-primary">
+                            {formatFlow(usedFlow)}
                           </span>
                         </div>
-                        {user.flow < 999999 && (
+                        {user.flow !== 99999 && (
                           <Progress
-                            aria-label={`剩余流量 ${flowPercent.toFixed(1)}%`}
+                            aria-label={`已用流量 ${flowPercent.toFixed(1)}%`}
                             className="mt-1"
-                            color="success"
+                            color={flowPercent > 80 ? "danger" : "primary"}
                             size="sm"
-                            value={100 - flowPercent}
+                            value={flowPercent}
                           />
                         )}
-                      </div>
 
-                      {/* 其他信息 */}
-                      <div className="space-y-1.5 pt-2 border-t border-divider">
+                    {/* 其他信息 */}
+                    <div className="space-y-1.5 pt-2 border-t border-divider">
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">规则数量</span>
                           <span className="font-medium text-xs">
@@ -1447,19 +1410,16 @@ export default function UserPage() {
               <Input
                 isRequired
                 label="流量限制(GB)"
-                description="填 0 表示不限制流量"
-                max="999999" // 把最大值放宽
-                min="0"
+                description="填 99999 表示不限制流量"
+                max="99999"
+                min="1"
                 type="number"
-                value={userForm.flow === 999999 ? "0" : userForm.flow.toString()} // 用户看的是 0
+                value={userForm.flow.toString()}
                 onChange={(e) => {
-                  let value = Number(e.target.value) || 0;
-                  // 障眼法：如果用户输入 0，我们后台悄悄存 999999
-                  if (value === 0) {
-                    value = 999999;
-                  } else {
-                    value = Math.min(Math.max(value, 1), 999999);
-                  }
+                  const value = Math.min(
+                    Math.max(Number(e.target.value) || 0, 1),
+                    99999,
+                  );
                   setUserForm((prev) => ({ ...prev, flow: value }));
                 }}
               />

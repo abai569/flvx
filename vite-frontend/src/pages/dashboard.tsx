@@ -643,7 +643,7 @@ export default function DashboardPage() {
             }
             iconClassName="bg-blue-100 dark:bg-blue-500/20"
             title="总流量"
-            value={userInfo ? (userInfo.flow < 999999 ? formatFlow(userInfo.flow, "gb") : "不限") : "-"}
+            value={formatFlow(userInfo.flow, "gb")}
           />
         </div>
 
