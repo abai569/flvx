@@ -701,6 +701,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		IPPreference:  ipPreference,
 		ListID:        tunnelListID,
 		TunnelGroupID: tunnelTunnelGroupID,
+		Remark:        sql.NullString{String: strings.TrimSpace(asString(req["remark"])), Valid: req["remark"] != nil},
 	}
 	if err := tx.Create(&tunnel).Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -871,6 +872,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		ipPreference,
 		asInt64(req["listId"], 0),
 		tunnelGroupID,
+		asString(req["remark"]),
 		now,
 	); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))

@@ -1629,16 +1629,12 @@ export default function TunnelPage() {
                 {viewMode === "card" ? "列表" : "卡片"}
               </Button>
               <Button
-                color="primary"
-                size="sm"
-                variant="flat"
-                onPress={handleAdd}
-              >
-                新增
-              </Button>
-              <Button
-                className={tunnelFilterMode !== "all" || filterGroupId !== null ? "bg-secondary text-white" : "bg-danger text-white"}
-                color="default"
+                className="h-8 px-3 text-xs min-w-0 shrink-0"
+                color={
+                  tunnelFilterMode !== "all" || filterGroupId !== null
+                    ? "secondary"
+                    : "danger"
+                }
                 size="sm"
                 variant="flat"
                 onPress={() => setIsFilterModalOpen(true)}
@@ -1646,12 +1642,20 @@ export default function TunnelPage() {
                 筛选 {(tunnelFilterMode !== "all" || filterGroupId !== null) && "(1)"}
               </Button>
               <Button
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={handleAdd}
+              >
+                新增
+              </Button> 
+              <Button
                 className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
                 size="sm"
                 variant="flat"
                 onPress={() => setGroupManagerOpen(true)}
               >
-                分组管理
+                分组
               </Button>
             </>
           )}
