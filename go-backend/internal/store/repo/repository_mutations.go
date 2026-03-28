@@ -1137,6 +1137,8 @@ func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunne
 		return nil, err
 	}
 
+	var revoked []RevokedUserTunnelPair
+
 	for userTunnelID := range groupCreatedTunnelIDs {
 		var remaining int64
 		if err := tx.Model(&model.GroupPermissionGrant{}).Where("user_tunnel_id = ?", userTunnelID).Count(&remaining).Error; err != nil {
