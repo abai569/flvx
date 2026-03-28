@@ -494,9 +494,9 @@ export default function TunnelPage() {
       trafficRatio: tunnel.trafficRatio,
       inIp: tunnel.inIp
         ? tunnel.inIp
-            .split(",")
-            .map((ip: string) => ip.trim())
-            .join("\n")
+          .split(",")
+          .map((ip: string) => ip.trim())
+          .join("\n")
         : "",
       ipPreference: tunnel.ipPreference || "",
       status: tunnel.status,
@@ -2360,17 +2360,20 @@ export default function TunnelPage() {
                     <Select
                       disabledKeys={
                         isEdit
-                          ? []  // 编辑时不禁用任何节点（允许取消勾选离线节点）
+                          ? (() => {
+                            console.log('编辑模式，disabledKeys 应该为空数组:', []);
+                            return [];
+                          })()
                           : [
-                              // 新建时禁用离线节点
-                              ...nodes
-                                .filter((node) => node.status !== 1)
-                                .map((node) => node.id.toString()),
-                              ...(form.outNodeId || []).map((ct) =>
-                                ct.nodeId.toString(),
-                              ),
-                              ...getSelectedChainNodeIds().map((id) => id.toString()),
-                            ]
+                            // 新建时禁用离线节点
+                            ...nodes
+                              .filter((node) => node.status !== 1)
+                              .map((node) => node.id.toString()),
+                            ...(form.outNodeId || []).map((ct) =>
+                              ct.nodeId.toString(),
+                            ),
+                            ...getSelectedChainNodeIds().map((id) => id.toString()),
+                          ]
                       }
                       errorMessage={errors.inNodeId}
                       isInvalid={!!errors.inNodeId}
@@ -2544,44 +2547,44 @@ export default function TunnelPage() {
                                       disabledKeys={
                                         isEdit
                                           ? [
-                                              // 编辑时只排除冲突节点，不禁用离线节点
-                                              ...form.inNodeId.map((ct) =>
-                                                ct.nodeId.toString(),
-                                              ),
-                                              ...(form.outNodeId || []).map((ct) =>
-                                                ct.nodeId.toString(),
-                                              ),
-                                              // 排除其他跳数已选的节点
-                                              ...(form.chainNodes || [])
-                                                .flatMap((group, idx) =>
-                                                  idx !== groupIndex
-                                                    ? group.map((ct) => ct.nodeId)
-                                                    : [],
-                                                )
-                                                .filter((id) => id !== -1)
-                                                .map((id) => id.toString()),
-                                            ]
+                                            // 编辑时只排除冲突节点，不禁用离线节点
+                                            ...form.inNodeId.map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            ...(form.outNodeId || []).map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            // 排除其他跳数已选的节点
+                                            ...(form.chainNodes || [])
+                                              .flatMap((group, idx) =>
+                                                idx !== groupIndex
+                                                  ? group.map((ct) => ct.nodeId)
+                                                  : [],
+                                              )
+                                              .filter((id) => id !== -1)
+                                              .map((id) => id.toString()),
+                                          ]
                                           : [
-                                              // 新建时禁用离线节点
-                                              ...nodes
-                                                .filter((node) => node.status !== 1)
-                                                .map((node) => node.id.toString()),
-                                              ...form.inNodeId.map((ct) =>
-                                                ct.nodeId.toString(),
-                                              ),
-                                              ...(form.outNodeId || []).map((ct) =>
-                                                ct.nodeId.toString(),
-                                              ),
-                                              // 排除其他跳数已选的节点
-                                              ...(form.chainNodes || [])
-                                                .flatMap((group, idx) =>
-                                                  idx !== groupIndex
-                                                    ? group.map((ct) => ct.nodeId)
-                                                    : [],
-                                                )
-                                                .filter((id) => id !== -1)
-                                                .map((id) => id.toString()),
-                                            ]
+                                            // 新建时禁用离线节点
+                                            ...nodes
+                                              .filter((node) => node.status !== 1)
+                                              .map((node) => node.id.toString()),
+                                            ...form.inNodeId.map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            ...(form.outNodeId || []).map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            // 排除其他跳数已选的节点
+                                            ...(form.chainNodes || [])
+                                              .flatMap((group, idx) =>
+                                                idx !== groupIndex
+                                                  ? group.map((ct) => ct.nodeId)
+                                                  : [],
+                                              )
+                                              .filter((id) => id !== -1)
+                                              .map((id) => id.toString()),
+                                          ]
                                       }
                                       dropdownPlacement="top"
                                       label="出口节点"
@@ -2821,17 +2824,30 @@ export default function TunnelPage() {
                                     label: "text-xs",
                                     value: "text-sm",
                                   }}
-                                  disabledKeys={[
-                                    ...nodes
-                                      .filter((node) => node.status !== 1)
-                                      .map((node) => node.id.toString()),
-                                    ...form.inNodeId.map((ct) =>
-                                      ct.nodeId.toString(),
-                                    ),
-                                    ...getSelectedChainNodeIds().map((id) =>
-                                      id.toString(),
-                                    ),
-                                  ]}
+                                  disabledKeys={
+                                    isEdit
+                                      ? [
+                                        // 编辑时【不禁用】离线节点，仅排除入口和转发链冲突节点
+                                        ...form.inNodeId.map((ct) =>
+                                          ct.nodeId.toString(),
+                                        ),
+                                        ...getSelectedChainNodeIds().map((id) =>
+                                          id.toString(),
+                                        ),
+                                      ]
+                                      : [
+                                        // 新建时【禁用】离线节点，并排除冲突节点
+                                        ...nodes
+                                          .filter((node) => node.status !== 1)
+                                          .map((node) => node.id.toString()),
+                                        ...form.inNodeId.map((ct) =>
+                                          ct.nodeId.toString(),
+                                        ),
+                                        ...getSelectedChainNodeIds().map((id) =>
+                                          id.toString(),
+                                        ),
+                                      ]
+                                  }
                                   dropdownPlacement="top"
                                   errorMessage={errors.outNodeId}
                                   isInvalid={!!errors.outNodeId}
