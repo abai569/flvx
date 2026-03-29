@@ -19,6 +19,7 @@ import { Input } from "@/shadcn-bridge/heroui/input";
 import { Textarea } from "@/shadcn-bridge/heroui/input";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
+import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import {
   Table,
   TableBody,
@@ -32,6 +33,8 @@ import {
   createTunnelGroupNew,
   updateTunnelGroupNew,
   deleteTunnelGroupNew,
+  getTunnelList,
+  assignTunnelsToGroup,
 } from "@/api";
 
 interface TunnelGroupManagerProps {
@@ -46,19 +49,24 @@ export function TunnelGroupManager({
   onGroupChange,
 }: TunnelGroupManagerProps) {
   const [groups, setGroups] = useState<TunnelGroupNewApiItem[]>([]);
+  const [allTunnels, setAllTunnels] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingGroup, setEditingGroup] =
     useState<TunnelGroupNewApiItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const loadGroups = async () => {
+  // 🎯 修复：统一加载函数，确保分组和隧道数据同步
+  const loadAllData = async () => {
     setLoading(true);
     try {
-      const res = await getTunnelGroupNewList();
-
+      const [res, tunnelRes] = await Promise.all([
+        getTunnelGroupNewList(),
+        getTunnelList(),
+      ]);
       setGroups(res.data || []);
+      setAllTunnels(tunnelRes.data || []);
     } catch (error) {
-      toast.error("加载分组列表失败");
+      toast.error("加载数据失败");
     } finally {
       setLoading(false);
     }
@@ -66,7 +74,7 @@ export function TunnelGroupManager({
 
   useEffect(() => {
     if (isOpen) {
-      loadGroups();
+      loadAllData();
     }
   }, [isOpen]);
 
@@ -80,34 +88,49 @@ export function TunnelGroupManager({
     setEditingGroup(null);
   };
 
-  const handleSave = async (data: TunnelGroupNewMutationPayload) => {
+  const handleSave = async (data: TunnelGroupNewMutationPayload, selectedTunnelIds: number[]) => {
     try {
+      let groupId: number;
       if (editingGroup) {
         await updateTunnelGroupNew({ ...data, id: editingGroup.id });
-        toast.success("分组更新成功");
+        groupId = editingGroup.id;
       } else {
-        await createTunnelGroupNew(data);
-        toast.success("分组创建成功");
+        const res: any = await createTunnelGroupNew(data);
+        groupId = res.data.id;
       }
+
+      // 🎯 修复：差量更新逻辑
+      const originalTunnels = editingGroup
+        ? allTunnels.filter(t => t.tunnelGroupId === editingGroup.id).map(t => t.id)
+        : [];
+
+      const toAdd = selectedTunnelIds.filter(id => !originalTunnels.includes(id));
+      const toRemove = originalTunnels.filter(id => !selectedTunnelIds.includes(id));
+
+      await Promise.all([
+        toAdd.length > 0 ? assignTunnelsToGroup({ groupId, tunnelIds: toAdd }) : Promise.resolve(),
+        toRemove.length > 0 ? assignTunnelsToGroup({ groupId, tunnelIds: toRemove }) : Promise.resolve()
+      ]);
+
+      toast.success("保存成功");
       handleCloseModal();
-      await loadGroups();
+      // 🎯 修复：保存后强制刷新本地所有数据，确保数量和状态即时改变
+      await loadAllData();
       onGroupChange?.();
     } catch (error) {
-      toast.error(editingGroup ? "更新分组失败" : "创建分组失败");
+      toast.error("保存失败");
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("确定要删除此分组吗？分组下的隧道将被设为未分组。")) {
-      return;
-    }
+    if (!confirm("确定要删除此分组吗？分组下的隧道将被设为未分组。")) return;
     try {
       await deleteTunnelGroupNew(id);
-      toast.success("分组删除成功");
-      await loadGroups();
+      toast.success("删除成功");
+      await loadAllData();
       onGroupChange?.();
     } catch (error) {
-      toast.error("删除分组失败");
+      toast.error("删除失败");
     }
   };
 
@@ -141,16 +164,19 @@ export function TunnelGroupManager({
                   }}
                 >
                   <TableHeader>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
-                      分组名称
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[220px] text-left">
+                      分组名
                     </TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                      颜色
-                    </TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-center">
+                      排序
+                    </TableColumn>                    
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-center">
                       隧道数
                     </TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+					<TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                      颜色
+                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
                       操作
                     </TableColumn>
                   </TableHeader>
@@ -178,7 +204,31 @@ export function TunnelGroupManager({
                         </TableCell>
 
                         <TableCell className="whitespace-nowrap">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <Chip
+                              className="bg-blue-500 text-white font-mono font-semibold"
+                              size="sm"
+                              variant="flat"
+                            >
+							  {group.inx || 0}
+							</Chip>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-2">
+                            <Chip
+                              className="bg-purple-500 text-white font-mono font-semibold"
+                              size="sm"
+                              variant="flat"
+                            >
+                              {allTunnels.filter((t) => t.tunnelGroupId === group.id).length}
+                            </Chip>
+                          </div>
+                        </TableCell>
+						
+						 <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center justify-start items-center gap-2">
                             <div
                               className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
                               style={{ backgroundColor: group.color }}
@@ -190,17 +240,7 @@ export function TunnelGroupManager({
                         </TableCell>
 
                         <TableCell className="whitespace-nowrap">
-                          <Chip
-                            className="bg-purple-500 text-white font-mono font-semibold" // 👈 改为浅紫色背景，深紫色文字
-                            size="sm"
-                            variant="flat" // 👇 保留扁平风格
-                          >
-                            {group.nodeCount}
-                          </Chip>
-                        </TableCell>
-
-                        <TableCell className="whitespace-nowrap">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-start gap-2">
                             <Button
                               isIconOnly
                               className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
@@ -234,9 +274,10 @@ export function TunnelGroupManager({
             </Button>
           </ModalFooter>
         </ModalContent>
-      </Modal>
+      </Modal >
 
       <GroupEditModal
+        allTunnels={allTunnels}
         group={editingGroup}
         isOpen={isModalOpen}
         onOpenChange={setIsModalOpen}
@@ -250,42 +291,47 @@ interface GroupEditModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   group: TunnelGroupNewApiItem | null;
-  onSave: (data: TunnelGroupNewMutationPayload) => void;
+  allTunnels: any[];
+  onSave: (data: TunnelGroupNewMutationPayload, selectedTunnelIds: number[]) => void;
 }
 
 function GroupEditModal({
   isOpen,
   onOpenChange,
   group,
+  allTunnels,
   onSave,
 }: GroupEditModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#3b82f6");
   const [inx, setInx] = useState(0);
+  const [selectedTunnelIds, setSelectedTunnelIds] = useState<number[]>([]);
 
   useEffect(() => {
-    if (group) {
+    if (group && isOpen) {
       setName(group.name);
       setDescription(group.description || "");
       setColor(group.color || "#3b82f6");
       setInx(group.inx || 0);
-    } else {
+      const currentTunnels = allTunnels.filter(t => t.tunnelGroupId === group.id).map(t => t.id);
+      setSelectedTunnelIds(currentTunnels);
+    } else if (isOpen) {
       setName("");
       setDescription("");
       setColor("#3b82f6");
       setInx(0);
+      setSelectedTunnelIds([]);
     }
-  }, [group, isOpen]);
+  }, [group, isOpen, allTunnels]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       toast.error("分组名称不能为空");
-
       return;
     }
-    onSave({ name, description, color, inx });
+    onSave({ name, description, color, inx }, selectedTunnelIds);
   };
 
   const presetColors = [
@@ -300,77 +346,94 @@ function GroupEditModal({
   ];
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+    <Modal isOpen={isOpen} onOpenChange={onOpenChange} scrollBehavior="inside" backdrop="blur">
       <ModalContent>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 w-full min-h-0">
           <ModalHeader>{group ? "编辑分组" : "创建分组"}</ModalHeader>
-          <ModalBody>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  分组名称 *
-                </label>
-                <Input
-                  required
-                  placeholder="输入分组名称"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
+          <ModalBody className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                分组名称 *
+              </label>
+              <Input
+                required
+                placeholder="输入分组名称"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">描述</label>
-                <Textarea
-                  classNames={{
-                    inputWrapper: "!min-h-[20px] py-1.5",
-                    input: "!min-h-[20px]",
-                  }}
-                  placeholder="分组描述（可选）"
-                  rows={1}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">描述</label>
+              <Textarea
+                classNames={{
+                  inputWrapper: "!min-h-[20px] py-1.5",
+                  input: "!min-h-[20px]",
+                }}
+                placeholder="分组描述（可选）"
+                rows={1}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">颜色</label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {presetColors.map((c) => (
-                    <button
-                      key={c}
-                      className={`w-8 h-8 rounded border-2 ${
-                        color === c ? "border-gray-900" : "border-transparent"
+            <div>
+              <label className="block text-sm font-medium mb-1">分配隧道</label>
+              <Select
+                placeholder="选择要加入此分组的隧道"
+                selectionMode="multiple"
+                variant="bordered"
+                selectedKeys={new Set(selectedTunnelIds.map(String))}
+                onSelectionChange={(keys: any) => setSelectedTunnelIds(Array.from(keys).map(Number))}
+              >
+                {allTunnels.map((tunnel: any) => (
+                  <SelectItem key={tunnel.id.toString()} textValue={tunnel.name}>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{tunnel.name}</span>
+                      <span className="text-xs text-default-400">{tunnel.inIp || "未知入口 IP"}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">颜色</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {presetColors.map((c) => (
+                  <button
+                    key={c}
+                    className={`w-8 h-8 rounded border-2 ${color === c ? "border-gray-900" : "border-transparent"
                       }`}
-                      style={{ backgroundColor: c }}
-                      type="button"
-                      onClick={() => setColor(c)}
-                    />
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    className="w-10 h-10 border rounded cursor-pointer"
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
+                    style={{ backgroundColor: c }}
+                    type="button"
+                    onClick={() => setColor(c)}
                   />
-                  <Input
-                    className="flex-1"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                  />
-                </div>
+                ))}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">排序</label>
+              <div className="flex items-center gap-2">
+                <input
+                  className="w-10 h-10 border rounded cursor-pointer"
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                />
                 <Input
-                  placeholder="数字越小越靠前"
-                  type="number"
-                  value={inx}
-                  onChange={(e) => setInx(parseInt(e.target.value) || 0)}
+                  className="flex-1"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">排序</label>
+              <Input
+                placeholder="数字越小越靠前"
+                type="number"
+                value={inx}
+                onChange={(e) => setInx(parseInt(e.target.value) || 0)}
+              />
             </div>
           </ModalBody>
           <ModalFooter>

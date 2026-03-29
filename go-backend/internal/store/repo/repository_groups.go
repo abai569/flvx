@@ -151,6 +151,18 @@ func (r *Repository) AssignTunnelToGroupNew(tunnelId int64, groupIds []int64) er
 		if err := tx.Where("tunnel_id = ?", tunnelId).Delete(&model.TunnelGroupTunnelNew{}).Error; err != nil {
 			return err
 		}
+
+		// Update tunnel.tunnel_group_id (use first group ID or NULL)
+		var groupId interface{}
+		if len(groupIds) > 0 {
+			groupId = groupIds[0]
+		} else {
+			groupId = nil
+		}
+		if err := tx.Model(&model.Tunnel{}).Where("id = ?", tunnelId).Update("tunnel_group_id", groupId).Error; err != nil {
+			return err
+		}
+
 		// Insert new assignments
 		if len(groupIds) > 0 {
 			now := time.Now().UnixMilli()

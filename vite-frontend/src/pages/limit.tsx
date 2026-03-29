@@ -331,7 +331,7 @@ export default function LimitPage() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <Chip color="secondary" size="sm" variant="flat">
-                        {rule.speed} Mbps
+                        {rule.speed}M
                       </Chip>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
@@ -409,7 +409,7 @@ export default function LimitPage() {
                           速度限制
                         </span>
                         <Chip color="secondary" size="sm" variant="flat">
-                          {rule.speed} Mbps
+                          {rule.speed}M
                         </Chip>
                       </div>
                     </div>

@@ -167,8 +167,8 @@ func (h *Handler) tunnelGroupNewAssign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		TunnelId int64   `json:"tunnelId"`
-		GroupIds []int64 `json:"groupIds"`
+		GroupId   int64   `json:"groupId"`
+		TunnelIds []int64 `json:"tunnelIds"`
 	}
 
 	if err := decodeJSON(r.Body, &req); err != nil {
@@ -176,14 +176,25 @@ func (h *Handler) tunnelGroupNewAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.TunnelId <= 0 {
-		response.WriteJSON(w, response.ErrDefault("隧道 ID 无效"))
+	if req.GroupId <= 0 {
+		response.WriteJSON(w, response.ErrDefault("分组 ID 无效"))
 		return
 	}
 
-	if err := h.repo.AssignTunnelToGroupNew(req.TunnelId, req.GroupIds); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+	if len(req.TunnelIds) == 0 {
+		response.WriteJSON(w, response.ErrDefault("隧道 ID 不能为空"))
 		return
+	}
+
+	// 批量更新隧道的分组
+	for _, tunnelId := range req.TunnelIds {
+		if tunnelId <= 0 {
+			continue
+		}
+		if err := h.repo.AssignTunnelToGroupNew(tunnelId, []int64{req.GroupId}); err != nil {
+			response.WriteJSON(w, response.Err(-2, err.Error()))
+			return
+		}
 	}
 
 	response.WriteJSON(w, response.OKEmpty())

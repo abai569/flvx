@@ -1,10 +1,9 @@
 import type { NodeGroupApiItem, NodeTagApiItem } from "@/api/types";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Settings, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
-import { Button } from "@/shadcn-bridge/heroui/button";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
 
 interface NodeGroupCollapsibleProps {
@@ -12,8 +11,7 @@ interface NodeGroupCollapsibleProps {
   nodes: any[];
   tags?: NodeTagApiItem[];
   defaultExpanded?: boolean;
-  onEditGroup?: () => void;
-  onDeleteGroup?: () => void;
+  onToggleCollapsed?: () => void;
   onNodeClick?: (nodeId: number) => void;
   children: (node: any) => React.ReactNode;
 }
@@ -23,16 +21,21 @@ export function NodeGroupCollapsible({
   nodes,
   tags,
   defaultExpanded = true,
-  onEditGroup,
-  onDeleteGroup,
+  onToggleCollapsed,
   onNodeClick,
   children,
 }: NodeGroupCollapsibleProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
-  const groupColor = group?.color || "#6b7280";
+  const groupColor = group?.color || "#9ca3af"; // 默认灰色（未分组）
   const groupName = group?.name || "未分组";
   const nodeCount = nodes.length;
+
+  const handleToggle = () => {
+    const newExpanded = !isExpanded;
+    setIsExpanded(newExpanded);
+    onToggleCollapsed?.();
+  };
 
   return (
     <Card className="mb-4 overflow-hidden">
@@ -41,7 +44,7 @@ export function NodeGroupCollapsible({
         style={{
           borderLeft: `4px solid ${groupColor}`,
         }}
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={handleToggle}
       >
         <div className="flex items-center gap-3">
           {isExpanded ? (
@@ -94,33 +97,6 @@ export function NodeGroupCollapsible({
             </div>
           )}
         </div>
-
-        {group && (
-          <div
-            className="flex items-center gap-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button
-              isIconOnly
-              size="sm"
-              title="编辑分组"
-              variant="flat"
-              onClick={onEditGroup}
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-            <Button
-              isIconOnly
-              color="danger"
-              size="sm"
-              title="删除分组"
-              variant="flat"
-              onClick={onDeleteGroup}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
       </CardHeader>
 
       {isExpanded && (

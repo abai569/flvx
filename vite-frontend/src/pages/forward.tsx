@@ -2708,7 +2708,7 @@ export default function ForwardPage() {
 
       const limit = speedLimits.find((s) => s.id === speedId);
 
-      return limit ? `${limit.speed} Mbps` : "不限速";
+      return limit ? `${limit.speed}M` : "不限速";
     },
     [speedLimits],
   );
@@ -6357,7 +6357,7 @@ export default function ForwardPage() {
                       textValue={speedLimit.name || `限速${speedLimit.speed}`}
                     >
                       {speedLimit.name || `限速${speedLimit.speed}`} (
-                      {speedLimit.speed} Mbps)
+                      {speedLimit.speed}M)
                     </SelectItem>
                   ))}
                 </Select>
@@ -6483,7 +6483,7 @@ export default function ForwardPage() {
                       <SelectItem key="unlimited">不限速</SelectItem>
                       {availableSpeedLimits.map((speedLimit) => (
                         <SelectItem key={speedLimit.id.toString()}>
-                          {speedLimit.name || `限速${speedLimit.speed}`} ({speedLimit.speed} Mbps)
+                          {speedLimit.name || `限速${speedLimit.speed}`} ({speedLimit.speed}M)
                         </SelectItem>
                       ))}
                     </Select>
