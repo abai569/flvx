@@ -181,3 +181,45 @@ func (r *Repository) AssignTunnelToGroupNew(tunnelId int64, groupIds []int64) er
 		return nil
 	})
 }
+
+// AssignTunnelsToGroupNew assigns multiple tunnels to a single group (batch operation).
+func (r *Repository) AssignTunnelsToGroupNew(tunnelIds []int64, groupId int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Filter valid tunnel IDs
+		validTunnelIds := make([]int64, 0, len(tunnelIds))
+		for _, id := range tunnelIds {
+			if id > 0 {
+				validTunnelIds = append(validTunnelIds, id)
+			}
+		}
+
+		if len(validTunnelIds) == 0 {
+			return nil
+		}
+
+		// Delete existing assignments for these tunnels
+		if err := tx.Where("tunnel_id IN ?", validTunnelIds).Delete(&model.TunnelGroupTunnelNew{}).Error; err != nil {
+			return err
+		}
+
+		// Update tunnel.tunnel_group_id for all tunnels
+		if err := tx.Model(&model.Tunnel{}).Where("id IN ?", validTunnelIds).Update("tunnel_group_id", groupId).Error; err != nil {
+			return err
+		}
+
+		// Insert new assignments
+		now := time.Now().UnixMilli()
+		relations := make([]model.TunnelGroupTunnelNew, len(validTunnelIds))
+		for i, tunnelId := range validTunnelIds {
+			relations[i] = model.TunnelGroupTunnelNew{
+				TunnelGroupID: groupId,
+				TunnelID:      tunnelId,
+				CreatedTime:   now,
+			}
+		}
+		return tx.Create(&relations).Error
+	})
+}

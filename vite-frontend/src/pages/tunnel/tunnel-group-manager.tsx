@@ -90,27 +90,42 @@ export function TunnelGroupManager({
 
   const handleSave = async (data: TunnelGroupNewMutationPayload, selectedTunnelIds: number[]) => {
     try {
-      let groupId: number;
+      let groupId: number | undefined;
       if (editingGroup) {
+        // 编辑分组
         await updateTunnelGroupNew({ ...data, id: editingGroup.id });
         groupId = editingGroup.id;
+        console.log('编辑分组，groupId:', groupId);
       } else {
+        // 创建分组
         const res: any = await createTunnelGroupNew(data);
-        groupId = res.data.id;
+        groupId = res.data?.id;
+        console.log('创建分组，res.data:', res.data);
+        console.log('创建分组，groupId:', groupId);
       }
 
+      console.log('最终 groupId:', groupId);
+      console.log('selectedTunnelIds:', selectedTunnelIds);
+
       // 🎯 修复：差量更新逻辑
-      const originalTunnels = editingGroup
+      const originalTunnels = editingGroup && editingGroup.id
         ? allTunnels.filter(t => t.tunnelGroupId === editingGroup.id).map(t => t.id)
         : [];
+
+      console.log('originalTunnels:', originalTunnels);
+      console.log('toAdd:', selectedTunnelIds.filter(id => !originalTunnels.includes(id)));
+      console.log('toRemove:', originalTunnels.filter(id => !selectedTunnelIds.includes(id)));
 
       const toAdd = selectedTunnelIds.filter(id => !originalTunnels.includes(id));
       const toRemove = originalTunnels.filter(id => !selectedTunnelIds.includes(id));
 
-      await Promise.all([
-        toAdd.length > 0 ? assignTunnelsToGroup({ groupId, tunnelIds: toAdd }) : Promise.resolve(),
-        toRemove.length > 0 ? assignTunnelsToGroup({ groupId, tunnelIds: toRemove }) : Promise.resolve()
-      ]);
+      // 只有当 groupId 有效时才调用 API
+      if (groupId && groupId > 0) {
+        await Promise.all([
+          toAdd.length > 0 ? assignTunnelsToGroup({ groupId, tunnelIds: toAdd }) : Promise.resolve(),
+          toRemove.length > 0 ? assignTunnelsToGroup({ groupId, tunnelIds: toRemove }) : Promise.resolve()
+        ]);
+      }
 
       toast.success("保存成功");
       handleCloseModal();
@@ -118,6 +133,7 @@ export function TunnelGroupManager({
       await loadAllData();
       onGroupChange?.();
     } catch (error) {
+      console.error('保存失败:', error);
       toast.error("保存失败");
     }
   };

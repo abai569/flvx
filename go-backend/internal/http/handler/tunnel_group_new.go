@@ -186,15 +186,10 @@ func (h *Handler) tunnelGroupNewAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 批量更新隧道的分组
-	for _, tunnelId := range req.TunnelIds {
-		if tunnelId <= 0 {
-			continue
-		}
-		if err := h.repo.AssignTunnelToGroupNew(tunnelId, []int64{req.GroupId}); err != nil {
-			response.WriteJSON(w, response.Err(-2, err.Error()))
-			return
-		}
+	// 批量更新隧道的分组 - 直接传递所有隧道 ID 和分组 ID
+	if err := h.repo.AssignTunnelsToGroupNew(req.TunnelIds, req.GroupId); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
