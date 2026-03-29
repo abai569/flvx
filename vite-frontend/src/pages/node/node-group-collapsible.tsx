@@ -10,16 +10,18 @@ interface NodeGroupCollapsibleProps {
   group: NodeGroupApiItem | null;
   nodes: any[];
   tags?: NodeTagApiItem[];
+  nodeCount?: number;
   defaultExpanded?: boolean;
   onToggleCollapsed?: () => void;
   onNodeClick?: (nodeId: number) => void;
-  children: (node: any) => React.ReactNode;
+  children?: React.ReactNode | ((node: any) => React.ReactNode);
 }
 
 export function NodeGroupCollapsible({
   group,
   nodes,
   tags,
+  nodeCount,
   defaultExpanded = true,
   onToggleCollapsed,
   onNodeClick,
@@ -29,7 +31,7 @@ export function NodeGroupCollapsible({
 
   const groupColor = group?.color || "#9ca3af"; // 默认灰色（未分组）
   const groupName = group?.name || "未分组";
-  const nodeCount = nodes.length;
+  const count = nodeCount ?? nodes.length;
 
   const handleToggle = () => {
     const newExpanded = !isExpanded;
@@ -38,7 +40,7 @@ export function NodeGroupCollapsible({
   };
 
   return (
-    <Card className="mb-4 overflow-hidden">
+    <Card className="overflow-hidden">
       <CardHeader
         className="flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
         style={{
@@ -52,20 +54,22 @@ export function NodeGroupCollapsible({
           ) : (
             <ChevronRight className="w-5 h-5 text-gray-500" />
           )}
-
+          
           <div
             className="w-3 h-3 rounded-full"
             style={{ backgroundColor: groupColor }}
           />
-
-          <div className="font-semibold text-lg">{groupName}</div>
-
+          
+          <div className="font-semibold text-lg">
+            {groupName}
+          </div>
+          
           <Chip
-            className="bg-gray-100 dark:bg-gray-800"
             size="sm"
             variant="flat"
+            className="bg-gray-100 dark:bg-gray-800"
           >
-            {nodeCount}
+            {count}
           </Chip>
 
           {tags && tags.length > 0 && (
@@ -73,23 +77,23 @@ export function NodeGroupCollapsible({
               {tags.slice(0, 3).map((tag) => (
                 <Chip
                   key={tag.id}
-                  className="border"
                   size="sm"
+                  variant="flat"
                   style={{
                     backgroundColor: `${tag.color}20`,
                     color: tag.color,
                     borderColor: tag.color,
                   }}
-                  variant="flat"
+                  className="border"
                 >
                   {tag.name}
                 </Chip>
               ))}
               {tags.length > 3 && (
                 <Chip
-                  className="bg-gray-100 dark:bg-gray-800"
                   size="sm"
                   variant="flat"
+                  className="bg-gray-100 dark:bg-gray-800"
                 >
                   +{tags.length - 3}
                 </Chip>
@@ -105,18 +109,20 @@ export function NodeGroupCollapsible({
             <div className="text-center py-8 text-gray-500">
               此分组下暂无节点
             </div>
-          ) : (
+          ) : typeof children === 'function' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
               {nodes.map((node) => (
                 <div
-                  key={node.id}
+                  key={(node as any).id}
                   className="cursor-pointer"
-                  onClick={() => onNodeClick?.(node.id)}
+                  onClick={() => onNodeClick?.((node as any).id)}
                 >
                   {children(node)}
                 </div>
               ))}
             </div>
+          ) : (
+            children
           )}
         </CardBody>
       )}

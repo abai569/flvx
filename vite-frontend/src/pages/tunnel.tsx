@@ -1621,25 +1621,36 @@ export default function TunnelPage() {
             <>
               {/* 视图模式切换按钮 */}
               <Button
-                color={viewMode === "card" ? "primary" : "warning"}
-                size="sm"
-                variant="flat"
-                onPress={() => handleViewModeToggle(viewMode === "card" ? "list" : "card")}
-              >
-                {viewMode === "card" ? "列表" : "卡片"}
-              </Button>
-              <Button
-                className="h-8 px-3 text-xs min-w-0 shrink-0"
-                color={
-                  tunnelFilterMode !== "all" || filterGroupId !== null
-                    ? "secondary"
-                    : "danger"
-                }
+                className="whitespace-nowrap bg-red-100"
+                color={tunnelFilterMode !== "all" || filterGroupId !== null ? "secondary" : "danger"}
                 size="sm"
                 variant="flat"
                 onPress={() => setIsFilterModalOpen(true)}
               >
                 筛选 {(tunnelFilterMode !== "all" || filterGroupId !== null) && "(1)"}
+              </Button>
+              {tunnelFilterMode !== "all" || filterGroupId !== null ? (
+              <Button
+                color="warning"
+                size="sm"
+                variant="flat"
+                onPress={() => {
+                  setFilterGroupId(null);
+                  setTunnelFilterMode("all");
+                  setIsFilterModalOpen(false);
+                }}
+              >
+                重置
+              </Button>
+              ) : null}
+
+              <Button
+                color={viewMode === "card" ? "warning" : "primary"}
+                size="sm"
+                variant="flat"
+                onPress={() => handleViewModeToggle(viewMode === "card" ? "list" : "card")}
+              >
+                {viewMode === "card" ? "列表" : "卡片"}
               </Button>
               <Button
                 color="primary"

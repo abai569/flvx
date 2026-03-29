@@ -4311,7 +4311,7 @@ export default function ForwardPage() {
               <>
                 {/* 筛选按钮 */}
                 <Button
-                  className="h-8 px-2 text-xs whitespace-nowrap bg-red-100"
+                  className="whitespace-nowrap bg-red-100"
                   color={activeFilterCount > 0 ? "secondary" : "danger"}
                   size="sm"
                   variant="flat"
@@ -4321,10 +4321,10 @@ export default function ForwardPage() {
                 </Button>
                 {activeFilterCount > 0 && (
                   <Button
-                    color="danger"
+                    color="warning"
                     size="sm"
-                    variant="light"
-                    onPress={() =>
+                    variant="flat"
+                    onPress={() => {
                       setSearchParams({
                         name: "",
                         userId: tokenUserId ? tokenUserId.toString() : "all",
@@ -4332,10 +4332,10 @@ export default function ForwardPage() {
                         speedLimitId: undefined,
                         inPort: "",
                         remoteAddr: "",
-                      })
-                    }
+                      });
+                    }}
                   >
-                    清空条件
+                    重置
                   </Button>
                 )}
 
@@ -4348,18 +4348,15 @@ export default function ForwardPage() {
                 >
                   {viewMode === "grouped" ? "卡片" : "列表"}
                 </Button>
-                {/* 精简模式按钮 - 仅管理员可见 */}
-                {isAdmin && (
-                  <Button
-                    color={compactMode ? "success" : "secondary"}
-                    size="sm"
-                    variant="flat"
-                    onPress={() => handleCompactModeToggle(!compactMode)}
-                  >
-                    {compactMode ? "默认" : "精简"}
-                  </Button>
-                )}
-
+                
+                <Button
+                  color="primary"
+                  size="sm"
+                  variant="flat"
+                  onPress={handleAdd}
+                >
+                  新增
+                </Button>
                 {/* 导入按钮 */}
                 <Button
                   color="warning"
@@ -4380,15 +4377,17 @@ export default function ForwardPage() {
                 >
                   导出
                 </Button>
-
-                <Button
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={handleAdd}
-                >
-                  新增
-                </Button>
+                {/* 精简模式按钮 - 仅管理员可见 */}
+                {isAdmin && (
+                  <Button
+                    color={compactMode ? "secondary" : "success"}
+                    size="sm"
+                    variant="flat"
+                    onPress={() => handleCompactModeToggle(!compactMode)}
+                  >
+                    {compactMode ? "默认" : "精简"}
+                  </Button>
+                )}
               </>
             )}
           </div>
