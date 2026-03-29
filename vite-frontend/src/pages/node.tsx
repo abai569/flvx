@@ -1998,17 +1998,7 @@ export default function NodePage() {
             ) : (
               <>
                 <Button
-                  color={viewMode === "grid" ? "primary" : "warning"}
-                  size="sm"
-                  variant="flat"
-                  onPress={() =>
-                    setViewMode(viewMode === "grid" ? "list" : "grid")
-                  }
-                >
-                  {viewMode === "grid" ? "列表" : "卡片"}
-                </Button>
-                <Button
-                  className="h-8 px-3 text-xs min-w-0 shrink-0"
+                  className="whitespace-nowrap bg-red-100"
                   color={
                     (canUseExpiryFilter && nodeFilterMode !== "all") ||
                       filterGroupId
@@ -2029,6 +2019,30 @@ export default function NodePage() {
                   {((canUseExpiryFilter && nodeFilterMode !== "all") ||
                     filterGroupId) &&
                     "(1)"}
+                </Button>
+                {((canUseExpiryFilter && nodeFilterMode !== "all") || filterGroupId) && (
+                <Button
+                  color="warning"
+                  size="sm"
+                  variant="flat"
+                  onPress={() => {
+                    resetNodeFilterMode();
+                    setFilterGroupId(null);
+                  }}
+                >
+                  重置
+                </Button>
+                )}
+
+                <Button
+                  color={viewMode === "grid" ? "warning" : "primary"}
+                  size="sm"
+                  variant="flat"
+                  onPress={() =>
+                    setViewMode(viewMode === "grid" ? "list" : "grid")
+                  }
+                >
+                  {viewMode === "grid" ? "列表" : "卡片"}
                 </Button>
                 <Button
                   color="primary"
@@ -2257,8 +2271,8 @@ export default function NodePage() {
                                         </button>
                                         <div
                                           className={`absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur transition-all duration-150 ${infoPopoverOpenId === node.id
-                                              ? "visible opacity-100 pointer-events-auto"
-                                              : "invisible opacity-0 pointer-events-none"
+                                            ? "visible opacity-100 pointer-events-auto"
+                                            : "invisible opacity-0 pointer-events-none"
                                             } ${infoPlacement === "bottom"
                                               ? "right-0 top-[calc(100%+0.75rem)] translate-y-1"
                                               : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1"
