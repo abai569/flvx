@@ -1711,33 +1711,23 @@ export default function TunnelPage() {
                       <th className="py-3 px-4 w-[56px] text-center align-middle">排序</th>
                       <th className="py-3 px-4 w-[200px] align-middle">隧道名称</th>
                       {/* <th className="py-3 px-4 w-[120px] align-middle">分组名</th> */}
-                      <th className="py-3 px-4 w-[120px] align-middle">
+                      <th className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
                         <Select
                           aria-label="按分组筛选"
                           variant="flat"
                           size="sm"
                           className="w-full"
                           classNames={{
-                            // 1. 核心修复：min-h-0 撤销最小高度，h-auto 让它随内容撑开，p-0 去掉内部挤压
-                            trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1 hover:bg-default-100/50 transition-colors",
-                            // 2. 样式同步：完美复刻 node-list-view.tsx 的 th 类名
-                            value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0",
-                            selectorIcon: "text-default-400 static w-3.5 h-3.5", // 稍微调大箭头
-                            innerWrapper: "gap-1",
+                            trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                            value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                            selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                            innerWrapper: "w-fit flex-none",
                           }}
-                          // 3. 渲染逻辑：确保“全部”和“选中”状态都强制使用表头规格
-                          renderValue={(items) => {
-                            const item = items[0];
-                            const headerStyle = "text-sm text-default-600 font-semibold uppercase tracking-wider";
-                            if (!item || item.key === "all") {
-                              return <span className={headerStyle}>分组名</span>;
-                            }
-                            return <span className={headerStyle}>{item.textValue}</span>;
-                          }}
-                          selectedKeys={filterGroupId !== null ? [String(filterGroupId)] : ["all"]}
+                          placeholder="隧道分组"
+                          selectedKeys={filterGroupId === null ? [] : [filterGroupId === -1 ? "-1" : String(filterGroupId)]}
                           onSelectionChange={(keys) => {
-                            const selected = Array.from(keys)[0] as string;
-                            if (selected === "all") {
+                            const selected = Array.from(keys)[0] as string | undefined;
+                            if (!selected || selected === "all") {
                               setFilterGroupId(null);
                             } else if (selected === "-1") {
                               setFilterGroupId(-1);
@@ -1746,17 +1736,16 @@ export default function TunnelPage() {
                             }
                           }}
                         >
-                          {/* 下拉列表保持 text-sm 易读即可 */}
-                          <SelectItem key="all" textValue="全部分组" className="text-sm">全部分组</SelectItem>
-                          <SelectItem key="-1" textValue="未分组" className="text-sm">未分组</SelectItem>
+                          <SelectItem key="all" textValue="全部分组">全部分组</SelectItem>
+                          <SelectItem key="-1" textValue="未分组">未分组</SelectItem>
                           {tunnelGroupsNew.map((group) => (
-                            <SelectItem key={String(group.id)} textValue={group.name} className="text-sm">
-                              <div className="flex items-center gap-2 min-w-0">
+                            <SelectItem key={String(group.id)} textValue={group.name}>
+                              <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                  className="w-2 h-2 rounded-full"
                                   style={{ backgroundColor: group.color }}
                                 />
-                                <span className="truncate">{group.name}</span>
+                                <span>{group.name}</span>
                                 <span className="text-default-400 text-xs ml-auto">{group.tunnelCount}</span>
                               </div>
                             </SelectItem>
@@ -2228,7 +2217,8 @@ export default function TunnelPage() {
             </p>
           </CardBody>
         </Card>
-      )}
+      )
+      }
 
       {/* 新增/编辑模态框 */}
       <Modal
@@ -4223,8 +4213,8 @@ export default function TunnelPage() {
                     }
                   }}
                 >
-                  <SelectItem key="all">全部分组</SelectItem>
-                  <SelectItem key="-1">未分组</SelectItem>
+                  <SelectItem key="all" textValue="全部分组">全部分组</SelectItem>
+                  <SelectItem key="-1" textValue="未分组">未分组</SelectItem>
                   {tunnelGroupsNew.map((group) => (
                     <SelectItem key={String(group.id)} textValue={group.name}>
                       <div className="flex items-center gap-2">

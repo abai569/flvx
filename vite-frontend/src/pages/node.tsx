@@ -2436,7 +2436,7 @@ export default function NodePage() {
                   </Button>
                   {((canUseExpiryFilter && nodeFilterMode !== "all") || filterGroupId !== null) && (
                     <Button
-                      color="default"
+                      color="warning"
                       size="sm"
                       variant="flat"
                       onPress={() => {
@@ -2460,16 +2460,20 @@ export default function NodePage() {
                   size="sm"
                   variant="flat"
                   onPress={() => {
-                    if (viewMode === "grid") setViewMode("list");
-                    else if (viewMode === "list") setViewMode("grouped");
-                    else setViewMode("grid");
+                    // 当前是分组(grouped) -> 切换到列表(list)
+                    // 当前是列表(list) -> 切换到卡片(grid)
+                    // 当前是卡片(grid) -> 切换到分组(grouped)
+                    if (viewMode === "grouped") setViewMode("list");
+                    else if (viewMode === "list") setViewMode("grid");
+                    else setViewMode("grouped");
                   }}
                 >
-                  {viewMode === "grid"
+                  {/* 按钮显示的是"下一个要切换到的视图"的名称 */}
+                  {viewMode === "grouped"
                     ? "列表"
                     : viewMode === "list"
-                      ? "分组"
-                      : "卡片"}
+                      ? "卡片"
+                      : "默认"}
                 </Button>
                 <Button
                   color="primary"
@@ -2659,6 +2663,8 @@ export default function NodePage() {
                                   }
                                 }}
                                 upgradeProgress={upgradeProgress}
+                                filterGroupId={filterGroupId}
+                                setFilterGroupId={setFilterGroupId}
                               />
                             </div>
                           </SortableContext>
@@ -2692,6 +2698,8 @@ export default function NodePage() {
                   toggleSelect={toggleSelect}
                   toggleSelectAll={handleSelectAllToggle}
                   upgradeProgress={upgradeProgress}
+                  filterGroupId={filterGroupId}
+                  setFilterGroupId={setFilterGroupId}
                 />
               </SortableContext>
             </DndContext>

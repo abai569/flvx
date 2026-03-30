@@ -4460,8 +4460,88 @@ export default function ForwardPage() {
                         )}
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">规则名</TableColumn>
-                        {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>}
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道倍率</TableColumn>
+                        {/* {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>} */}
+                        {isAdmin && (
+                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                            <Select
+                              aria-label="按限速规则筛选"
+                              variant="flat"
+                              size="sm"
+                              className="w-full"
+                              classNames={{
+                                trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                                value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                                selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                                innerWrapper: "w-fit flex-none",
+                              }}
+                              placeholder="限速规则"
+                              selectedKeys={searchParams?.speedLimitId ? [String(searchParams.speedLimitId)] : []}
+                              onSelectionChange={(keys) => {
+                                const key = Array.from(keys)[0] as string | undefined;
+                                setSearchParams?.((prev: any) => ({
+                                  ...prev,
+                                  speedLimitId: key || "all",
+                                }));
+                              }}
+                            >
+                              <SelectItem key="all" textValue="全部规则">全部规则</SelectItem>
+                              <SelectItem key="unlimited" textValue="不限速">不限速</SelectItem>
+                              {(availableSpeedLimits || []).map((speedLimit: any) => (
+                                <SelectItem
+                                  key={speedLimit.id.toString()}
+                                  textValue={speedLimit.name || `限速${speedLimit.speed}M`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span>{speedLimit.name || `限速${speedLimit.speed}`}</span>
+                                    <span className="text-default-400 text-xs">({speedLimit.speed}M)</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </Select>
+                          </TableColumn>
+                        )}
+                        {/* <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道倍率</TableColumn> */}
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                          <Select
+                            aria-label="按所属隧道筛选"
+                            variant="flat"
+                            size="sm"
+                            className="w-full"
+                            classNames={{
+                              trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1 hover:bg-default-100/50 transition-colors",
+                              value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0",
+                              selectorIcon: "text-default-400 static w-3.5 h-3.5",
+                            }}
+                            placeholder="隧道名称"
+                            selectedKeys={searchParams.tunnelId && searchParams.tunnelId !== "all" ? [searchParams.tunnelId] : []}
+                            onSelectionChange={(keys) => {
+                              const key = Array.from(keys)[0] as string | undefined;
+                              setSearchParams((prev) => ({
+                                ...prev,
+                                tunnelId: key || "all",
+                              }));
+                            }}
+                          >
+                            <SelectItem key="all" textValue="全部隧道">
+                              全部隧道
+                            </SelectItem>
+                            {tunnels.map((tunnel) => (
+                              <SelectItem
+                                key={tunnel.id.toString()}
+                                textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">{tunnel.name}</span>
+                                  {tunnel.remark && (
+                                    <span className="text-default-400 text-xs">
+                                      ({tunnel.remark})
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </Select>
+                        </TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">入口地址</TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
@@ -4787,7 +4867,7 @@ export default function ForwardPage() {
           </Card>
         )
       ) : sortedForwards.length > 0 ? (
-<div className="space-y-4">
+        <div className="space-y-4">
           {groupedForwards.map((group) => {
             const isSelfGroup =
               isAdmin && tokenUserId !== null && group.userId === tokenUserId;
@@ -4837,10 +4917,10 @@ export default function ForwardPage() {
                           .filter((id) => id > 0);
                         const collapsed =
                           sanitizedCollapsedTunnelGroups[
-                            buildTunnelGroupCollapseKey(
-                              group.userId,
-                              tunnel.tunnelKey,
-                            )
+                          buildTunnelGroupCollapseKey(
+                            group.userId,
+                            tunnel.tunnelKey,
+                          )
                           ] === true;
 
                         return (
@@ -4895,899 +4975,1082 @@ export default function ForwardPage() {
           })}
         </div>
       ) : (
-  <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
-    <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
-      <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
-        暂无规则配置
-      </h3>
-      <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-        还没有创建任何规则配置，点击上方按钮开始创建
-      </p>
-    </CardBody>
-  </Card>
-)}
+        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+          <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
+            <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
+              暂无规则配置
+            </h3>
+            <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
+              还没有创建任何规则配置，点击上方按钮开始创建
+            </p>
+          </CardBody>
+        </Card>
+      )}
 
-{/* 新增/编辑模态框 */ }
-<Modal
-  backdrop="blur"
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={modalOpen}
-  placement="center"
-  scrollBehavior="outside"
-  size="xl"
-  onOpenChange={setModalOpen}
->
-  <ModalContent>
-    {(onClose) => (
-      <>
-        <ModalHeader className="flex flex-col gap-1">
-          <h2 className="text-xl font-bold">
-            {isEdit ? "编辑规则" : "新增规则"}
-          </h2>
-          <p className="text-small text-default-500">
-            {isEdit ? "修改现有规则配置的信息" : "" /* "创建新的规则配置" */}
-          </p>
-        </ModalHeader>
-        <ModalBody>
-          <div className="space-y-4 pb-4">
-            <Input
-              errorMessage={errors.name}
-              isInvalid={!!errors.name}
-              label="规则名称"
-              placeholder="请输入规则名称"
-              value={form.name}
-              variant="bordered"
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, name: e.target.value }))
-              }
-            />
+      {/* 新增/编辑模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={modalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="xl"
+        onOpenChange={setModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">
+                  {isEdit ? "编辑规则" : "新增规则"}
+                </h2>
+                <p className="text-small text-default-500">
+                  {isEdit ? "修改现有规则配置的信息" : "" /* "创建新的规则配置" */}
+                </p>
+              </ModalHeader>
+              <ModalBody>
+                <div className="space-y-4 pb-4">
+                  <Input
+                    errorMessage={errors.name}
+                    isInvalid={!!errors.name}
+                    label="规则名称"
+                    placeholder="请输入规则名称"
+                    value={form.name}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                  />
 
-            {isAdmin && (
+                  {isAdmin && (
+                    <Select
+                      label="规则限速"
+                      placeholder="不限速"
+                      selectedKeys={
+                        selectedSpeedId !== null
+                          ? [selectedSpeedId.toString()]
+                          : []
+                      }
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as
+                          | string
+                          | undefined;
+
+                        setForm((prev) => ({
+                          ...prev,
+                          speedId: selectedKey ? Number(selectedKey) : null,
+                        }));
+                      }}
+                    >
+                      {availableSpeedLimits.map((speedLimit) => (
+                        <SelectItem
+                          key={speedLimit.id.toString()}
+                          textValue={
+                            speedLimit.name || `限速${speedLimit.speed}`
+                          }
+                        >
+                          {speedLimit.name || `限速${speedLimit.speed}`}
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  )}
+
+                  <Select
+                    description={
+                      isEdit
+                        ? "更改隧道将释放原端口并在新隧道分配端口"
+                        : undefined
+                    }
+                    errorMessage={errors.tunnelId}
+                    isInvalid={!!errors.tunnelId}
+                    label="选择隧道"
+                    placeholder="请选择关联的隧道"
+                    selectedKeys={
+                      form.tunnelId ? [form.tunnelId.toString()] : []
+                    }
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selectedKey = Array.from(keys)[0] as string;
+
+                      if (selectedKey) {
+                        handleTunnelChange(selectedKey);
+                      }
+                    }}
+                  >
+                    {tunnels.map((tunnel) => (
+                      <SelectItem key={tunnel.id.toString()} textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}>
+                        <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
+                      </SelectItem>
+                    ))}
+                  </Select>
+
+                  <Input
+                    description={
+                      currentTunnelPortRange
+                        ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
+                        : "指定入口端口，留空则从节点可用端口中自动分配"
+                    }
+                    errorMessage={errors.inPort}
+                    isInvalid={!!errors.inPort}
+                    label="入口端口"
+                    placeholder="留空则自动分配可用端口"
+                    type="number"
+                    value={form.inPort !== null ? form.inPort.toString() : ""}
+                    variant="bordered"
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      setForm((prev) => ({
+                        ...prev,
+                        inPort: value ? parseInt(value) : null,
+                      }));
+                    }}
+                  />
+
+                  <Select
+                    description={
+                      isCurrentTunnelMultiEntrance
+                        ? "多入口隧道不支持自定义监听IP，使用各节点默认IP"
+                        : "从入口节点IP中选择，留空使用默认"
+                    }
+                    isDisabled={
+                      !form.tunnelId ||
+                      currentTunnelIpOptions.length === 0 ||
+                      isCurrentTunnelMultiEntrance
+                    }
+                    label="监听IP"
+                    placeholder={
+                      isCurrentTunnelMultiEntrance
+                        ? "多入口隧道使用节点默认IP"
+                        : form.tunnelId
+                          ? currentTunnelIpOptions.length > 0
+                            ? "选择入口监听IP"
+                            : "当前隧道入口节点暂无可选IP"
+                          : "请先选择隧道"
+                    }
+                    selectedKeys={[form.inIp || "__default__"]}
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selectedKey = Array.from(keys)[0] as string;
+
+                      setInIpTouched(true);
+
+                      setForm((prev) => ({
+                        ...prev,
+                        inIp: selectedKey === "__default__" ? "" : selectedKey,
+                      }));
+                    }}
+                  >
+                    <SelectItem key="__default__">默认入口IP</SelectItem>
+                    {currentTunnelIpOptions.map((ip) => (
+                      <SelectItem key={ip}>{ip}</SelectItem>
+                    ))}
+                  </Select>
+
+                  <Textarea
+                    description="格式: IP:端口 或 域名:端口，支持多个地址（每行一个）"
+                    errorMessage={errors.remoteAddr}
+                    isInvalid={!!errors.remoteAddr}
+                    label="落地地址"
+                    maxRows={6}
+                    minRows={3}
+                    placeholder="请输入落地地址，多个地址用换行分隔，例如:&#10;192.168.1.100:10000&#10;[2001:db8::10]:10086&#10;test.example.com:10010"
+                    value={form.remoteAddr}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        remoteAddr: e.target.value,
+                      }))
+                    }
+                  />
+
+                  {getAddressCount(form.remoteAddr) > 1 && (
+                    <Select
+                      description="多个目标地址的负载均衡策略"
+                      label="负载策略"
+                      placeholder="请选择负载均衡策略"
+                      selectedKeys={[form.strategy]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as string;
+
+                        setForm((prev) => ({ ...prev, strategy: selectedKey }));
+                      }}
+                    >
+                      <SelectItem key="fifo">主备模式 - 自上而下</SelectItem>
+                      <SelectItem key="round">轮询模式 - 依次轮换</SelectItem>
+                      <SelectItem key="rand">随机模式 - 随机选择</SelectItem>
+                      <SelectItem key="hash">哈希模式 - IP哈希</SelectItem>
+                    </Select>
+                  )}
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="primary"
+                  isLoading={submitLoading}
+                  onPress={handleSubmit}
+                >
+                  {isEdit ? "保存修改" : "创建规则"}
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 删除确认模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={deleteModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onOpenChange={setDeleteModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-lg font-bold text-danger">确认删除</h2>
+              </ModalHeader>
+              <ModalBody>
+                <p className="text-default-600">
+                  确定要删除规则{" "}
+                  <span className="font-semibold text-foreground">
+                    &quot;{forwardToDelete?.name}&quot;
+                  </span>{" "}
+                  吗？
+                </p>
+                <p className="text-small text-default-500 mt-2">
+                  此操作无法撤销，删除后该规则将永久消失。
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="danger"
+                  isLoading={deleteLoading}
+                  onPress={confirmDelete}
+                >
+                  确认删除
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 地址列表弹窗 */}
+      <Modal
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={addressModalOpen}
+        scrollBehavior="outside"
+        size="lg"
+        onClose={() => setAddressModalOpen(false)}
+      >
+        <ModalContent>
+          <ModalHeader className="text-base">{addressModalTitle}</ModalHeader>
+          <ModalBody className="pb-6">
+            <div className="mb-4 text-right">
+              <Button size="sm" onPress={copyAllAddresses}>
+                复制
+              </Button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {addressList.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex justify-between items-center p-3 border border-default-200 dark:border-default-100 rounded-lg"
+                >
+                  <code className="text-sm flex-1 mr-3 text-foreground">
+                    {item.address}
+                  </code>
+                  <Button
+                    isLoading={item.copying}
+                    size="sm"
+                    variant="light"
+                    onPress={() => copyAddress(item)}
+                  >
+                    复制
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* 导出数据模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={exportModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onClose={() => {
+          setExportModalOpen(false);
+          setSelectedTunnelForExport(null);
+          setExportData("");
+        }}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <h2 className="text-xl font-bold">导出规则数据</h2>
+            <p className="text-small text-default-500">
+              格式：目标地址|规则名称|入口端口
+            </p>
+          </ModalHeader>
+          <ModalBody className="pb-6">
+            <div className="space-y-4">
+              {/* 隧道选择 */}
+              <div>
+                <Select
+                  isRequired
+                  label="选择导出隧道"
+                  placeholder="请选择要导出的隧道"
+                  selectedKeys={
+                    selectedTunnelForExport
+                      ? [selectedTunnelForExport.toString()]
+                      : []
+                  }
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0] as string;
+
+                    setSelectedTunnelForExport(
+                      selectedKey ? parseInt(selectedKey) : null,
+                    );
+                  }}
+                >
+                  {tunnels.map((tunnel) => (
+                    <SelectItem
+                      key={tunnel.id.toString()}
+                      textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}
+                    >
+                      <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+
+              {/* 导出按钮和数据 */}
+              {exportData && (
+                <div className="flex justify-between items-center">
+                  <Button
+                    color="primary"
+                    isDisabled={!selectedTunnelForExport}
+                    isLoading={exportLoading}
+                    size="sm"
+                    startContent={
+                      <svg
+                        aria-hidden="true"
+                        className="w-4 h-4"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          clipRule="evenodd"
+                          d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+                          fillRule="evenodd"
+                        />
+                      </svg>
+                    }
+                    onPress={executeExport}
+                  >
+                    重新生成
+                  </Button>
+                  <Button
+                    color="secondary"
+                    size="sm"
+                    startContent={
+                      <svg
+                        aria-hidden="true"
+                        className="w-4 h-4"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                      </svg>
+                    }
+                    onPress={copyExportData}
+                  >
+                    复制
+                  </Button>
+                </div>
+              )}
+
+              {/* 初始导出按钮 */}
+              {!exportData && (
+                <div className="text-right">
+                  <Button
+                    color="primary"
+                    isDisabled={!selectedTunnelForExport}
+                    isLoading={exportLoading}
+                    size="sm"
+                    startContent={
+                      <svg
+                        aria-hidden="true"
+                        className="w-4 h-4"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          clipRule="evenodd"
+                          d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+                          fillRule="evenodd"
+                        />
+                      </svg>
+                    }
+                    onPress={executeExport}
+                  >
+                    生成导出数据
+                  </Button>
+                </div>
+              )}
+
+              {/* 导出数据显示 */}
+              {exportData && (
+                <div className="relative">
+                  <Textarea
+                    readOnly
+                    className="font-mono text-sm"
+                    classNames={{
+                      input: "font-mono text-sm",
+                    }}
+                    maxRows={20}
+                    minRows={10}
+                    placeholder="暂无数据"
+                    value={exportData}
+                    variant="bordered"
+                  />
+                </div>
+              )}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={() => setExportModalOpen(false)}>
+              关闭
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* 导入数据模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={importModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onClose={() => setImportModalOpen(false)}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <h2 className="text-xl font-bold">导入规则数据</h2>
+            {importFormat === "flvx" ? (
+              <>
+                <p className="text-small text-default-500">
+                  格式：目标地址|规则名称|入口端口，每行一个，入口端口留空将自动分配可用端口
+                </p>
+                <p className="text-small text-default-400">
+                  目标地址支持单个地址(如：example.com:8080)或多个地址用逗号分隔(如：3.3.3.3:3,4.4.4.4:4)
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-small text-default-500">
+                  ny格式：JSON对象，支持多个目标地址（负载均衡），按所选隧道导入
+                </p>
+                <p className="text-small text-default-400">
+                  格式：&#123;&quot;dest&quot;:[&quot;地址:端口&quot;],&quot;listen_port&quot;:端口,&quot;name&quot;:&quot;名称&quot;&#125;（listen_port可省略，自动分配端口）
+                </p>
+              </>
+            )}
+          </ModalHeader>
+          <ModalBody className="pb-6">
+            <div className="space-y-4">
+              {/* 格式选择 */}
               <Select
-                label="规则限速"
-                placeholder="不限速"
+                isRequired
+                label="导入格式"
+                placeholder="请选择导入格式"
+                selectedKeys={[importFormat]}
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const selectedKey = Array.from(keys)[0] as ImportFormat;
+
+                  if (selectedKey) {
+                    setImportFormat(selectedKey);
+                    setSelectedTunnelForImport(null);
+                    setImportData("");
+                    setImportResults([]);
+                  }
+                }}
+              >
+                <SelectItem key="flvx" textValue="flvx格式">
+                  flvx格式（管道分隔）
+                </SelectItem>
+                <SelectItem key="ny" textValue="ny格式">
+                  ny格式（JSON）
+                </SelectItem>
+              </Select>
+
+              {/* 隧道选择 - 两种格式都需要 */}
+              <Select
+                isRequired
+                label="选择导入隧道"
+                placeholder="请选择要导入的隧道"
                 selectedKeys={
-                  selectedSpeedId !== null
-                    ? [selectedSpeedId.toString()]
+                  selectedTunnelForImport
+                    ? [selectedTunnelForImport.toString()]
                     : []
                 }
                 variant="bordered"
                 onSelectionChange={(keys) => {
-                  const selectedKey = Array.from(keys)[0] as
-                    | string
-                    | undefined;
+                  const selectedKey = Array.from(keys)[0] as string;
 
-                  setForm((prev) => ({
-                    ...prev,
-                    speedId: selectedKey ? Number(selectedKey) : null,
-                  }));
+                  setSelectedTunnelForImport(
+                    selectedKey ? parseInt(selectedKey) : null,
+                  );
                 }}
               >
-                {availableSpeedLimits.map((speedLimit) => (
+                {tunnels.map((tunnel) => (
                   <SelectItem
-                    key={speedLimit.id.toString()}
-                    textValue={
-                      speedLimit.name || `限速${speedLimit.speed}`
-                    }
+                    key={tunnel.id.toString()}
+                    textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}
                   >
-                    {speedLimit.name || `限速${speedLimit.speed}`}
+                    <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
                   </SelectItem>
                 ))}
               </Select>
-            )}
 
-            <Select
-              description={
-                isEdit
-                  ? "更改隧道将释放原端口并在新隧道分配端口"
-                  : undefined
-              }
-              errorMessage={errors.tunnelId}
-              isInvalid={!!errors.tunnelId}
-              label="选择隧道"
-              placeholder="请选择关联的隧道"
-              selectedKeys={
-                form.tunnelId ? [form.tunnelId.toString()] : []
-              }
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const selectedKey = Array.from(keys)[0] as string;
-
-                if (selectedKey) {
-                  handleTunnelChange(selectedKey);
-                }
-              }}
-            >
-              {tunnels.map((tunnel) => (
-                <SelectItem key={tunnel.id.toString()} textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}>
-                  <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
-                </SelectItem>
-              ))}
-            </Select>
-
-            <Input
-              description={
-                currentTunnelPortRange
-                  ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
-                  : "指定入口端口，留空则从节点可用端口中自动分配"
-              }
-              errorMessage={errors.inPort}
-              isInvalid={!!errors.inPort}
-              label="入口端口"
-              placeholder="留空则自动分配可用端口"
-              type="number"
-              value={form.inPort !== null ? form.inPort.toString() : ""}
-              variant="bordered"
-              onChange={(e) => {
-                const value = e.target.value;
-
-                setForm((prev) => ({
-                  ...prev,
-                  inPort: value ? parseInt(value) : null,
-                }));
-              }}
-            />
-
-            <Select
-              description={
-                isCurrentTunnelMultiEntrance
-                  ? "多入口隧道不支持自定义监听IP，使用各节点默认IP"
-                  : "从入口节点IP中选择，留空使用默认"
-              }
-              isDisabled={
-                !form.tunnelId ||
-                currentTunnelIpOptions.length === 0 ||
-                isCurrentTunnelMultiEntrance
-              }
-              label="监听IP"
-              placeholder={
-                isCurrentTunnelMultiEntrance
-                  ? "多入口隧道使用节点默认IP"
-                  : form.tunnelId
-                    ? currentTunnelIpOptions.length > 0
-                      ? "选择入口监听IP"
-                      : "当前隧道入口节点暂无可选IP"
-                    : "请先选择隧道"
-              }
-              selectedKeys={[form.inIp || "__default__"]}
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const selectedKey = Array.from(keys)[0] as string;
-
-                setInIpTouched(true);
-
-                setForm((prev) => ({
-                  ...prev,
-                  inIp: selectedKey === "__default__" ? "" : selectedKey,
-                }));
-              }}
-            >
-              <SelectItem key="__default__">默认入口IP</SelectItem>
-              {currentTunnelIpOptions.map((ip) => (
-                <SelectItem key={ip}>{ip}</SelectItem>
-              ))}
-            </Select>
-
-            <Textarea
-              description="格式: IP:端口 或 域名:端口，支持多个地址（每行一个）"
-              errorMessage={errors.remoteAddr}
-              isInvalid={!!errors.remoteAddr}
-              label="落地地址"
-              maxRows={6}
-              minRows={3}
-              placeholder="请输入落地地址，多个地址用换行分隔，例如:&#10;192.168.1.100:10000&#10;[2001:db8::10]:10086&#10;test.example.com:10010"
-              value={form.remoteAddr}
-              variant="bordered"
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  remoteAddr: e.target.value,
-                }))
-              }
-            />
-
-            {getAddressCount(form.remoteAddr) > 1 && (
-              <Select
-                description="多个目标地址的负载均衡策略"
-                label="负载策略"
-                placeholder="请选择负载均衡策略"
-                selectedKeys={[form.strategy]}
-                variant="bordered"
-                onSelectionChange={(keys) => {
-                  const selectedKey = Array.from(keys)[0] as string;
-
-                  setForm((prev) => ({ ...prev, strategy: selectedKey }));
+              {/* 输入区域 */}
+              <Textarea
+                classNames={{
+                  input: "font-mono text-sm",
                 }}
-              >
-                <SelectItem key="fifo">主备模式 - 自上而下</SelectItem>
-                <SelectItem key="round">轮询模式 - 依次轮换</SelectItem>
-                <SelectItem key="rand">随机模式 - 随机选择</SelectItem>
-                <SelectItem key="hash">哈希模式 - IP哈希</SelectItem>
-              </Select>
-            )}
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="light" onPress={onClose}>
-            取消
-          </Button>
-          <Button
-            color="primary"
-            isLoading={submitLoading}
-            onPress={handleSubmit}
-          >
-            {isEdit ? "保存修改" : "创建规则"}
-          </Button>
-        </ModalFooter>
-      </>
-    )}
-  </ModalContent>
-</Modal>
-
-{/* 删除确认模态框 */ }
-<Modal
-  backdrop="blur"
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={deleteModalOpen}
-  placement="center"
-  scrollBehavior="outside"
-  size="md"
-  onOpenChange={setDeleteModalOpen}
->
-  <ModalContent>
-    {(onClose) => (
-      <>
-        <ModalHeader className="flex flex-col gap-1">
-          <h2 className="text-lg font-bold text-danger">确认删除</h2>
-        </ModalHeader>
-        <ModalBody>
-          <p className="text-default-600">
-            确定要删除规则{" "}
-            <span className="font-semibold text-foreground">
-              &quot;{forwardToDelete?.name}&quot;
-            </span>{" "}
-            吗？
-          </p>
-          <p className="text-small text-default-500 mt-2">
-            此操作无法撤销，删除后该规则将永久消失。
-          </p>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="light" onPress={onClose}>
-            取消
-          </Button>
-          <Button
-            color="danger"
-            isLoading={deleteLoading}
-            onPress={confirmDelete}
-          >
-            确认删除
-          </Button>
-        </ModalFooter>
-      </>
-    )}
-  </ModalContent>
-</Modal>
-
-{/* 地址列表弹窗 */ }
-<Modal
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={addressModalOpen}
-  scrollBehavior="outside"
-  size="lg"
-  onClose={() => setAddressModalOpen(false)}
->
-  <ModalContent>
-    <ModalHeader className="text-base">{addressModalTitle}</ModalHeader>
-    <ModalBody className="pb-6">
-      <div className="mb-4 text-right">
-        <Button size="sm" onPress={copyAllAddresses}>
-          复制
-        </Button>
-      </div>
-
-      <div className="space-y-2 max-h-60 overflow-y-auto">
-        {addressList.map((item) => (
-          <div
-            key={item.id}
-            className="flex justify-between items-center p-3 border border-default-200 dark:border-default-100 rounded-lg"
-          >
-            <code className="text-sm flex-1 mr-3 text-foreground">
-              {item.address}
-            </code>
-            <Button
-              isLoading={item.copying}
-              size="sm"
-              variant="light"
-              onPress={() => copyAddress(item)}
-            >
-              复制
-            </Button>
-          </div>
-        ))}
-      </div>
-    </ModalBody>
-  </ModalContent>
-</Modal>
-
-{/* 导出数据模态框 */ }
-<Modal
-  backdrop="blur"
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={exportModalOpen}
-  placement="center"
-  scrollBehavior="outside"
-  size="md"
-  onClose={() => {
-    setExportModalOpen(false);
-    setSelectedTunnelForExport(null);
-    setExportData("");
-  }}
->
-  <ModalContent>
-    <ModalHeader className="flex flex-col gap-1">
-      <h2 className="text-xl font-bold">导出规则数据</h2>
-      <p className="text-small text-default-500">
-        格式：目标地址|规则名称|入口端口
-      </p>
-    </ModalHeader>
-    <ModalBody className="pb-6">
-      <div className="space-y-4">
-        {/* 隧道选择 */}
-        <div>
-          <Select
-            isRequired
-            label="选择导出隧道"
-            placeholder="请选择要导出的隧道"
-            selectedKeys={
-              selectedTunnelForExport
-                ? [selectedTunnelForExport.toString()]
-                : []
-            }
-            variant="bordered"
-            onSelectionChange={(keys) => {
-              const selectedKey = Array.from(keys)[0] as string;
-
-              setSelectedTunnelForExport(
-                selectedKey ? parseInt(selectedKey) : null,
-              );
-            }}
-          >
-            {tunnels.map((tunnel) => (
-              <SelectItem
-                key={tunnel.id.toString()}
-                textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}
-              >
-                <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
-              </SelectItem>
-            ))}
-          </Select>
-        </div>
-
-        {/* 导出按钮和数据 */}
-        {exportData && (
-          <div className="flex justify-between items-center">
-            <Button
-              color="primary"
-              isDisabled={!selectedTunnelForExport}
-              isLoading={exportLoading}
-              size="sm"
-              startContent={
-                <svg
-                  aria-hidden="true"
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    clipRule="evenodd"
-                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
-                    fillRule="evenodd"
-                  />
-                </svg>
-              }
-              onPress={executeExport}
-            >
-              重新生成
-            </Button>
-            <Button
-              color="secondary"
-              size="sm"
-              startContent={
-                <svg
-                  aria-hidden="true"
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                  <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-                </svg>
-              }
-              onPress={copyExportData}
-            >
-              复制
-            </Button>
-          </div>
-        )}
-
-        {/* 初始导出按钮 */}
-        {!exportData && (
-          <div className="text-right">
-            <Button
-              color="primary"
-              isDisabled={!selectedTunnelForExport}
-              isLoading={exportLoading}
-              size="sm"
-              startContent={
-                <svg
-                  aria-hidden="true"
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    clipRule="evenodd"
-                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
-                    fillRule="evenodd"
-                  />
-                </svg>
-              }
-              onPress={executeExport}
-            >
-              生成导出数据
-            </Button>
-          </div>
-        )}
-
-        {/* 导出数据显示 */}
-        {exportData && (
-          <div className="relative">
-            <Textarea
-              readOnly
-              className="font-mono text-sm"
-              classNames={{
-                input: "font-mono text-sm",
-              }}
-              maxRows={20}
-              minRows={10}
-              placeholder="暂无数据"
-              value={exportData}
-              variant="bordered"
-            />
-          </div>
-        )}
-      </div>
-    </ModalBody>
-    <ModalFooter>
-      <Button variant="light" onPress={() => setExportModalOpen(false)}>
-        关闭
-      </Button>
-    </ModalFooter>
-  </ModalContent>
-</Modal>
-
-{/* 导入数据模态框 */ }
-<Modal
-  backdrop="blur"
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={importModalOpen}
-  placement="center"
-  scrollBehavior="outside"
-  size="md"
-  onClose={() => setImportModalOpen(false)}
->
-  <ModalContent>
-    <ModalHeader className="flex flex-col gap-1">
-      <h2 className="text-xl font-bold">导入规则数据</h2>
-      {importFormat === "flvx" ? (
-        <>
-          <p className="text-small text-default-500">
-            格式：目标地址|规则名称|入口端口，每行一个，入口端口留空将自动分配可用端口
-          </p>
-          <p className="text-small text-default-400">
-            目标地址支持单个地址(如：example.com:8080)或多个地址用逗号分隔(如：3.3.3.3:3,4.4.4.4:4)
-          </p>
-        </>
-      ) : (
-        <>
-          <p className="text-small text-default-500">
-            ny格式：JSON对象，支持多个目标地址（负载均衡），按所选隧道导入
-          </p>
-          <p className="text-small text-default-400">
-            格式：&#123;&quot;dest&quot;:[&quot;地址:端口&quot;],&quot;listen_port&quot;:端口,&quot;name&quot;:&quot;名称&quot;&#125;（listen_port可省略，自动分配端口）
-          </p>
-        </>
-      )}
-    </ModalHeader>
-    <ModalBody className="pb-6">
-      <div className="space-y-4">
-        {/* 格式选择 */}
-        <Select
-          isRequired
-          label="导入格式"
-          placeholder="请选择导入格式"
-          selectedKeys={[importFormat]}
-          variant="bordered"
-          onSelectionChange={(keys) => {
-            const selectedKey = Array.from(keys)[0] as ImportFormat;
-
-            if (selectedKey) {
-              setImportFormat(selectedKey);
-              setSelectedTunnelForImport(null);
-              setImportData("");
-              setImportResults([]);
-            }
-          }}
-        >
-          <SelectItem key="flvx" textValue="flvx格式">
-            flvx格式（管道分隔）
-          </SelectItem>
-          <SelectItem key="ny" textValue="ny格式">
-            ny格式（JSON）
-          </SelectItem>
-        </Select>
-
-        {/* 隧道选择 - 两种格式都需要 */}
-        <Select
-          isRequired
-          label="选择导入隧道"
-          placeholder="请选择要导入的隧道"
-          selectedKeys={
-            selectedTunnelForImport
-              ? [selectedTunnelForImport.toString()]
-              : []
-          }
-          variant="bordered"
-          onSelectionChange={(keys) => {
-            const selectedKey = Array.from(keys)[0] as string;
-
-            setSelectedTunnelForImport(
-              selectedKey ? parseInt(selectedKey) : null,
-            );
-          }}
-        >
-          {tunnels.map((tunnel) => (
-            <SelectItem
-              key={tunnel.id.toString()}
-              textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}
-            >
-              <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
-            </SelectItem>
-          ))}
-        </Select>
-
-        {/* 输入区域 */}
-        <Textarea
-          classNames={{
-            input: "font-mono text-sm",
-          }}
-          label="导入数据"
-          maxRows={12}
-          minRows={8}
-          placeholder={
-            importFormat === "flvx"
-              ? "请输入要导入的规则数据，格式：目标地址|规则名称|入口端口"
-              : '请输入ny格式数据，每行一个JSON对象，如：{"dest":["1.2.3.4:80"],"listen_port":8080,"name":"规则1"}；listen_port可省略自动分配'
-          }
-          value={importData}
-          variant="flat"
-          onChange={(e) => setImportData(e.target.value)}
-        />
-
-        {/* 导入结果 */}
-        {importResults.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-semibold">导入结果</h3>
-              <span className="text-xs text-default-500">
-                成功：{importResults.filter((r) => r.success).length} /
-                总计：{importResults.length}
-              </span>
-            </div>
-
-            <div
-              className="max-h-40 overflow-y-auto space-y-1"
-              style={{
-                scrollbarWidth: "thin",
-                scrollbarColor: "rgb(156 163 175) transparent",
-              }}
-            >
-              {importResults.map((result, index) => (
-                <div
-                  key={index}
-                  className={`p-2 rounded border ${result.success
-                    ? "bg-success-50 dark:bg-success-100/10 border-success-200 dark:border-success-300/20"
-                    : "bg-danger-50 dark:bg-danger-100/10 border-danger-200 dark:border-danger-300/20"
-                    }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {result.success ? (
-                      <svg
-                        aria-hidden="true"
-                        className="w-3 h-3 text-success-600 flex-shrink-0"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          clipRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          fillRule="evenodd"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        aria-hidden="true"
-                        className="w-3 h-3 text-danger-600 flex-shrink-0"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          clipRule="evenodd"
-                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                          fillRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span
-                          className={`text-xs font-medium ${result.success
-                            ? "text-success-700 dark:text-success-300"
-                            : "text-danger-700 dark:text-danger-300"
-                            }`}
-                        >
-                          {result.success ? "成功" : "失败"}
-                        </span>
-                        <span className="text-xs text-default-500">
-                          |
-                        </span>
-                        <code className="text-xs font-mono text-default-600 truncate">
-                          {result.line}
-                        </code>
-                      </div>
-                      <div
-                        className={`text-xs ${result.success
-                          ? "text-success-600 dark:text-success-400"
-                          : "text-danger-600 dark:text-danger-400"
-                          }`}
-                      >
-                        {result.message}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </ModalBody>
-    <ModalFooter>
-      <Button variant="light" onPress={() => setImportModalOpen(false)}>
-        关闭
-      </Button>
-      <Button
-        color="warning"
-        isDisabled={!importData.trim() || !selectedTunnelForImport}
-        isLoading={importLoading}
-        onPress={executeImport}
-      >
-        开始导入
-      </Button>
-    </ModalFooter>
-  </ModalContent>
-</Modal>
-
-{/* 诊断结果模态框 */ }
-<Modal
-  backdrop="blur"
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={diagnosisModalOpen}
-  placement="center"
-  scrollBehavior="inside"
-  size="2xl"
-  onOpenChange={(open) => {
-    setDiagnosisModalOpen(open);
-    if (!open) {
-      diagnosisAbortRef.current?.abort();
-      diagnosisAbortRef.current = null;
-      setDiagnosisLoading(false);
-    }
-  }}
->
-  <ModalContent>
-    {(onClose) => (
-      <>
-        <ModalHeader className="flex flex-col gap-1 bg-content1 border-b border-divider">
-          <h2 className="text-xl font-bold">规则诊断结果</h2>
-          {currentDiagnosisForward && (
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-small text-default-500 truncate flex-1 min-w-0">
-                {currentDiagnosisForward.name}
-              </span>
-              <Chip
-                className="flex-shrink-0"
-                color="primary"
-                size="sm"
+                label="导入数据"
+                maxRows={12}
+                minRows={8}
+                placeholder={
+                  importFormat === "flvx"
+                    ? "请输入要导入的规则数据，格式：目标地址|规则名称|入口端口"
+                    : '请输入ny格式数据，每行一个JSON对象，如：{"dest":["1.2.3.4:80"],"listen_port":8080,"name":"规则1"}；listen_port可省略自动分配'
+                }
+                value={importData}
                 variant="flat"
-              >
-                规则服务
-              </Chip>
-            </div>
-          )}
-        </ModalHeader>
-        <ModalBody className="bg-content1">
-          {diagnosisResult ? (
-            <div className="space-y-4">
-              {diagnosisLoading && (
-                <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                  <div className="flex items-center gap-2 text-sm text-primary">
-                    <Spinner size="sm" />
-                    <span>
-                      正在诊断 {diagnosisProgress.completed}/
-                      {diagnosisProgress.total > 0
-                        ? diagnosisProgress.total
-                        : "?"}
+                onChange={(e) => setImportData(e.target.value)}
+              />
+
+              {/* 导入结果 */}
+              {importResults.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-base font-semibold">导入结果</h3>
+                    <span className="text-xs text-default-500">
+                      成功：{importResults.filter((r) => r.success).length} /
+                      总计：{importResults.length}
                     </span>
                   </div>
-                  <Chip color="primary" size="sm" variant="flat">
-                    流式更新中
-                  </Chip>
-                </div>
-              )}
 
-              {diagnosisProgress.timedOut && (
-                <Alert
-                  color="warning"
-                  description="诊断超时（单条30秒 / 整体2分钟），以下为当前已完成结果。"
-                  title="诊断超时"
-                  variant="flat"
-                />
-              )}
-
-              {/* 统计摘要 */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-3 bg-default-100 dark:bg-gray-800 rounded-lg border border-divider">
-                  <div className="text-2xl font-bold text-foreground">
-                    {diagnosisProgress.total > 0
-                      ? diagnosisProgress.total
-                      : diagnosisResult.results.length}
-                  </div>
-                  <div className="text-xs text-default-500 mt-1">
-                    总测试数
-                  </div>
-                </div>
-                <div className="text-center p-3 bg-success-50 dark:bg-success-900/20 rounded-lg border border-success-200 dark:border-success-700">
-                  <div className="text-2xl font-bold text-success-600 dark:text-success-400">
-                    {diagnosisProgress.completed > 0 ||
-                      diagnosisProgress.total > 0
-                      ? diagnosisProgress.success
-                      : diagnosisResult.results.filter((r) => r.success)
-                        .length}
-                  </div>
-                  <div className="text-xs text-success-600 dark:text-success-400/80 mt-1">
-                    成功
-                  </div>
-                </div>
-                <div className="text-center p-3 bg-danger-50 dark:bg-danger-900/20 rounded-lg border border-danger-200 dark:border-danger-700">
-                  <div className="text-2xl font-bold text-danger-600 dark:text-danger-400">
-                    {diagnosisProgress.completed > 0 ||
-                      diagnosisProgress.total > 0
-                      ? diagnosisProgress.failed
-                      : diagnosisResult.results.filter((r) => !r.success)
-                        .length}
-                  </div>
-                  <div className="text-xs text-danger-600 dark:text-danger-400/80 mt-1">
-                    失败
-                  </div>
-                </div>
-              </div>
-
-              {/* 桌面端表格展示 */}
-              <div className="hidden md:block space-y-3">
-                {(() => {
-                  // 使用后端返回的 chainType 和 inx 字段进行分组
-                  const groupedResults = {
-                    entry: diagnosisResult.results.filter(
-                      (r) => r.fromChainType === 1,
-                    ),
-                    chains: {} as Record<
-                      number,
-                      typeof diagnosisResult.results
-                    >,
-                    exit: diagnosisResult.results.filter(
-                      (r) => r.fromChainType === 3,
-                    ),
-                  };
-
-                  // 按 inx 分组链路测试
-                  diagnosisResult.results.forEach((r) => {
-                    if (r.fromChainType === 2 && r.fromInx != null) {
-                      if (!groupedResults.chains[r.fromInx]) {
-                        groupedResults.chains[r.fromInx] = [];
-                      }
-                      groupedResults.chains[r.fromInx].push(r);
-                    }
-                  });
-
-                  const renderTableSection = (
-                    title: string,
-                    results: typeof diagnosisResult.results,
-                  ) => {
-                    if (results.length === 0) return null;
-
-                    return (
+                  <div
+                    className="max-h-40 overflow-y-auto space-y-1"
+                    style={{
+                      scrollbarWidth: "thin",
+                      scrollbarColor: "rgb(156 163 175) transparent",
+                    }}
+                  >
+                    {importResults.map((result, index) => (
                       <div
-                        key={title}
-                        className="border border-divider rounded-lg overflow-hidden bg-white dark:bg-gray-800"
+                        key={index}
+                        className={`p-2 rounded border ${result.success
+                          ? "bg-success-50 dark:bg-success-100/10 border-success-200 dark:border-success-300/20"
+                          : "bg-danger-50 dark:bg-danger-100/10 border-danger-200 dark:border-danger-300/20"
+                          }`}
                       >
-                        <div className="bg-primary/10 dark:bg-primary/20 px-3 py-2 border-b border-divider">
-                          <h3 className="text-sm font-semibold text-primary">
-                            {title}
-                          </h3>
+                        <div className="flex items-center gap-2">
+                          {result.success ? (
+                            <svg
+                              aria-hidden="true"
+                              className="w-3 h-3 text-success-600 flex-shrink-0"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                clipRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                fillRule="evenodd"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              aria-hidden="true"
+                              className="w-3 h-3 text-danger-600 flex-shrink-0"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                clipRule="evenodd"
+                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                fillRule="evenodd"
+                              />
+                            </svg>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span
+                                className={`text-xs font-medium ${result.success
+                                  ? "text-success-700 dark:text-success-300"
+                                  : "text-danger-700 dark:text-danger-300"
+                                  }`}
+                              >
+                                {result.success ? "成功" : "失败"}
+                              </span>
+                              <span className="text-xs text-default-500">
+                                |
+                              </span>
+                              <code className="text-xs font-mono text-default-600 truncate">
+                                {result.line}
+                              </code>
+                            </div>
+                            <div
+                              className={`text-xs ${result.success
+                                ? "text-success-600 dark:text-success-400"
+                                : "text-danger-600 dark:text-danger-400"
+                                }`}
+                            >
+                              {result.message}
+                            </div>
+                          </div>
                         </div>
-                        <table className="w-full text-sm">
-                          <thead className="bg-default-100 dark:bg-gray-700">
-                            <tr>
-                              <th className="px-3 py-2 text-left font-semibold text-xs">
-                                路径
-                              </th>
-                              <th className="px-3 py-2 text-center font-semibold text-xs w-20">
-                                状态
-                              </th>
-                              <th className="px-3 py-2 text-center font-semibold text-xs w-24">
-                                延迟(ms)
-                              </th>
-                              <th className="px-3 py-2 text-center font-semibold text-xs w-24">
-                                丢包率
-                              </th>
-                              <th className="px-3 py-2 text-center font-semibold text-xs w-20">
-                                质量
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-divider bg-white dark:bg-gray-800">
-                            {results.map((result, index) => {
-                              const isDiagnosing = Boolean(
-                                result.diagnosing,
-                              );
-                              const isSuccess = result.success === true;
-                              const quality =
-                                getForwardDiagnosisQualityDisplay(
-                                  result.averageTime,
-                                  result.packetLoss,
-                                );
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={() => setImportModalOpen(false)}>
+              关闭
+            </Button>
+            <Button
+              color="warning"
+              isDisabled={!importData.trim() || !selectedTunnelForImport}
+              isLoading={importLoading}
+              onPress={executeImport}
+            >
+              开始导入
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
-                              return (
-                                <tr
-                                  key={index}
-                                  className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${isDiagnosing
-                                    ? "bg-warning-50 dark:bg-warning-900/20"
-                                    : isSuccess
-                                      ? "bg-white dark:bg-gray-800"
-                                      : "bg-danger-50 dark:bg-danger-900/30"
-                                    }`}
-                                >
-                                  <td className="px-3 py-2">
-                                    <div className="flex items-center gap-2">
+      {/* 诊断结果模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={diagnosisModalOpen}
+        placement="center"
+        scrollBehavior="inside"
+        size="2xl"
+        onOpenChange={(open) => {
+          setDiagnosisModalOpen(open);
+          if (!open) {
+            diagnosisAbortRef.current?.abort();
+            diagnosisAbortRef.current = null;
+            setDiagnosisLoading(false);
+          }
+        }}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1 bg-content1 border-b border-divider">
+                <h2 className="text-xl font-bold">规则诊断结果</h2>
+                {currentDiagnosisForward && (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-small text-default-500 truncate flex-1 min-w-0">
+                      {currentDiagnosisForward.name}
+                    </span>
+                    <Chip
+                      className="flex-shrink-0"
+                      color="primary"
+                      size="sm"
+                      variant="flat"
+                    >
+                      规则服务
+                    </Chip>
+                  </div>
+                )}
+              </ModalHeader>
+              <ModalBody className="bg-content1">
+                {diagnosisResult ? (
+                  <div className="space-y-4">
+                    {diagnosisLoading && (
+                      <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                        <div className="flex items-center gap-2 text-sm text-primary">
+                          <Spinner size="sm" />
+                          <span>
+                            正在诊断 {diagnosisProgress.completed}/
+                            {diagnosisProgress.total > 0
+                              ? diagnosisProgress.total
+                              : "?"}
+                          </span>
+                        </div>
+                        <Chip color="primary" size="sm" variant="flat">
+                          流式更新中
+                        </Chip>
+                      </div>
+                    )}
+
+                    {diagnosisProgress.timedOut && (
+                      <Alert
+                        color="warning"
+                        description="诊断超时（单条30秒 / 整体2分钟），以下为当前已完成结果。"
+                        title="诊断超时"
+                        variant="flat"
+                      />
+                    )}
+
+                    {/* 统计摘要 */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center p-3 bg-default-100 dark:bg-gray-800 rounded-lg border border-divider">
+                        <div className="text-2xl font-bold text-foreground">
+                          {diagnosisProgress.total > 0
+                            ? diagnosisProgress.total
+                            : diagnosisResult.results.length}
+                        </div>
+                        <div className="text-xs text-default-500 mt-1">
+                          总测试数
+                        </div>
+                      </div>
+                      <div className="text-center p-3 bg-success-50 dark:bg-success-900/20 rounded-lg border border-success-200 dark:border-success-700">
+                        <div className="text-2xl font-bold text-success-600 dark:text-success-400">
+                          {diagnosisProgress.completed > 0 ||
+                            diagnosisProgress.total > 0
+                            ? diagnosisProgress.success
+                            : diagnosisResult.results.filter((r) => r.success)
+                              .length}
+                        </div>
+                        <div className="text-xs text-success-600 dark:text-success-400/80 mt-1">
+                          成功
+                        </div>
+                      </div>
+                      <div className="text-center p-3 bg-danger-50 dark:bg-danger-900/20 rounded-lg border border-danger-200 dark:border-danger-700">
+                        <div className="text-2xl font-bold text-danger-600 dark:text-danger-400">
+                          {diagnosisProgress.completed > 0 ||
+                            diagnosisProgress.total > 0
+                            ? diagnosisProgress.failed
+                            : diagnosisResult.results.filter((r) => !r.success)
+                              .length}
+                        </div>
+                        <div className="text-xs text-danger-600 dark:text-danger-400/80 mt-1">
+                          失败
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 桌面端表格展示 */}
+                    <div className="hidden md:block space-y-3">
+                      {(() => {
+                        // 使用后端返回的 chainType 和 inx 字段进行分组
+                        const groupedResults = {
+                          entry: diagnosisResult.results.filter(
+                            (r) => r.fromChainType === 1,
+                          ),
+                          chains: {} as Record<
+                            number,
+                            typeof diagnosisResult.results
+                          >,
+                          exit: diagnosisResult.results.filter(
+                            (r) => r.fromChainType === 3,
+                          ),
+                        };
+
+                        // 按 inx 分组链路测试
+                        diagnosisResult.results.forEach((r) => {
+                          if (r.fromChainType === 2 && r.fromInx != null) {
+                            if (!groupedResults.chains[r.fromInx]) {
+                              groupedResults.chains[r.fromInx] = [];
+                            }
+                            groupedResults.chains[r.fromInx].push(r);
+                          }
+                        });
+
+                        const renderTableSection = (
+                          title: string,
+                          results: typeof diagnosisResult.results,
+                        ) => {
+                          if (results.length === 0) return null;
+
+                          return (
+                            <div
+                              key={title}
+                              className="border border-divider rounded-lg overflow-hidden bg-white dark:bg-gray-800"
+                            >
+                              <div className="bg-primary/10 dark:bg-primary/20 px-3 py-2 border-b border-divider">
+                                <h3 className="text-sm font-semibold text-primary">
+                                  {title}
+                                </h3>
+                              </div>
+                              <table className="w-full text-sm">
+                                <thead className="bg-default-100 dark:bg-gray-700">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left font-semibold text-xs">
+                                      路径
+                                    </th>
+                                    <th className="px-3 py-2 text-center font-semibold text-xs w-20">
+                                      状态
+                                    </th>
+                                    <th className="px-3 py-2 text-center font-semibold text-xs w-24">
+                                      延迟(ms)
+                                    </th>
+                                    <th className="px-3 py-2 text-center font-semibold text-xs w-24">
+                                      丢包率
+                                    </th>
+                                    <th className="px-3 py-2 text-center font-semibold text-xs w-20">
+                                      质量
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-divider bg-white dark:bg-gray-800">
+                                  {results.map((result, index) => {
+                                    const isDiagnosing = Boolean(
+                                      result.diagnosing,
+                                    );
+                                    const isSuccess = result.success === true;
+                                    const quality =
+                                      getForwardDiagnosisQualityDisplay(
+                                        result.averageTime,
+                                        result.packetLoss,
+                                      );
+
+                                    return (
+                                      <tr
+                                        key={index}
+                                        className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${isDiagnosing
+                                          ? "bg-warning-50 dark:bg-warning-900/20"
+                                          : isSuccess
+                                            ? "bg-white dark:bg-gray-800"
+                                            : "bg-danger-50 dark:bg-danger-900/30"
+                                          }`}
+                                      >
+                                        <td className="px-3 py-2">
+                                          <div className="flex items-center gap-2">
+                                            {isDiagnosing ? (
+                                              <Spinner size="sm" />
+                                            ) : (
+                                              <span
+                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${isSuccess
+                                                  ? "bg-success text-white"
+                                                  : "bg-danger text-white"
+                                                  }`}
+                                              >
+                                                {isSuccess ? "✓" : "✗"}
+                                              </span>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                              <div className="font-medium text-foreground truncate">
+                                                {result.description}
+                                              </div>
+                                              <div className="text-xs text-default-500 truncate">
+                                                {result.targetIp}:
+                                                {result.targetPort}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2 text-center">
+                                          <Chip
+                                            color={
+                                              isDiagnosing
+                                                ? "warning"
+                                                : isSuccess
+                                                  ? "success"
+                                                  : "danger"
+                                            }
+                                            size="sm"
+                                            variant="flat"
+                                          >
+                                            {isDiagnosing
+                                              ? "诊断中"
+                                              : isSuccess
+                                                ? "成功"
+                                                : "失败"}
+                                          </Chip>
+                                        </td>
+                                        <td className="px-3 py-2 text-center">
+                                          {isSuccess ? (
+                                            <span className="font-semibold text-primary">
+                                              {result.averageTime?.toFixed(0)}
+                                            </span>
+                                          ) : (
+                                            <span className="text-default-400">
+                                              -
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="px-3 py-2 text-center">
+                                          {isSuccess ? (
+                                            <span
+                                              className={`font-semibold ${(result.packetLoss || 0) > 0
+                                                ? "text-warning"
+                                                : "text-success"
+                                                }`}
+                                            >
+                                              {result.packetLoss?.toFixed(1)}%
+                                            </span>
+                                          ) : (
+                                            <span className="text-default-400">
+                                              -
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="px-3 py-2 text-center">
+                                          {isSuccess && quality ? (
+                                            <Chip
+                                              className="text-xs whitespace-nowrap"
+                                              color={quality.color as any}
+                                              size="sm"
+                                              variant="flat"
+                                            >
+                                              {quality.text}
+                                            </Chip>
+                                          ) : (
+                                            <span className="text-default-400">
+                                              -
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        };
+
+                        return (
+                          <>
+                            {/* 入口测试 */}
+                            {renderTableSection(
+                              "🚪 入口测试",
+                              groupedResults.entry,
+                            )}
+
+                            {/* 链路测试（按跳数排序） */}
+                            {Object.keys(groupedResults.chains)
+                              .map(Number)
+                              .sort((a, b) => a - b)
+                              .map((hop) =>
+                                renderTableSection(
+                                  `🔗 转发链 - 第${hop}跳`,
+                                  groupedResults.chains[hop],
+                                ),
+                              )}
+
+                            {/* 出口测试 */}
+                            {renderTableSection(
+                              "🚀 出口测试",
+                              groupedResults.exit,
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    {/* 移动端卡片展示 */}
+                    <div className="md:hidden space-y-3">
+                      {(() => {
+                        // 使用后端返回的 chainType 和 inx 字段进行分组
+                        const groupedResults = {
+                          entry: diagnosisResult.results.filter(
+                            (r) => r.fromChainType === 1,
+                          ),
+                          chains: {} as Record<
+                            number,
+                            typeof diagnosisResult.results
+                          >,
+                          exit: diagnosisResult.results.filter(
+                            (r) => r.fromChainType === 3,
+                          ),
+                        };
+
+                        // 按 inx 分组链路测试
+                        diagnosisResult.results.forEach((r) => {
+                          if (r.fromChainType === 2 && r.fromInx != null) {
+                            if (!groupedResults.chains[r.fromInx]) {
+                              groupedResults.chains[r.fromInx] = [];
+                            }
+                            groupedResults.chains[r.fromInx].push(r);
+                          }
+                        });
+
+                        const renderCardSection = (
+                          title: string,
+                          results: typeof diagnosisResult.results,
+                        ) => {
+                          if (results.length === 0) return null;
+
+                          return (
+                            <div key={title} className="space-y-2">
+                              <div className="px-2 py-1.5 bg-primary/10 dark:bg-primary/20 rounded-lg border border-primary/30">
+                                <h3 className="text-sm font-semibold text-primary">
+                                  {title}
+                                </h3>
+                              </div>
+                              {results.map((result, index) => {
+                                const isDiagnosing = Boolean(result.diagnosing);
+                                const isSuccess = result.success === true;
+                                const quality =
+                                  getForwardDiagnosisQualityDisplay(
+                                    result.averageTime,
+                                    result.packetLoss,
+                                  );
+
+                                return (
+                                  <div
+                                    key={index}
+                                    className={`border rounded-lg p-3 ${isDiagnosing
+                                      ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
+                                      : isSuccess
+                                        ? "border-divider bg-white dark:bg-gray-800"
+                                        : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
+                                      }`}
+                                  >
+                                    <div className="flex items-start gap-2 mb-2">
                                       {isDiagnosing ? (
                                         <Spinner size="sm" />
                                       ) : (
                                         <span
-                                          className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${isSuccess
+                                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${isSuccess
                                             ? "bg-success text-white"
                                             : "bg-danger text-white"
                                             }`}
@@ -5796,749 +6059,568 @@ export default function ForwardPage() {
                                         </span>
                                       )}
                                       <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-foreground truncate">
+                                        <div className="font-semibold text-sm text-foreground break-words">
                                           {result.description}
                                         </div>
-                                        <div className="text-xs text-default-500 truncate">
-                                          {result.targetIp}:
-                                          {result.targetPort}
+                                        <div className="text-xs text-default-500 mt-0.5 break-all">
+                                          {result.targetIp}:{result.targetPort}
                                         </div>
                                       </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-3 py-2 text-center">
-                                    <Chip
-                                      color={
-                                        isDiagnosing
-                                          ? "warning"
-                                          : isSuccess
-                                            ? "success"
-                                            : "danger"
-                                      }
-                                      size="sm"
-                                      variant="flat"
-                                    >
-                                      {isDiagnosing
-                                        ? "诊断中"
-                                        : isSuccess
-                                          ? "成功"
-                                          : "失败"}
-                                    </Chip>
-                                  </td>
-                                  <td className="px-3 py-2 text-center">
-                                    {isSuccess ? (
-                                      <span className="font-semibold text-primary">
-                                        {result.averageTime?.toFixed(0)}
-                                      </span>
-                                    ) : (
-                                      <span className="text-default-400">
-                                        -
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="px-3 py-2 text-center">
-                                    {isSuccess ? (
-                                      <span
-                                        className={`font-semibold ${(result.packetLoss || 0) > 0
-                                          ? "text-warning"
-                                          : "text-success"
-                                          }`}
-                                      >
-                                        {result.packetLoss?.toFixed(1)}%
-                                      </span>
-                                    ) : (
-                                      <span className="text-default-400">
-                                        -
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="px-3 py-2 text-center">
-                                    {isSuccess && quality ? (
                                       <Chip
-                                        className="text-xs whitespace-nowrap"
-                                        color={quality.color as any}
+                                        className="flex-shrink-0"
+                                        color={
+                                          isDiagnosing
+                                            ? "warning"
+                                            : isSuccess
+                                              ? "success"
+                                              : "danger"
+                                        }
                                         size="sm"
                                         variant="flat"
                                       >
-                                        {quality.text}
+                                        {isDiagnosing
+                                          ? "诊断中"
+                                          : isSuccess
+                                            ? "成功"
+                                            : "失败"}
                                       </Chip>
-                                    ) : (
-                                      <span className="text-default-400">
-                                        -
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  };
-
-                  return (
-                    <>
-                      {/* 入口测试 */}
-                      {renderTableSection(
-                        "🚪 入口测试",
-                        groupedResults.entry,
-                      )}
-
-                      {/* 链路测试（按跳数排序） */}
-                      {Object.keys(groupedResults.chains)
-                        .map(Number)
-                        .sort((a, b) => a - b)
-                        .map((hop) =>
-                          renderTableSection(
-                            `🔗 转发链 - 第${hop}跳`,
-                            groupedResults.chains[hop],
-                          ),
-                        )}
-
-                      {/* 出口测试 */}
-                      {renderTableSection(
-                        "🚀 出口测试",
-                        groupedResults.exit,
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              {/* 移动端卡片展示 */}
-              <div className="md:hidden space-y-3">
-                {(() => {
-                  // 使用后端返回的 chainType 和 inx 字段进行分组
-                  const groupedResults = {
-                    entry: diagnosisResult.results.filter(
-                      (r) => r.fromChainType === 1,
-                    ),
-                    chains: {} as Record<
-                      number,
-                      typeof diagnosisResult.results
-                    >,
-                    exit: diagnosisResult.results.filter(
-                      (r) => r.fromChainType === 3,
-                    ),
-                  };
-
-                  // 按 inx 分组链路测试
-                  diagnosisResult.results.forEach((r) => {
-                    if (r.fromChainType === 2 && r.fromInx != null) {
-                      if (!groupedResults.chains[r.fromInx]) {
-                        groupedResults.chains[r.fromInx] = [];
-                      }
-                      groupedResults.chains[r.fromInx].push(r);
-                    }
-                  });
-
-                  const renderCardSection = (
-                    title: string,
-                    results: typeof diagnosisResult.results,
-                  ) => {
-                    if (results.length === 0) return null;
-
-                    return (
-                      <div key={title} className="space-y-2">
-                        <div className="px-2 py-1.5 bg-primary/10 dark:bg-primary/20 rounded-lg border border-primary/30">
-                          <h3 className="text-sm font-semibold text-primary">
-                            {title}
-                          </h3>
-                        </div>
-                        {results.map((result, index) => {
-                          const isDiagnosing = Boolean(result.diagnosing);
-                          const isSuccess = result.success === true;
-                          const quality =
-                            getForwardDiagnosisQualityDisplay(
-                              result.averageTime,
-                              result.packetLoss,
-                            );
-
-                          return (
-                            <div
-                              key={index}
-                              className={`border rounded-lg p-3 ${isDiagnosing
-                                ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
-                                : isSuccess
-                                  ? "border-divider bg-white dark:bg-gray-800"
-                                  : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
-                                }`}
-                            >
-                              <div className="flex items-start gap-2 mb-2">
-                                {isDiagnosing ? (
-                                  <Spinner size="sm" />
-                                ) : (
-                                  <span
-                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${isSuccess
-                                      ? "bg-success text-white"
-                                      : "bg-danger text-white"
-                                      }`}
-                                  >
-                                    {isSuccess ? "✓" : "✗"}
-                                  </span>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-semibold text-sm text-foreground break-words">
-                                    {result.description}
-                                  </div>
-                                  <div className="text-xs text-default-500 mt-0.5 break-all">
-                                    {result.targetIp}:{result.targetPort}
-                                  </div>
-                                </div>
-                                <Chip
-                                  className="flex-shrink-0"
-                                  color={
-                                    isDiagnosing
-                                      ? "warning"
-                                      : isSuccess
-                                        ? "success"
-                                        : "danger"
-                                  }
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {isDiagnosing
-                                    ? "诊断中"
-                                    : isSuccess
-                                      ? "成功"
-                                      : "失败"}
-                                </Chip>
-                              </div>
-
-                              {isSuccess ? (
-                                <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-divider">
-                                  <div className="text-center">
-                                    <div className="text-lg font-bold text-primary">
-                                      {result.averageTime?.toFixed(0)}
                                     </div>
-                                    <div className="text-xs text-default-500">
-                                      延迟(ms)
-                                    </div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div
-                                      className={`text-lg font-bold ${(result.packetLoss || 0) > 0
-                                        ? "text-warning"
-                                        : "text-success"
-                                        }`}
-                                    >
-                                      {result.packetLoss?.toFixed(1)}%
-                                    </div>
-                                    <div className="text-xs text-default-500">
-                                      丢包率
-                                    </div>
-                                  </div>
-                                  <div className="text-center">
-                                    {quality && (
-                                      <>
-                                        <Chip
-                                          className="text-xs whitespace-nowrap"
-                                          color={quality.color as any}
-                                          size="sm"
-                                          variant="flat"
-                                        >
-                                          {quality.text}
-                                        </Chip>
-                                        <div className="text-xs text-default-500 mt-0.5">
-                                          质量
+
+                                    {isSuccess ? (
+                                      <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-divider">
+                                        <div className="text-center">
+                                          <div className="text-lg font-bold text-primary">
+                                            {result.averageTime?.toFixed(0)}
+                                          </div>
+                                          <div className="text-xs text-default-500">
+                                            延迟(ms)
+                                          </div>
                                         </div>
-                                      </>
+                                        <div className="text-center">
+                                          <div
+                                            className={`text-lg font-bold ${(result.packetLoss || 0) > 0
+                                              ? "text-warning"
+                                              : "text-success"
+                                              }`}
+                                          >
+                                            {result.packetLoss?.toFixed(1)}%
+                                          </div>
+                                          <div className="text-xs text-default-500">
+                                            丢包率
+                                          </div>
+                                        </div>
+                                        <div className="text-center">
+                                          {quality && (
+                                            <>
+                                              <Chip
+                                                className="text-xs whitespace-nowrap"
+                                                color={quality.color as any}
+                                                size="sm"
+                                                variant="flat"
+                                              >
+                                                {quality.text}
+                                              </Chip>
+                                              <div className="text-xs text-default-500 mt-0.5">
+                                                质量
+                                              </div>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="mt-2 pt-2 border-t border-divider">
+                                        <div
+                                          className={`text-xs ${isDiagnosing
+                                            ? "text-warning"
+                                            : "text-danger"
+                                            }`}
+                                        >
+                                          {isDiagnosing
+                                            ? result.message || "诊断中..."
+                                            : result.message || "连接失败"}
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="mt-2 pt-2 border-t border-divider">
-                                  <div
-                                    className={`text-xs ${isDiagnosing
-                                      ? "text-warning"
-                                      : "text-danger"
-                                      }`}
-                                  >
-                                    {isDiagnosing
-                                      ? result.message || "诊断中..."
-                                      : result.message || "连接失败"}
-                                  </div>
-                                </div>
-                              )}
+                                );
+                              })}
                             </div>
                           );
-                        })}
-                      </div>
-                    );
-                  };
+                        };
 
-                  return (
-                    <>
-                      {/* 入口测试 */}
-                      {renderCardSection(
-                        "🚪 入口测试",
-                        groupedResults.entry,
-                      )}
+                        return (
+                          <>
+                            {/* 入口测试 */}
+                            {renderCardSection(
+                              "🚪 入口测试",
+                              groupedResults.entry,
+                            )}
 
-                      {/* 链路测试（按跳数排序） */}
-                      {Object.keys(groupedResults.chains)
-                        .map(Number)
-                        .sort((a, b) => a - b)
-                        .map((hop) =>
-                          renderCardSection(
-                            `🔗 转发链 - 第${hop}跳`,
-                            groupedResults.chains[hop],
-                          ),
-                        )}
+                            {/* 链路测试（按跳数排序） */}
+                            {Object.keys(groupedResults.chains)
+                              .map(Number)
+                              .sort((a, b) => a - b)
+                              .map((hop) =>
+                                renderCardSection(
+                                  `🔗 转发链 - 第${hop}跳`,
+                                  groupedResults.chains[hop],
+                                ),
+                              )}
 
-                      {/* 出口测试 */}
-                      {renderCardSection(
-                        "🚀 出口测试",
-                        groupedResults.exit,
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              {/* 失败详情（仅桌面端显示，移动端已在卡片中显示） */}
-              {diagnosisResult.results.some(
-                (r) => r.success === false && !r.diagnosing,
-              ) && (
-                  <div className="space-y-2 hidden md:block">
-                    <h4 className="text-sm font-semibold text-danger">
-                      失败详情
-                    </h4>
-                    <div className="space-y-2">
-                      {diagnosisResult.results
-                        .filter((r) => r.success === false && !r.diagnosing)
-                        .map((result, index) => (
-                          <Alert
-                            key={index}
-                            className="text-xs"
-                            color="danger"
-                            description={result.message || "连接失败"}
-                            title={result.description}
-                            variant="flat"
-                          />
-                        ))}
+                            {/* 出口测试 */}
+                            {renderCardSection(
+                              "🚀 出口测试",
+                              groupedResults.exit,
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
+
+                    {/* 失败详情（仅桌面端显示，移动端已在卡片中显示） */}
+                    {diagnosisResult.results.some(
+                      (r) => r.success === false && !r.diagnosing,
+                    ) && (
+                        <div className="space-y-2 hidden md:block">
+                          <h4 className="text-sm font-semibold text-danger">
+                            失败详情
+                          </h4>
+                          <div className="space-y-2">
+                            {diagnosisResult.results
+                              .filter((r) => r.success === false && !r.diagnosing)
+                              .map((result, index) => (
+                                <Alert
+                                  key={index}
+                                  className="text-xs"
+                                  color="danger"
+                                  description={result.message || "连接失败"}
+                                  title={result.description}
+                                  variant="flat"
+                                />
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 bg-default-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg
+                        aria-hidden="true"
+                        className="w-8 h-8 text-default-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      暂无诊断数据
+                    </h3>
                   </div>
                 )}
-            </div>
-          ) : (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 bg-default-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  aria-hidden="true"
-                  className="w-8 h-8 text-default-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              </ModalBody>
+              <ModalFooter className="bg-content1 border-t border-divider">
+                <Button variant="light" onPress={onClose}>
+                  关闭
+                </Button>
+                {currentDiagnosisForward && (
+                  <Button
+                    color="primary"
+                    isLoading={diagnosisLoading}
+                    onPress={() => handleDiagnose(currentDiagnosisForward)}
+                  >
+                    重新诊断
+                  </Button>
+                )}
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 批量删除确认模态框 */}
+      <Modal
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={batchDeleteModalOpen}
+        onOpenChange={setBatchDeleteModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>确认删除</ModalHeader>
+              <ModalBody>
+                <p>
+                  确定要删除选中的 {selectedIds.size} 项规则吗？此操作不可撤销。
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="danger"
+                  isLoading={batchLoading}
+                  onPress={handleBatchDelete}
                 >
-                  <path
-                    d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
+                  确认删除
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 批量换隧道模态框 */}
+      <Modal
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={batchChangeTunnelModalOpen}
+        onOpenChange={setBatchChangeTunnelModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>隧道</ModalHeader>
+              <ModalBody>
+                <p className="mb-4">
+                  将选中的 {selectedIds.size} 项规则迁移到新隧道：
+                </p>
+                <Select
+                  label="目标隧道"
+                  placeholder="请选择目标隧道"
+                  selectedKeys={
+                    batchTargetTunnelId ? [String(batchTargetTunnelId)] : []
+                  }
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0];
+
+                    setBatchTargetTunnelId(selected ? Number(selected) : null);
+                  }}
+                >
+                  {tunnels.map((tunnel) => (
+                    <SelectItem key={tunnel.id.toString()} textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}>
+                      <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
+                    </SelectItem>
+                  ))}
+                </Select>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="primary"
+                  isDisabled={!batchTargetTunnelId}
+                  isLoading={batchLoading}
+                  onPress={handleBatchChangeTunnel}
+                >
+                  确认换隧道
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 限速设置模态框 */}
+      <Modal
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={speedLimitModalOpen}
+        onOpenChange={setSpeedLimitModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                设置限速规则
+              </ModalHeader>
+              <ModalBody>
+                <p className="text-sm text-default-600 mb-4">
+                  {forwardToSetSpeedLimit
+                    ? `为规则 "${forwardToSetSpeedLimit.name}" 选择限速规则：`
+                    : "请选择限速规则："}
+                </p>
+                <Select
+                  label="限速规则"
+                  placeholder="不限速"
+                  selectedKeys={
+                    selectedSpeedLimitId !== null
+                      ? [selectedSpeedLimitId.toString()]
+                      : []
+                  }
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0] as
+                      | string
+                      | undefined;
+
+                    setSelectedSpeedLimitId(
+                      selectedKey ? Number(selectedKey) : null,
+                    );
+                  }}
+                >
+                  {speedLimits.map((speedLimit) => (
+                    <SelectItem key={speedLimit.id.toString()}>
+                      {speedLimit.name || `限速${speedLimit.speed}`}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="secondary"
+                  isLoading={speedLimitLoading}
+                  onPress={confirmSetSpeedLimit}
+                >
+                  确定
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 批量限速模态框 */}
+      <Modal
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={batchSpeedLimitModalOpen}
+        onOpenChange={setBatchSpeedLimitModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                批量设置限速
+              </ModalHeader>
+              <ModalBody>
+                <p className="text-sm text-default-600 mb-4">
+                  为选中的 {selectedIds.size} 项规则选择限速规则：
+                </p>
+                <Select
+                  label="限速规则"
+                  placeholder="不限速"
+                  selectedKeys={
+                    selectedSpeedLimitId !== null
+                      ? [selectedSpeedLimitId.toString()]
+                      : []
+                  }
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0] as
+                      | string
+                      | undefined;
+
+                    setSelectedSpeedLimitId(
+                      selectedKey ? Number(selectedKey) : null,
+                    );
+                  }}
+                >
+                  {speedLimits.map((speedLimit) => (
+                    <SelectItem
+                      key={speedLimit.id.toString()}
+                      textValue={speedLimit.name || `限速${speedLimit.speed}`}
+                    >
+                      {speedLimit.name || `限速${speedLimit.speed}`} (
+                      {speedLimit.speed}M)
+                    </SelectItem>
+                  ))}
+                </Select>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="secondary"
+                  isLoading={speedLimitLoading}
+                  onPress={confirmBatchSetSpeedLimit}
+                >
+                  确定
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 搜索与筛选五合一模态框 */}
+      <Modal
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={isSearchModalOpen}
+        placement="center"
+        size="md"
+        onOpenChange={setIsSearchModalOpen}
+      >
+        <ModalContent>
+          {() => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                搜索筛选用户规则
+              </ModalHeader>
+              <ModalBody>
+                <div className="flex flex-col gap-4 py-2">
+                  <Input
+                    label="规则名称 (模糊)"
+                    placeholder="请输入规则名称关键字"
+                    value={searchParams.name}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
                   />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-foreground">
-                暂无诊断数据
-              </h3>
-            </div>
-          )}
-        </ModalBody>
-        <ModalFooter className="bg-content1 border-t border-divider">
-          <Button variant="light" onPress={onClose}>
-            关闭
-          </Button>
-          {currentDiagnosisForward && (
-            <Button
-              color="primary"
-              isLoading={diagnosisLoading}
-              onPress={() => handleDiagnose(currentDiagnosisForward)}
-            >
-              重新诊断
-            </Button>
-          )}
-        </ModalFooter>
-      </>
-    )}
-  </ModalContent>
-</Modal>
 
-{/* 批量删除确认模态框 */ }
-<Modal
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={batchDeleteModalOpen}
-  onOpenChange={setBatchDeleteModalOpen}
->
-  <ModalContent>
-    {(onClose) => (
-      <>
-        <ModalHeader>确认删除</ModalHeader>
-        <ModalBody>
-          <p>
-            确定要删除选中的 {selectedIds.size} 项规则吗？此操作不可撤销。
-          </p>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="light" onPress={onClose}>
-            取消
-          </Button>
-          <Button
-            color="danger"
-            isLoading={batchLoading}
-            onPress={handleBatchDelete}
-          >
-            确认删除
-          </Button>
-        </ModalFooter>
-      </>
-    )}
-  </ModalContent>
-</Modal>
+                  {isAdmin && (
+                    <Select
+                      label="所属用户"
+                      placeholder="选择用户"
+                      selectedKeys={[searchParams.userId]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const key = Array.from(keys)[0] as string;
 
-{/* 批量换隧道模态框 */ }
-<Modal
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={batchChangeTunnelModalOpen}
-  onOpenChange={setBatchChangeTunnelModalOpen}
->
-  <ModalContent>
-    {(onClose) => (
-      <>
-        <ModalHeader>隧道</ModalHeader>
-        <ModalBody>
-          <p className="mb-4">
-            将选中的 {selectedIds.size} 项规则迁移到新隧道：
-          </p>
-          <Select
-            label="目标隧道"
-            placeholder="请选择目标隧道"
-            selectedKeys={
-              batchTargetTunnelId ? [String(batchTargetTunnelId)] : []
-            }
-            onSelectionChange={(keys) => {
-              const selected = Array.from(keys)[0];
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          userId: key || "all",
+                        }));
+                      }}
+                    >
+                      <SelectItem key="all">全部用户</SelectItem>
+                      {uniqueUsers.map((user) => (
+                        <SelectItem key={user.id.toString()}>
+                          {user.name}
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  )}
 
-              setBatchTargetTunnelId(selected ? Number(selected) : null);
-            }}
-          >
-            {tunnels.map((tunnel) => (
-              <SelectItem key={tunnel.id.toString()} textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}>
-                <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
-              </SelectItem>
-            ))}
-          </Select>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="light" onPress={onClose}>
-            取消
-          </Button>
-          <Button
-            color="primary"
-            isDisabled={!batchTargetTunnelId}
-            isLoading={batchLoading}
-            onPress={handleBatchChangeTunnel}
-          >
-            确认换隧道
-          </Button>
-        </ModalFooter>
-      </>
-    )}
-  </ModalContent>
-</Modal>
+                  {isAdmin && (
+                    <Select
+                      label="限速规则"
+                      placeholder="选择限速规则"
+                      selectedKeys={[searchParams.speedLimitId || "all"]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const key = Array.from(keys)[0] as string;
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          speedLimitId: key === "all" ? undefined : Number(key),
+                        }));
+                      }}
+                    >
+                      <SelectItem key="all">全部规则</SelectItem>
+                      <SelectItem key="unlimited">不限速</SelectItem>
+                      {availableSpeedLimits.map((speedLimit) => (
+                        <SelectItem key={speedLimit.id.toString()}>
+                          {speedLimit.name || `限速${speedLimit.speed}`} ({speedLimit.speed}M)
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  )}
 
-{/* 限速设置模态框 */ }
-<Modal
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={speedLimitModalOpen}
-  onOpenChange={setSpeedLimitModalOpen}
->
-  <ModalContent>
-    {(onClose) => (
-      <>
-        <ModalHeader className="flex flex-col gap-1">
-          设置限速规则
-        </ModalHeader>
-        <ModalBody>
-          <p className="text-sm text-default-600 mb-4">
-            {forwardToSetSpeedLimit
-              ? `为规则 "${forwardToSetSpeedLimit.name}" 选择限速规则：`
-              : "请选择限速规则："}
-          </p>
-          <Select
-            label="限速规则"
-            placeholder="不限速"
-            selectedKeys={
-              selectedSpeedLimitId !== null
-                ? [selectedSpeedLimitId.toString()]
-                : []
-            }
-            variant="bordered"
-            onSelectionChange={(keys) => {
-              const selectedKey = Array.from(keys)[0] as
-                | string
-                | undefined;
+                  <Select
+                    label="所属隧道"
+                    placeholder="选择隧道"
+                    selectedKeys={[searchParams.tunnelId]}
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const key = Array.from(keys)[0] as string;
 
-              setSelectedSpeedLimitId(
-                selectedKey ? Number(selectedKey) : null,
-              );
-            }}
-          >
-            {speedLimits.map((speedLimit) => (
-              <SelectItem key={speedLimit.id.toString()}>
-                {speedLimit.name || `限速${speedLimit.speed}`}
-              </SelectItem>
-            ))}
-          </Select>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="light" onPress={onClose}>
-            取消
-          </Button>
-          <Button
-            color="secondary"
-            isLoading={speedLimitLoading}
-            onPress={confirmSetSpeedLimit}
-          >
-            确定
-          </Button>
-        </ModalFooter>
-      </>
-    )}
-  </ModalContent>
-</Modal>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        tunnelId: key || "all",
+                      }));
+                    }}
+                  >
+                    <SelectItem key="all">全部隧道</SelectItem>
+                    {tunnels.map((tunnel) => (
+                      <SelectItem
+                        key={tunnel.id.toString()}
+                        textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{tunnel.name}</span>
+                          {tunnel.remark && (
+                            <span className="text-default-400 text-xs">
+                              ({tunnel.remark})
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </Select>
 
-{/* 批量限速模态框 */ }
-<Modal
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={batchSpeedLimitModalOpen}
-  onOpenChange={setBatchSpeedLimitModalOpen}
->
-  <ModalContent>
-    {(onClose) => (
-      <>
-        <ModalHeader className="flex flex-col gap-1">
-          批量设置限速
-        </ModalHeader>
-        <ModalBody>
-          <p className="text-sm text-default-600 mb-4">
-            为选中的 {selectedIds.size} 项规则选择限速规则：
-          </p>
-          <Select
-            label="限速规则"
-            placeholder="不限速"
-            selectedKeys={
-              selectedSpeedLimitId !== null
-                ? [selectedSpeedLimitId.toString()]
-                : []
-            }
-            variant="bordered"
-            onSelectionChange={(keys) => {
-              const selectedKey = Array.from(keys)[0] as
-                | string
-                | undefined;
+                  <Input
+                    label="入口监听端口 (精确)"
+                    placeholder="请输入具体端口号"
+                    type="number"
+                    value={searchParams.inPort}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        inPort: e.target.value,
+                      }))
+                    }
+                  />
 
-              setSelectedSpeedLimitId(
-                selectedKey ? Number(selectedKey) : null,
-              );
-            }}
-          >
-            {speedLimits.map((speedLimit) => (
-              <SelectItem
-                key={speedLimit.id.toString()}
-                textValue={speedLimit.name || `限速${speedLimit.speed}`}
-              >
-                {speedLimit.name || `限速${speedLimit.speed}`} (
-                {speedLimit.speed}M)
-              </SelectItem>
-            ))}
-          </Select>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="light" onPress={onClose}>
-            取消
-          </Button>
-          <Button
-            color="secondary"
-            isLoading={speedLimitLoading}
-            onPress={confirmBatchSetSpeedLimit}
-          >
-            确定
-          </Button>
-        </ModalFooter>
-      </>
-    )}
-  </ModalContent>
-</Modal>
-
-{/* 搜索与筛选五合一模态框 */ }
-<Modal
-  classNames={{
-    base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-  }}
-  isOpen={isSearchModalOpen}
-  placement="center"
-  size="md"
-  onOpenChange={setIsSearchModalOpen}
->
-  <ModalContent>
-    {() => (
-      <>
-        <ModalHeader className="flex flex-col gap-1">
-          搜索筛选用户规则
-        </ModalHeader>
-        <ModalBody>
-          <div className="flex flex-col gap-4 py-2">
-            <Input
-              label="规则名称 (模糊)"
-              placeholder="请输入规则名称关键字"
-              value={searchParams.name}
-              variant="bordered"
-              onChange={(e) =>
-                setSearchParams((prev) => ({
-                  ...prev,
-                  name: e.target.value,
-                }))
-              }
-            />
-
-            {isAdmin && (
-              <Select
-                label="所属用户"
-                placeholder="选择用户"
-                selectedKeys={[searchParams.userId]}
-                variant="bordered"
-                onSelectionChange={(keys) => {
-                  const key = Array.from(keys)[0] as string;
-
-                  setSearchParams((prev) => ({
-                    ...prev,
-                    userId: key || "all",
-                  }));
-                }}
-              >
-                <SelectItem key="all">全部用户</SelectItem>
-                {uniqueUsers.map((user) => (
-                  <SelectItem key={user.id.toString()}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </Select>
-            )}
-
-            <Select
-              label="所属隧道"
-              placeholder="选择隧道"
-              selectedKeys={[searchParams.tunnelId]}
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const key = Array.from(keys)[0] as string;
-
-                setSearchParams((prev) => ({
-                  ...prev,
-                  tunnelId: key || "all",
-                }));
-              }}
-            >
-              <SelectItem key="all">全部隧道</SelectItem>
-              {tunnels.map((tunnel) => (
-                <SelectItem
-                  key={tunnel.id.toString()}
-                  textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}
+                  <Input
+                    label="目标地址或端口 (模糊)"
+                    placeholder="请输入目标IP、域名或端口"
+                    value={searchParams.remoteAddr}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        remoteAddr: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  color="primary"
+                  variant="flat"
+                  onPress={() => {
+                    setSearchParams({
+                      name: "",
+                      userId: tokenUserId ? tokenUserId.toString() : "all",
+                      tunnelId: "all",
+                      speedLimitId: undefined,
+                      inPort: "",
+                      remoteAddr: "",
+                    });
+                  }}
                 >
-                  <div className="flex items-center gap-2">
-                    <span>{tunnel.name}</span>
-                    {tunnel.remark && (
-                      <span className="text-default-400 text-xs">
-                        ({tunnel.remark})
-                      </span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </Select>
-            {isAdmin && (
-              <Select
-                label="限速规则"
-                placeholder="选择限速规则"
-                selectedKeys={[searchParams.speedLimitId || "all"]}
-                variant="bordered"
-                onSelectionChange={(keys) => {
-                  const key = Array.from(keys)[0] as string;
-                  setSearchParams((prev) => ({
-                    ...prev,
-                    speedLimitId: key === "all" ? undefined : Number(key),
-                  }));
-                }}
-              >
-                <SelectItem key="all">全部规则</SelectItem>
-                <SelectItem key="unlimited">不限速</SelectItem>
-                {availableSpeedLimits.map((speedLimit) => (
-                  <SelectItem key={speedLimit.id.toString()}>
-                    {speedLimit.name || `限速${speedLimit.speed}`} ({speedLimit.speed}M)
-                  </SelectItem>
-                ))}
-              </Select>
-            )}
-            <Input
-              label="入口监听端口 (精确)"
-              placeholder="请输入具体端口号"
-              type="number"
-              value={searchParams.inPort}
-              variant="bordered"
-              onChange={(e) =>
-                setSearchParams((prev) => ({
-                  ...prev,
-                  inPort: e.target.value,
-                }))
-              }
-            />
-
-            <Input
-              label="目标地址或端口 (模糊)"
-              placeholder="请输入目标IP、域名或端口"
-              value={searchParams.remoteAddr}
-              variant="bordered"
-              onChange={(e) =>
-                setSearchParams((prev) => ({
-                  ...prev,
-                  remoteAddr: e.target.value,
-                }))
-              }
-            />
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button
-            color="primary"
-            variant="flat"
-            onPress={() => {
-              setSearchParams({
-                name: "",
-                userId: tokenUserId ? tokenUserId.toString() : "all",
-                tunnelId: "all",
-                speedLimitId: undefined,
-                inPort: "",
-                remoteAddr: "",
-              });
-            }}
-          >
-            重置
-          </Button>
-        </ModalFooter>
-      </>
-    )}
-  </ModalContent>
-</Modal>
+                  重置
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </AnimatedPage >
   );
 }

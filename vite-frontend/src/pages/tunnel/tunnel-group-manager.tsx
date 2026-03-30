@@ -180,21 +180,11 @@ export function TunnelGroupManager({
                   }}
                 >
                   <TableHeader>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[220px] text-left">
-                      分组名
-                    </TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-center">
-                      排序
-                    </TableColumn>                    
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-center">
-                      隧道数
-                    </TableColumn>
-					<TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                      颜色
-                    </TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                      操作
-                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[220px] text-left">分组名</TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-center">排序</TableColumn>                    
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-center"> 隧道数</TableColumn>
+					          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">颜色</TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left"> 操作</TableColumn>
                   </TableHeader>
                   <TableBody emptyContent="暂无分组" items={groups}>
                     {(group) => (
