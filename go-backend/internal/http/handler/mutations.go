@@ -852,7 +852,12 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	runtimeState.TunnelID = id
 	runtimeState.IPPreference = ipPreference
 
-	inIp := buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes, ipPreference)
+	// 🎯 修复：优先读取前端传递的入口地址
+	inIp := asString(req["inIp"])
+	if strings.TrimSpace(inIp) == "" {
+		// 只有在前端真正留空时，才去兜底获取节点底层IP
+		inIp = buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes, ipPreference)
+	}
 
 	var federationBindings []repo.FederationTunnelBinding
 	var federationReleaseRefs []federationRuntimeReleaseRef

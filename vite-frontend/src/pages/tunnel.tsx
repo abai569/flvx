@@ -116,6 +116,7 @@ interface Node {
   id: number;
   name: string;
   status: number; // 1: 在线, 0: 离线
+  serverHost?: string; // 🎯 显式加上域名标识
   serverIp?: string;
   serverIpV4?: string;
   serverIpV6?: string;
@@ -240,9 +241,11 @@ export default function TunnelPage() {
       }
     };
 
+    // 🎯 核心修复：把真实的域名 (serverHost) 设为最高优先级！
+    push(node.serverHost);
+    push(node.serverIp);  // 兼容旧字段
     push(node.serverIpV4);
     push(node.serverIpV6);
-    push(node.serverIp);
 
     (node.extraIPs || "")
       .split(",")
@@ -460,7 +463,22 @@ export default function TunnelPage() {
     },
     [resetBatchDeleteState],
   );
+  // 🎯 智能检测1：计算当前选中节点“理应”对应的最新域名/IP
+  const expectedInIps = useMemo(() => {
+    const ips = form.inNodeId.map(ct => {
+      const n = nodes.find(item => item.id === ct.nodeId);
+      if (!n) return "";
+      return (n.serverHost || (n as any).server_host || n.serverIpV4 || n.serverIpV6 || n.serverIp || "").trim();
+    }).filter(Boolean);
+    return ips.join("\n");
+  }, [form.inNodeId, nodes]);
 
+  // 🎯 智能检测2：判断隧道当前地址是否已经过期（与节点最新配置不符）
+  const isInIpOutdated = useMemo(() => {
+    if (!form.inIp || !expectedInIps) return false;
+    const current = form.inIp.split('\n').map(s => s.trim()).filter(Boolean).join('\n');
+    return current !== expectedInIps;
+  }, [form.inIp, expectedInIps]);
   // 表单验证
   const validateForm = (): boolean => {
     const newErrors = validateTunnelForm(form, nodes);
@@ -759,8 +777,6 @@ export default function TunnelPage() {
 
     setSubmitLoading(true);
     try {
-      console.log('Submitting form with tunnelGroupId:', form.tunnelGroupId);
-
       // 过滤掉占位节点（nodeId === -1 的节点）
       const cleanedChainNodes = (form.chainNodes || [])
         .map((group) => group.filter((node) => node.nodeId !== -1))
@@ -772,28 +788,42 @@ export default function TunnelPage() {
       );
 
       // 将换行符分隔的 IP 转换为逗号分隔
-      const inIpString = form.inIp
+      let inIpString = form.inIp
         .split("\n")
         .map((ip) => ip.trim())
         .filter((ip) => ip)
         .join(",");
 
+      // 🎯 前端强拦截：如果留空，自动提取域名
+      if (!inIpString && form.inNodeId && form.inNodeId.length > 0) {
+        const autoIps = form.inNodeId.map(ct => {
+          const n = nodes.find(item => item.id === ct.nodeId);
+          if (!n) return "";
+          return (n.serverHost || (n as any).server_host || n.serverIpV4 || n.serverIpV6 || n.serverIp || "").trim();
+        }).filter(Boolean);
+        inIpString = autoIps.join(",");
+      }
+
+      // 🎯 终极杀招：同时发送驼峰和下划线字段，专治后端更新接口“挑食”！
       const data = {
         ...form,
+        // 驼峰命名，给新增接口看
         inIp: inIpString,
         outNodeId: cleanedOutNodeId,
         chainNodes: cleanedChainNodes,
-        // 👇 修复 3：不管后端认驼峰还是下划线，咱们两手准备，强行把值传过去！
+        tunnelGroupId: form.tunnelGroupId,
+
+        // 下划线命名，给更新接口看 (强制绑定)
+        in_ip: inIpString,
+        in_node_id: form.inNodeId,
+        out_node_id: cleanedOutNodeId,
+        chain_nodes: cleanedChainNodes,
         tunnel_group_id: form.tunnelGroupId,
       };
-
-      console.log('Sending data to API:', data);
 
       const response = isEdit
         ? await updateTunnel(data)
         : await createTunnel(data);
-
-      console.log('API response:', response);
 
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
@@ -803,7 +833,6 @@ export default function TunnelPage() {
         toast.error(response.msg || (isEdit ? "更新失败" : "创建失败"));
       }
     } catch (error) {
-      console.error('Submit error:', error);
       toast.error("网络错误，请重试");
     } finally {
       setSubmitLoading(false);
@@ -2368,23 +2397,44 @@ export default function TunnelPage() {
                     />
                   </div>
 
-                  <Textarea
-                    classNames={{
-                      inputWrapper: "!min-h-[20px] py-1.5",
-                      input: "!min-h-[20px]",
-                    }}
-                    description=""
-                    errorMessage={errors.inIp}
-                    isInvalid={!!errors.inIp}
-                    label="入口地址"
-                    rows={1}
-                    placeholder="支持多个地址，每行一个地址，留空则自动获取入口节点地址"
-                    value={form.inIp}
-                    variant="bordered"
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, inIp: e.target.value }))
-                    }
-                  />
+                  <div className="space-y-2">
+                    <Textarea
+                      classNames={{
+                        inputWrapper: "!min-h-[20px] py-1.5",
+                        input: "!min-h-[20px]",
+                      }}
+                      description=""
+                      errorMessage={errors.inIp}
+                      isInvalid={!!errors.inIp}
+                      label="入口地址"
+                      rows={1}
+                      placeholder="支持多个地址，每行一个地址，留空则自动获取入口节点地址"
+                      value={form.inIp}
+                      variant="bordered"
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, inIp: e.target.value }))
+                      }
+                    />
+
+                    {/* 🎯 预警 UI：只要发现地址过期，立刻显示同步按钮 */}
+                    {isEdit && isInIpOutdated && (
+                      <div className="flex items-center justify-between bg-warning-50 dark:bg-warning-900/20 px-3 py-2 rounded-lg border border-warning-200 dark:border-warning-700/50 transition-all animate-appearance-in">
+                        <span className="text-xs text-warning-600 dark:text-warning-400 font-medium flex items-center gap-1.5">
+                          <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                          检测到当前地址与节点最新域名/IP不一致
+                        </span>
+                        <Button
+                          size="sm"
+                          color="warning"
+                          variant="flat"
+                          className="h-6 min-h-0 text-xs px-2.5 rounded-md"
+                          onPress={() => setForm(prev => ({ ...prev, inIp: expectedInIps }))}
+                        >
+                          一键同步
+                        </Button>
+                      </div>
+                    )}
+                  </div>
 
                   {form.type === 2 && (
                     <Select
@@ -2441,14 +2491,30 @@ export default function TunnelPage() {
                       onSelectionChange={(keys) => {
                         const selectedIds = toSelectedNodeIds(keys);
 
-                        setForm((prev) => ({
-                          ...prev,
-                          inNodeId: mergeOrderedNodes(
-                            prev.inNodeId,
-                            selectedIds,
-                            (nodeId) => ({ nodeId, chainType: 1 }),
-                          ),
-                        }));
+                        setForm((prev) => {
+                          let nextInIp = prev.inIp;
+
+                          // 🎯 终极智能逻辑：如果是新增隧道，或者用户在编辑时把“入口地址”主动清空了，就触发自动抓取
+                          if (!isEdit || !prev.inIp.trim()) {
+                            const autoIps = selectedIds.map(id => {
+                              const n = nodes.find(item => item.id === id);
+                              if (!n) return "";
+                              // 绝对优先级：域名优先，没有域名找v4，最后找v6或兼容IP
+                              return (n.serverHost || n.serverIpV4 || n.serverIpV6 || n.serverIp || "").trim();
+                            }).filter(Boolean);
+                            nextInIp = autoIps.join("\n");
+                          }
+
+                          return {
+                            ...prev,
+                            inIp: nextInIp, // 自动填入入口地址框
+                            inNodeId: mergeOrderedNodes(
+                              prev.inNodeId,
+                              selectedIds,
+                              (nodeId) => ({ nodeId, chainType: 1 }),
+                            ),
+                          };
+                        });
                       }}
                     >
                       {nodes.map((node) => (
