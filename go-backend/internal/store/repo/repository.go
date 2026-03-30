@@ -3433,8 +3433,13 @@ func resolveForwardIngress(db *gorm.DB, forwardID int64, tunnelID int64) (string
 
 		var ip string
 		if row.InIP.Valid && strings.TrimSpace(row.InIP.String) != "" {
+			// 1. 如果规则有独立 IP，用规则的
 			ip = strings.TrimSpace(row.InIP.String)
+		} else if tunnelInIP.Valid && strings.TrimSpace(tunnelInIP.String) != "" {
+			// 🎯 2. 补上这一段！让它去读你选的“测试隧道”的域名！
+			ip = strings.TrimSpace(tunnelInIP.String)
 		} else if row.ServerIP.Valid && strings.TrimSpace(row.ServerIP.String) != "" {
+			// 3. 最后才是拿底层服务器 IPv4 兜底
 			ip = strings.TrimSpace(row.ServerIP.String)
 		}
 
