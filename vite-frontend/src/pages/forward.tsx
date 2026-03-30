@@ -4467,20 +4467,25 @@ export default function ForwardPage() {
                               aria-label="按限速规则筛选"
                               variant="flat"
                               size="sm"
-                              className="w-full"
+                              // 🎯 修复1：加上 min-w 撑开基础宽度，防止挤压
+                              className="w-full min-w-[100px]"
                               classNames={{
                                 trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
                                 value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
                                 selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
                                 innerWrapper: "w-fit flex-none",
+                                // 🎯 修复2：必须加上 placeholder 的样式！不然默认的 placeholder 会缩水变形
+                                placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
                               }}
                               placeholder="限速规则"
-                              selectedKeys={searchParams?.speedLimitId ? [String(searchParams.speedLimitId)] : []}
+                              // 🎯 修复3：逻辑对齐。当没有选、或者选了 "all" 时，传入空数组 []，从而触发上面的 placeholder 显示
+                              selectedKeys={!searchParams?.speedLimitId ? [] : [String(searchParams.speedLimitId)]}
                               onSelectionChange={(keys) => {
                                 const key = Array.from(keys)[0] as string | undefined;
                                 setSearchParams?.((prev: any) => ({
                                   ...prev,
-                                  speedLimitId: key || "all",
+                                  // 保持你后端的处理习惯，全选传 undefined，其它透传
+                                  speedLimitId: (!key || key === "all") ? undefined : (key === "unlimited" ? "unlimited" : Number(key)),
                                 }));
                               }}
                             >

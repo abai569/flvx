@@ -181,22 +181,27 @@ export function NodeListView({
         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center"><div className="flex items-center justify-center h-full"><Checkbox isSelected={isAllSelected} onValueChange={toggleSelectAll} /></div></TableColumn>
         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-center">排序</TableColumn>
         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[160px] text-left">节点名称</TableColumn>
-        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">
+        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
           <Select
             aria-label="按分组筛选"
             variant="flat"
             size="sm"
-            className="w-full"
+            className="w-full min-w-[100px]"
             classNames={{
               trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row-reverse justify-end items-center",
               value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0",
               selectorIcon: "text-default-400 w-3.5 h-3.5 static m-0",
               innerWrapper: "w-fit flex-none",
+              // 🎯 这里的 placeholder 样式很关键，让没选中时看起来和表头一模一样
+              placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
             }}
-            placeholder="分组名称"
-            selectedKeys={filterGroupId === null ? ["all"] : filterGroupId === -1 ? ["none"] : [String(filterGroupId)]}
+            placeholder="节点分组"
+            // 🎯 核心修改：当 filterGroupId 是 null (即选了全部) 时，传入空数组 []
+            // 这样组件就会自动显示上面定义的 placeholder="节点分组"
+            selectedKeys={filterGroupId === null ? [] : filterGroupId === -1 ? ["none"] : [String(filterGroupId)]}
             onSelectionChange={(keys) => {
               const selected = Array.from(keys)[0] as string | undefined;
+              // 选了"全部分组"或者清空时，设为 null
               if (!selected || selected === "all") {
                 setFilterGroupId(null);
               } else if (selected === "none") {
@@ -208,11 +213,18 @@ export function NodeListView({
           >
             <SelectItem key="all" textValue="全部分组">全部分组</SelectItem>
             <SelectItem key="none" textValue="未分组">
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-gray-300 flex-shrink-0" /><span>未分组</span></div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-gray-300 flex-shrink-0" />
+                <span>未分组</span>
+              </div>
             </SelectItem>
             {nodeGroups.map((group) => (
               <SelectItem key={group.id.toString()} textValue={group.name}>
-                <div className="flex items-center gap-2 min-w-0"><div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} /><span className="truncate">{group.name}</span><span className="text-default-400 text-xs ml-auto">{group.nodeCount}</span></div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
+                  <span className="truncate">{group.name}</span>
+                  <span className="text-default-400 text-xs ml-auto">{group.nodeCount}</span>
+                </div>
               </SelectItem>
             ))}
           </Select>

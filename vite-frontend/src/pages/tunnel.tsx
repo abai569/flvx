@@ -1711,12 +1711,12 @@ export default function TunnelPage() {
                       <th className="py-3 px-4 w-[56px] text-center align-middle">排序</th>
                       <th className="py-3 px-4 w-[200px] align-middle">隧道名称</th>
                       {/* <th className="py-3 px-4 w-[120px] align-middle">分组名</th> */}
-                      <th className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                      <th className="py-3 px-4 w-[140px] align-middle">
                         <Select
                           aria-label="按分组筛选"
                           variant="flat"
                           size="sm"
-                          className="w-full"
+                          className="w-full min-w-[100px]"
                           classNames={{
                             trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
                             value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",

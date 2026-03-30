@@ -843,6 +843,7 @@ func (r *Repository) ListNodes(opts *ListNodesOptions) ([]map[string]interface{}
 			"expiryTime":   nullableInt64(n.ExpiryTime),
 			"renewalCycle": nullableString(n.RenewalCycle),
 			"ip":           n.ServerIP, "serverIp": n.ServerIP,
+			"serverHost":    nullableString(n.ServerHost),
 			"serverIpV4":    nullableString(n.ServerIPV4),
 			"serverIpV6":    nullableString(n.ServerIPV6),
 			"extraIPs":      nullableString(n.ExtraIPs),
