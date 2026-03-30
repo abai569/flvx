@@ -253,7 +253,7 @@ func (r *Repository) GetNodeStatusFields(nodeID int64) (status, httpFlag, tlsFla
 	return node.Status, node.HTTP, node.TLS, node.Socks, nil
 }
 
-func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
+func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, serverHost, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -265,6 +265,7 @@ func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, ser
 		"server_ip":                 serverIP,
 		"server_ip_v4":              nullStringFromInterface(serverIPV4),
 		"server_ip_v6":              nullStringFromInterface(serverIPV6),
+		"server_host":               nullStringFromInterface(serverHost),
 		"extra_ips":                 nullStringFromInterface(extraIPs),
 		"port":                      stringFromInterface(port),
 		"interface_name":            nullStringFromInterface(interfaceName),
@@ -278,6 +279,8 @@ func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, ser
 	}
 	if groupID != nil {
 		updates["group_id"] = groupID
+	} else {
+		updates["group_id"] = sql.NullInt64{Int64: 0, Valid: false}
 	}
 	return r.db.Model(&model.Node{}).
 		Where("id = ?", id).

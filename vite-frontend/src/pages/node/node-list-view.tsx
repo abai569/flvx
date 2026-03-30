@@ -450,13 +450,13 @@ export function NodeListView({
     displayNodes.length > 0 && selectedIds.size === displayNodes.length;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
-      <Table
+    <Table
         aria-label="节点列表"
         classNames={{
-          th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+          th: "bg-default-100 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
           td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
           tr: "hover:bg-default-50/50 transition-colors",
+          wrapper: "p-0 shadow-none bg-transparent rounded-none",
         }}
       >
         <TableHeader>
@@ -501,6 +501,5 @@ export function NodeListView({
           ))}
         </TableBody>
       </Table>
-    </div>
   );
 }

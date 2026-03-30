@@ -66,6 +66,7 @@ type Node struct {
 	RenewalCycle            sql.NullString `gorm:"column:renewal_cycle;type:varchar(20)"`
 	Secret                  string         `gorm:"type:varchar(100);not null"`
 	ServerIP                string         `gorm:"column:server_ip;type:varchar(100);not null"`
+	ServerHost              sql.NullString `gorm:"column:server_host;type:varchar(100)"`
 	ServerIPV4              sql.NullString `gorm:"column:server_ip_v4;type:varchar(100)"`
 	ServerIPV6              sql.NullString `gorm:"column:server_ip_v6;type:varchar(100)"`
 	ExtraIPs                sql.NullString `gorm:"column:extra_ips;type:text"`

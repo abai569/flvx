@@ -390,20 +390,23 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UnixMilli()
 	var groupID interface{}
-	if _, ok := req["groupId"]; ok {
-		if gID, ok := req["groupId"].(float64); ok {
+	if groupIdRaw, ok := req["groupId"]; ok && groupIdRaw != nil {
+		if gID, ok := groupIdRaw.(float64); ok {
 			if gID > 0 {
 				groupID = int64(gID)
 			} else {
 				groupID = nil
 			}
 		}
+	} else {
+		groupID = nil
 	}
 	if err := h.repo.UpdateNode(id,
 		asString(req["name"]),
 		asString(req["serverIp"]),
 		nullableText(asString(req["serverIpV4"])),
 		nullableText(asString(req["serverIpV6"])),
+		nullableText(asString(req["serverHost"])),
 		defaultString(asString(req["port"]), "1000-65535"),
 		nullableText(asString(req["interfaceName"])),
 		nullableText(asString(req["extraIPs"])),
