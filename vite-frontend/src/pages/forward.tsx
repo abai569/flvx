@@ -4458,7 +4458,44 @@ export default function ForwardPage() {
                             </div>
                           </TableColumn>
                         )}
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn>
+                        {/* <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn> */}
+                        {isAdmin && (
+                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                            <Select
+                              aria-label="按用户筛选"
+                              variant="flat"
+                              size="sm"
+                              className="w-full min-w-[80px]"
+                              classNames={{
+                                trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                                value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                                selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                                innerWrapper: "w-fit flex-none",
+                                placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
+                              }}
+                              placeholder="所属用户"
+                              // 🎯 逻辑对齐：如果是 "all" 或者空，传 [] 让它显示 placeholder ("所属用户")
+                              selectedKeys={(!searchParams?.userId || searchParams.userId === "all") ? [] : [String(searchParams.userId)]}
+                              onSelectionChange={(keys) => {
+                                const key = Array.from(keys)[0] as string | undefined;
+                                setSearchParams((prev: any) => ({
+                                  ...prev,
+                                  userId: key || "all",
+                                }));
+                              }}
+                            >
+                              <SelectItem key="all" textValue="全部用户">全部用户</SelectItem>
+                              {(uniqueUsers || []).map((user: any) => (
+                                <SelectItem
+                                  key={user.id.toString()}
+                                  textValue={user.name}
+                                >
+                                  {user.name}
+                                </SelectItem>
+                              ))}
+                            </Select>
+                          </TableColumn>
+                        )}
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">规则名</TableColumn>
                         {/* {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>} */}
                         {isAdmin && (
@@ -4772,40 +4809,99 @@ export default function ForwardPage() {
                                               onValueChange={handleGroupToggle}
                                             />
                                           </div>
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">
-                                          排序
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[220px] text-left">
-                                          规则名
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                                          速度限制
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
-                                          入口地址
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
-                                          端口
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
-                                          落地地址
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
-                                          端口
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
-                                          用量
-                                        </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                                          状态
-                                        </TableColumn>
-                                        <TableColumn
-                                          align="left"
-                                          className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left"
-                                        >
-                                          操作
-                                        </TableColumn>
+                                          </TableColumn>
+                                          {/* <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn> */}
+                                          {isAdmin && (
+                                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                                              <Select
+                                                aria-label="按用户筛选"
+                                                variant="flat"
+                                                size="sm"
+                                                className="w-full min-w-[80px]"
+                                                classNames={{
+                                                  trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                                                  value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                                                  selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                                                  innerWrapper: "w-fit flex-none",
+                                                  placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
+                                                }}
+                                                placeholder="所属用户"
+                                                // 🎯 逻辑对齐：如果是 "all" 或者空，传 [] 让它显示 placeholder ("所属用户")
+                                                selectedKeys={(!searchParams?.userId || searchParams.userId === "all") ? [] : [String(searchParams.userId)]}
+                                                onSelectionChange={(keys) => {
+                                                  const key = Array.from(keys)[0] as string | undefined;
+                                                  setSearchParams((prev: any) => ({
+                                                    ...prev,
+                                                    userId: key || "all",
+                                                  }));
+                                                }}
+                                              >
+                                                <SelectItem key="all" textValue="全部用户">全部用户</SelectItem>
+                                                {(uniqueUsers || []).map((user: any) => (
+                                                  <SelectItem
+                                                    key={user.id.toString()}
+                                                    textValue={user.name}
+                                                  >
+                                                    {user.name}
+                                                  </SelectItem>
+                                                ))}
+                                              </Select>
+                                            </TableColumn>
+                                          )}
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">规则名</TableColumn>
+                                          {/* {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>} */}
+                                          {isAdmin && (
+                                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                                              <Select
+                                                aria-label="按限速规则筛选"
+                                                variant="flat"
+                                                size="sm"
+                                                // 🎯 修复1：加上 min-w 撑开基础宽度，防止挤压
+                                                className="w-full min-w-[100px]"
+                                                classNames={{
+                                                  trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                                                  value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                                                  selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                                                  innerWrapper: "w-fit flex-none",
+                                                  // 🎯 修复2：必须加上 placeholder 的样式！不然默认的 placeholder 会缩水变形
+                                                  placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
+                                                }}
+                                                placeholder="限速规则"
+                                                // 🎯 修复3：逻辑对齐。当没有选、或者选了 "all" 时，传入空数组 []，从而触发上面的 placeholder 显示
+                                                selectedKeys={!searchParams?.speedLimitId ? [] : [String(searchParams.speedLimitId)]}
+                                                onSelectionChange={(keys) => {
+                                                  const key = Array.from(keys)[0] as string | undefined;
+                                                  setSearchParams?.((prev: any) => ({
+                                                    ...prev,
+                                                    // 保持你后端的处理习惯，全选传 undefined，其它透传
+                                                    speedLimitId: (!key || key === "all") ? undefined : (key === "unlimited" ? "unlimited" : Number(key)),
+                                                  }));
+                                                }}
+                                              >
+                                                <SelectItem key="all" textValue="全部规则">全部规则</SelectItem>
+                                                <SelectItem key="unlimited" textValue="不限速">不限速</SelectItem>
+                                                {(availableSpeedLimits || []).map((speedLimit: any) => (
+                                                  <SelectItem
+                                                    key={speedLimit.id.toString()}
+                                                    textValue={speedLimit.name || `限速${speedLimit.speed}M`}
+                                                  >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                      <span>{speedLimit.name || `限速${speedLimit.speed}`}</span>
+                                                      <span className="text-default-400 text-xs">({speedLimit.speed}M)</span>
+                                                    </div>
+                                                  </SelectItem>
+                                                ))}
+                                              </Select>
+                                            </TableColumn>
+                                          )}
+                                          
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">入口地址</TableColumn>
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
+                                          <TableColumn align="left" className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left">操作</TableColumn>
                                       </TableHeader>
                                       <TableBody
                                         emptyContent="暂无规则配置"

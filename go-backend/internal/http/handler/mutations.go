@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -2075,6 +2076,10 @@ func (h *Handler) forwardPause(w http.ResponseWriter, r *http.Request) {
 	if err := h.controlForwardServices(forward, "PauseService", false); err != nil {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
+	}
+	// 断开已建立的连接
+	if err := h.controlForwardServices(forward, "TerminateConnections", false); err != nil {
+		log.Printf("断开连接失败：%v", err)
 	}
 
 	user, err := h.repo.GetUserByID(id)

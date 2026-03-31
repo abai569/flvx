@@ -466,6 +466,8 @@ func (h *Handler) pauseForwardRecords(forwards []forwardRecord, now int64) {
 	for i := range forwards {
 		forward := forwards[i]
 		_ = h.controlForwardServices(&forward, "PauseService", false)
+		// 断开已建立的连接，防止流量继续超额
+		_ = h.controlForwardServices(&forward, "TerminateConnections", false)
 		_ = h.repo.UpdateForwardStatus(forward.ID, 0, now)
 	}
 }
