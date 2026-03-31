@@ -1930,19 +1930,7 @@ export default function NodePage() {
                           </div>
                         )}
 
-                        {hasRemark && (
-                          <div className="space-y-2">
-                            <div className="text-[11px] font-medium text-default-500">
-                              备注
-                            </div>
-                            <div
-                              className="max-h-32 overflow-y-auto rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700 break-all [scrollbar-width:thin]"
-                              title={node.remark?.trim()}
-                            >
-                              {node.remark?.trim()}
-                            </div>
-                          </div>
-                        )}
+
                       </div>
                     </div>
                   </div>
@@ -1964,7 +1952,7 @@ export default function NodePage() {
           </div>
         </CardHeader>
 
-        <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3 flex-1 flex flex-col">
+        <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
           {isRemoteNode && node.syncError && (
             <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
               {getRemoteSyncErrorMessage(node.syncError)}
@@ -2224,7 +2212,7 @@ export default function NodePage() {
             </>
           )}
 
-          <div className="mt-auto space-y-3">
+          <div className="space-y-3">
             <div className="space-y-1.5">
               {!isRemoteNode && (
                 <div className="grid grid-cols-3 gap-1.5">
@@ -2289,6 +2277,20 @@ export default function NodePage() {
               </div>
             </div>
           </div>
+
+          {/* 备注 */}
+          {node.remark?.trim() && (
+            <div className="mt-2 pt-2 border-t border-divider">
+              <div className="flex items-center text-xs text-default-500">
+                <span className="font-medium text-red-500 flex-shrink-0">备注：</span>
+                {/* 加上 title 属性，这样虽然截断了，但鼠标悬浮依然可以查看完整内容 */}
+                <span className="truncate ml-1" title={node.remark.trim()}>
+                  {node.remark.trim()}
+                </span>
+              </div>
+            </div>
+          )}
+
         </CardBody>
       </Card>
     );
@@ -2903,7 +2905,7 @@ export default function NodePage() {
                   aria-label="高级配置"
                   title="高级配置"
                 >
-                  <div className="space-y-4 pb-2">
+                  <div className="space-y-4 pb-2 px-[12px]">
                     <Input
                       description="用于多IP服务器指定使用那个IP请求远程地址，不懂的默认为空就行"
                       errorMessage={errors.interfaceName}
