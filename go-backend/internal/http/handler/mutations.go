@@ -3419,6 +3419,10 @@ func shouldDeferTunnelRuntimeApplyError(err error) bool {
 	return false
 }
 
+func isNodeOfflineOrTimeoutError(err error) bool {
+	return shouldDeferTunnelRuntimeApplyError(err)
+}
+
 func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRuntimeNode, nodes map[int64]*nodeRecord, ipPreference string) (map[string]interface{}, error) {
 	fromNode := nodes[fromNodeID]
 	if fromNode == nil {
