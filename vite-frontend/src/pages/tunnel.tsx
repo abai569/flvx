@@ -2460,97 +2460,99 @@ export default function TunnelPage() {
                   <Divider />
                   <h3 className="text-lg font-semibold">入口配置</h3>
 
-                  <div className="space-y-2">
-                    <Select
-                      disabledKeys={
-                        isEdit
-                          ? (() => {
-                            console.log('编辑模式，disabledKeys 应该为空数组:', []);
-                            return [];
-                          })()
-                          : [
-                            // 新建时禁用离线节点
-                            ...nodes
-                              .filter((node) => node.status !== 1)
-                              .map((node) => node.id.toString()),
-                            ...(form.outNodeId || []).map((ct) =>
-                              ct.nodeId.toString(),
-                            ),
-                            ...getSelectedChainNodeIds().map((id) => id.toString()),
-                          ]
-                      }
-                      errorMessage={errors.inNodeId}
-                      isInvalid={!!errors.inNodeId}
-                      label="入口节点"
-                      placeholder="请选择入口节点（可多选）"
-                      selectedKeys={form.inNodeId.map((ct) =>
-                        ct.nodeId.toString(),
-                      )}
-                      selectionMode="multiple"
-                      variant="bordered"
-                      onSelectionChange={(keys) => {
-                        const selectedIds = toSelectedNodeIds(keys);
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                    {/* 节点选择 - 移动端100%，桌面端50% */}
+                    <div className="col-span-1 md:col-span-2">
+                      <Select
+                        disabledKeys={
+                          isEdit
+                            ? (() => {
+                              console.log('编辑模式，disabledKeys 应该为空数组:', []);
+                              return [];
+                            })()
+                            : [
+                              // 新建时禁用离线节点
+                              ...nodes
+                                .filter((node) => node.status !== 1)
+                                .map((node) => node.id.toString()),
+                              ...(form.outNodeId || []).map((ct) =>
+                                ct.nodeId.toString(),
+                              ),
+                              ...getSelectedChainNodeIds().map((id) => id.toString()),
+                            ]
+                        }
+                        errorMessage={errors.inNodeId}
+                        isInvalid={!!errors.inNodeId}
+                        label="入口节点"
+                        placeholder="请选择入口节点（可多选）"
+                        selectedKeys={form.inNodeId.map((ct) =>
+                          ct.nodeId.toString(),
+                        )}
+                        selectionMode="multiple"
+                        variant="bordered"
+                        onSelectionChange={(keys) => {
+                          const selectedIds = toSelectedNodeIds(keys);
 
-                        setForm((prev) => {
-                          let nextInIp = prev.inIp;
+                          setForm((prev) => {
+                            let nextInIp = prev.inIp;
 
-                          // 🎯 终极智能逻辑：如果是新增隧道，或者用户在编辑时把“入口地址”主动清空了，就触发自动抓取
-                          if (!isEdit || !prev.inIp.trim()) {
-                            const autoIps = selectedIds.map(id => {
-                              const n = nodes.find(item => item.id === id);
-                              if (!n) return "";
-                              // 绝对优先级：域名优先，没有域名找v4，最后找v6或兼容IP
-                              return (n.serverHost || n.serverIpV4 || n.serverIpV6 || n.serverIp || "").trim();
-                            }).filter(Boolean);
-                            nextInIp = autoIps.join("\n");
-                          }
+                            // 🎯 终极智能逻辑：如果是新增隧道，或者用户在编辑时把“入口地址”主动清空了，就触发自动抓取
+                            if (!isEdit || !prev.inIp.trim()) {
+                              const autoIps = selectedIds.map(id => {
+                                const n = nodes.find(item => item.id === id);
+                                if (!n) return "";
+                                // 绝对优先级：域名优先，没有域名找v4，最后找v6或兼容IP
+                                return (n.serverHost || n.serverIpV4 || n.serverIpV6 || n.serverIp || "").trim();
+                              }).filter(Boolean);
+                              nextInIp = autoIps.join("\n");
+                            }
 
-                          return {
-                            ...prev,
-                            inIp: nextInIp, // 自动填入入口地址框
-                            inNodeId: mergeOrderedNodes(
-                              prev.inNodeId,
-                              selectedIds,
-                              (nodeId) => ({ nodeId, chainType: 1 }),
-                            ),
-                          };
-                        });
-                      }}
-                    >
-                      {nodes.map((node) => (
-                        <SelectItem key={node.id} textValue={node.remark ? `${node.name} (${node.remark})` : node.name}>
-                          <div className="flex items-center justify-between">
-                            <span>{node.name}{node.remark && <span className="text-xs text-default-400 ml-1">({node.remark})</span>}</span>
-                            <div className="flex items-center gap-2">
-                              <Chip
-                                color={
-                                  node.status === 1 ? "success" : "default"
-                                }
-                                size="sm"
-                                variant="flat"
-                              >
-                                {node.status === 1 ? "在线" : "离线"}
-                              </Chip>
-                              {form.outNodeId &&
-                                form.outNodeId.some(
-                                  (ct) => ct.nodeId === node.id,
-                                ) && (
-                                  <Chip color="danger" size="sm" variant="flat">
-                                    已选为出口
+                            return {
+                              ...prev,
+                              inIp: nextInIp, // 自动填入入口地址框
+                              inNodeId: mergeOrderedNodes(
+                                prev.inNodeId,
+                                selectedIds,
+                                (nodeId) => ({ nodeId, chainType: 1 }),
+                              ),
+                            };
+                          });
+                        }}
+                      >
+                        {nodes.map((node) => (
+                          <SelectItem key={node.id} textValue={node.remark ? `${node.name} (${node.remark})` : node.name}>
+                            <div className="flex items-center justify-between">
+                              <span>{node.name}{node.remark && <span className="text-xs text-default-400 ml-1">({node.remark})</span>}</span>
+                              <div className="flex items-center gap-2">
+                                <Chip
+                                  color={
+                                    node.status === 1 ? "success" : "default"
+                                  }
+                                  size="sm"
+                                  variant="flat"
+                                >
+                                  {node.status === 1 ? "在线" : "离线"}
+                                </Chip>
+                                {form.outNodeId &&
+                                  form.outNodeId.some(
+                                    (ct) => ct.nodeId === node.id,
+                                  ) && (
+                                    <Chip color="danger" size="sm" variant="flat">
+                                      已选为出口
+                                    </Chip>
+                                  )}
+                                {getSelectedChainNodeIds().includes(node.id) && (
+                                  <Chip color="primary" size="sm" variant="flat">
+                                    已选为转发链
                                   </Chip>
                                 )}
-                              {getSelectedChainNodeIds().includes(node.id) && (
-                                <Chip color="primary" size="sm" variant="flat">
-                                  已选为转发链
-                                </Chip>
-                              )}
+                              </div>
                             </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </Select>
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    </div>
                   </div>
-
                   {/* 隧道转发时显示转发链配置 */}
                   {form.type === 2 && (
                     <>
