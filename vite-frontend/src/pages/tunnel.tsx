@@ -2397,72 +2397,12 @@ export default function TunnelPage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Textarea
-                      classNames={{
-                        inputWrapper: "!min-h-[20px] py-1.5",
-                        input: "!min-h-[20px]",
-                      }}
-                      description=""
-                      errorMessage={errors.inIp}
-                      isInvalid={!!errors.inIp}
-                      label="入口地址"
-                      rows={2}
-                      placeholder="支持多个地址，每行一个地址，留空则自动获取入口节点地址"
-                      value={form.inIp}
-                      variant="bordered"
-                      onChange={(e) =>
-                        setForm((prev) => ({ ...prev, inIp: e.target.value }))
-                      }
-                    />
-
-                    {/* 🎯 预警 UI：只要发现地址过期，立刻显示同步按钮 */}
-                    {isEdit && isInIpOutdated && (
-                      <div className="flex items-center justify-between bg-warning-50 dark:bg-warning-900/20 px-3 py-2 rounded-lg border border-warning-200 dark:border-warning-700/50 transition-all animate-appearance-in">
-                        <span className="text-xs text-warning-600 dark:text-warning-400 font-medium flex items-center gap-1.5">
-                          <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                          检测到隧道入口 域名/IP 有变动
-                        </span>
-                        <Button
-                          size="sm"
-                          color="warning"
-                          variant="flat"
-                          className="h-6 min-h-0 text-xs px-2.5 rounded-md"
-                          onPress={() => setForm(prev => ({ ...prev, inIp: expectedInIps }))}
-                        >
-                          一键同步
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  {form.type === 2 && (
-                    <Select
-                      description="当节点同时拥有IPv4和IPv6地址时，选择隧道连接使用的地址类型"
-                      label="隧道连接地址偏好"
-                      placeholder="自动选择"
-                      selectedKeys={[form.ipPreference || ""]}
-                      variant="bordered"
-                      onSelectionChange={(keys) => {
-                        const selectedKey = Array.from(keys)[0] as string;
-
-                        setForm((prev) => ({
-                          ...prev,
-                          ipPreference: selectedKey || "",
-                        }));
-                      }}
-                    >
-                      <SelectItem key="v4">优先IPv4</SelectItem>
-                      <SelectItem key="v6">优先IPv6</SelectItem>
-                    </Select>
-                  )}
-
                   <Divider />
                   <h3 className="text-lg font-semibold">入口配置</h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                     {/* 节点选择 - 移动端100%，桌面端50% */}
-                    <div className="col-span-1 md:col-span-2">
+                    <div className="col-span-1 md:col-span-4">
                       <Select
                         disabledKeys={
                           isEdit
@@ -2553,6 +2493,46 @@ export default function TunnelPage() {
                       </Select>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Textarea
+                      classNames={{
+                        inputWrapper: "!min-h-[20px] py-1.5",
+                        input: "!min-h-[20px]",
+                      }}
+                      description=""
+                      errorMessage={errors.inIp}
+                      isInvalid={!!errors.inIp}
+                      label="入口地址"
+                      rows={2}
+                      placeholder="支持多个地址，每行一个地址，留空则自动获取入口节点地址"
+                      value={form.inIp}
+                      variant="bordered"
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, inIp: e.target.value }))
+                      }
+                    />
+
+                    {/* 🎯 预警 UI：只要发现地址过期，立刻显示同步按钮 */}
+                    {isEdit && isInIpOutdated && (
+                      <div className="flex items-center justify-between bg-warning-50 dark:bg-warning-900/20 px-3 py-2 rounded-lg border border-warning-200 dark:border-warning-700/50 transition-all animate-appearance-in">
+                        <span className="text-xs text-warning-600 dark:text-warning-400 font-medium flex items-center gap-1.5">
+                          <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                          检测到隧道入口 域名/IP 有变动
+                        </span>
+                        <Button
+                          size="sm"
+                          color="warning"
+                          variant="flat"
+                          className="h-6 min-h-0 text-xs px-2.5 rounded-md"
+                          onPress={() => setForm(prev => ({ ...prev, inIp: expectedInIps }))}
+                        >
+                          一键同步
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* 隧道转发时显示转发链配置 */}
                   {form.type === 2 && (
                     <>
@@ -2948,7 +2928,7 @@ export default function TunnelPage() {
                     </>
                   )}
 
-                  {/* 隧道转发时显示出口配置 */}
+                  {/* 隧道转发时显示隧道连接地址偏好 */}
                   {form.type === 2 && (
                     <>
                       <Divider />
@@ -3314,6 +3294,27 @@ export default function TunnelPage() {
                         );
                       })()}
                     </>
+                  )}
+
+                  {form.type === 2 && (
+                    <Select
+                      description="当节点同时拥有IPv4和IPv6地址时，选择隧道连接使用的地址类型"
+                      label="隧道连接地址偏好"
+                      placeholder="自动选择"
+                      selectedKeys={[form.ipPreference || ""]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as string;
+
+                        setForm((prev) => ({
+                          ...prev,
+                          ipPreference: selectedKey || "",
+                        }));
+                      }}
+                    >
+                      <SelectItem key="v4">优先IPv4</SelectItem>
+                      <SelectItem key="v6">优先IPv6</SelectItem>
+                    </Select>
                   )}
                 </div>
               </ModalBody>
