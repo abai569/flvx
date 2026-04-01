@@ -1149,10 +1149,10 @@ export default function ConfigPage() {
         </CardBody>
       </Card>
 
-      {/* 主题设置 */}
+      {/* 主题设置
       <div className="mt-6 shadow-md">
         <ThemeSettings />
-      </div>
+      </div> */}
 
       {/* 备份与恢复 */}
       <Card className="mt-6 shadow-md">

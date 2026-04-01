@@ -122,7 +122,7 @@ func resolveGitHubProxyURLs(repo interface {
 	GetConfigByName(string) (*model.ViteConfig, error)
 }) []string {
 	if repo == nil {
-		return []string{"https://gcode.hostcentral.cc"}
+		return []string{"https://git-proxy.abai.eu.org"}
 	}
 
 	enabledCfg, _ := repo.GetConfigByName("github_proxy_enabled")
@@ -133,12 +133,12 @@ func resolveGitHubProxyURLs(repo interface {
 
 	urlsCfg, _ := repo.GetConfigByName("github_proxy_urls")
 	if urlsCfg == nil || urlsCfg.Value == "" {
-		return []string{"https://gcode.hostcentral.cc"}
+		return []string{"https://git-proxy.abai.eu.org"}
 	}
 
 	var urls []string
 	if err := json.Unmarshal([]byte(urlsCfg.Value), &urls); err != nil {
-		return []string{"https://gcode.hostcentral.cc"}
+		return []string{"https://git-proxy.abai.eu.org"}
 	}
 
 	var filtered []string
@@ -149,7 +149,7 @@ func resolveGitHubProxyURLs(repo interface {
 		}
 	}
 	if len(filtered) == 0 {
-		return []string{"https://gcode.hostcentral.cc"}
+		return []string{"https://git-proxy.abai.eu.org"}
 	}
 	return filtered
 }

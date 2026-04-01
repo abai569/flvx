@@ -39,7 +39,7 @@ maybe_proxy_url() {
       fi
     done
   fi
-  echo "https://gcode.hostcentral.cc/${url}"
+  echo "https://git-proxy.abai.eu.org/${url}"
 }
 
 
