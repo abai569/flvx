@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 // 👇 加上这一行，引入动画组件
 import { AnimatePresence, motion } from "framer-motion";
-import toast from "react-hot-toast";
-
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -193,7 +192,7 @@ const getInitialConfigs = (): Record<string, string> => {
         initialConfigs[key] = cachedValue;
       }
     });
-  } catch { }
+  } catch {}
 
   return initialConfigs;
 };
@@ -548,10 +547,11 @@ export default function ConfigPage() {
 
     return (
       <div
-        className={`rounded-lg border p-3 ${isChanged
-          ? "border-warning-300"
-          : "border-default-200 dark:border-default-100/30"
-          }`}
+        className={`rounded-lg border p-3 ${
+          isChanged
+            ? "border-warning-300"
+            : "border-default-200 dark:border-default-100/30"
+        }`}
       >
         <input
           ref={getBrandInputRef(key)}
@@ -802,10 +802,11 @@ export default function ConfigPage() {
               <button
                 key={option.value}
                 aria-pressed={isSelected}
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${isSelected
-                  ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
-                  : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
-                  }`}
+                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${
+                  isSelected
+                    ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
+                    : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
+                }`}
                 type="button"
                 onClick={() => toggleTypeSelection(option.value, setTypes)}
               >
@@ -819,10 +820,11 @@ export default function ConfigPage() {
                     size="md"
                   />
                   <span
-                    className={`font-medium ${isSelected
-                      ? "text-default-900 dark:text-default-100"
-                      : "text-default-700 dark:text-default-500"
-                      }`}
+                    className={`font-medium ${
+                      isSelected
+                        ? "text-default-900 dark:text-default-100"
+                        : "text-default-700 dark:text-default-500"
+                    }`}
                   >
                     {option.label}
                   </span>
@@ -896,7 +898,7 @@ export default function ConfigPage() {
             return (
               <div key={item.key} className="space-y-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                     {item.label}
                   </label>
                   {item.description && (
@@ -918,8 +920,8 @@ export default function ConfigPage() {
           <Divider className="my-2" />
 
           <div className="space-y-3">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div className="flex flex-col gap-1 mt-5">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 更新通道
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1033,8 +1035,14 @@ export default function ConfigPage() {
           ) : (
             <>
               {/* 👇 下面变得非常清爽，只剩下输入框和保存按钮 */}
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                公告内容
+                <span className="ml-2 text-xs text-gray-400 dark:text-gray-500 font-normal">
+                  公告支持 Markdown 语法，链接会在新标签页打开
+                </span>
+              </p>
               <Textarea
-                label="公告内容"
+                label=""
                 minRows={4}
                 placeholder="支持 Markdown，例如：**加粗**、[链接](https://example.com)、- 列表"
                 value={announcement.content}
@@ -1043,10 +1051,7 @@ export default function ConfigPage() {
                   setAnnouncement({ ...announcement, content: e.target.value })
                 }
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                公告支持 Markdown 语法，链接会在新标签页打开
-              </p>
-
+              
               <div className="flex justify-end mt-2 pt-4 border-t border-divider/50">
                 <Button
                   color="primary"
@@ -1079,16 +1084,16 @@ export default function ConfigPage() {
 
         <CardBody className="space-y-6 pt-8 md:pt-8">
           {/* 导出部分 */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">导出数据</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              选择要导出的数据类型，导出为 JSON 格式文件
-            </p>
-            <p className="text-xs text-default-500">
-              当前已选 {exportTypes.length} / {BACKUP_TYPE_VALUES.length}
-            </p>
+          <div className="flex justify-between items-start gap-4">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-medium">导出数据</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                选择要导出的数据类型，导出为 JSON 格式文件
+              </p>
+              {/* 🎯 计数的 <p> 标签已经被干掉了 */}
+            </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex-shrink-0">
               <Button
                 color="primary"
                 isLoading={exporting}
@@ -1102,14 +1107,19 @@ export default function ConfigPage() {
           <Divider />
 
           {/* 导入部分 */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">导入数据</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              选择要导入的数据类型，支持从备份文件恢复数据
-            </p>
-            <p className="text-xs text-default-500">
-              当前已选 {importTypes.length} / {BACKUP_TYPE_VALUES.length}
-            </p>
+          <div className="flex justify-between items-start gap-4">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-medium">导入数据</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                选择要导入的数据类型，支持从备份文件恢复数据
+              </p>
+              {/* 🎯 计数的 <p> 标签已经被干掉了 */}
+              {importFileName && (
+                <p className="text-xs text-primary">
+                  已选择: {importFileName}
+                </p>
+              )}
+            </div>
 
             <input
               ref={backupFileInputRef}
@@ -1119,7 +1129,7 @@ export default function ConfigPage() {
               onChange={handleFileChange}
             />
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex-shrink-0">
               <Button
                 color="primary"
                 isLoading={importing}
@@ -1128,11 +1138,6 @@ export default function ConfigPage() {
               >
                 {importing ? "导入中..." : "选择并导入"}
               </Button>
-              {importFileName && (
-                <span className="self-center text-sm text-gray-600 dark:text-gray-400">
-                  已选择: {importFileName}
-                </span>
-              )}
             </div>
           </div>
         </CardBody>
