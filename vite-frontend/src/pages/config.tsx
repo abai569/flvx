@@ -85,6 +85,21 @@ const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
 // 网站配置项定义
 const CONFIG_ITEMS: ConfigItem[] = [
   {
+    key: "github_proxy_enabled",
+    label: "启用镜像加速",
+    description: "开启后，节点安装和升级时将使用镜像代理下载，支持国内网络环境",
+    type: "switch",
+  },
+  {
+    key: "github_proxy_urls",
+    label: "镜像加速地址",
+    placeholder: "每行一个代理地址，按优先级排列",
+    description: "每行一个地址，前面的地址失效时自动轮换下一个。默认: https://gcode.hostcentral.cc",
+    type: "input",
+    dependsOn: "github_proxy_enabled",
+    dependsValue: "true",
+  },
+  {
     key: "ip",
     label: "面板后端地址",
     placeholder: "请输入面板后端IP:PORT",
@@ -177,6 +192,8 @@ const getInitialConfigs = (): Record<string, string> => {
     "cloudflare_site_key",
     "cloudflare_secret_key",
     "forward_compact_mode",
+    "github_proxy_enabled",
+    "github_proxy_urls",
     "ip",
     "panel_domain",
     "app_logo",
@@ -192,7 +209,7 @@ const getInitialConfigs = (): Record<string, string> => {
         initialConfigs[key] = cachedValue;
       }
     });
-  } catch {}
+  } catch { }
 
   return initialConfigs;
 };
@@ -547,11 +564,10 @@ export default function ConfigPage() {
 
     return (
       <div
-        className={`rounded-lg border p-3 ${
-          isChanged
-            ? "border-warning-300"
-            : "border-default-200 dark:border-default-100/30"
-        }`}
+        className={`rounded-lg border p-3 ${isChanged
+          ? "border-warning-300"
+          : "border-default-200 dark:border-default-100/30"
+          }`}
       >
         <input
           ref={getBrandInputRef(key)}
@@ -612,6 +628,44 @@ export default function ConfigPage() {
       case "input":
         if (isBrandPreviewKey(item.key)) {
           return renderBrandAssetUploader(item.key, isChanged);
+        }
+
+        if (item.key === "github_proxy_urls") {
+          const rawValue = configs[item.key] || "";
+          let displayValue = "";
+          try {
+            const urls = JSON.parse(rawValue);
+            if (Array.isArray(urls)) {
+              displayValue = urls.join("\n");
+            } else {
+              displayValue = rawValue;
+            }
+          } catch {
+            displayValue = rawValue;
+          }
+
+          return (
+            <Textarea
+              classNames={{
+                inputWrapper: isChanged
+                  ? "border-warning-300 data-[hover=true]:border-warning-400"
+                  : "",
+                input: "font-mono text-sm",
+              }}
+              minRows={3}
+              placeholder={"https://gcode.hostcentral.cc\nhttps://another-proxy.com"}
+              size="md"
+              value={displayValue}
+              variant="bordered"
+              onChange={(e) => {
+                const lines = e.target.value
+                  .split("\n")
+                  .map((l) => l.trim())
+                  .filter((l) => l.length > 0);
+                handleConfigChange(item.key, JSON.stringify(lines));
+              }}
+            />
+          );
         }
 
         return (
@@ -809,11 +863,10 @@ export default function ConfigPage() {
               <button
                 key={option.value}
                 aria-pressed={isSelected}
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${
-                  isSelected
-                    ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
-                    : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
-                }`}
+                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${isSelected
+                  ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
+                  : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
+                  }`}
                 type="button"
                 onClick={() => toggleTypeSelection(option.value, setTypes)}
               >
@@ -827,11 +880,10 @@ export default function ConfigPage() {
                     size="md"
                   />
                   <span
-                    className={`font-medium ${
-                      isSelected
-                        ? "text-default-900 dark:text-default-100"
-                        : "text-default-700 dark:text-default-500"
-                    }`}
+                    className={`font-medium ${isSelected
+                      ? "text-default-900 dark:text-default-100"
+                      : "text-default-700 dark:text-default-500"
+                      }`}
                   >
                     {option.label}
                   </span>
@@ -903,20 +955,29 @@ export default function ConfigPage() {
             const isLastItem = remainingItems.length === 0;
 
             return (
-              <div key={item.key} className="space-y-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    {item.label}
-                  </label>
-                  {item.description && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {item.description}
-                    </p>
-                  )}
-                </div>
+              <div key={item.key}>
+                {/* 🎯 如果是开关(switch)，使用 justify-between 左右排列；如果是其他，使用 space-y-3 上下排列 */}
+                <div className={item.type === "switch" ? "flex justify-between items-center gap-4" : "space-y-3"}>
 
-                {/* 渲染配置项 */}
-                {renderConfigItem(item)}
+                  {/* 左侧：标题和描述 */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      {item.label}
+                    </label>
+                    {item.description && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 右侧/下方：配置组件 */}
+                  {/* flex-shrink-0 防止开关被长文本挤变形 */}
+                  <div className={item.type === "switch" ? "flex-shrink-0" : ""}>
+                    {renderConfigItem(item)}
+                  </div>
+
+                </div>
 
                 {/* 分隔线 */}
                 {!isLastItem && <Divider className="mt-6" />}
@@ -968,40 +1029,54 @@ export default function ConfigPage() {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 100, opacity: 0 }}
                 transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                className="sticky bottom-8 z-50 flex justify-end pointer-events-none mt-6"
+                className="sticky fixed bottom-8 z-50 pointer-events-none flex justify-end mt-6"
               >
-                <Button
-                  className="rounded-full shadow-2xl px-6 font-medium text-white pointer-events-auto"
-                  color="primary"
-                  size="lg"
-                  isLoading={saving}
-                  startContent={!saving && <SaveIcon className="w-5 h-5" />}
-                  onPress={handleSave}
-                >
-                  保存配置
-                </Button>
+                {/* 内部容器添加 pointer-events-auto */}
+                <div className="pointer-events-auto flex items-center gap-3 bg-white dark:bg-default-900 rounded-full shadow-2xl border border-default-200 dark:border-default-700 px-5 py-3">
+                  {/* 提示图标 */}
+                  <div className="flex items-center gap-2 text-warning-600 dark:text-warning-400">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      配置已变更
+                    </span>
+                  </div>
+
+                  {/* 分隔线 */}
+                  <div className="w-px h-5 bg-default-200 dark:bg-default-700" />
+
+                  {/* 保存按钮 */}
+                  <Button
+                    className="rounded-full font-medium text-white min-w-[100px]"
+                    color="primary"
+                    size="sm"
+                    isLoading={saving}
+                    startContent={!saving && (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    onPress={handleSave}
+                  >
+                    {saving ? "保存中" : "保存"}
+                  </Button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </CardBody>
       </Card>
-
-      {/* 主题设置 */}
-      <div className="mt-6 shadow-md">
-        <ThemeSettings />
-      </div>
-
-      {hasChanges && (
-        <Card className="mt-4 bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800 shadow-sm overflow-hidden">
-          <div className="h-10 flex items-center justify-center gap-2 text-warning-700 dark:text-warning-300">
-            <div className="w-2 h-2 bg-warning-500 rounded-full animate-pulse flex-shrink-0" />
-            <span className="text-sm font-medium leading-none">
-              检测到配置变更，请记得保存您的修改
-            </span>
-          </div>
-        </Card>
-      )}
-
       <Card className="mt-6 shadow-md">
         <CardHeader className="pb-6">
           <div className="flex justify-between items-center w-full gap-4">
@@ -1058,7 +1133,7 @@ export default function ConfigPage() {
                   setAnnouncement({ ...announcement, content: e.target.value })
                 }
               />
-              
+
               <div className="flex justify-end mt-2 pt-4 border-t border-divider/50">
                 <Button
                   color="primary"
@@ -1073,6 +1148,11 @@ export default function ConfigPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* 主题设置 */}
+      <div className="mt-6 shadow-md">
+        <ThemeSettings />
+      </div>
 
       {/* 备份与恢复 */}
       <Card className="mt-6 shadow-md">

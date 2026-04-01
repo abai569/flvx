@@ -484,7 +484,22 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/abai569/flvx/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, version, processServerAddress(panelAddr), secret)
+
+	proxies := resolveGitHubProxyURLs(h.repo)
+	installPath := fmt.Sprintf("%s/%s/releases/download/%s/install.sh", githubHTMLBase, githubRepo, version)
+
+	var cmd string
+	if len(proxies) == 0 {
+		cmd = fmt.Sprintf("curl -L %s -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", installPath, version, processServerAddress(panelAddr), secret)
+	} else {
+		primaryProxy := proxies[0]
+		proxyInstallURL := buildProxyURL(primaryProxy, installPath)
+
+		proxyEnvStr := strings.Join(proxies, ",")
+		proxyEnv := fmt.Sprintf("GITHUB_PROXY=\"%s\" ", proxyEnvStr)
+
+		cmd = fmt.Sprintf("curl -L %s -o ./install.sh && chmod +x ./install.sh && %sVERSION=%s ./install.sh -a %s -s %s", proxyInstallURL, proxyEnv, version, processServerAddress(panelAddr), secret)
+	}
 	response.WriteJSON(w, response.OK(cmd))
 }
 

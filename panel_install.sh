@@ -14,9 +14,15 @@ REPO="abai569/flvx"
 PINNED_VERSION=""
 
 # 镜像加速（所有下载均经过镜像源，以支持 IPv6）
+# maybe_proxy_url() {
+#  local url="$1"
+#   echo "https://gcode.hostcentral.cc/${url}"
+# }
+
+# 取消镜像加速，直接返回原地址
 maybe_proxy_url() {
   local url="$1"
-  echo "https://gcode.hostcentral.cc/${url}"
+  echo "${url}"
 }
 
 resolve_latest_release_tag() {

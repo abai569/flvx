@@ -26,10 +26,22 @@ get_architecture() {
 INSTALL_DIR="/etc/flux_agent"
 
 # 镜像加速（所有下载均经过镜像源，以支持 IPv6）
+# 支持 GITHUB_PROXY 环境变量传入代理地址（逗号分隔多个，按顺序尝试）
 maybe_proxy_url() {
   local url="$1"
+  if [[ -n "$GITHUB_PROXY" ]]; then
+    IFS=',' read -ra PROXIES <<< "$GITHUB_PROXY"
+    for proxy in "${PROXIES[@]}"; do
+      proxy=$(echo "$proxy" | xargs)
+      if [[ -n "$proxy" ]]; then
+        echo "${proxy}/${url}"
+        return 0
+      fi
+    done
+  fi
   echo "https://gcode.hostcentral.cc/${url}"
 }
+
 
 resolve_latest_release_tag() {
   local effective_url tag api_tag latest_url api_url

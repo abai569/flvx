@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"go-backend/internal/http/response"
+	"go-backend/internal/store/model"
 )
 
 const (
 	githubRepo     = "abai569/flvx"
-	githubProxy    = "https://gcode.hostcentral.cc"
 	githubAPIBase  = "https://api.github.com"
 	githubHTMLBase = "https://github.com"
 	upgradeTimeout = 5 * time.Minute
@@ -118,6 +118,47 @@ func resolveLatestReleaseByChannel(channel string) (string, error) {
 	return "", fmt.Errorf("未找到%s版本号", releaseChannelLabel(normalizedChannel))
 }
 
+func resolveGitHubProxyURLs(repo interface {
+	GetConfigByName(string) (*model.ViteConfig, error)
+}) []string {
+	if repo == nil {
+		return []string{"https://gcode.hostcentral.cc"}
+	}
+
+	enabledCfg, _ := repo.GetConfigByName("github_proxy_enabled")
+	enabled := enabledCfg == nil || enabledCfg.Value == "" || enabledCfg.Value == "true"
+	if !enabled {
+		return nil
+	}
+
+	urlsCfg, _ := repo.GetConfigByName("github_proxy_urls")
+	if urlsCfg == nil || urlsCfg.Value == "" {
+		return []string{"https://gcode.hostcentral.cc"}
+	}
+
+	var urls []string
+	if err := json.Unmarshal([]byte(urlsCfg.Value), &urls); err != nil {
+		return []string{"https://gcode.hostcentral.cc"}
+	}
+
+	var filtered []string
+	for _, u := range urls {
+		u = strings.TrimSpace(u)
+		if u != "" {
+			filtered = append(filtered, u)
+		}
+	}
+	if len(filtered) == 0 {
+		return []string{"https://gcode.hostcentral.cc"}
+	}
+	return filtered
+}
+
+func buildProxyURL(proxy, path string) string {
+	proxy = strings.TrimRight(proxy, "/")
+	return fmt.Sprintf("%s/%s", proxy, strings.TrimLeft(path, "/"))
+}
+
 func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -149,14 +190,28 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	downloadURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}",
-		githubHTMLBase, githubRepo, version,
-	)
-	checksumURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-		githubHTMLBase, githubRepo, version,
-	)
+	proxies := resolveGitHubProxyURLs(h.repo)
+	var downloadURL, checksumURL string
+	if len(proxies) == 0 {
+		downloadURL = fmt.Sprintf(
+			"%s/%s/releases/download/%s/gost-{ARCH}",
+			githubHTMLBase, githubRepo, version,
+		)
+		checksumURL = fmt.Sprintf(
+			"%s/%s/releases/download/%s/gost-{ARCH}.sha256",
+			githubHTMLBase, githubRepo, version,
+		)
+	} else {
+		primaryProxy := proxies[0]
+		downloadURL = buildProxyURL(primaryProxy, fmt.Sprintf(
+			"%s/%s/releases/download/%s/gost-{ARCH}",
+			githubHTMLBase, githubRepo, version,
+		))
+		checksumURL = buildProxyURL(primaryProxy, fmt.Sprintf(
+			"%s/%s/releases/download/%s/gost-{ARCH}.sha256",
+			githubHTMLBase, githubRepo, version,
+		))
+	}
 
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
 		"downloadUrl": downloadURL,
@@ -213,14 +268,28 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	downloadURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}",
-		githubHTMLBase, githubRepo, version,
-	)
-	checksumURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-		githubHTMLBase, githubRepo, version,
-	)
+	proxies := resolveGitHubProxyURLs(h.repo)
+	var downloadURL, checksumURL string
+	if len(proxies) == 0 {
+		downloadURL = fmt.Sprintf(
+			"%s/%s/releases/download/%s/gost-{ARCH}",
+			githubHTMLBase, githubRepo, version,
+		)
+		checksumURL = fmt.Sprintf(
+			"%s/%s/releases/download/%s/gost-{ARCH}.sha256",
+			githubHTMLBase, githubRepo, version,
+		)
+	} else {
+		primaryProxy := proxies[0]
+		downloadURL = buildProxyURL(primaryProxy, fmt.Sprintf(
+			"%s/%s/releases/download/%s/gost-{ARCH}",
+			githubHTMLBase, githubRepo, version,
+		))
+		checksumURL = buildProxyURL(primaryProxy, fmt.Sprintf(
+			"%s/%s/releases/download/%s/gost-{ARCH}.sha256",
+			githubHTMLBase, githubRepo, version,
+		))
+	}
 
 	type upgradeResult struct {
 		ID      int64  `json:"id"`
