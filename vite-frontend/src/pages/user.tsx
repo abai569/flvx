@@ -349,7 +349,14 @@ export default function UserPage() {
     onClose: onDeleteTunnelModalClose,
   } = useDisclosure();
   const [tunnelToDelete, setTunnelToDelete] = useState<UserTunnel | null>(null);
-
+  // --- 批量删除已有隧道权限状态 ---
+  const {
+    isOpen: isBatchDeleteTunnelModalOpen,
+    onOpen: onBatchDeleteTunnelModalOpen,
+    onClose: onBatchDeleteTunnelModalClose,
+  } = useDisclosure();
+  const [selectedUserTunnelIds, setSelectedUserTunnelIds] = useState<Set<number>>(new Set());
+  const [batchDeleteTunnelLoading, setBatchDeleteTunnelLoading] = useState(false);
   // 重置流量确认相关状态
   const {
     isOpen: isResetFlowModalOpen,
@@ -457,7 +464,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const loadSpeedLimits = useCallback(async () => {
@@ -467,15 +474,15 @@ export default function UserPage() {
       if (response.code === 0) {
         const speedLimitList = Array.isArray(response.data)
           ? response.data.map((item) => ({
-              ...item,
-              uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
-              downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
-            }))
+            ...item,
+            uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
+            downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
+          }))
           : [];
 
         setSpeedLimits(speedLimitList);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const loadUserGroups = useCallback(async () => {
@@ -485,7 +492,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const loadUserTunnels = useCallback(async (userId: number) => {
@@ -575,7 +582,7 @@ export default function UserPage() {
       if (groupRes.code === 0) {
         currentGroupIds = groupRes.data || [];
       }
-    } catch {}
+    } catch { }
 
     setUserForm({
       id: user.id,
@@ -686,6 +693,7 @@ export default function UserPage() {
   const handleManageTunnels = (user: User) => {
     setCurrentUser(user);
     setBatchTunnelSelections(new Map());
+    setSelectedUserTunnelIds(new Set());
     onTunnelModalOpen();
     loadUserTunnels(user.id);
   };
@@ -781,10 +789,10 @@ export default function UserPage() {
             speedLimitName:
               normalizeSpeedId(editTunnelForm.speedId) !== null
                 ? speedLimits.find(
-                    (speedLimit) =>
-                      speedLimit.id ===
-                      normalizeSpeedId(editTunnelForm.speedId),
-                  )?.name
+                  (speedLimit) =>
+                    speedLimit.id ===
+                    normalizeSpeedId(editTunnelForm.speedId),
+                )?.name
                 : undefined,
           });
 
@@ -823,6 +831,60 @@ export default function UserPage() {
       }
     } catch {
       toast.error("删除失败");
+    }
+  };
+
+  // 勾选/取消勾选单个权限
+  const toggleUserTunnelSelection = (id: number) => {
+    setSelectedUserTunnelIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // 全选/取消全选
+  const handleSelectAllUserTunnels = (isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedUserTunnelIds(new Set(userTunnels.map((t) => t.id)));
+    } else {
+      setSelectedUserTunnelIds(new Set());
+    }
+  };
+
+  // 确认批量删除
+  const handleConfirmBatchRemoveTunnel = async () => {
+    if (selectedUserTunnelIds.size === 0) return;
+
+    setBatchDeleteTunnelLoading(true);
+    try {
+      // 组装并发删除请求
+      const promises = Array.from(selectedUserTunnelIds).map((id) =>
+        removeUserTunnel({ id }),
+      );
+      const results = await Promise.all(promises);
+      
+      const successCount = results.filter((res) => res.code === 0).length;
+      const failedCount = results.length - successCount;
+
+      if (successCount > 0) {
+        toast.success(`成功删除 ${successCount} 个隧道权限`);
+        if (currentUser) {
+          setUserTunnels((prev) =>
+            prev.filter((t) => !selectedUserTunnelIds.has(t.id)),
+          );
+        }
+        setSelectedUserTunnelIds(new Set());
+        onBatchDeleteTunnelModalClose();
+      }
+      if (failedCount > 0) {
+        toast.error(`${failedCount} 个权限删除失败`);
+      }
+    } catch (error) {
+      toast.error("批量删除发生异常");
+    } finally {
+      setBatchDeleteTunnelLoading(false);
     }
   };
 
@@ -1168,9 +1230,9 @@ export default function UserPage() {
             const flowPercent =
               user.flow > 0
                 ? Math.min(
-                    (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
-                    100,
-                  )
+                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
+                  100,
+                )
                 : 0;
 
             return (
@@ -1212,29 +1274,29 @@ export default function UserPage() {
                   <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                          <span className="text-default-600">流量限制</span>
-                          <span className={`font-medium text-xs ${user.flow === 99999 ? "text-success" : ""}`}>
-                            {user.flow === 99999 ? "不限" : formatFlow(user.flow, "gb")}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-default-600">已用流量</span>
-                          <span className="font-medium text-xs text-primary">
-                            {formatFlow(usedFlow)}
-                          </span>
-                        </div>
-                        {user.flow !== 99999 && (
-                          <Progress
-                            aria-label={`已用流量 ${flowPercent.toFixed(1)}%`}
-                            className="mt-1"
-                            color={flowPercent > 80 ? "danger" : "primary"}
-                            size="sm"
-                            value={flowPercent}
-                          />
-                        )}
+                        <span className="text-default-600">流量限制</span>
+                        <span className={`font-medium text-xs ${user.flow === 99999 ? "text-success" : ""}`}>
+                          {user.flow === 99999 ? "不限" : formatFlow(user.flow, "gb")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-default-600">已用流量</span>
+                        <span className="font-medium text-xs text-primary">
+                          {formatFlow(usedFlow)}
+                        </span>
+                      </div>
+                      {user.flow !== 99999 && (
+                        <Progress
+                          aria-label={`已用流量 ${flowPercent.toFixed(1)}%`}
+                          className="mt-1"
+                          color={flowPercent > 80 ? "danger" : "primary"}
+                          size="sm"
+                          value={flowPercent}
+                        />
+                      )}
 
-                    {/* 其他信息 */}
-                    <div className="space-y-1.5 pt-2 border-t border-divider">
+                      {/* 其他信息 */}
+                      <div className="space-y-1.5 pt-2 border-t border-divider">
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">规则数量</span>
                           <span className="font-medium text-xs">
@@ -1472,8 +1534,8 @@ export default function UserPage() {
                 value={
                   userForm.expTime
                     ? (parseDate(
-                        userForm.expTime.toISOString().split("T")[0],
-                      ) as any)
+                      userForm.expTime.toISOString().split("T")[0],
+                    ) as any)
                     : null
                 }
                 onChange={(date) => {
@@ -1585,29 +1647,31 @@ export default function UserPage() {
                 </div>
 
                 {/* 分配新权限部分 */}
-                <div className="space-y-4">
-                  <div className="w-[60%] sm:w-full flex items-center justify-between">
+                <h3 className="text-lg font-semibold mb-4">分配权限</h3>
+                <div className="space-y-4 relative">
+                  {/* 👇 杀招 1：外层改用 Grid 布局，左边 1fr，右边自适应，从数学上锁死宽度绝对不越界 */}
+                  <div className="grid grid-cols-[1fr_auto] items-center gap-3 w-full">
                     {/* 顶部触发框 */}
                     <div
-                      className={`group flex items-center justify-between px-4 h-9 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex-1 ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
+                      className={`group flex items-center px-4 h-9 rounded-xl border-2 transition-all cursor-pointer shadow-sm overflow-hidden ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
                       onClick={() =>
                         setIsTunnelListExpanded(!isTunnelListExpanded)
                       }
                     >
                       <span
-                        className={`text-sm truncate ${batchTunnelSelections.size > 0 ? "text-primary-500 font-bold" : "text-default-400"}`}
+                        className={`text-sm truncate flex-1 pr-2 ${batchTunnelSelections.size > 0 ? "text-primary-500 font-bold" : "text-default-400"}`}
                       >
                         {batchTunnelSelections.size > 0
                           ? `已选 ${batchTunnelSelections.size} 项：` +
-                            Array.from(batchTunnelSelections.keys())
-                              .map(
-                                (id) => tunnels.find((t) => t.id === id)?.name,
-                              )
-                              .join("、")
+                          Array.from(batchTunnelSelections.keys())
+                            .map(
+                              (id) => tunnels.find((t) => t.id === id)?.name,
+                            )
+                            .join("、")
                           : "请选择隧道（勾选后配置限速）"}
                       </span>
                       <svg
-                        className={`w-5 h-5 text-default-400 transition-transform ${isTunnelListExpanded ? "rotate-180 text-primary" : ""}`}
+                        className={`w-5 h-5 flex-shrink-0 text-default-400 transition-transform ${isTunnelListExpanded ? "rotate-180 text-primary" : ""}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -1617,7 +1681,7 @@ export default function UserPage() {
                     </div>
 
                     <Button
-                      className="flex-none whitespace-nowrap px-4 min-w-0 h-9 text-xs font-medium shadow-sm"
+                      className="whitespace-nowrap px-4 h-9 text-xs font-medium shadow-sm"
                       color="primary"
                       isDisabled={batchTunnelSelections.size === 0}
                       isLoading={assignLoading}
@@ -1644,18 +1708,36 @@ export default function UserPage() {
                           }}
                         >
                           <TableHeader>
-                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[40px] text-left">
-                              选择
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-left">
+                              <Checkbox
+                                color="primary"
+                                isSelected={
+                                  // 只有在：有可选隧道，且当前选中的数量 == 可选隧道的总数时，才显示打勾
+                                  tunnels.filter((t) => !isTunnelAssigned(t.id)).length > 0 &&
+                                  batchTunnelSelections.size === tunnels.filter((t) => !isTunnelAssigned(t.id)).length
+                                }
+                                onValueChange={(isSelected) => {
+                                  if (isSelected) {
+                                    // 全选：把所有未分配的隧道加入选中列表
+                                    setBatchTunnelSelections((prev) => {
+                                      const newMap = new Map(prev);
+                                      tunnels.forEach((tunnel) => {
+                                        if (!isTunnelAssigned(tunnel.id)) {
+                                          newMap.set(tunnel.id, newMap.get(tunnel.id) ?? null);
+                                        }
+                                      });
+                                      return newMap;
+                                    });
+                                  } else {
+                                    // 取消全选：直接清空
+                                    setBatchTunnelSelections(new Map());
+                                  }
+                                }}
+                              />
                             </TableColumn>
-                            <TableColumn className="whitespace-nowrap flex-shrink-0 text-left">
-                              隧道名称
-                            </TableColumn>
-                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
-                              限速
-                            </TableColumn>
-                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
-                              状态
-                            </TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 text-left">隧道名称</TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">限速</TableColumn>
+                            <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">状态</TableColumn>
                           </TableHeader>
                           <TableBody>
                             {tunnels.map((tunnel) => {
@@ -1753,7 +1835,7 @@ export default function UserPage() {
                           </TableBody>
                         </Table>
                       </div>
-                      <div className="bg-default-50/80 border-t p-3 flex justify-end">
+                      {/* <div className="bg-default-50/80 border-t p-3 flex justify-end">
                         <Button
                           className="font-bold"
                           color="primary"
@@ -1763,7 +1845,7 @@ export default function UserPage() {
                         >
                           完成配置
                         </Button>
-                      </div>
+                      </div> */}
                     </div>
                   )}
                 </div>
@@ -1771,7 +1853,20 @@ export default function UserPage() {
 
               {/* 已有权限部分 */}
               <div>
-                <h3 className="text-lg font-semibold mb-4">已有权限</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">已有权限</h3>
+                  {selectedUserTunnelIds.size > 0 && (
+                    <Button
+                      color="danger"
+                      size="sm"
+                      variant="flat"
+                      startContent={<DeleteIcon className="w-4 h-4" />}
+                      onPress={onBatchDeleteTunnelModalOpen}
+                    >
+                      删除已选 ({selectedUserTunnelIds.size})
+                    </Button>
+                  )}
+                </div>
                 <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
                   <Table
                     aria-label="用户隧道权限列表"
@@ -1783,6 +1878,14 @@ export default function UserPage() {
                     }}
                   >
                     <TableHeader>
+                      {/* 👇 增加的表头全选框 */}
+                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center">
+                        <Checkbox
+                          color="primary"
+                          isSelected={userTunnels.length > 0 && selectedUserTunnelIds.size === userTunnels.length}
+                          onValueChange={handleSelectAllUserTunnels}
+                        />
+                      </TableColumn>
                       <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
                         隧道名称
                       </TableColumn>
@@ -1808,20 +1911,28 @@ export default function UserPage() {
                       {(userTunnel) => (
                         <TableRow
                           key={userTunnel.id}
-                          className="hover:bg-default-50/50 transition-colors"
+                          className={`transition-colors ${selectedUserTunnelIds.has(userTunnel.id) ? "bg-danger-50/50 dark:bg-danger-900/20 hover:bg-danger-50/80" : "hover:bg-default-50/50"}`}
                         >
+                          {/* 👇 增加的行内选择框 */}
+                          <TableCell className="whitespace-nowrap text-center">
+                            <Checkbox
+                              color="primary"
+                              isSelected={selectedUserTunnelIds.has(userTunnel.id)}
+                              onValueChange={() => toggleUserTunnelSelection(userTunnel.id)}
+                            />
+                          </TableCell>
+
                           <TableCell className="whitespace-nowrap">
                             <span className="font-bold text-default-700">
                               {userTunnel.tunnelName}
                             </span>
                           </TableCell>
-
+                          
+                          {/* 下方代码保持原样... */}
                           <TableCell className="whitespace-nowrap">
                             <div className="flex items-center gap-1 text-sm">
                               <span className="text-danger font-mono font-bold">
-                                {formatFlow(
-                                  calculateTunnelUsedFlow(userTunnel),
-                                )}
+                                {formatFlow(calculateTunnelUsedFlow(userTunnel))}
                               </span>
                               <span className="text-default-300">/</span>
                               <span className="text-default-500 font-mono">
@@ -1833,61 +1944,26 @@ export default function UserPage() {
                           <TableCell className="whitespace-nowrap">
                             <span className="text-sm text-default-700">
                               {userTunnel.speedLimitName
-                                ? userTunnel.speedLimitName.replace(
-                                    /^限速\s*/,
-                                    "",
-                                  )
+                                ? userTunnel.speedLimitName.replace(/^限速\s*/, "")
                                 : "不限"}
                             </span>
                           </TableCell>
 
                           <TableCell className="whitespace-nowrap">
-                            <span
-                              className={`text-sm font-medium ${userTunnel.status === 1 ? "text-success" : "text-danger"}`}
-                            >
+                            <span className={`text-sm font-medium ${userTunnel.status === 1 ? "text-success" : "text-danger"}`}>
                               {userTunnel.status === 1 ? "正常" : "禁用"}
                             </span>
                           </TableCell>
 
                           <TableCell className="whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                              <Button
-                                isIconOnly
-                                className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8"
-                                size="sm"
-                                variant="flat"
-                                onPress={() => handleEditTunnel(userTunnel)}
-                              >
+                              <Button isIconOnly className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleEditTunnel(userTunnel)}>
                                 <EditIcon className="w-4 h-4" />
                               </Button>
-                              <Button
-                                isIconOnly
-                                className="bg-orange-50 text-orange-600 hover:bg-orange-100 w-8 h-8 min-w-8"
-                                size="sm"
-                                variant="flat"
-                                onPress={() =>
-                                  handleResetTunnelFlow(userTunnel)
-                                }
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    clipRule="evenodd"
-                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                                    fillRule="evenodd"
-                                  />
-                                </svg>
+                              <Button isIconOnly className="bg-orange-50 text-orange-600 hover:bg-orange-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleResetTunnelFlow(userTunnel)}>
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path clipRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" fillRule="evenodd"/></svg>
                               </Button>
-                              <Button
-                                isIconOnly
-                                className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
-                                size="sm"
-                                variant="flat"
-                                onPress={() => handleRemoveTunnel(userTunnel)}
-                              >
+                              <Button isIconOnly className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleRemoveTunnel(userTunnel)}>
                                 <DeleteIcon className="w-4 h-4" />
                               </Button>
                             </div>
@@ -1946,9 +2022,9 @@ export default function UserPage() {
                     setEditTunnelForm((prev) =>
                       prev
                         ? {
-                            ...prev,
-                            speedId: selectedKey ? Number(selectedKey) : null,
-                          }
+                          ...prev,
+                          speedId: selectedKey ? Number(selectedKey) : null,
+                        }
                         : null,
                     );
                   }}
@@ -2080,6 +2156,52 @@ export default function UserPage() {
               取消
             </Button>
             <Button color="danger" onPress={handleConfirmRemoveTunnel}>
+              确认删除
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* 批量删除隧道权限确认对话框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
+        isOpen={isBatchDeleteTunnelModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onClose={onBatchDeleteTunnelModalClose}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            确认批量删除权限
+          </ModalHeader>
+          <ModalBody>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-danger-100 rounded-full flex items-center justify-center shrink-0">
+                <DeleteIcon className="w-6 h-6 text-danger" />
+              </div>
+              <div className="flex-1">
+                <p className="text-foreground">
+                  确定要删除选中的{" "}
+                  <span className="font-semibold text-danger">
+                    {selectedUserTunnelIds.size}
+                  </span>{" "}
+                  个隧道权限吗？
+                </p>
+                <p className="text-small text-default-500 mt-1">
+                  删除后该用户将无法使用这些隧道创建规则，此操作不可撤销。
+                </p>
+              </div>
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={onBatchDeleteTunnelModalClose}>
+              取消
+            </Button>
+            <Button color="danger" isLoading={batchDeleteTunnelLoading} onPress={handleConfirmBatchRemoveTunnel}>
               确认删除
             </Button>
           </ModalFooter>

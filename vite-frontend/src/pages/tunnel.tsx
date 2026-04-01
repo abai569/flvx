@@ -2401,7 +2401,7 @@ export default function TunnelPage() {
                   <h3 className="text-lg font-semibold">入口配置</h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                    {/* 节点选择 - 移动端100%，桌面端50% */}
+                    {/* 节点选择 - 移动端100%，桌面端100% */}
                     <div className="col-span-1 md:col-span-4">
                       <Select
                         disabledKeys={

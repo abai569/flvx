@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+// 👇 加上这一行，引入动画组件
+import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -191,7 +193,7 @@ const getInitialConfigs = (): Record<string, string> => {
         initialConfigs[key] = cachedValue;
       }
     });
-  } catch {}
+  } catch { }
 
   return initialConfigs;
 };
@@ -546,11 +548,10 @@ export default function ConfigPage() {
 
     return (
       <div
-        className={`rounded-lg border p-3 ${
-          isChanged
-            ? "border-warning-300"
-            : "border-default-200 dark:border-default-100/30"
-        }`}
+        className={`rounded-lg border p-3 ${isChanged
+          ? "border-warning-300"
+          : "border-default-200 dark:border-default-100/30"
+          }`}
       >
         <input
           ref={getBrandInputRef(key)}
@@ -801,11 +802,10 @@ export default function ConfigPage() {
               <button
                 key={option.value}
                 aria-pressed={isSelected}
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${
-                  isSelected
-                    ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
-                    : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
-                }`}
+                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${isSelected
+                  ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
+                  : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
+                  }`}
                 type="button"
                 onClick={() => toggleTypeSelection(option.value, setTypes)}
               >
@@ -819,11 +819,10 @@ export default function ConfigPage() {
                     size="md"
                   />
                   <span
-                    className={`font-medium ${
-                      isSelected
-                        ? "text-default-900 dark:text-default-100"
-                        : "text-default-700 dark:text-default-500"
-                    }`}
+                    className={`font-medium ${isSelected
+                      ? "text-default-900 dark:text-default-100"
+                      : "text-default-700 dark:text-default-500"
+                      }`}
                   >
                     {option.label}
                   </span>
@@ -952,22 +951,34 @@ export default function ConfigPage() {
             </Select>
           </div>
 
-          <div className="flex justify-end pt-6 border-t border-divider/50 mt-4">
-            <Button
-              color="primary"
-              disabled={!hasChanges}
-              isLoading={saving}
-              startContent={<SaveIcon className="w-4 h-4" />}
-              onPress={handleSave}
-            >
-              {saving ? "保存中..." : "保存配置"}
-            </Button>
-          </div>
+          {/* 👇 完美靠齐卡片右侧的悬浮保存按钮 */}
+          <AnimatePresence>
+            {hasChanges && (
+              <motion.div
+                initial={{ y: 100, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 100, opacity: 0 }}
+                transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                className="sticky bottom-8 z-50 flex justify-end pointer-events-none mt-6"
+              >
+                <Button
+                  className="rounded-full shadow-2xl px-6 font-medium text-white pointer-events-auto"
+                  color="primary"
+                  size="lg"
+                  isLoading={saving}
+                  startContent={!saving && <SaveIcon className="w-5 h-5" />}
+                  onPress={handleSave}
+                >
+                  保存配置
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </CardBody>
       </Card>
 
       {/* 主题设置 */}
-      <div className="mt-6">
+      <div className="mt-6 shadow-md">
         <ThemeSettings />
       </div>
 
@@ -984,44 +995,44 @@ export default function ConfigPage() {
 
       <Card className="mt-6 shadow-md">
         <CardHeader className="pb-6">
-          <div className="flex justify-between items-center w-full">
+          <div className="flex justify-between items-center w-full gap-4">
             <div>
               <h2 className="text-xl font-semibold">公告管理</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                设置首页显示的公告内容
+                设置首页显示的公告内容，启用后将在首页顶部展示
               </p>
             </div>
+            {/* 👇 开关被优雅地提到了这里，居右对齐 */}
+            {!announcementLoading && (
+              <Switch
+                color="primary"
+                isSelected={announcement.enabled === 1}
+                size="md"
+                onValueChange={(checked) =>
+                  setAnnouncement({
+                    ...announcement,
+                    enabled: checked ? 1 : 0,
+                  })
+                }
+              >
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  {announcement.enabled === 1 ? "已启用" : "未启用"}
+                </span>
+              </Switch>
+            )}
           </div>
         </CardHeader>
 
         <Divider />
 
-        <CardBody className="space-y-4 pt-8 md:pt-8">
+        <CardBody className="space-y-4 pt-6 md:pt-6">
           {announcementLoading ? (
             <div className="flex justify-center py-8">
               <Spinner size="lg" />
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                <Switch
-                  isSelected={announcement.enabled === 1}
-                  onValueChange={(checked) =>
-                    setAnnouncement({
-                      ...announcement,
-                      enabled: checked ? 1 : 0,
-                    })
-                  }
-                >
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {announcement.enabled === 1 ? "已启用" : "已禁用"}
-                  </span>
-                </Switch>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  启用后，公告将在首页顶部显示
-                </p>
-              </div>
-
+              {/* 👇 下面变得非常清爽，只剩下输入框和保存按钮 */}
               <Textarea
                 label="公告内容"
                 minRows={4}
@@ -1036,7 +1047,7 @@ export default function ConfigPage() {
                 公告支持 Markdown 语法，链接会在新标签页打开
               </p>
 
-              <div className="flex justify-end mt-4 pt-4 border-t border-divider/50">
+              <div className="flex justify-end mt-2 pt-4 border-t border-divider/50">
                 <Button
                   color="primary"
                   isLoading={announcementSaving}

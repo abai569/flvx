@@ -311,7 +311,7 @@ export const deleteTunnelGroup = (id: number) =>
 export const assignTunnelsToGroup = (data: {
   groupId: number;
   tunnelIds: number[];
-}) => Network.post("/tunnel-group-new/assign", data);
+}) => Network.post("/group/tunnel/assign", data);
 
 export const getUserGroupList = () =>
   Network.post<UserGroupApiItem[]>("/group/user/list");

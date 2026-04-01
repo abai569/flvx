@@ -389,7 +389,7 @@ export default function AdminLayout({
         className={`
         ${isMobile ? "fixed" : "relative"} 
         ${isMobile && !mobileMenuVisible ? "-translate-x-full" : "translate-x-0"}
-        ${isMobile ? "w-64" : isCollapsed ? "w-20" : "w-72"} 
+        ${isCollapsed ? "w-20" : "w-[10%] min-w-[200px]"}
         bg-white dark:bg-black 
         shadow-lg 
         border-r border-gray-200 dark:border-gray-600
