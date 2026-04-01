@@ -775,9 +775,16 @@ export default function ConfigPage() {
     return (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium text-default-700 dark:text-default-300">
-            {label}
-          </span>
+          {/* 🎯 这里把原先单调的 label 包起来，加上选中的数量 */}
+          <div className="flex flex-row items-baseline gap-3">
+            <span className="text-sm font-medium text-default-700 dark:text-default-300">
+              {label}
+            </span>
+            <span className="text-xs text-default-500 font-medium">
+              当前已选 {selectedTypes.length} / {BACKUP_TYPE_VALUES.length}
+            </span>
+          </div>
+
           <div className="flex items-center gap-2">
             <Button
               size="sm"
