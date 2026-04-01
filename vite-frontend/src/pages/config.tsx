@@ -87,15 +87,15 @@ const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
 const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: "github_proxy_enabled",
-    label: "启用镜像加速",
-    description: "开启后，节点安装和升级时将使用镜像代理下载，支持国内网络环境",
+    label: "启用 GitHub 加速",
+    description: "开启后保存，节点安装和升级将使用默认代理加速下载，支持ipv6和国内网络环境",
     type: "switch",
   },
   {
     key: "github_proxy_urls",
-    label: "镜像加速地址",
+    label: "自定义加速地址",
     placeholder: "每行一个代理地址，按优先级排列",
-    description: "每行一个地址，前面的地址失效时自动轮换下一个。默认: https://gcode.hostcentral.cc",
+    description: "每行填写一个地址，默认使用第一行的地址，前面的地址失效时自动轮换下一个",
     type: "input",
     dependsOn: "github_proxy_enabled",
     dependsValue: "true",
@@ -654,7 +654,7 @@ export default function ConfigPage() {
                 input: "font-mono text-sm",
               }}
               minRows={3}
-              placeholder={"https://gcode.hostcentral.cc\nhttps://another-proxy.com"}
+              placeholder={"https://gcode.hostcentral.cc\nhttps://ghfast.top/"}
               size="md"
               value={displayValue}
               variant="bordered"
@@ -966,7 +966,7 @@ export default function ConfigPage() {
                       {item.label}
                     </label>
                     {item.description && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap">
                         {item.description}
                       </p>
                     )}
