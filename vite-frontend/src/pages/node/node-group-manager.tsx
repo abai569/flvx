@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import {  useState, useEffect , useMemo } from "react";
 import toast from "react-hot-toast";
 import {
   Modal,
@@ -131,9 +131,30 @@ export function NodeGroupManager({
     }
   };
 
+  const displayGroups = useMemo(() => {
+    const uncategorizedGroup = {
+      id: -1,
+      name: "未分组节点",
+      description: "",
+      color: "#a1a1aa",
+      inx: 0,
+    } as any;
+    return [uncategorizedGroup, ...groups].sort((a, b) => (a.inx || 0) - (b.inx || 0));
+  }, [groups]);
+
   return (
     <>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
+      <Modal 
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={isOpen} 
+        placement="center"
+        size="2xl"
+        scrollBehavior="inside"
+        onOpenChange={onOpenChange} 
+      >
         <ModalContent>
           <ModalHeader>节点分组管理</ModalHeader>
           <ModalBody>
@@ -152,14 +173,16 @@ export function NodeGroupManager({
                 暂无分组
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
+              <div className="overflow-x-auto rounded-xl border border-divider bg-content1 shadow-md">
                 <Table
                   aria-label="节点分组列表"
                   classNames={{
                     th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
                     td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                     tr: "hover:bg-default-50/50 transition-colors",
-                    wrapper: "shadow-none p-0",
+                    wrapper: "shadow-none p-0 overflow-x-auto",
+                    // @ts-ignore
+                    table: "min-w-[580px]",
                   }}
                 >
                   <TableHeader>
@@ -171,7 +194,7 @@ export function NodeGroupManager({
                   </TableHeader>
                   <TableBody
                     emptyContent="暂无分组"
-                    items={groups}
+                    items={displayGroups}
                   >
                     {(group) => (
                       <TableRow key={group.id} className="hover:bg-default-50/50 transition-colors">
@@ -210,7 +233,7 @@ export function NodeGroupManager({
                             variant="flat"
                             className="bg-purple-500 text-white font-mono font-semibold"
                           >
-                            {group.nodeCount}
+                            {group.id === -1 ? allNodes.filter(n => !n.groupId || n.groupId === 0).length : group.nodeCount}
                           </Chip>
 						</div>
                         </TableCell>
@@ -241,6 +264,7 @@ export function NodeGroupManager({
                               size="sm"
                               variant="flat"
                               className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
+                              isDisabled={group.id === -1}
                               onPress={() => handleDelete(group.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -300,7 +324,7 @@ function GroupEditModal({
       setDescription(group.description || "");
       setColor(group.color);
       setInx(group.inx || 0);
-      const currentNodes = allNodes.filter(n => n.groupId === group.id).map(n => n.id);
+      const currentNodes = group.id === -1 ? allNodes.filter(n => !n.groupId || n.groupId === 0).map(n => n.id) : allNodes.filter(n => n.groupId === group.id).map(n => n.id);
       setSelectedNodeIds(currentNodes);
     } else {
       setName("");
@@ -317,7 +341,7 @@ function GroupEditModal({
       toast.error("分组名称不能为空");
       return;
     }
-    onSave({ name, description, color, inx }, selectedNodeIds);
+    onSave({ name, description, color, inx: Number(inx) || 0 }, selectedNodeIds);
   };
 
   const presetColors = [
@@ -326,7 +350,16 @@ function GroupEditModal({
   ];
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange} scrollBehavior="inside" backdrop="blur">
+    <Modal 
+      backdrop="blur"
+      classNames={{
+        base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+      }}
+      isOpen={isOpen} 
+      placement="center"
+      scrollBehavior="inside" 
+      onOpenChange={onOpenChange} 
+    >
       <ModalContent>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 w-full min-h-0">
           <ModalHeader>
@@ -339,6 +372,7 @@ function GroupEditModal({
                   分组名称 *
                 </label>
                 <Input
+                  readOnly={group?.id === -1}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="输入分组名称"
@@ -352,6 +386,7 @@ function GroupEditModal({
                 </label>
                 <Textarea
                   classNames={{ inputWrapper: "!min-h-[20px] py-1.5", input: "!min-h-[20px]" }}
+                  readOnly={group?.id === -1}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="分组描述（可选）"
@@ -370,7 +405,7 @@ function GroupEditModal({
                   selectedKeys={new Set(selectedNodeIds.map(String))}
                   onSelectionChange={(keys) => setSelectedNodeIds(Array.from(keys).map(Number))}
                 >
-                  {allNodes.map((node: any) => (
+                  {(group?.id === -1 ? allNodes.filter((n: any) => !n.groupId || n.groupId === 0) : allNodes).map((node: any) => (
                     <SelectItem key={node.id.toString()} textValue={node.name}>
                       <div className="flex flex-col">
                         <span className="text-sm">{node.name}</span>
@@ -393,18 +428,21 @@ function GroupEditModal({
                       className={`w-8 h-8 rounded border-2 ${color === c ? "border-gray-900" : "border-transparent"
                         }`}
                       style={{ backgroundColor: c }}
-                      onClick={() => setColor(c)}
+                      onClick={() => group?.id !== -1 && setColor(c)}
+                      disabled={group?.id === -1}
                     />
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
+                    disabled={group?.id === -1}
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
                     className="w-10 h-10 border rounded cursor-pointer"
                   />
                   <Input
+                    readOnly={group?.id === -1}
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
                     className="flex-1"
@@ -418,8 +456,8 @@ function GroupEditModal({
                 </label>
                 <Input
                   type="number"
-                  value={inx?.toString()}
-                  onChange={(e) => setInx(parseInt(e.target.value) || 0)}
+                  value={String(inx) === "" ? "" : String(inx)}
+                  onChange={(e) => setInx(e.target.value === "" ? "" as any : parseInt(e.target.value))}
                   placeholder="数字越小越靠前"
                 />
               </div>

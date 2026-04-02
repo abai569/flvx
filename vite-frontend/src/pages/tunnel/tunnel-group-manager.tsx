@@ -3,7 +3,7 @@ import type {
   TunnelGroupNewMutationPayload,
 } from "@/api/types";
 
-import { useState, useEffect } from "react";
+import {  useState, useEffect , useMemo } from "react";
 import toast from "react-hot-toast";
 import { Edit, Trash2 } from "lucide-react";
 
@@ -35,6 +35,7 @@ import {
   deleteTunnelGroupNew,
   getTunnelList,
   assignTunnelToGroupNew,
+  updateTunnel,
 } from "@/api";
 
 interface TunnelGroupManagerProps {
@@ -100,16 +101,60 @@ export function TunnelGroupManager({
       }
 
       if (groupId && groupId > 0) {
-        await assignTunnelToGroupNew({ groupId, tunnelIds: selectedTunnelIds });
+        // 🎯 1. 获取原本在此分组的隧道
+        const originalTunnels = editingGroup 
+          ? allTunnels.filter(t => t.tunnelGroupId === editingGroup.id).map(t => t.id)
+          : [];
+        
+        // 🎯 2. 对比找出被取消勾选的“倒霉蛋”
+        const toRemove = originalTunnels.filter(id => !selectedTunnelIds.includes(id));
+
+        const promises: Promise<any>[] = [];
+        
+        // 🎯 3. 批量绑定目前勾选的隧道
+        if (selectedTunnelIds.length > 0) {
+          promises.push(assignTunnelToGroupNew({ groupId, tunnelIds: selectedTunnelIds }));
+        }
+        
+        // 🎯 4. 对取消勾选的隧道，逐个单条强制解绑 (用 null 彻底清空，不留 0 的隐患)
+        if (toRemove.length > 0) {
+          toRemove.forEach(id => {
+            const t = allTunnels.find(x => x.id === id);
+            if (t) {
+              promises.push(updateTunnel({
+                ...t,
+                // 顺手兼容一下后端的各种奇葩字段格式要求
+                in_node_id: Array.isArray(t.inNodeId) ? t.inNodeId : [],
+                out_node_id: Array.isArray(t.outNodeId) ? t.outNodeId : [],
+                chain_nodes: Array.isArray(t.chainNodes) ? t.chainNodes : [],
+                in_ip: t.inIp || "",
+                tunnelGroupId: null,
+                tunnel_group_id: null
+              }));
+            }
+          });
+        }
+
+        if (promises.length > 0) {
+          // 🎯 5. 捕获所有 Promise，防止单个接口挂掉导致大白屏
+          const results = await Promise.all(promises.map(p => p.catch(e => e)));
+          const failed = results.find(r => r instanceof Error || (r && r.code !== undefined && r.code !== 0));
+          
+          if (failed) {
+            console.error("部分隧道操作失败:", failed);
+            toast.error(failed.msg || failed.message || "部分隧道解绑失败，请重试");
+            return; // 有报错直接拦截，绝不骗你“保存成功”
+          }
+        }
       }
 
       toast.success("保存成功");
       handleCloseModal();
       await loadAllData();
       onGroupChange?.();
-    } catch (error) {
-      console.error('保存失败:', error);
-      toast.error("保存失败");
+    } catch (error: any) {
+      console.error('保存操作崩溃:', error);
+      toast.error(error?.msg || error?.message || "保存失败，请检查网络");
     }
   };
 
@@ -125,9 +170,32 @@ export function TunnelGroupManager({
     }
   };
 
+  const displayGroups = useMemo(() => {
+    const uncategorizedGroup = {
+      id: -1,
+      name: "未分组隧道",
+      description: "",
+      color: "#a1a1aa", // 采用低调的灰色
+      inx: 0,
+    } as any;
+    
+    // 把虚拟分组和真实分组拼在一起，统一按照 inx 从小到大排序
+    return [uncategorizedGroup, ...groups].sort((a, b) => (a.inx || 0) - (b.inx || 0));
+  }, [groups]);
+
   return (
     <>
-      <Modal isOpen={isOpen} size="2xl" onOpenChange={onOpenChange}>
+      <Modal 
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={isOpen} 
+        placement="center"
+        size="2xl"
+        scrollBehavior="inside"
+        onOpenChange={onOpenChange} 
+      >
         <ModalContent>
           <ModalHeader>隧道分组管理</ModalHeader>
           <ModalBody>
@@ -144,14 +212,16 @@ export function TunnelGroupManager({
             ) : groups.length === 0 ? (
               <div className="text-center py-8 text-gray-500">暂无分组</div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
+              <div className="overflow-x-auto rounded-xl border border-divider bg-content1 shadow-md">
                 <Table
                   aria-label="隧道分组列表"
                   classNames={{
                     th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
                     td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                     tr: "hover:bg-default-50/50 transition-colors",
-                    wrapper: "shadow-none p-0",
+                    wrapper: "shadow-none p-0 overflow-x-auto",
+                    // @ts-ignore
+                    table: "min-w-[580px]",
                   }}
                 >
                   <TableHeader>
@@ -161,7 +231,7 @@ export function TunnelGroupManager({
 					          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">颜色</TableColumn>
                     <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left"> 操作</TableColumn>
                   </TableHeader>
-                  <TableBody emptyContent="暂无分组" items={groups}>
+                  <TableBody emptyContent="暂无分组" items={displayGroups}>
                     {(group) => (
                       <TableRow
                         key={group.id}
@@ -203,7 +273,7 @@ export function TunnelGroupManager({
                               size="sm"
                               variant="flat"
                             >
-                              {allTunnels.filter((t) => t.tunnelGroupId === group.id).length}
+                              {group.id === -1 ? allTunnels.filter((t) => !t.tunnelGroupId || t.tunnelGroupId === 0).length : allTunnels.filter((t) => t.tunnelGroupId === group.id).length}
                             </Chip>
                           </div>
                         </TableCell>
@@ -236,6 +306,7 @@ export function TunnelGroupManager({
                               className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
                               size="sm"
                               variant="flat"
+                              isDisabled={group.id === -1}
                               onPress={() => handleDelete(group.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -295,7 +366,7 @@ function GroupEditModal({
       setDescription(group.description || "");
       setColor(group.color || "#3b82f6");
       setInx(group.inx || 0);
-      const currentTunnels = allTunnels.filter(t => t.tunnelGroupId === group.id).map(t => t.id);
+      const currentTunnels = group.id === -1 ? allTunnels.filter(t => !t.tunnelGroupId || t.tunnelGroupId === 0).map(t => t.id) : allTunnels.filter(t => t.tunnelGroupId === group.id).map(t => t.id);
       setSelectedTunnelIds(currentTunnels);
     } else if (isOpen) {
       setName("");
@@ -308,11 +379,16 @@ function GroupEditModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (group && group.id === -1) {
+      toast.success("「未分组」为系统默认状态仅供查看，请前往具体分组去分配隧道");
+      onOpenChange(false);
+      return;
+    }
     if (!name.trim()) {
       toast.error("分组名称不能为空");
       return;
     }
-    onSave({ name, description, color, inx }, selectedTunnelIds);
+    onSave({ name, description, color, inx: Number(inx) || 0 }, selectedTunnelIds);
   };
 
   const presetColors = [
@@ -327,7 +403,16 @@ function GroupEditModal({
   ];
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange} scrollBehavior="inside" backdrop="blur">
+    <Modal 
+      backdrop="blur"
+      classNames={{
+        base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+      }}
+      isOpen={isOpen} 
+      placement="center"
+      scrollBehavior="inside" 
+      onOpenChange={onOpenChange} 
+    >
       <ModalContent>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 w-full min-h-0">
           <ModalHeader>{group ? "编辑分组" : "创建分组"}</ModalHeader>
@@ -339,6 +424,7 @@ function GroupEditModal({
               <Input
                 required
                 placeholder="输入分组名称"
+                readOnly={group?.id === -1}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -353,6 +439,7 @@ function GroupEditModal({
                 }}
                 placeholder="分组描述（可选）"
                 rows={1}
+                readOnly={group?.id === -1}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -373,7 +460,7 @@ function GroupEditModal({
                   }
                 }}
               >
-                {allTunnels.map((tunnel: any) => (
+                {(group?.id === -1 ? allTunnels.filter(t => !t.tunnelGroupId || t.tunnelGroupId === 0) : allTunnels).map((tunnel: any) => (
                   <SelectItem key={tunnel.id.toString()} textValue={tunnel.name}>
                     <div className="flex flex-col">
                       <span className="text-sm">{tunnel.name}</span>
@@ -418,8 +505,9 @@ function GroupEditModal({
               <Input
                 placeholder="数字越小越靠前"
                 type="number"
-                value={inx}
-                onChange={(e) => setInx(parseInt(e.target.value) || 0)}
+                readOnly={group?.id === -1}
+                value={String(inx) === "" ? "" : String(inx)}
+                onChange={(e) => setInx(e.target.value === "" ? "" as any : parseInt(e.target.value))}
               />
             </div>
           </ModalBody>
