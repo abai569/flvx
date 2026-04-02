@@ -749,7 +749,7 @@ export default function TunnelPage() {
     setForm((prev) => {
       const chainNodes = [...(prev.chainNodes || [])];
       const currentGroup = chainNodes[groupIndex] || [];
-      const protocol = currentGroup[0]?.protocol || "tls";
+      const protocol = currentGroup[0]?.protocol || "tcp";
       const strategy = currentGroup[0]?.strategy || "round";
       const realNodes = currentGroup.filter((node) => node.nodeId !== -1);
       const mergedNodes = mergeOrderedNodes(
@@ -2561,8 +2561,8 @@ export default function TunnelPage() {
                               getChainGroups().map((groupNodes, groupIndex) => {
                                 const protocol =
                                   groupNodes.length > 0
-                                    ? groupNodes[0].protocol || "tls"
-                                    : "tls";
+                                    ? groupNodes[0].protocol || "tcp"
+                                    : "tcp";
                                 const strategy =
                                   groupNodes.length > 0
                                     ? groupNodes[0].strategy || "round"
@@ -2772,12 +2772,13 @@ export default function TunnelPage() {
                                           }
                                         }}
                                       >
-                                        <SelectItem key="tls">TLS</SelectItem>
-                                        <SelectItem key="wss">WSS</SelectItem>
                                         <SelectItem key="tcp">TCP</SelectItem>
-                                        <SelectItem key="mtls">MTLS</SelectItem>
-                                        <SelectItem key="mwss">MWSS</SelectItem>
                                         <SelectItem key="mtcp">MTCP</SelectItem>
+                                        <SelectItem key="tls">TLS</SelectItem>
+                                        <SelectItem key="mtls">MTLS</SelectItem>
+                                        <SelectItem key="wss">WSS</SelectItem>
+                                        <SelectItem key="mwss">MWSS</SelectItem>
+
                                       </Select>
 
                                       {/* 负载策略 - 25% */}
@@ -2876,7 +2877,7 @@ export default function TunnelPage() {
                                                 {
                                                   nodeId: -1,
                                                   chainType: 2,
-                                                  protocol: "tls",
+                                                  protocol: "tcp",
                                                   strategy: "round",
                                                 },
                                               ],
@@ -2906,7 +2907,7 @@ export default function TunnelPage() {
                                           {
                                             nodeId: -1,
                                             chainType: 2,
-                                            protocol: "tls",
+                                            protocol: "tcp",
                                             strategy: "round",
                                           },
                                         ],
@@ -2997,7 +2998,7 @@ export default function TunnelPage() {
                                       const currentOutNodes =
                                         prev.outNodeId || [];
                                       const protocol =
-                                        currentOutNodes[0]?.protocol || "tls";
+                                        currentOutNodes[0]?.protocol || "tcp";
                                       const strategy =
                                         currentOutNodes[0]?.strategy || "round";
                                       const realNodes = currentOutNodes.filter(
@@ -3086,9 +3087,9 @@ export default function TunnelPage() {
                                       !form.outNodeId ||
                                       form.outNodeId.length === 0
                                     )
-                                      return "tls";
+                                      return "tcp";
 
-                                    return form.outNodeId[0].protocol || "tls";
+                                    return form.outNodeId[0].protocol || "tcp";
                                   })(),
                                 ]}
                                 variant="bordered"
@@ -3136,12 +3137,13 @@ export default function TunnelPage() {
                                   }
                                 }}
                               >
-                                <SelectItem key="tls">TLS</SelectItem>
-                                <SelectItem key="wss">WSS</SelectItem>
                                 <SelectItem key="tcp">TCP</SelectItem>
-                                <SelectItem key="mtls">MTLS</SelectItem>
-                                <SelectItem key="mwss">MWSS</SelectItem>
                                 <SelectItem key="mtcp">MTCP</SelectItem>
+                                <SelectItem key="tls">TLS</SelectItem>
+                                <SelectItem key="mtls">MTLS</SelectItem>
+                                <SelectItem key="wss">WSS</SelectItem>
+                                <SelectItem key="mwss">MWSS</SelectItem>
+
                               </Select>
 
                               {/* 负载策略 - 25% */}
@@ -3177,8 +3179,8 @@ export default function TunnelPage() {
                                         prev.outNodeId || [];
                                       const currentProtocol =
                                         currentOutNodes.length > 0
-                                          ? currentOutNodes[0].protocol || "tls"
-                                          : "tls";
+                                          ? currentOutNodes[0].protocol || "tcp"
+                                          : "tcp";
 
                                       if (currentOutNodes.length === 0) {
                                         return {
@@ -3265,7 +3267,7 @@ export default function TunnelPage() {
                                         {
                                           nodeId: -1,
                                           chainType: 3,
-                                          protocol: "tls",
+                                          protocol: "tcp",
                                           strategy: "round",
                                           connectIp: value,
                                         },

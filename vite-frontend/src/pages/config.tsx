@@ -87,7 +87,7 @@ const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
 const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: "github_proxy_enabled",
-    label: "启用 GitHub 加速",
+    label: "启用GitHub加速",
     description: "开启后保存，节点安装和升级将使用默认代理加速下载，支持ipv6和国内网络环境",
     type: "switch",
   },

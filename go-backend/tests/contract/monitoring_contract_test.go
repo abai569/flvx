@@ -1175,7 +1175,7 @@ func TestMetricBatchInsert(t *testing.T) {
 			t.Fatalf("batch insert: %v", err)
 		}
 
-		retrieved, err := repo.GetNodeMetrics(1, 0, now+1000)
+		retrieved, err := repo.GetNodeMetrics(1, now-10000, now+1000)
 		if err != nil {
 			t.Fatalf("get metrics: %v", err)
 		}

@@ -674,7 +674,7 @@ func TestOpenMigratesLegacyNodeDualStackColumns(t *testing.T) {
 		_ = r.Close()
 	})
 
-	nodes, err := r.ListNodes(nil)
+	nodes, err := r.ListNodes()
 	if err != nil {
 		t.Fatalf("list nodes after migration: %v", err)
 	}
