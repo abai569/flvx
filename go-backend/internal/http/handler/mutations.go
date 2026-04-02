@@ -756,6 +756,11 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		if applyErr != nil {
 			h.rollbackTunnelRuntime(createdChains, createdServices, tunnelID)
 			h.releaseFederationRuntimeRefs(federationReleaseRefs)
+			_ = h.repo.DeleteFederationTunnelBindingsByTunnel(tunnelID)
+			if len(federationReleaseRefs) == 0 && shouldDeferTunnelRuntimeApplyError(applyErr) {
+				response.WriteJSON(w, response.OKEmpty())
+				return
+			}
 			_ = h.deleteTunnelByID(tunnelID)
 			response.WriteJSON(w, response.ErrDefault(applyErr.Error()))
 			return

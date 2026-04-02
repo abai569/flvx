@@ -88,9 +88,10 @@ interface ChainTunnel {
   nodeId: number;
   protocol?: string; // 'tls' | 'wss' | 'tcp' | 'mtls' | 'mwss' | 'mtcp' - 转发链协议
   strategy?: string; // 'fifo' | 'round' | 'rand' - 仅转发链需要
-  chainType?: number; // 1: 入口, 2: 转发链, 3: 出口
+  chainType?: number; // 1: 入口，2: 转发链，3: 出口
   inx?: number; // 转发链序号
-  connectIp?: string; // 连接IP（多IP节点指定连接地址）
+  connectIp?: string; // 连接 IP（多 IP 节点指定连接地址）
+  port?: number; // 连接端口（留空自动分配）
 }
 
 interface Tunnel {
@@ -709,6 +710,20 @@ export default function TunnelPage() {
       chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
         ...node,
         connectIp,
+      }));
+
+      return { ...prev, chainNodes };
+    });
+  };
+
+  // 更新某一跳的所有节点的连接端口
+  const updateChainPort = (groupIndex: number, port: number | undefined) => {
+    setForm((prev) => {
+      const chainNodes = [...(prev.chainNodes || [])];
+
+      chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
+        ...node,
+        port,
       }));
 
       return { ...prev, chainNodes };
@@ -2746,57 +2761,82 @@ export default function TunnelPage() {
                                       </Select>
                                     </div>
 
-                                    {/* 连接IP - 转发链节点 */}
-                                    <div className="mt-5"><Select
-                                      classNames={{
-                                        label: "text-xs",
-                                        value: "text-sm",
-                                      }}
-                                      description={
-                                        isMultiNodeGroup
-                                          ? "多节点跳不支持设置自定义连接IP，使用各节点默认IP"
-                                          : "按当前跳所选节点的共有IP进行选择，留空使用默认"
-                                      }
-                                      isDisabled={
-                                        groupSelectedNodeIds.length === 0 ||
-                                        groupIpOptions.length === 0 ||
-                                        isMultiNodeGroup
-                                      }
-                                      label="连接IP"
-                                      placeholder={
-                                        isMultiNodeGroup
-                                          ? "多节点跳使用节点默认IP"
-                                          : groupSelectedNodeIds.length === 0
-                                            ? "请先选择节点"
-                                            : groupIpOptions.length > 0
-                                              ? "选择连接IP"
-                                              : "所选节点无共同可选IP"
-                                      }
-                                      selectedKeys={[
-                                        selectedGroupConnectIp || "__default__",
-                                      ]}
-                                      size="sm"
-                                      variant="bordered"
-                                      onSelectionChange={(keys) => {
-                                        const selectedKey = Array.from(
-                                          keys,
-                                        )[0] as string;
+                                    {/* 连接 IP 和连接端口 - 转发链节点 */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                                      <Select
+                                        classNames={{
+                                          label: "text-xs",
+                                          value: "text-sm",
+                                        }}
+                                        description={
+                                          isMultiNodeGroup
+                                            ? "多节点跳不支持设置自定义连接IP，使用各节点默认IP"
+                                            : "按当前跳所选节点的共有IP进行选择，留空使用默认"
+                                        }
+                                        isDisabled={
+                                          groupSelectedNodeIds.length === 0 ||
+                                          groupIpOptions.length === 0 ||
+                                          isMultiNodeGroup
+                                        }
+                                        label="连接IP"
+                                        placeholder={
+                                          isMultiNodeGroup
+                                            ? "多节点跳使用节点默认IP"
+                                            : groupSelectedNodeIds.length === 0
+                                              ? "请先选择节点"
+                                              : groupIpOptions.length > 0
+                                                ? "选择连接IP"
+                                                : "所选节点无共同可选IP"
+                                        }
+                                        selectedKeys={[
+                                          selectedGroupConnectIp || "__default__",
+                                        ]}
+                                        size="sm"
+                                        variant="bordered"
+                                        onSelectionChange={(keys) => {
+                                          const selectedKey = Array.from(
+                                            keys,
+                                          )[0] as string;
 
-                                        updateChainConnectIp(
-                                          groupIndex,
-                                          selectedKey === "__default__"
-                                            ? ""
-                                            : selectedKey,
-                                        );
-                                      }}
-                                    >
-                                      <SelectItem key="__default__">
-                                        默认连接IP
-                                      </SelectItem>
-                                      {groupIpOptions.map((ip) => (
-                                        <SelectItem key={ip}>{ip}</SelectItem>
-                                      ))}
-                                    </Select></div>
+                                          updateChainConnectIp(
+                                            groupIndex,
+                                            selectedKey === "__default__"
+                                              ? ""
+                                              : selectedKey,
+                                          );
+                                        }}
+                                      >
+                                        <SelectItem key="__default__">
+                                          默认连接IP
+                                        </SelectItem>
+                                        {groupIpOptions.map((ip) => (
+                                          <SelectItem key={ip}>{ip}</SelectItem>
+                                        ))}
+                                      </Select>
+
+                                      <Input
+                                        description="指定转发链连接下一跳的端口，留空自动分配"
+                                        errorMessage={errors[`chainNodes_${groupIndex}_port`]}
+                                        isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
+                                        label="连接端口"
+                                        placeholder="留空自动分配"
+                                        size="sm"
+                                        type="number"
+                                        value={
+                                          groupNodes.length > 0 && groupNodes[0].port
+                                            ? groupNodes[0].port.toString()
+                                            : ""
+                                        }
+                                        variant="bordered"
+                                        onChange={(e) => {
+                                          const value = e.target.value;
+                                          updateChainPort(
+                                            groupIndex,
+                                            value ? parseInt(value) : undefined,
+                                          );
+                                        }}
+                                      />
+                                    </div>
                                     <div className="mt-2 flex justify-end">
                                       <Button
                                         color="primary"
@@ -3139,83 +3179,129 @@ export default function TunnelPage() {
                               </Select>
                             </div>
 
-                            {/* 连接IP - 出口节点 */}
-                            <div className="mt-3"><Select
-                              classNames={{
-                                label: "text-xs",
-                                value: "text-sm",
-                              }}
-                              description={
-                                isMultiExit
-                                  ? "多出口隧道不支持设置自定义连接IP，使用各节点默认IP"
-                                  : "按出口节点共同可用IP选择，留空使用默认"
-                              }
-                              isDisabled={
-                                selectedOutNodeIds.length === 0 ||
-                                commonOutIpOptions.length === 0 ||
-                                isMultiExit
-                              }
-                              label="连接IP"
-                              placeholder={
-                                isMultiExit
-                                  ? "多出口隧道使用节点默认IP"
-                                  : selectedOutNodeIds.length === 0
-                                    ? "请先选择出口节点"
-                                    : commonOutIpOptions.length > 0
-                                      ? "选择连接IP"
-                                      : "所选节点无共同可选IP"
-                              }
-                              selectedKeys={[
-                                form.outNodeId && form.outNodeId.length > 0
-                                  ? form.outNodeId[0].connectIp || "__default__"
-                                  : "__default__",
-                              ]}
-                              size="sm"
-                              variant="bordered"
-                              onSelectionChange={(keys) => {
-                                const selectedKey = Array.from(
-                                  keys,
-                                )[0] as string;
-                                const value =
-                                  selectedKey === "__default__"
-                                    ? ""
-                                    : selectedKey;
+                            {/* 连接 IP 和连接端口 - 出口节点 */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                              <Select
+                                classNames={{
+                                  label: "text-xs",
+                                  value: "text-sm",
+                                }}
+                                description={
+                                  isMultiExit
+                                    ? "多出口隧道不支持设置自定义连接 IP，使用各节点默认 IP"
+                                    : "按出口节点共同可用 IP 选择，留空使用默认"
+                                }
+                                isDisabled={
+                                  selectedOutNodeIds.length === 0 ||
+                                  commonOutIpOptions.length === 0 ||
+                                  isMultiExit
+                                }
+                                label="连接 IP"
+                                placeholder={
+                                  isMultiExit
+                                    ? "多出口隧道使用节点默认 IP"
+                                    : selectedOutNodeIds.length === 0
+                                      ? "请先选择出口节点"
+                                      : commonOutIpOptions.length > 0
+                                        ? "选择连接 IP"
+                                        : "所选节点无共同可选 IP"
+                                }
+                                selectedKeys={[
+                                  form.outNodeId && form.outNodeId.length > 0
+                                    ? form.outNodeId[0].connectIp || "__default__"
+                                    : "__default__",
+                                ]}
+                                size="sm"
+                                variant="bordered"
+                                onSelectionChange={(keys) => {
+                                  const selectedKey = Array.from(
+                                    keys,
+                                  )[0] as string;
+                                  const value =
+                                    selectedKey === "__default__"
+                                      ? ""
+                                      : selectedKey;
 
-                                setForm((prev) => {
-                                  const currentOutNodes = prev.outNodeId || [];
+                                  setForm((prev) => {
+                                    const currentOutNodes = prev.outNodeId || [];
 
-                                  if (currentOutNodes.length === 0) {
+                                    if (currentOutNodes.length === 0) {
+                                      return {
+                                        ...prev,
+                                        outNodeId: [
+                                          {
+                                            nodeId: -1,
+                                            chainType: 3,
+                                            protocol: "tcp",
+                                            strategy: "round",
+                                            connectIp: value,
+                                          },
+                                        ],
+                                      };
+                                    }
+
                                     return {
                                       ...prev,
-                                      outNodeId: [
-                                        {
-                                          nodeId: -1,
-                                          chainType: 3,
-                                          protocol: "tcp",
-                                          strategy: "round",
-                                          connectIp: value,
-                                        },
-                                      ],
+                                      outNodeId: currentOutNodes.map((ct) => ({
+                                        ...ct,
+                                        connectIp: value,
+                                      })),
                                     };
-                                  }
+                                  });
+                                }}
+                              >
+                                <SelectItem key="__default__">
+                                  默认连接 IP
+                                </SelectItem>
+                                {commonOutIpOptions.map((ip) => (
+                                  <SelectItem key={ip}>{ip}</SelectItem>
+                                ))}
+                              </Select>
 
-                                  return {
-                                    ...prev,
-                                    outNodeId: currentOutNodes.map((ct) => ({
-                                      ...ct,
-                                      connectIp: value,
-                                    })),
-                                  };
-                                });
-                              }}
-                            >
-                              <SelectItem key="__default__">
-                                默认连接IP
-                              </SelectItem>
-                              {commonOutIpOptions.map((ip) => (
-                                <SelectItem key={ip}>{ip}</SelectItem>
-                              ))}
-                            </Select></div>
+                              <Input
+                                description="指定出口节点连接下一跳的端口，留空自动分配"
+                                label="连接端口"
+                                placeholder="留空自动分配"
+                                size="sm"
+                                type="number"
+                                value={
+                                  form.outNodeId && form.outNodeId.length > 0 && form.outNodeId[0].port
+                                    ? form.outNodeId[0].port.toString()
+                                    : ""
+                                }
+                                variant="bordered"
+                                onChange={(e) => {
+                                  const value = e.target.value;
+
+                                  setForm((prev) => {
+                                    const currentOutNodes = prev.outNodeId || [];
+
+                                    if (currentOutNodes.length === 0) {
+                                      return {
+                                        ...prev,
+                                        outNodeId: [
+                                          {
+                                            nodeId: -1,
+                                            chainType: 3,
+                                            protocol: "tcp",
+                                            strategy: "round",
+                                            port: value ? parseInt(value) : undefined,
+                                          },
+                                        ],
+                                      };
+                                    }
+
+                                    return {
+                                      ...prev,
+                                      outNodeId: currentOutNodes.map((ct) => ({
+                                        ...ct,
+                                        port: value ? parseInt(value) : undefined,
+                                      })),
+                                    };
+                                  });
+                                }}
+                              />
+                            </div>
                           </>
                         );
                       })()}

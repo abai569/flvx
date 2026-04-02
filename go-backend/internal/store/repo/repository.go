@@ -219,7 +219,7 @@ func autoMigrateAll(db *gorm.DB) error {
 		return fmt.Errorf("migrate tunnel group new: %w", err)
 	}
 
-	// 手动迁移：为 user 表添加 name 字段（备注）
+	// 手动迁移：为 user 表添�?name 字段（备注）
 	if !db.Migrator().HasColumn(&model.User{}, "name") {
 		if err := db.Migrator().AddColumn(&model.User{}, "name"); err != nil {
 			return fmt.Errorf("add user.name column: %w", err)
@@ -291,7 +291,7 @@ func preparePostgresLegacySchema(db *gorm.DB) error {
 		if err := db.Exec(
 			fmt.Sprintf(`ALTER TABLE %q RENAME CONSTRAINT %q TO %q`, r.table, r.oldName, r.newName),
 		).Error; err != nil {
-			return fmt.Errorf("rename constraint %s.%s→%s: %w", r.table, r.oldName, r.newName, err)
+			return fmt.Errorf("rename constraint %s.%s� to: %w", r.table, r.oldName, r.newName, err)
 		}
 	}
 	return nil
@@ -354,7 +354,7 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 			if err := m.AddColumn(&model.Tunnel{}, "tunnel_group_id"); err != nil {
 				return fmt.Errorf("add tunnel.tunnel_group_id: %w", err)
 			}
-			// 迁移现有 list_id 数据到 tunnel_group_id
+			// 迁移现有 list_id 数据�?tunnel_group_id
 			db.Exec("UPDATE tunnel SET tunnel_group_id = list_id WHERE list_id IS NOT NULL")
 		}
 	}
@@ -1262,6 +1262,9 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 		}
 		if c.ConnectIP.Valid {
 			nodeObj["connectIp"] = c.ConnectIP.String
+		}
+		if c.Port.Valid && c.Port.Int64 > 0 {
+			nodeObj["port"] = c.Port.Int64
 		}
 
 		switch chainTypeInt {
@@ -3433,13 +3436,13 @@ func resolveForwardIngress(db *gorm.DB, forwardID int64, tunnelID int64) (string
 
 		var ip string
 		if row.InIP.Valid && strings.TrimSpace(row.InIP.String) != "" {
-			// 1. 如果规则有独立 IP，用规则的
+			// 1. 如果规则有独�?IP，用规则�?
 			ip = strings.TrimSpace(row.InIP.String)
 		} else if tunnelInIP.Valid && strings.TrimSpace(tunnelInIP.String) != "" {
-			// 🎯 2. 补上这一段！让它去读你选的“测试隧道”的域名！
+			// 🎯 2. 补上这一段！让它去读你选的“测试隧道”的域名�?
 			ip = strings.TrimSpace(tunnelInIP.String)
 		} else if row.ServerIP.Valid && strings.TrimSpace(row.ServerIP.String) != "" {
-			// 3. 最后才是拿底层服务器 IPv4 兜底
+			// 3. 最后才是拿底层服务�?IPv4 兜底
 			ip = strings.TrimSpace(row.ServerIP.String)
 		}
 
@@ -3525,7 +3528,7 @@ func (r *Repository) GetNodeMetrics(nodeID int64, startMs, endMs int64) ([]model
 	}
 
 	rangeMs := endMs - startMs
-	const maxRawRangeMs = int64(60 * 60 * 1000) // 1 hour — return raw data for short ranges
+	const maxRawRangeMs = int64(60 * 60 * 1000) // 1 hour �?return raw data for short ranges
 	const targetPoints = 500                    // target number of chart points for downsampled data
 
 	// For short ranges, return raw data (full resolution).

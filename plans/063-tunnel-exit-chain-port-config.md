@@ -33,10 +33,10 @@
 ## Tasks
 
 ### 1. Frontend: ChainTunnel 接口添加 port 字段
-- [ ] `vite-frontend/src/pages/tunnel.tsx:88-93` — `ChainTunnel` 接口加 `port?: number`
+- [x] `vite-frontend/src/pages/tunnel.tsx:88-93` — `ChainTunnel` 接口加 `port?: number` ✅
 
 ### 2. Frontend: 出口配置添加端口输入
-- [ ] `vite-frontend/src/pages/tunnel.tsx:3216-3300` — 在连接IP旁边添加端口输入框
+- [ ] `vite-frontend/src/pages/tunnel.tsx:3216-3300` — 在连接 IP 旁边添加端口输入框
 - [ ] 端口值绑定到 `form.outNodeId[0]?.port`
 - [ ] onChange 时更新所有出口节点的 port 字段
 
