@@ -95,7 +95,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
     key: "github_proxy_urls",
     label: "自定义加速地址",
     placeholder: "每行一个代理地址，按优先级排列",
-    description: "每行填写一个地址，默认使用第一行的地址，前面的地址失效时自动轮换下一个",
+    description: "每行填写一个地址，默认使用第一行的地址，前面的地址失效时自动轮换下一个\n地址后面不要带/，否则报错，切记 切记 切记",
     type: "input",
     dependsOn: "github_proxy_enabled",
     dependsValue: "true",
@@ -654,7 +654,7 @@ export default function ConfigPage() {
                 input: "font-mono text-sm",
               }}
               minRows={3}
-              placeholder={"https://gcode.hostcentral.cc\nhttps://ghfast.top/"}
+              placeholder={"https://gcode.hostcentral.cc\nhttps://ghfast.top"}
               size="md"
               value={displayValue}
               variant="bordered"
