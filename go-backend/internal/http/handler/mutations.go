@@ -2097,12 +2097,12 @@ func (h *Handler) forwardPause(w http.ResponseWriter, r *http.Request) {
 		log.Printf("断开连接失败：%v", err)
 	}
 
-	user, err := h.repo.GetUserByID(id)
-	if err != nil {
-		response.WriteJSON(w, response.Err(-2, "获取用户信息失败"))
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpdateForwardStatus(id, 0, now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	response.WriteJSON(w, response.OK(user))
+	response.WriteJSON(w, response.OKEmpty())
 }
 
 func (h *Handler) forwardResume(w http.ResponseWriter, r *http.Request) {

@@ -42,7 +42,7 @@ import {
   ModalBody,
   ModalFooter,
 } from "@/shadcn-bridge/heroui/modal";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
+
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
@@ -799,11 +799,11 @@ const SortableTableRow = ({
       </TableCell>
       {isAdmin && (
         <TableCell className={rowBg}>
-          <Chip color="secondary" size="sm" variant="solid">
+          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
             {" "}
-            {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
+            
             {getSpeedLimitName(forward.speedId ?? null)}
-          </Chip>
+          </div>
         </TableCell>
       )}
       <TableCell className={rowBg}>
@@ -825,7 +825,7 @@ const SortableTableRow = ({
             <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
           </svg>
           <span
-            className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
+            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
             title={inAddrNoPorts}
             onClick={() =>
               copyToClipboard(inAddrNoPorts.split(",").join("\n"), "入口地址")
@@ -838,7 +838,7 @@ const SortableTableRow = ({
 
       <TableCell className={rowBg}>
         <span
-          className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
+          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
           onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}
         >
           {forward.inPort}
@@ -861,7 +861,7 @@ const SortableTableRow = ({
             <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
           </svg>
           <span
-            className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
+            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
             title={remoteAddrOnly}
             onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}
           >
@@ -875,7 +875,7 @@ const SortableTableRow = ({
 
       <TableCell className={rowBg}>
         <span
-          className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
+          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
           onClick={() => copyToClipboard(remotePortOnly, "落地端口")}
         >
           {remotePortOnly}
@@ -883,19 +883,13 @@ const SortableTableRow = ({
       </TableCell>
 
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <span className="text-sm font-mono text-black">
+        <span className="text-sm font-medium text-black">
           {formatFlow(getForwardDisplayFlow(forward))}
         </span>
       </TableCell>
       <TableCell className={rowBg}>
         <div className="flex items-center gap-2.5 whitespace-nowrap">
-          <Chip
-            color={forward.serviceRunning ? "success" : "warning"}
-            size="sm"
-            variant="flat"
-          >
-            {forward.serviceRunning ? "正常" : "暂停"}
-          </Chip>
+          <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${forward.serviceRunning ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-warning-500/10 text-warning-600 dark:text-warning-400"}`}>{forward.serviceRunning ? "正常" : "暂停"}</div>
         </div>
       </TableCell>
       <TableCell className={rowBg}>
@@ -1115,9 +1109,9 @@ const SortableCompactTableRow = ({
 
       {isAdmin && (
         <TableCell className={rowBg}>
-          <Chip color="secondary" size="sm" variant="solid">
+          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
             {getSpeedLimitName(forward.speedId ?? null)}
-          </Chip>
+          </div>
         </TableCell>
       )}
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
@@ -1151,7 +1145,7 @@ const SortableCompactTableRow = ({
             <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
           </svg>
           <span
-            className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
+            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
             title={inAddrNoPorts}
             onClick={() =>
               copyToClipboard(inAddrNoPorts.split(",").join("\n"), "入口地址")
@@ -1164,7 +1158,7 @@ const SortableCompactTableRow = ({
 
       <TableCell className={rowBg}>
         <span
-          className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
+          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
           onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}
         >
           {forward.inPort}
@@ -1187,7 +1181,7 @@ const SortableCompactTableRow = ({
             <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
           </svg>
           <span
-            className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
+            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
             title={remoteAddrOnly}
             onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}
           >
@@ -1201,26 +1195,20 @@ const SortableCompactTableRow = ({
 
       <TableCell className={rowBg}>
         <span
-          className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
+          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
           onClick={() => copyToClipboard(remotePortOnly, "落地端口")}
         >
           {remotePortOnly}
         </span>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <span className="text-sm font-mono text-black">
+        <span className="text-sm font-medium text-black">
           {formatFlow(getForwardDisplayFlow(forward))}
         </span>
       </TableCell>
       <TableCell className={rowBg}>
         <div className="flex items-center gap-2.5 whitespace-nowrap">
-          <Chip
-            color={forward.serviceRunning ? "success" : "warning"}
-            size="sm"
-            variant="flat"
-          >
-            {forward.serviceRunning ? "正常" : "暂停"}
-          </Chip>
+          <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${forward.serviceRunning ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-warning-500/10 text-warning-600 dark:text-warning-400"}`}>{forward.serviceRunning ? "正常" : "暂停"}</div>
         </div>
       </TableCell>
       <TableCell className={rowBg}>
@@ -4005,11 +3993,11 @@ export default function ForwardPage() {
                 {forward.name}
               </h3>
               {isAdmin && (
-                <Chip color="secondary" size="sm" variant="solid">
+                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
                   {" "}
-                  {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
+                  
                   {getSpeedLimitName(forward.speedId ?? null)}
-                </Chip>
+                </div>
               )}
             </div>
             <div className="text-xs text-foreground font-bold truncate flex items-center mt-0.5">
@@ -4052,7 +4040,7 @@ export default function ForwardPage() {
                       <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                     </svg>
                     <code
-                      className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]"
+                      className="text-xs font-medium text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]"
                       title={inAddrNoPorts}
                       onClick={() =>
                         copyToClipboard(
@@ -4071,7 +4059,7 @@ export default function ForwardPage() {
                     copyToClipboard(forward.inPort.toString(), "入口端口")
                   }
                 >
-                  <code className="text-xs font-mono text-foreground font-bold">
+                  <code className="text-xs font-medium text-foreground font-bold">
                     {forward.inPort}
                   </code>
                 </div>
@@ -4104,7 +4092,7 @@ export default function ForwardPage() {
                       <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                     </svg>
                     <code
-                      className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]"
+                      className="text-xs font-medium text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]"
                       title={forward.remoteAddr
                         .split(",")[0]
                         .replace(/:\d+$/, "")}
@@ -4129,7 +4117,7 @@ export default function ForwardPage() {
                     )
                   }
                 >
-                  <code className="text-xs font-mono text-foreground font-bold">
+                  <code className="text-xs font-medium text-foreground font-bold">
                     {forward.remoteAddr.split(",")[0].match(/:(\d+)$/)?.[1] ||
                       "-"}
                   </code>
@@ -4141,51 +4129,22 @@ export default function ForwardPage() {
           {/* 底部 Chip 区 */}
           <div className="flex flex-wrap items-center justify-start pt-2 border-t border-divider gap-1">
             <div className="flex items-center gap-1">
-              <Chip
-                className="text-xs whitespace-nowrap shrink-0 font-bold"
-                color={strategyDisplay.color as any}
-                size="sm"
-                variant="flat"
-              >
-                {strategyDisplay.text}
-              </Chip>
-              <Chip
-                className="text-xs whitespace-nowrap shrink-0 font-bold"
-                color={statusDisplay.color as any}
-                size="sm"
-                variant="flat"
-              >
-                {statusDisplay.text}
-              </Chip>
+              <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${strategyDisplay.color === "primary" ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : strategyDisplay.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : strategyDisplay.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : strategyDisplay.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"}`}>{strategyDisplay.text}</div>
+              <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${statusDisplay.color === "primary" ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : statusDisplay.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : statusDisplay.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : statusDisplay.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"}`}>{statusDisplay.text}</div>
             </div>
             {(forward.inFlow || 0) + (forward.outFlow || 0) > 0 ? (
               <div className="flex items-center gap-1">
-                <Chip
-                  className="text-xs whitespace-nowrap font-bold"
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                >
+                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                   ↑{formatFlow(forward.inFlow || 0)}
-                </Chip>
-                <Chip
-                  className="text-xs whitespace-nowrap font-bold"
-                  color="success"
-                  size="sm"
-                  variant="flat"
-                >
+                </div>
+                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-success-500/10 text-success-600 dark:text-success-400">
                   ↓{formatFlow(forward.outFlow || 0)}
-                </Chip>
+                </div>
               </div>
             ) : (
-              <Chip
-                className="text-xs whitespace-nowrap font-bold"
-                color="default"
-                size="sm"
-                variant="flat"
-              >
+              <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-default-500/10 text-default-500">
                 总流量 {formatFlow(0)}
-              </Chip>
+              </div>
             )}
           </div>
 
@@ -4720,9 +4679,9 @@ export default function ForwardPage() {
                       </span>
                       {/* 🌟 列表分组视图 */}
                       {isSelfGroup && (
-                        <Chip color="primary" size="sm" variant="flat">
+                        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                           管理员本人
-                        </Chip>
+                        </div>
                       )}
                     </div>
                     <span className="text-xs text-default-600">
@@ -5006,9 +4965,9 @@ export default function ForwardPage() {
                     </span>
                     {/* 🌟 卡片分组视图 */}
                     {isSelfGroup && (
-                      <Chip color="primary" size="sm" variant="flat">
+                      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                         管理员本人
-                      </Chip>
+                      </div>
                     )}
                   </div>
                   <span className="text-xs text-default-600">
@@ -5550,9 +5509,9 @@ export default function ForwardPage() {
                 <div className="relative">
                   <Textarea
                     readOnly
-                    className="font-mono text-sm"
+                    className="font-medium text-sm"
                     classNames={{
-                      input: "font-mono text-sm",
+                      input: "font-medium text-sm",
                     }}
                     maxRows={20}
                     minRows={10}
@@ -5667,7 +5626,7 @@ export default function ForwardPage() {
               {/* 输入区域 */}
               <Textarea
                 classNames={{
-                  input: "font-mono text-sm",
+                  input: "font-medium text-sm",
                 }}
                 label="导入数据"
                 maxRows={12}
@@ -5749,7 +5708,7 @@ export default function ForwardPage() {
                               <span className="text-xs text-default-500">
                                 |
                               </span>
-                              <code className="text-xs font-mono text-default-600 truncate">
+                              <code className="text-xs font-medium text-default-600 truncate">
                                 {result.line}
                               </code>
                             </div>
@@ -5815,14 +5774,9 @@ export default function ForwardPage() {
                     <span className="text-small text-default-500 truncate flex-1 min-w-0">
                       {currentDiagnosisForward.name}
                     </span>
-                    <Chip
-                      className="flex-shrink-0"
-                      color="primary"
-                      size="sm"
-                      variant="flat"
-                    >
+                    <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                       规则服务
-                    </Chip>
+                    </div>
                   </div>
                 )}
               </ModalHeader>
@@ -5840,9 +5794,9 @@ export default function ForwardPage() {
                               : "?"}
                           </span>
                         </div>
-                        <Chip color="primary" size="sm" variant="flat">
+                        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                           流式更新中
-                        </Chip>
+                        </div>
                       </div>
                     )}
 
@@ -6004,23 +5958,7 @@ export default function ForwardPage() {
                                           </div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                          <Chip
-                                            color={
-                                              isDiagnosing
-                                                ? "warning"
-                                                : isSuccess
-                                                  ? "success"
-                                                  : "danger"
-                                            }
-                                            size="sm"
-                                            variant="flat"
-                                          >
-                                            {isDiagnosing
-                                              ? "诊断中"
-                                              : isSuccess
-                                                ? "成功"
-                                                : "失败"}
-                                          </Chip>
+                                          <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${isDiagnosing ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : isSuccess ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{isDiagnosing ? "诊断中" : isSuccess ? "成功" : "失败"}</div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess ? (
@@ -6051,14 +5989,7 @@ export default function ForwardPage() {
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess && quality ? (
-                                            <Chip
-                                              className="text-xs whitespace-nowrap"
-                                              color={quality.color as any}
-                                              size="sm"
-                                              variant="flat"
-                                            >
-                                              {quality.text}
-                                            </Chip>
+                                            <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${quality.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : quality.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{quality.text}</div>
                                           ) : (
                                             <span className="text-default-400">
                                               -
@@ -6183,24 +6114,7 @@ export default function ForwardPage() {
                                           {result.targetIp}:{result.targetPort}
                                         </div>
                                       </div>
-                                      <Chip
-                                        className="flex-shrink-0"
-                                        color={
-                                          isDiagnosing
-                                            ? "warning"
-                                            : isSuccess
-                                              ? "success"
-                                              : "danger"
-                                        }
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        {isDiagnosing
-                                          ? "诊断中"
-                                          : isSuccess
-                                            ? "成功"
-                                            : "失败"}
-                                      </Chip>
+                                      <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${isDiagnosing ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : isSuccess ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{isDiagnosing ? "诊断中" : isSuccess ? "成功" : "失败"}</div>
                                     </div>
 
                                     {isSuccess ? (
@@ -6229,14 +6143,7 @@ export default function ForwardPage() {
                                         <div className="text-center">
                                           {quality && (
                                             <>
-                                              <Chip
-                                                className="text-xs whitespace-nowrap"
-                                                color={quality.color as any}
-                                                size="sm"
-                                                variant="flat"
-                                              >
-                                                {quality.text}
-                                              </Chip>
+                                              <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${quality.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : quality.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{quality.text}</div>
                                               <div className="text-xs text-default-500 mt-0.5">
                                                 质量
                                               </div>

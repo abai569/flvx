@@ -104,12 +104,12 @@ function SortableTableRow({
     <TableRow key={node.id} ref={setNodeRef} className="cursor-default" style={style}>
       <TableCell className={rowBg}><div className="flex items-center justify-center h-full"><Checkbox isSelected={selectedIds.has(node.id)} onValueChange={() => toggleSelect(node.id)} /></div></TableCell>
       <TableCell className={rowBg}><div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors" {...attributes} {...listeners}><svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" /></svg></div></TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`} title={connectionStatusMeta.text} /><span className="text-sm font-bold text-foreground truncate" title={node.name}>{node.name}</span></div></TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`} title={connectionStatusMeta.text} /><span className="text-sm font-medium text-foreground truncate" title={node.name}>{node.name}</span></div></TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         {node.groupId && node.groupId > 0 ? (() => {
           const group = nodeGroups.find((g: any) => g.id == node.groupId);
-          return group ? (<Chip size="sm" style={{ backgroundColor: `${group.color}20`, color: group.color }} variant="flat">{group.name}</Chip>) : (<Chip className="bg-default-100 text-default-500" size="sm" variant="flat">未分组</Chip>);
-        })() : (<Chip className="bg-default-100 text-default-500" size="sm" variant="flat">未分组</Chip>)}
+          return group ? (<div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: `${group.color}1A`, color: group.color }}>{group.name}</div>) : (<div className="inline-flex items-center justify-center bg-default-500/10 text-default-500 px-2 py-0.5 rounded text-xs font-medium">未分组</div>);
+        })() : (<div className="inline-flex items-center justify-center bg-default-500/10 text-default-500 px-2 py-0.5 rounded text-xs font-medium">未分组</div>)}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
         <div className="text-left text-xs min-w-0 flex-1 min-h-[2.125rem]">
@@ -127,7 +127,7 @@ function SortableTableRow({
             {upgradeProgress?.[node.id]?.percent !== undefined && upgradeProgress[node.id].percent < 100 ? (
               <><Progress aria-label="升级进度" className="w-full" color="warning" size="sm" value={upgradeProgress[node.id].percent} /><span className="text-[10px] text-warning-600 truncate">{upgradeProgress[node.id].message}</span></>
             ) : (
-              <div className="flex items-center gap-1.5">{node.version && (<DistroIcon distro={parseDistroFromVersion(node.version)} className="w-4 h-4 shrink-0" style={{ color: getDistroColor(parseDistroFromVersion(node.version)) }} />)}<span className="text-sm font-mono text-default-600">{node.version ? node.version.split(" ")[0] : "未知"}</span></div>
+              <div className="flex items-center gap-1.5">{node.version && (<DistroIcon distro={parseDistroFromVersion(node.version)} className="w-4 h-4 shrink-0" style={{ color: getDistroColor(parseDistroFromVersion(node.version)) }} />)}<span className="text-sm font-medium text-default-600">{node.version ? node.version.split(" ")[0] : "未知"}</span></div>
             )}
           </div>
         ) : (<Chip className="h-5 text-[10px] px-1" size="sm" variant="flat">远程</Chip>)}

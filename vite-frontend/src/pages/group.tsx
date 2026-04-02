@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shadcn-bridge/heroui/table";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
+
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import {
   assignGroupPermission,
@@ -600,14 +600,7 @@ export default function GroupPage() {
                                   {item.tunnelNames
                                     .slice(0, 2)
                                     .map((name: string, idx: number) => (
-                                      <Chip
-                                        key={idx}
-                                        className="max-w-[120px] truncate whitespace-nowrap"
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        {name}
-                                      </Chip>
+                                      <div key={idx} className="max-w-[120px] truncate whitespace-nowrap inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-default-500/10 text-default-500">{name}</div>
                                     ))}
                                 </>
                               ) : (
@@ -625,14 +618,7 @@ export default function GroupPage() {
                                   </Button>
                                   {item.tunnelNames.map(
                                     (name: string, idx: number) => (
-                                      <Chip
-                                        key={idx}
-                                        className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0"
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        {name}
-                                      </Chip>
+                                      <div key={idx} className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0 inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-default-500/10 text-default-500">{name}</div>
                                     ),
                                   )}
                                 </div>
@@ -643,13 +629,7 @@ export default function GroupPage() {
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          <Chip
-                            color={item.status === 1 ? "success" : "danger"}
-                            size="sm"
-                            variant="flat"
-                          >
-                            {item.status === 1 ? "启用" : "停用"}
-                          </Chip>
+                          <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${item.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{item.status === 1 ? "启用" : "停用"}</div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <span className="text-sm text-default-600">
@@ -768,14 +748,7 @@ export default function GroupPage() {
                                   {item.userNames
                                     .slice(0, 2)
                                     .map((name: string, idx: number) => (
-                                      <Chip
-                                        key={idx}
-                                        className="max-w-[120px] truncate whitespace-nowrap"
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        {name}
-                                      </Chip>
+                                      <div key={idx} className="max-w-[120px] truncate whitespace-nowrap inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-default-500/10 text-default-500">{name}</div>
                                     ))}
                                 </>
                               ) : (
@@ -793,14 +766,7 @@ export default function GroupPage() {
                                   </Button>
                                   {item.userNames.map(
                                     (name: string, idx: number) => (
-                                      <Chip
-                                        key={idx}
-                                        className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0"
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        {name}
-                                      </Chip>
+                                      <div key={idx} className="max-w-[120px] truncate whitespace-nowrap flex-shrink-0 inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-default-500/10 text-default-500">{name}</div>
                                     ),
                                   )}
                                 </div>
@@ -811,13 +777,7 @@ export default function GroupPage() {
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          <Chip
-                            color={item.status === 1 ? "success" : "danger"}
-                            size="sm"
-                            variant="flat"
-                          >
-                            {item.status === 1 ? "启用" : "停用"}
-                          </Chip>
+                          <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${item.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{item.status === 1 ? "启用" : "停用"}</div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <span className="text-sm text-default-600">

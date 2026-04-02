@@ -27,7 +27,7 @@ import {
   ModalFooter,
   useDisclosure,
 } from "@/shadcn-bridge/heroui/modal";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
+
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { RadioGroup, Radio } from "@/shadcn-bridge/heroui/radio";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
@@ -1111,14 +1111,7 @@ export default function UserPage() {
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Chip
-                        className="text-xs"
-                        color={userStatus.color}
-                        size="sm"
-                        variant="flat"
-                      >
-                        {userStatus.text}
-                      </Chip>
+                      <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${userStatus.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{userStatus.text}</div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <span className={`text-sm ${user.flow === 99999 ? "text-success font-medium" : "text-foreground"}`}>
@@ -1160,14 +1153,7 @@ export default function UserPage() {
                             {formatDate(user.expTime)}
                           </span>
                         ) : (
-                          <Chip
-                            className="text-xs"
-                            color={expStatus?.color || "default"}
-                            size="sm"
-                            variant="flat"
-                          >
-                            {expStatus?.text || "未知"}
-                          </Chip>
+                          <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${((expStatus?.color as string) || "default") === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : (expStatus?.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : (expStatus?.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"))}`}>{expStatus?.text || "未知"}</div>
                         )
                       ) : (
                         <span className="text-sm text-default-400">-</span>
@@ -1249,23 +1235,9 @@ export default function UserPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 ml-2">
-                        <Chip
-                          className="text-xs"
-                          color={userStatus.color}
-                          size="sm"
-                          variant="flat"
-                        >
-                          {userStatus.text}
-                        </Chip>
+                        <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${userStatus.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{userStatus.text}</div>
                         {user.disabledByQuota ? (
-                          <Chip
-                            className="text-xs"
-                            color="danger"
-                            size="sm"
-                            variant="flat"
-                          >
-                            配额超额
-                          </Chip>
+                          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-danger-500/10 text-danger-600 dark:text-danger-400">配额超额</div>
                         ) : null}
                       </div>
                     </div>
@@ -1320,14 +1292,7 @@ export default function UserPage() {
                                   {formatDate(user.expTime)}
                                 </div>
                               ) : (
-                                <Chip
-                                  className="text-xs"
-                                  color={expStatus?.color || "default"}
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {expStatus?.text || "未知状态"}
-                                </Chip>
+                                <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${((expStatus?.color as string) || "default") === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : (expStatus?.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : (expStatus?.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"))}`}>{expStatus?.text || "未知状态"}</div>
                               )}
                             </div>
                           </div>

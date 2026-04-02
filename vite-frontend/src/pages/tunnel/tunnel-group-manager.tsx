@@ -17,7 +17,7 @@ import {
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Textarea } from "@/shadcn-bridge/heroui/input";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
+
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import {
@@ -256,25 +256,17 @@ export function TunnelGroupManager({
 
                         <TableCell className="whitespace-nowrap">
                           <div className="flex items-center justify-center gap-2">
-                            <Chip
-                              className="bg-blue-500 text-white font-mono font-semibold"
-                              size="sm"
-                              variant="flat"
-                            >
+                            <div className="inline-flex items-center justify-center bg-blue-500/10 text-blue-600 px-2.5 py-0.5 rounded-md text-sm font-bold font-mono">
 							  {group.inx || 0}
-							</Chip>
+							</div>
                           </div>
                         </TableCell>
 
                         <TableCell className="whitespace-nowrap">
                           <div className="flex items-center justify-center gap-2">
-                            <Chip
-                              className="bg-purple-500 text-white font-mono font-semibold"
-                              size="sm"
-                              variant="flat"
-                            >
+                            <div className="inline-flex items-center justify-center bg-purple-500/10 text-purple-600 px-2.5 py-0.5 rounded-md text-sm font-bold font-mono">
                               {group.id === -1 ? allTunnels.filter((t) => !t.tunnelGroupId || t.tunnelGroupId === 0).length : allTunnels.filter((t) => t.tunnelGroupId === group.id).length}
-                            </Chip>
+                            </div>
                           </div>
                         </TableCell>
 						

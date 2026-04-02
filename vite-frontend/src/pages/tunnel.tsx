@@ -1848,37 +1848,17 @@ export default function TunnelPage() {
                                   (() => {
                                     const group = tunnelGroupsNew.find(g => g.id === tunnel.tunnelGroupId);
                                     return group ? (
-                                      <Chip
-                                        size="sm"
-                                        variant="flat"
-                                        style={{
-                                          backgroundColor: `${group.color}20`,
-                                          color: group.color,
-                                        }}
-                                      >
-                                        {group.name}
-                                      </Chip>
+                                      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: `${group.color}1A`, color: group.color }}>{group.name}</div>
                                     ) : (
-                                      <Chip className="bg-default-100 text-default-500" size="sm" variant="flat">
-                                        未分组
-                                      </Chip>
+                                      <div className="inline-flex items-center justify-center bg-default-500/10 text-default-500 px-2 py-0.5 rounded text-xs font-medium">未分组</div>
                                     );
                                   })()
                                 ) : (
-                                  <Chip className="bg-default-100 text-default-500" size="sm" variant="flat">
-                                    未分组
-                                  </Chip>
+                                  <div className="inline-flex items-center justify-center bg-default-500/10 text-default-500 px-2 py-0.5 rounded text-xs font-medium">未分组</div>
                                 )}
                               </td>
                               <td className="py-3 px-4 align-middle">
-                                <Chip
-                                  className={typeDisplay.color === "primary" ? "text-xs bg-primary-100 text-primary-800 border-primary-300 dark:bg-primary-900/45 dark:text-primary-200 dark:border-primary-700" : "text-xs bg-success-100 text-success-800 border-success-300 dark:bg-success-900/35 dark:text-success-200 dark:border-success-700"}
-                                  color={typeDisplay.color as any}
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {typeDisplay.text}
-                                </Chip>
+                                <div className={typeDisplay.color === "primary" ? "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400" : "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-success-500/10 text-success-600 dark:text-success-400"}>{typeDisplay.text}</div>
                               </td>
                               <td className="py-3 px-4 text-center align-middle">
                                 <span className="font-medium text-foreground">{inCount}个</span>
@@ -1938,8 +1918,8 @@ export default function TunnelPage() {
                   const typeDisplay = getTunnelTypeDisplay(tunnel.type);
                   const tunnelTypeChipClassName =
                     tunnel.type === 1
-                      ? "text-xs bg-primary-100 text-primary-800 border-primary-300 dark:bg-primary-900/45 dark:text-primary-200 dark:border-primary-700"
-                      : "text-xs bg-success-100 text-success-800 border-success-300 dark:bg-success-900/35 dark:text-success-200 dark:border-success-700";
+                      ? "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400"
+                      : "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-success-500/10 text-success-600 dark:text-success-400";
 
                   return (
                     <SortableItem key={tunnel.id} id={tunnel.id}>
@@ -1978,28 +1958,12 @@ export default function TunnelPage() {
                                 {tunnel.name}
                               </h3>
                               <div className="flex items-center gap-1.5 mt-1">
-                                <Chip
-                                  className={tunnelTypeChipClassName}
-                                  color={typeDisplay.color as any}
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {typeDisplay.text}
-                                </Chip>
+                                <div className={tunnelTypeChipClassName}>{typeDisplay.text}</div>
                                 {tunnel.tunnelGroupId && tunnel.tunnelGroupId > 0 ? (
                                   (() => {
                                     const group = tunnelGroupsNew.find(g => g.id === tunnel.tunnelGroupId);
                                     return group ? (
-                                      <Chip
-                                        size="sm"
-                                        variant="flat"
-                                        style={{
-                                          backgroundColor: `${group.color}20`,
-                                          color: group.color,
-                                        }}
-                                      >
-                                        {group.name}
-                                      </Chip>
+                                      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: `${group.color}1A`, color: group.color }}>{group.name}</div>
                                     ) : null;
                                   })()
                                 ) : null}
@@ -2464,27 +2428,15 @@ export default function TunnelPage() {
                             <div className="flex items-center justify-between">
                               <span>{node.name}{node.remark && <span className="text-xs text-default-400 ml-1">({node.remark})</span>}</span>
                               <div className="flex items-center gap-2">
-                                <Chip
-                                  color={
-                                    node.status === 1 ? "success" : "default"
-                                  }
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {node.status === 1 ? "在线" : "离线"}
-                                </Chip>
+                                <div className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium ${node.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-default-500/10 text-default-500"}`}>{node.status === 1 ? "在线" : "离线"}</div>
                                 {form.outNodeId &&
                                   form.outNodeId.some(
                                     (ct) => ct.nodeId === node.id,
                                   ) && (
-                                    <Chip color="danger" size="sm" variant="flat">
-                                      已选为出口
-                                    </Chip>
+                                    <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-danger-500/10 text-danger-600 dark:text-danger-400">已选为出口</div>
                                   )}
                                 {getSelectedChainNodeIds().includes(node.id) && (
-                                  <Chip color="primary" size="sm" variant="flat">
-                                    已选为转发链
-                                  </Chip>
+                                  <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">已选为转发链</div>
                                 )}
                               </div>
                             </div>
@@ -2704,25 +2656,13 @@ export default function TunnelPage() {
                                                   {form.inNodeId.some(
                                                     (ct) => ct.nodeId === node.id,
                                                   ) && (
-                                                      <Chip
-                                                        color="warning"
-                                                        size="sm"
-                                                        variant="flat"
-                                                      >
-                                                        已选为入口
-                                                      </Chip>
+                                                      <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">已选为入口</div>
                                                     )}
                                                   {form.outNodeId &&
                                                     form.outNodeId.some(
                                                       (ct) => ct.nodeId === node.id,
                                                     ) && (
-                                                      <Chip
-                                                        color="danger"
-                                                        size="sm"
-                                                        variant="flat"
-                                                      >
-                                                        已选为出口
-                                                      </Chip>
+                                                      <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-danger-500/10 text-danger-600 dark:text-danger-400">已选为出口</div>
                                                     )}
                                                   {(form.chainNodes || []).some(
                                                     (group, idx) =>
@@ -2733,13 +2673,7 @@ export default function TunnelPage() {
                                                           ct.nodeId !== -1,
                                                       ),
                                                   ) && (
-                                                      <Chip
-                                                        color="primary"
-                                                        size="sm"
-                                                        variant="flat"
-                                                      >
-                                                        已选为其他跳
-                                                      </Chip>
+                                                      <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">已选为其他跳</div>
                                                     )}
                                                 </div>
                                               </div>
@@ -2812,7 +2746,7 @@ export default function TunnelPage() {
                                     </div>
 
                                     {/* 连接IP - 转发链节点 */}
-                                    <Select
+                                    <div className="mt-5"><Select
                                       classNames={{
                                         label: "text-xs",
                                         value: "text-sm",
@@ -2861,7 +2795,7 @@ export default function TunnelPage() {
                                       {groupIpOptions.map((ip) => (
                                         <SelectItem key={ip}>{ip}</SelectItem>
                                       ))}
-                                    </Select>
+                                    </Select></div>
                                     <div className="mt-2 flex justify-end">
                                       <Button
                                         color="primary"
@@ -2885,7 +2819,7 @@ export default function TunnelPage() {
                                           }));
                                         }}
                                       >
-                                        再添加一跳
+                                        再加一跳
                                       </Button>
                                     </div>
                                   </div>
@@ -3045,24 +2979,12 @@ export default function TunnelPage() {
                                           {form.inNodeId.some(
                                             (ct) => ct.nodeId === node.id,
                                           ) && (
-                                              <Chip
-                                                color="warning"
-                                                size="sm"
-                                                variant="flat"
-                                              >
-                                                已选为入口
-                                              </Chip>
+                                              <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">已选为入口</div>
                                             )}
                                           {getSelectedChainNodeIds().includes(
                                             node.id,
                                           ) && (
-                                              <Chip
-                                                color="primary"
-                                                size="sm"
-                                                variant="flat"
-                                              >
-                                                已选为转发链
-                                              </Chip>
+                                              <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">已选为转发链</div>
                                             )}
                                         </div>
                                       </div>
@@ -3216,7 +3138,7 @@ export default function TunnelPage() {
                             </div>
 
                             {/* 连接IP - 出口节点 */}
-                            <Select
+                            <div className="mt-3"><Select
                               classNames={{
                                 label: "text-xs",
                                 value: "text-sm",
@@ -3291,7 +3213,7 @@ export default function TunnelPage() {
                               {commonOutIpOptions.map((ip) => (
                                 <SelectItem key={ip}>{ip}</SelectItem>
                               ))}
-                            </Select>
+                            </Select></div>
                           </>
                         );
                       })()}
@@ -3573,9 +3495,7 @@ export default function TunnelPage() {
                               : "?"}
                           </span>
                         </div>
-                        <Chip color="primary" size="sm" variant="flat">
-                          流式更新中
-                        </Chip>
+                        <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">流式更新中</div>
                       </div>
                     )}
 
@@ -3736,23 +3656,11 @@ export default function TunnelPage() {
                                           </div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                          <Chip
-                                            color={
-                                              isDiagnosing
-                                                ? "warning"
-                                                : isSuccess
-                                                  ? "success"
-                                                  : "danger"
-                                            }
-                                            size="sm"
-                                            variant="flat"
-                                          >
-                                            {isDiagnosing
+                                          <div className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium ${isDiagnosing ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : isSuccess ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{isDiagnosing
                                               ? "诊断中"
                                               : isSuccess
                                                 ? "成功"
-                                                : "失败"}
-                                          </Chip>
+                                                : "失败"}</div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess ? (
@@ -3783,14 +3691,7 @@ export default function TunnelPage() {
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess && quality ? (
-                                            <Chip
-                                              className="text-xs whitespace-nowrap"
-                                              color={quality.color as any}
-                                              size="sm"
-                                              variant="flat"
-                                            >
-                                              {quality.text}
-                                            </Chip>
+                                            <div className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap ${quality.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : quality.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{quality.text}</div>
                                           ) : (
                                             <span className="text-default-400">
                                               -
@@ -3914,24 +3815,11 @@ export default function TunnelPage() {
                                           {result.targetIp}:{result.targetPort}
                                         </div>
                                       </div>
-                                      <Chip
-                                        className="flex-shrink-0"
-                                        color={
-                                          isDiagnosing
-                                            ? "warning"
-                                            : isSuccess
-                                              ? "success"
-                                              : "danger"
-                                        }
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        {isDiagnosing
+                                      <div className={`flex-shrink-0 inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium ${isDiagnosing ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : isSuccess ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{isDiagnosing
                                           ? "诊断中"
                                           : isSuccess
                                             ? "成功"
-                                            : "失败"}
-                                      </Chip>
+                                            : "失败"}</div>
                                     </div>
 
                                     {isSuccess ? (
@@ -3960,14 +3848,7 @@ export default function TunnelPage() {
                                         <div className="text-center">
                                           {quality && (
                                             <>
-                                              <Chip
-                                                className="text-xs whitespace-nowrap"
-                                                color={quality.color as any}
-                                                size="sm"
-                                                variant="flat"
-                                              >
-                                                {quality.text}
-                                              </Chip>
+                                              <div className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap ${quality.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : quality.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{quality.text}</div>
                                               <div className="text-xs text-default-500 mt-0.5">
                                                 质量
                                               </div>
@@ -4140,9 +4021,7 @@ export default function TunnelPage() {
                                 {item.forwardCount} 条规则依赖
                               </p>
                             </div>
-                            <Chip color="warning" size="sm" variant="flat">
-                              有关联
-                            </Chip>
+                            <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">有关联</div>
                           </div>
 
                           {item.sampleForwards.length > 0 ? (

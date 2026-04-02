@@ -10,7 +10,7 @@ import {
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Textarea } from "@/shadcn-bridge/heroui/input";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
+
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import {
@@ -216,25 +216,17 @@ export function NodeGroupManager({
                         {/* 🎯 排序单元格 也跟着调到了这里 */}
                         <TableCell className="whitespace-nowrap">
                           <div className="flex items-center justify-center gap-2">
-                            <Chip
-                              className="bg-blue-500 text-white font-mono font-semibold"
-                              size="sm"
-                              variant="flat"
-                            >
+                            <div className="inline-flex items-center justify-center bg-blue-500/10 text-blue-600 px-2.5 py-0.5 rounded-md text-sm font-bold font-mono">
 							  {group.inx || 0}
-							</Chip>
+							</div>
                           </div>
                         </TableCell>                       
 
                         <TableCell className="whitespace-nowrap">
 						<div className="flex items-center justify-center gap-2">
-                          <Chip
-                            size="sm"
-                            variant="flat"
-                            className="bg-purple-500 text-white font-mono font-semibold"
-                          >
+                          <div className="inline-flex items-center justify-center bg-purple-500/10 text-purple-600 px-2.5 py-0.5 rounded-md text-sm font-bold font-mono">
                             {group.id === -1 ? allNodes.filter(n => !n.groupId || n.groupId === 0).length : group.nodeCount}
-                          </Chip>
+                          </div>
 						</div>
                         </TableCell>
 						

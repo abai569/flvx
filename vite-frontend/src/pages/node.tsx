@@ -1804,35 +1804,13 @@ export default function NodePage() {
                     (g: any) => Number(g.id) === Number(node.groupId),
                   );
                   return group ? (
-                    <Chip
-                      className="flex-shrink-0"
-                      size="sm"
-                      style={{
-                        backgroundColor: `${group.color}20`,
-                        color: group.color,
-                      }}
-                      variant="flat"
-                    >
-                      {group.name}
-                    </Chip>
+                    <div className="flex-shrink-0 inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: `${group.color}1A`, color: group.color }}>{group.name}</div>
                   ) : (
-                    <Chip
-                      className="flex-shrink-0 bg-default-100 text-default-500"
-                      size="sm"
-                      variant="flat"
-                    >
-                      未分组
-                    </Chip>
+                    <div className="flex-shrink-0 inline-flex items-center justify-center bg-default-500/10 text-default-500 px-2 py-0.5 rounded text-xs font-medium">未分组</div>
                   );
                 })()
               ) : (
-                <Chip
-                  className="flex-shrink-0 bg-default-100 text-default-500"
-                  size="sm"
-                  variant="flat"
-                >
-                  未分组
-                </Chip>
+                <div className="flex-shrink-0 inline-flex items-center justify-center bg-default-500/10 text-default-500 px-2 py-0.5 rounded text-xs font-medium">未分组</div>
               )}
               <div className="flex-shrink-0">
                 {hasInfoTrigger && (
@@ -1918,14 +1896,7 @@ export default function NodePage() {
                               {formatNodeRenewalTime(
                                 expiryMeta.nextDueTime,
                               )}{" "}
-                              <Chip
-                                className="text-[10px] h-5 px-1 ml-1 inline-flex"
-                                color={expiryMeta.tone}
-                                size="sm"
-                                variant="flat"
-                              >
-                                {expiryMeta.label}
-                              </Chip>
+                              <div className={`text-[10px] h-5 px-1.5 ml-1 inline-flex items-center justify-center rounded font-medium ${expiryMeta.tone === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : expiryMeta.tone === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : expiryMeta.tone === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-default-500/10 text-default-500"}`}>{expiryMeta.label}</div>
                             </div>
                           </div>
                         )}
@@ -1969,7 +1940,7 @@ export default function NodePage() {
                   <>
                     {node.serverIpV4?.trim() && (
                       <span
-                        className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
+                        className="font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
                         title={node.serverIpV4.trim()}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1984,7 +1955,7 @@ export default function NodePage() {
                     )}
                     {node.serverIpV6?.trim() && (
                       <span
-                        className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px] text-right"
+                        className="font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px] text-right"
                         title={node.serverIpV6.trim()}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2000,7 +1971,7 @@ export default function NodePage() {
                   </>
                 ) : (
                   <span
-                    className="font-mono text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
+                    className="font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
                     title={node.serverIp.trim()}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -2028,14 +1999,14 @@ export default function NodePage() {
                         }}
                       />
                     )}
-                    <span className="font-mono text-sm text-default-600">
+                    <span className="font-medium text-sm text-default-600">
                       {node.version ? node.version.split(" ")[0] : "未知"}
                     </span>
                   </div>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-default-600">总流量</span>
-                  <span className="font-mono text-sm text-danger-600 dark:text-danger-400">
+                  <span className="font-medium text-sm text-danger-600 dark:text-danger-400">
                     {node.connectionStatus === "online" &&
                       realtimeNodeMetrics[node.id]
                       ? formatTraffic(
@@ -2070,7 +2041,7 @@ export default function NodePage() {
                     <div className="flex justify-between gap-2">
                       <span className="text-default-500">远程地址</span>
                       <span
-                        className="font-mono text-right truncate"
+                        className="font-medium text-right truncate"
                         title={remoteUsage.remoteUrl || node.remoteUrl || "-"}
                       >
                         {remoteUsage.remoteUrl || node.remoteUrl || "-"}
@@ -2078,17 +2049,17 @@ export default function NodePage() {
                     </div>
                     <div className="flex justify-between gap-2">
                       <span className="text-default-500">共享ID</span>
-                      <span className="font-mono">#{remoteUsage.shareId}</span>
+                      <span className="font-medium">#{remoteUsage.shareId}</span>
                     </div>
                     <div className="flex justify-between gap-2">
                       <span className="text-default-500">流量</span>
-                      <span className="font-mono">
+                      <span className="font-medium">
                         {formatFlow(remoteUsage.currentFlow)}
                       </span>
                     </div>
                     <div className="flex justify-between gap-2">
                       <span className="text-default-500">带宽上限</span>
-                      <span className="font-mono">
+                      <span className="font-medium">
                         {remoteUsage.maxBandwidth > 0
                           ? formatSpeed(remoteUsage.maxBandwidth)
                           : "不限"}
@@ -2098,7 +2069,7 @@ export default function NodePage() {
                   <div className="text-xs rounded-md border border-default-200 dark:border-default-100/30 bg-default-50 dark:bg-default-100/20 p-2.5">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-default-500">占用端口</span>
-                      <span className="font-mono text-default-700 dark:text-default-300">
+                      <span className="font-medium text-default-700 dark:text-default-300">
                         {remoteUsage.usedPorts.length}/
                         {Math.max(
                           remoteUsage.portRangeEnd -
@@ -2112,14 +2083,7 @@ export default function NodePage() {
                       {remoteUsage.usedPorts.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {remoteUsage.usedPorts.map((port) => (
-                            <Chip
-                              key={`${node.id}-port-${port}`}
-                              className="font-mono shrink-0 whitespace-nowrap"
-                              size="sm"
-                              variant="flat"
-                            >
-                              {port}
-                            </Chip>
+                            <div key={`${node.id}-port-${port}`} className="inline-flex items-center justify-center bg-default-500/10 text-default-500 px-1.5 py-0.5 rounded text-[11px] font-medium shrink-0 whitespace-nowrap">{port}</div>
                           ))}
                         </div>
                       ) : (
@@ -2130,7 +2094,7 @@ export default function NodePage() {
                   <div className="text-xs rounded-md border border-default-200 dark:border-default-100/30 bg-default-50 dark:bg-default-100/20 p-2.5">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-default-500">绑定明细</span>
-                      <span className="font-mono text-default-700 dark:text-default-300">
+                      <span className="font-medium text-default-700 dark:text-default-300">
                         {remoteUsage.activeBindingNum}
                       </span>
                     </div>
@@ -2148,7 +2112,7 @@ export default function NodePage() {
                               >
                                 {binding.tunnelName}
                               </span>
-                              <span className="font-mono text-[11px]">
+                              <span className="font-medium text-[11px]">
                                 #{binding.tunnelId}
                               </span>
                             </div>
@@ -2159,7 +2123,7 @@ export default function NodePage() {
                                   binding.hopInx,
                                 )}
                               </span>
-                              <span className="font-mono">
+                              <span className="font-medium">
                                 端口 {binding.allocatedPort}
                               </span>
                             </div>
@@ -2186,7 +2150,7 @@ export default function NodePage() {
                   <div className="text-primary-600 dark:text-primary-400 mb-0.5">
                     ↑ 上行流量
                   </div>
-                  <div className="font-mono text-sm text-primary-700 dark:text-primary-300">
+                  <div className="font-medium text-sm text-primary-700 dark:text-primary-300">
                     {node.connectionStatus === "online" &&
                       realtimeNodeMetrics[node.id]
                       ? formatTraffic(
@@ -2199,7 +2163,7 @@ export default function NodePage() {
                   <div className="text-success-600 dark:text-success-400 mb-0.5">
                     ↓ 下行流量
                   </div>
-                  <div className="font-mono text-sm text-success-700 dark:text-success-300">
+                  <div className="font-medium text-sm text-success-700 dark:text-success-300">
                     {node.connectionStatus === "online" &&
                       realtimeNodeMetrics[node.id]
                       ? formatTraffic(
@@ -2308,13 +2272,7 @@ export default function NodePage() {
             onPress={() => setActiveTab("local")}
           >
             本地节点
-            <Chip
-              className="ml-1 shrink-0 whitespace-nowrap"
-              size="sm"
-              variant="flat"
-            >
-              {localNodes.length}
-            </Chip>
+            <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-black/10 dark:bg-white/20 px-1.5 py-0.5 rounded text-[11px] font-medium">{localNodes.length}</div>
           </Button>
           <Button
             className={`shrink-0 text-white font-medium ${activeTab === "remote" ? "" : "bg-default-400 hover:bg-default-500"}`}
@@ -2324,13 +2282,7 @@ export default function NodePage() {
             onPress={() => setActiveTab("remote")}
           >
             远程节点
-            <Chip
-              className="ml-1 shrink-0 whitespace-nowrap"
-              size="sm"
-              variant="flat"
-            >
-              {remoteNodes.length}
-            </Chip>
+            <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-black/10 dark:bg-white/20 px-1.5 py-0.5 rounded text-[11px] font-medium">{remoteNodes.length}</div>
           </Button>
         </div>
 
@@ -2856,7 +2808,7 @@ export default function NodePage() {
 
                 <Input
                   classNames={{
-                    input: "font-mono",
+                    input: "font-medium",
                   }}
                   description="支持单个端口(80)、多个端口(80,443)或端口范围(10000-65535)，多个可用逗号分隔"
                   errorMessage={errors.port}
@@ -3318,9 +3270,9 @@ export default function NodePage() {
               <div className="relative">
                 <Textarea
                   readOnly
-                  className="font-mono text-sm"
+                  className="font-medium text-sm"
                   classNames={{
-                    input: "font-mono text-sm",
+                    input: "font-medium text-sm",
                   }}
                   maxRows={10}
                   minRows={6}
@@ -3409,14 +3361,7 @@ export default function NodePage() {
                                 ? new Date(r.publishedAt).toLocaleDateString()
                                 : ""}
                               {r.channel === "dev" && (
-                                <Chip
-                                  className="ml-1 shrink-0 whitespace-nowrap"
-                                  color="warning"
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  测试
-                                </Chip>
+                                <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-warning-500/10 text-warning-600 dark:text-warning-400 px-1.5 py-0.5 rounded text-[11px] font-medium">测试</div>
                               )}
                             </span>
                           </div>

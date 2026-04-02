@@ -25,7 +25,7 @@ import {
   ModalBody,
   ModalFooter,
 } from "@/shadcn-bridge/heroui/modal";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
+
 import {
   createSpeedLimit,
   getSpeedLimitList,
@@ -330,19 +330,10 @@ export default function LimitPage() {
                       </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Chip color="secondary" size="sm" variant="flat">
-                        {rule.speed}M
-                      </Chip>
+                      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">{rule.speed}M</div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Chip
-                        className="text-xs"
-                        color={rule.status === 1 ? "success" : "danger"}
-                        size="sm"
-                        variant="flat"
-                      >
-                        {rule.status === 1 ? "运行" : "异常"}
-                      </Chip>
+                      <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${rule.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{rule.status === 1 ? "运行" : "异常"}</div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <span className="text-sm text-default-600">
@@ -393,13 +384,7 @@ export default function LimitPage() {
                           {rule.name}
                         </h3>
                       </div>
-                      <Chip
-                        color={rule.status === 1 ? "success" : "danger"}
-                        size="sm"
-                        variant="flat"
-                      >
-                        {rule.status === 1 ? "运行" : "异常"}
-                      </Chip>
+                      <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${rule.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{rule.status === 1 ? "运行" : "异常"}</div>
                     </div>
                   </CardHeader>
                   <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
@@ -408,9 +393,7 @@ export default function LimitPage() {
                         <span className="text-small text-default-600">
                           速度限制
                         </span>
-                        <Chip color="secondary" size="sm" variant="flat">
-                          {rule.speed}M
-                        </Chip>
+                        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">{rule.speed}M</div>
                       </div>
                     </div>
 
