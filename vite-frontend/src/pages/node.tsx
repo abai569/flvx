@@ -358,9 +358,9 @@ export default function NodePage() {
   >({});
   const [nodeFilterMode, setNodeFilterMode, resetNodeFilterMode] =
     useLocalStorageState<NodeFilterMode>("node-expiry-filter-mode", "all");
+  const [filterGroupId, setFilterGroupId] = useLocalStorageState<number | null>("node-filter-group-id", null);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [filterGroupId, setFilterGroupId] = useState<number | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("");
   const [isEdit, setIsEdit] = useState(false);

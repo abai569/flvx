@@ -311,7 +311,7 @@ export default function TunnelPage() {
 
   // 筛选状态
   const [tunnelFilterMode, setTunnelFilterMode] = useLocalStorageState<"all" | "enabled" | "disabled">("tunnel-filter-mode", "all");
-  const [filterGroupId, setFilterGroupId] = useState<number | null>(null);
+  const [filterGroupId, setFilterGroupId] = useLocalStorageState<number | null>("tunnel-filter-group-id", null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // 列表模式选中行
@@ -2387,7 +2387,7 @@ export default function TunnelPage() {
                         }
                         errorMessage={errors.inNodeId}
                         isInvalid={!!errors.inNodeId}
-                        label="入口节点"
+                        label={`入口节点${form.inNodeId.length > 0 ? ` (已选 ${form.inNodeId.length} 个)` : ""}`}
                         placeholder="请选择入口节点（可多选）"
                         selectedKeys={form.inNodeId.map((ct) =>
                           ct.nodeId.toString(),
@@ -2570,6 +2570,7 @@ export default function TunnelPage() {
                                       <div className="col-span-1 md:col-span-2">
                                         <Select
                                           classNames={{
+                                            base: "w-full",
                                             label: "text-xs",
                                             value: "text-sm",
                                           }}
@@ -2611,8 +2612,8 @@ export default function TunnelPage() {
                                                   .map((id) => id.toString()),
                                               ]
                                           }
-                                          dropdownPlacement="top"
-                                          label="出口节点"
+                                          // dropdownPlacement="top"
+                                          label={`节点选择${groupNodes.filter(ct => ct.nodeId !== -1).length > 0 ? ` (已选 ${groupNodes.filter(ct => ct.nodeId !== -1).length} 个)` : ""}`}
                                           placeholder="选择节点（可多选）"
                                           selectedKeys={groupNodes
                                             .filter((ct) => ct.nodeId !== -1)
@@ -2630,7 +2631,7 @@ export default function TunnelPage() {
                                           {nodes.map((node) => (
                                             <SelectItem
                                               key={node.id}
-                                              textValue={`${node.name}`}
+                                              textValue={node.remark ? `${node.name} (${node.remark})` : node.name}
                                             >
                                               <div className="flex items-center justify-between">
                                                 <span className="text-sm">
@@ -2884,6 +2885,7 @@ export default function TunnelPage() {
                               <div className="col-span-1 md:col-span-2">
                                 <Select
                                   classNames={{
+                                    base: "w-full",
                                     label: "text-xs",
                                     value: "text-sm",
                                   }}
@@ -2911,10 +2913,10 @@ export default function TunnelPage() {
                                         ),
                                       ]
                                   }
-                                  dropdownPlacement="top"
+                                  // dropdownPlacement="top"
                                   errorMessage={errors.outNodeId}
                                   isInvalid={!!errors.outNodeId}
-                                  label="出口节点"
+                                  label={`出口节点${form.outNodeId && form.outNodeId.filter((ct) => ct.nodeId !== -1).length > 0 ? ` (已选 ${form.outNodeId.filter((ct) => ct.nodeId !== -1).length} 个)` : ""}`}
                                   placeholder="请选择出口节点（可多选）"
                                   selectedKeys={
                                     form.outNodeId
@@ -2958,7 +2960,7 @@ export default function TunnelPage() {
                                   {nodes.map((node) => (
                                     <SelectItem
                                       key={node.id}
-                                      textValue={`${node.name}`}
+                                      textValue={node.remark ? `${node.name} (${node.remark})` : node.name}
                                     >
                                       <div className="flex items-center justify-between">
                                         <span>{node.name}{node.remark && <span className="text-xs text-default-400 ml-1">({node.remark})</span>}</span>

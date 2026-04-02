@@ -27,6 +27,7 @@ import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Textarea } from "@/shadcn-bridge/heroui/input";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
+import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import {
   Table,
   TableBody,
@@ -1335,7 +1336,7 @@ export default function ForwardPage() {
   const tokenUserId = JwtUtil.getUserIdFromToken();
   const tokenRoleId = JwtUtil.getRoleIdFromToken();
   const isAdmin = tokenRoleId === 0;
-  const [searchParams, setSearchParams] = useState({
+  const [searchParams, setSearchParams] = useLocalStorageState("forward-search-params", {
     name: "",
     userId: tokenUserId ? tokenUserId.toString() : "all",
     tunnelId: "all",
