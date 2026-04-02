@@ -577,8 +577,11 @@ export const updateTunnelGroupNew = (data: TunnelGroupNewMutationPayload) =>
 export const deleteTunnelGroupNew = (id: number) =>
   Network.post("/tunnel-group-new/delete", { id });
 
-export const assignTunnelToGroupNew = (tunnelId: number, groupIds: number[]) =>
-  Network.post("/tunnel-group-new/assign", { tunnelId, groupIds });
+export const assignTunnelToGroupNew = (data: {
+  groupId: number;
+  tunnelIds: number[];
+}) =>
+  Network.post("/tunnel-group-new/assign", data);
 
 // ─── Node Group & Tag Management ─────────────────────────────────────
 

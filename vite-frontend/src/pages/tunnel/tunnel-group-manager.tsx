@@ -34,7 +34,7 @@ import {
   updateTunnelGroupNew,
   deleteTunnelGroupNew,
   getTunnelList,
-  assignTunnelsToGroup,
+  assignTunnelToGroupNew,
 } from "@/api";
 
 interface TunnelGroupManagerProps {
@@ -92,44 +92,19 @@ export function TunnelGroupManager({
     try {
       let groupId: number | undefined;
       if (editingGroup) {
-        // 编辑分组
         await updateTunnelGroupNew({ ...data, id: editingGroup.id });
         groupId = editingGroup.id;
-        console.log('编辑分组，groupId:', groupId);
       } else {
-        // 创建分组
         const res: any = await createTunnelGroupNew(data);
         groupId = res.data?.id;
-        console.log('创建分组，res.data:', res.data);
-        console.log('创建分组，groupId:', groupId);
       }
 
-      console.log('最终 groupId:', groupId);
-      console.log('selectedTunnelIds:', selectedTunnelIds);
-
-      // 🎯 修复：差量更新逻辑
-      const originalTunnels = editingGroup && editingGroup.id
-        ? allTunnels.filter(t => t.tunnelGroupId === editingGroup.id).map(t => t.id)
-        : [];
-
-      console.log('originalTunnels:', originalTunnels);
-      console.log('toAdd:', selectedTunnelIds.filter(id => !originalTunnels.includes(id)));
-      console.log('toRemove:', originalTunnels.filter(id => !selectedTunnelIds.includes(id)));
-
-      const toAdd = selectedTunnelIds.filter(id => !originalTunnels.includes(id));
-      const toRemove = originalTunnels.filter(id => !selectedTunnelIds.includes(id));
-
-      // 只有当 groupId 有效时才调用 API
       if (groupId && groupId > 0) {
-        await Promise.all([
-          toAdd.length > 0 ? assignTunnelsToGroup({ groupId, tunnelIds: toAdd }) : Promise.resolve(),
-          toRemove.length > 0 ? assignTunnelsToGroup({ groupId, tunnelIds: toRemove }) : Promise.resolve()
-        ]);
+        await assignTunnelToGroupNew({ groupId, tunnelIds: selectedTunnelIds });
       }
 
       toast.success("保存成功");
       handleCloseModal();
-      // 🎯 修复：保存后强制刷新本地所有数据，确保数量和状态即时改变
       await loadAllData();
       onGroupChange?.();
     } catch (error) {
@@ -390,7 +365,13 @@ function GroupEditModal({
                 selectionMode="multiple"
                 variant="bordered"
                 selectedKeys={new Set(selectedTunnelIds.map(String))}
-                onSelectionChange={(keys: any) => setSelectedTunnelIds(Array.from(keys).map(Number))}
+                onSelectionChange={(keys: any) => {
+                  if (keys === "all") {
+                    setSelectedTunnelIds(allTunnels.map(t => t.id));
+                  } else {
+                    setSelectedTunnelIds(Array.from(keys).map(Number));
+                  }
+                }}
               >
                 {allTunnels.map((tunnel: any) => (
                   <SelectItem key={tunnel.id.toString()} textValue={tunnel.name}>

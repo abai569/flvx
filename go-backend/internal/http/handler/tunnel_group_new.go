@@ -181,12 +181,8 @@ func (h *Handler) tunnelGroupNewAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.TunnelIds) == 0 {
-		response.WriteJSON(w, response.ErrDefault("隧道 ID 不能为空"))
-		return
-	}
-
 	// 批量更新隧道的分组 - 直接传递所有隧道 ID 和分组 ID
+	// 允许传空数组来清空分组
 	if err := h.repo.AssignTunnelsToGroupNew(req.TunnelIds, req.GroupId); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
