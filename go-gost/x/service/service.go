@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-gost/core/admission"
@@ -128,12 +129,21 @@ func LoggerOption(logger logger.Logger) Option {
 	}
 }
 
+func MaxConnsOption(maxConns int) Option {
+	return func(opts *options) {
+		// We store maxConns on the service struct, not options.
+		// This is handled in NewService.
+	}
+}
+
 type defaultService struct {
 	name     string
 	listener listener.Listener
 	handler  handler.Handler
 	status   *Status
 	options  options
+	maxConns int
+	conns    atomic.Int64
 }
 
 func NewService(name string, ln listener.Listener, h handler.Handler, opts ...Option) service.Service {
@@ -157,6 +167,16 @@ func NewService(name string, ln listener.Listener, h handler.Handler, opts ...Op
 	s.execCmds("pre-up", s.options.preUp)
 
 	return s
+}
+
+// SetMaxConns sets the max connections limit for a running service.
+func (s *defaultService) SetMaxConns(n int) {
+	s.maxConns = n
+}
+
+// CurrentConns returns the current number of active connections.
+func (s *defaultService) CurrentConns() int {
+	return int(s.conns.Load())
 }
 
 func (s *defaultService) Addr() net.Addr {
@@ -260,10 +280,19 @@ func (s *defaultService) Serve() error {
 			continue
 		}
 
+		if s.maxConns > 0 && int(s.conns.Load()) >= s.maxConns {
+			conn.Close()
+			log.Debugf("max connections reached (%d), rejecting %s", s.maxConns, clientAddr)
+			continue
+		}
+
+		s.conns.Add(1)
+
 		wg.Add(1)
 
 		go func() {
 			defer wg.Done()
+			defer s.conns.Add(-1)
 
 			if v := xmetrics.GetCounter(xmetrics.MetricServiceRequestsCounter,
 				metrics.Labels{"service": s.name, "client": clientIP}); v != nil {

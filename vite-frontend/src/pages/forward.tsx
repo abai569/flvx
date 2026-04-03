@@ -118,6 +118,8 @@ interface Forward {
   userId?: number;
   inx?: number;
   speedId?: number | null;
+  maxConnections?: number;
+  currentConnections?: number;
 }
 
 interface Tunnel {
@@ -153,6 +155,7 @@ interface ForwardForm {
   interfaceName?: string;
   strategy: string;
   speedId: number | null;
+  maxConnections: number;
 }
 
 interface ForwardUserGroup {
@@ -888,6 +891,12 @@ const SortableTableRow = ({
           {formatFlow(getForwardDisplayFlow(forward))}
         </span>
       </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <ConnectionCountCell
+          current={forward.currentConnections ?? 0}
+          max={forward.maxConnections ?? 0}
+        />
+      </TableCell>
       <TableCell className={rowBg}>
         <div className="flex items-center gap-2.5 whitespace-nowrap">
           <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${forward.serviceRunning ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-warning-500/10 text-warning-600 dark:text-warning-400"}`}>{forward.serviceRunning ? "正常" : "暂停"}</div>
@@ -1207,6 +1216,12 @@ const SortableCompactTableRow = ({
           {formatFlow(getForwardDisplayFlow(forward))}
         </span>
       </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <ConnectionCountCell
+          current={forward.currentConnections ?? 0}
+          max={forward.maxConnections ?? 0}
+        />
+      </TableCell>
       <TableCell className={rowBg}>
         <div className="flex items-center gap-2.5 whitespace-nowrap">
           <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${forward.serviceRunning ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-warning-500/10 text-warning-600 dark:text-warning-400"}`}>{forward.serviceRunning ? "正常" : "暂停"}</div>
@@ -1446,6 +1461,7 @@ export default function ForwardPage() {
     interfaceName: "",
     strategy: "fifo",
     speedId: null,
+    maxConnections: 0,
   });
   const [inIpTouched, setInIpTouched] = useState(false);
 
@@ -2271,6 +2287,7 @@ export default function ForwardPage() {
       interfaceName: "",
       strategy: "fifo",
       speedId: null,
+      maxConnections: 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2291,6 +2308,7 @@ export default function ForwardPage() {
       interfaceName: forward.interfaceName || "",
       strategy: forward.strategy || "fifo",
       speedId: normalizeSpeedId(forward.speedId),
+      maxConnections: forward.maxConnections ?? 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2419,6 +2437,7 @@ export default function ForwardPage() {
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
+          maxConnections: form.maxConnections,
         };
 
         res = await updateForward(updateData);
@@ -2431,6 +2450,7 @@ export default function ForwardPage() {
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
+          maxConnections: form.maxConnections,
         };
 
         res = await createForward(createData);
@@ -4564,6 +4584,7 @@ export default function ForwardPage() {
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">连接数</TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
                         <TableColumn align="left" className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left">操作</TableColumn>
                       </TableHeader>
@@ -4876,6 +4897,7 @@ export default function ForwardPage() {
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">连接数</TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
                                         <TableColumn align="left" className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left">操作</TableColumn>
                                       </TableHeader>
@@ -5133,6 +5155,15 @@ export default function ForwardPage() {
                         </SelectItem>
                       ))}
                     </Select>
+                  )}
+
+                  {isAdmin && (
+                    <ConnectionLimitField
+                      value={form.maxConnections}
+                      onChange={(val) =>
+                        setForm((prev) => ({ ...prev, maxConnections: val }))
+                      }
+                    />
                   )}
 
                   <Select
@@ -6647,5 +6678,164 @@ export default function ForwardPage() {
         </ModalContent>
       </Modal>
     </AnimatedPage >
+  );
+}
+
+// ─── Connection Count Cell (list display) ──────────────────────────────────
+
+function ConnectionCountCell({
+  current,
+  max,
+}: {
+  current: number;
+  max: number;
+}) {
+  if (!max || max <= 0) {
+    return (
+      <span className="text-sm text-default-400">不限</span>
+    );
+  }
+
+  const ratio = max > 0 ? current / max : 0;
+  const isFull = current >= max;
+  const isWarning = ratio >= 0.8 && !isFull;
+
+  if (isFull) {
+    return (
+      <span className="inline-flex items-center gap-1 text-sm font-medium text-danger-500">
+        {current}/{max}
+        <span className="text-[10px] bg-danger-500/10 text-danger-500 px-1 rounded">满</span>
+      </span>
+    );
+  }
+
+  if (isWarning) {
+    return (
+      <span className="text-sm font-medium text-warning-500">
+        {current}/{max}
+      </span>
+    );
+  }
+
+  return (
+    <span className="text-sm text-default-600">
+      {current}/{max}
+    </span>
+  );
+}
+
+// ─── Connection Limit Field (form input) ───────────────────────────────────
+
+const CONNECTION_LIMIT_PRESETS = [
+  { label: "单直播间 (2)", value: 2 },
+  { label: "直播+拉流 (5)", value: 5 },
+  { label: "自定义", value: -1 },
+] as const;
+
+function ConnectionLimitField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+}) {
+  const [customMode, setCustomMode] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
+
+  useEffect(() => {
+    if (value === 2) {
+      setCustomMode(false);
+    } else if (value === 5) {
+      setCustomMode(false);
+    } else {
+      setCustomMode(true);
+      setCustomValue(value > 0 ? value.toString() : "0");
+    }
+  }, [value]);
+
+  const selectedKey = useMemo(() => {
+    if (customMode) return "-1";
+    if (value === 2) return "2";
+    if (value === 5) return "5";
+    return "-1";
+  }, [value, customMode]);
+
+  const handlePresetChange = (key: string) => {
+    if (key === "-1") {
+      setCustomMode(true);
+      setCustomValue(value > 0 ? value.toString() : "0");
+    } else {
+      setCustomMode(false);
+      onChange(Number(key));
+    }
+  };
+
+  const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setCustomValue(raw);
+
+    const num = parseInt(raw, 10);
+    if (raw === "" || isNaN(num) || num < 0) {
+      onChange(0);
+    } else if (num > 9999) {
+      onChange(9999);
+    } else {
+      onChange(num);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">连接数限制</span>
+        <button
+          type="button"
+          className="text-default-400 hover:text-default-600 transition-colors"
+          onClick={() => setShowHelp(!showHelp)}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+      </div>
+      {showHelp && (
+        <div className="text-xs text-default-600 space-y-1 bg-default-100 rounded-lg p-3">
+          <p className="font-medium text-foreground">连接数限制说明</p>
+          <p>限制该转发规则同时建立的最大连接数。超过限制后，新连接将被拒绝。</p>
+          <p>• 单直播间：1 个手机直播，留 1 个备用</p>
+          <p>• 直播+拉流：手机直播 + 电脑拉流 + 录屏</p>
+        </div>
+      )}
+      <Select
+        placeholder="不限制"
+        selectedKeys={[selectedKey]}
+        variant="bordered"
+        onSelectionChange={(keys) => {
+          const key = Array.from(keys)[0] as string | undefined;
+          if (key) handlePresetChange(key);
+        }}
+      >
+        {CONNECTION_LIMIT_PRESETS.map((preset) => (
+          <SelectItem key={preset.value.toString()} textValue={preset.label}>
+            {preset.label}
+          </SelectItem>
+        ))}
+      </Select>
+      {customMode && (
+        <Input
+          description="0 表示不限制，范围 1-9999"
+          errorMessage={
+            parseInt(customValue, 10) > 9999 ? "最大不能超过 9999" : undefined
+          }
+          isInvalid={parseInt(customValue, 10) > 9999}
+          placeholder="0 = 不限制"
+          type="number"
+          value={customValue}
+          variant="bordered"
+          onChange={handleCustomChange}
+        />
+      )}
+    </div>
   );
 }

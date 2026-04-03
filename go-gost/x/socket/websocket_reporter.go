@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-gost/x/config"
 	"github.com/go-gost/x/internal/util/crypto"
+	"github.com/go-gost/x/registry"
 	"github.com/go-gost/x/service"
 	"github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -38,19 +39,20 @@ import (
 
 // SystemInfo 系统信息结构体
 type SystemInfo struct {
-	Uptime           uint64  `json:"uptime"`
-	BytesReceived    uint64  `json:"bytes_received"`
-	BytesTransmitted uint64  `json:"bytes_transmitted"`
-	CPUUsage         float64 `json:"cpu_usage"`
-	MemoryUsage      float64 `json:"memory_usage"`
-	DiskUsage        float64 `json:"disk_usage"`
-	Load1            float64 `json:"load1"`
-	Load5            float64 `json:"load5"`
-	Load15           float64 `json:"load15"`
-	TCPConns         int64   `json:"tcp_conns"`
-	UDPConns         int64   `json:"udp_conns"`
-	NetInSpeed       int64   `json:"net_in_speed"`
-	NetOutSpeed      int64   `json:"net_out_speed"`
+	Uptime             uint64         `json:"uptime"`
+	BytesReceived      uint64         `json:"bytes_received"`
+	BytesTransmitted   uint64         `json:"bytes_transmitted"`
+	CPUUsage           float64        `json:"cpu_usage"`
+	MemoryUsage        float64        `json:"memory_usage"`
+	DiskUsage          float64        `json:"disk_usage"`
+	Load1              float64        `json:"load1"`
+	Load5              float64        `json:"load5"`
+	Load15             float64        `json:"load15"`
+	TCPConns           int64          `json:"tcp_conns"`
+	UDPConns           int64          `json:"udp_conns"`
+	NetInSpeed         int64          `json:"net_in_speed"`
+	NetOutSpeed        int64          `json:"net_out_speed"`
+	ServiceConnections map[string]int `json:"serviceConnections"`
 }
 
 // NetworkStats 网络统计信息
@@ -571,20 +573,37 @@ func (w *WebSocketReporter) collectSystemInfo() SystemInfo {
 	lastNetTime = now
 
 	return SystemInfo{
-		Uptime:           getUptime(),
-		BytesReceived:    networkStats.BytesReceived,
-		BytesTransmitted: networkStats.BytesTransmitted,
-		CPUUsage:         cpuInfo.Usage,
-		MemoryUsage:      memoryInfo.Usage,
-		DiskUsage:        diskInfo.Usage,
-		Load1:            loadInfo.Load1,
-		Load5:            loadInfo.Load5,
-		Load15:           loadInfo.Load15,
-		TCPConns:         connInfo.TCPConns,
-		UDPConns:         connInfo.UDPConns,
-		NetInSpeed:       netInSpeed,
-		NetOutSpeed:      netOutSpeed,
+		Uptime:             getUptime(),
+		BytesReceived:      networkStats.BytesReceived,
+		BytesTransmitted:   networkStats.BytesTransmitted,
+		CPUUsage:           cpuInfo.Usage,
+		MemoryUsage:        memoryInfo.Usage,
+		DiskUsage:          diskInfo.Usage,
+		Load1:              loadInfo.Load1,
+		Load5:              loadInfo.Load5,
+		Load15:             loadInfo.Load15,
+		TCPConns:           connInfo.TCPConns,
+		UDPConns:           connInfo.UDPConns,
+		NetInSpeed:         netInSpeed,
+		NetOutSpeed:        netOutSpeed,
+		ServiceConnections: collectServiceConnections(),
 	}
+}
+
+// collectServiceConnections 收集每个服务的当前连接数
+func collectServiceConnections() map[string]int {
+	result := make(map[string]int)
+	svcReg := registry.ServiceRegistry()
+	if svcReg == nil {
+		return result
+	}
+	allServices := svcReg.GetAll()
+	for name, svc := range allServices {
+		if ds, ok := svc.(interface{ CurrentConns() int }); ok {
+			result[name] = ds.CurrentConns()
+		}
+	}
+	return result
 }
 
 // encryptPayload 加密 JSON 数据，返回加密后的消息字节（若加密失败则回退到原始数据）
@@ -808,6 +827,9 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 		err = w.handleResumeService(cmd.Data)
 		response.Type = "ResumeServiceResponse"
 		needSaveConfig = true
+	case "SetServiceMaxConnections":
+		err = w.handleSetServiceMaxConnections(cmd.Data)
+		response.Type = "SetServiceMaxConnectionsResponse"
 
 	// Chain 相关命令
 	case "AddChains":
@@ -985,6 +1007,34 @@ func (w *WebSocketReporter) handleResumeService(data interface{}) error {
 	}
 
 	return resumeServices(req)
+}
+
+func (w *WebSocketReporter) handleSetServiceMaxConnections(data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("序列化数据失败: %v", err)
+	}
+
+	var req struct {
+		ServiceName string `json:"serviceName"`
+		MaxConns    int    `json:"maxConnections"`
+	}
+	if err := json.Unmarshal(jsonData, &req); err != nil {
+		return fmt.Errorf("解析请求失败: %v", err)
+	}
+	if req.ServiceName == "" {
+		return fmt.Errorf("服务名不能为空")
+	}
+
+	svc := registry.ServiceRegistry().Get(req.ServiceName)
+	if svc == nil {
+		return fmt.Errorf("服务 %s 不存在", req.ServiceName)
+	}
+	if ds, ok := svc.(interface{ SetMaxConns(int) }); ok {
+		ds.SetMaxConns(req.MaxConns)
+	}
+
+	return nil
 }
 
 // Chain 命令处理函数
@@ -1340,7 +1390,7 @@ func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
 	}
 
 	fmt.Println("🔄 开始回退到旧版本...")
-	
+
 	// 推送进度：准备中
 	w.sendUpgradeProgress("rollback", 0, "准备回退...")
 
@@ -1354,12 +1404,12 @@ func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
 
 	// 推送进度：回退中
 	w.sendUpgradeProgress("rollback", 50, "回退中...")
-	
+
 	fmt.Println("🔄 回退脚本已启动，Agent 将在 1 秒后重启...")
-	
+
 	// 推送进度：完成
 	w.sendUpgradeProgress("rollback", 100, "回退完成")
-	
+
 	return nil
 }
 

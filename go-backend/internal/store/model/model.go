@@ -30,20 +30,21 @@ func (User) TableName() string { return "user" }
 
 // Forward maps to the "forward" table.
 type Forward struct {
-	ID          int64         `gorm:"primaryKey;autoIncrement"`
-	UserID      int64         `gorm:"column:user_id;not null"`
-	UserName    string        `gorm:"column:user_name;type:varchar(100);not null"`
-	Name        string        `gorm:"type:varchar(100);not null"`
-	TunnelID    int64         `gorm:"column:tunnel_id;not null"`
-	RemoteAddr  string        `gorm:"column:remote_addr;type:text;not null"`
-	Strategy    string        `gorm:"type:varchar(100);not null;default:'fifo'"`
-	InFlow      int64         `gorm:"not null;default:0"`
-	OutFlow     int64         `gorm:"column:out_flow;not null;default:0"`
-	CreatedTime int64         `gorm:"column:created_time;not null"`
-	UpdatedTime int64         `gorm:"column:updated_time;not null"`
-	Status      int           `gorm:"not null"`
-	Inx         int           `gorm:"not null;default:0"`
-	SpeedID     sql.NullInt64 `gorm:"column:speed_id"`
+	ID             int64         `gorm:"primaryKey;autoIncrement"`
+	UserID         int64         `gorm:"column:user_id;not null"`
+	UserName       string        `gorm:"column:user_name;type:varchar(100);not null"`
+	Name           string        `gorm:"type:varchar(100);not null"`
+	TunnelID       int64         `gorm:"column:tunnel_id;not null"`
+	RemoteAddr     string        `gorm:"column:remote_addr;type:text;not null"`
+	Strategy       string        `gorm:"type:varchar(100);not null;default:'fifo'"`
+	InFlow         int64         `gorm:"not null;default:0"`
+	OutFlow        int64         `gorm:"column:out_flow;not null;default:0"`
+	CreatedTime    int64         `gorm:"column:created_time;not null"`
+	UpdatedTime    int64         `gorm:"column:updated_time;not null"`
+	Status         int           `gorm:"not null"`
+	Inx            int           `gorm:"not null;default:0"`
+	SpeedID        sql.NullInt64 `gorm:"column:speed_id"`
+	MaxConnections int           `gorm:"column:max_connections;not null;default:0"`
 }
 
 func (Forward) TableName() string { return "forward" }
@@ -559,15 +560,16 @@ type ImportResult struct {
 
 // ForwardRecord is a minimal forward view used by control plane and flow policy.
 type ForwardRecord struct {
-	ID         int64
-	UserID     int64
-	UserName   string
-	Name       string
-	TunnelID   int64
-	RemoteAddr string
-	Strategy   string
-	Status     int
-	SpeedID    sql.NullInt64
+	ID             int64
+	UserID         int64
+	UserName       string
+	Name           string
+	TunnelID       int64
+	RemoteAddr     string
+	Strategy       string
+	Status         int
+	SpeedID        sql.NullInt64
+	MaxConnections int
 }
 
 // TunnelRecord is a minimal tunnel view used by control plane.

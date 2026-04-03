@@ -1614,8 +1614,16 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		if tunnel != nil && tunnel.Type == 2 {
 			service["handler"].(map[string]interface{})["chain"] = fmt.Sprintf("chains_%d", forward.TunnelID)
 		}
+		// 合并 metadata
+		meta := make(map[string]interface{})
 		if tunnel != nil && tunnel.Type == 1 && strings.TrimSpace(node.InterfaceName) != "" {
-			service["metadata"] = map[string]interface{}{"interface": node.InterfaceName}
+			meta["interface"] = node.InterfaceName
+		}
+		if forward.MaxConnections > 0 {
+			meta["maxConnections"] = forward.MaxConnections
+		}
+		if len(meta) > 0 {
+			service["metadata"] = meta
 		}
 		if limiterID != nil && *limiterID > 0 {
 			service["limiter"] = strconv.FormatInt(*limiterID, 10)

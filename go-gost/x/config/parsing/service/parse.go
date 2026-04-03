@@ -393,6 +393,22 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 		xservice.LoggerOption(serviceLogger),
 	)
 
+	// 设置连接数限制
+	if cfg.Metadata != nil {
+		if mc, ok := cfg.Metadata["maxConnections"]; ok {
+			switch v := mc.(type) {
+			case float64:
+				if ds, ok := s.(interface{ SetMaxConns(int) }); ok {
+					ds.SetMaxConns(int(v))
+				}
+			case int:
+				if ds, ok := s.(interface{ SetMaxConns(int) }); ok {
+					ds.SetMaxConns(v)
+				}
+			}
+		}
+	}
+
 	serviceLogger.Infof("listening on %s/%s", s.Addr().String(), s.Addr().Network())
 	return s, nil
 }
