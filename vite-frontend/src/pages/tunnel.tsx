@@ -2815,7 +2815,7 @@ export default function TunnelPage() {
                                       </Select>
 
                                       <Input
-                                        description="指定转发链连接下一跳的端口，留空自动分配"
+                                        description="指定当前跳被上一跳连接的端口，留空自动分配"
                                         errorMessage={errors[`chainNodes_${groupIndex}_port`]}
                                         isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
                                         label="连接端口"
@@ -3259,7 +3259,7 @@ export default function TunnelPage() {
                               </Select>
 
                               <Input
-                                description="指定出口节点连接下一跳的端口，留空自动分配"
+                                description="指定出口节点被上一跳连接的端口，留空自动分配"
                                 label="连接端口"
                                 placeholder="留空自动分配"
                                 size="sm"
