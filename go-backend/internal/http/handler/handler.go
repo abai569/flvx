@@ -48,6 +48,14 @@ type Handler struct {
 	nodeTagHandler   *NodeTagHandler
 }
 
+// GetForwardConnections 获取指定转发的当前连接数
+func (h *Handler) GetForwardConnections(nodeID int64, forwardID int64) int {
+	if h.wsServer == nil {
+		return 0
+	}
+	return h.wsServer.GetForwardCurrentConnections(nodeID, forwardID)
+}
+
 type loginRequest struct {
 	Username  string `json:"username"`
 	Password  string `json:"password"`
@@ -521,6 +529,24 @@ func (h *Handler) forwardList(w http.ResponseWriter, r *http.Request) {
 		}
 		items = filtered
 	}
+
+	// 补充当前连接数
+	for i := range items {
+		forwardID := asInt64(items[i]["id"], 0)
+		if forwardID > 0 {
+			// 获取转发的入口节点
+			ports, err := h.repo.ListForwardPorts(forwardID)
+			if err == nil && len(ports) > 0 {
+				// 使用第一个入口节点的连接数
+				nodeID := ports[0].NodeID
+				conns := h.GetForwardConnections(nodeID, forwardID)
+				items[i]["currentConnections"] = conns
+			} else {
+				items[i]["currentConnections"] = 0
+			}
+		}
+	}
+
 	response.WriteJSON(w, response.OK(items))
 }
 

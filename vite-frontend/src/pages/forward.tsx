@@ -561,6 +561,8 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
         ? forward.speedId
         : undefined,
     serviceRunning: forward.status === 1,
+    maxConnections: forward.maxConnections ?? 0,
+    currentConnections: forward.currentConnections ?? 0,
   }));
 };
 
@@ -6690,47 +6692,22 @@ function ConnectionCountCell({
   current: number;
   max: number;
 }) {
-  if (!max || max <= 0) {
-    return (
-      <span className="text-sm text-default-400">不限</span>
-    );
+  // 都是 0 时显示 -
+  if (current === 0 && max === 0) {
+    return <span className="text-sm text-default-400">-</span>;
   }
 
-  const ratio = max > 0 ? current / max : 0;
-  const isFull = current >= max;
-  const isWarning = ratio >= 0.8 && !isFull;
+  const maxText = max > 0 ? max.toString() : "不限";
 
-  if (isFull) {
-    return (
-      <span className="inline-flex items-center gap-1 text-sm font-medium text-danger-500">
-        {current}/{max}
-        <span className="text-[10px] bg-danger-500/10 text-danger-500 px-1 rounded">满</span>
-      </span>
-    );
-  }
-
-  if (isWarning) {
-    return (
-      <span className="text-sm font-medium text-warning-500">
-        {current}/{max}
-      </span>
-    );
-  }
-
+  // 有连接或有限制时显示 current/max
   return (
     <span className="text-sm text-default-600">
-      {current}/{max}
+      {current}/{maxText}
     </span>
   );
 }
 
 // ─── Connection Limit Field (form input) ───────────────────────────────────
-
-const CONNECTION_LIMIT_PRESETS = [
-  { label: "单直播间 (2)", value: 2 },
-  { label: "直播+拉流 (5)", value: 5 },
-  { label: "自定义", value: -1 },
-] as const;
 
 function ConnectionLimitField({
   value,
@@ -6739,44 +6716,16 @@ function ConnectionLimitField({
   value: number;
   onChange: (val: number) => void;
 }) {
-  const [customMode, setCustomMode] = useState(false);
-  const [customValue, setCustomValue] = useState("");
   const [showHelp, setShowHelp] = useState(false);
 
-  useEffect(() => {
-    if (value === 2) {
-      setCustomMode(false);
-    } else if (value === 5) {
-      setCustomMode(false);
-    } else {
-      setCustomMode(true);
-      setCustomValue(value > 0 ? value.toString() : "0");
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.trim();
+    if (raw === "") {
+      onChange(0);
+      return;
     }
-  }, [value]);
-
-  const selectedKey = useMemo(() => {
-    if (customMode) return "-1";
-    if (value === 2) return "2";
-    if (value === 5) return "5";
-    return "-1";
-  }, [value, customMode]);
-
-  const handlePresetChange = (key: string) => {
-    if (key === "-1") {
-      setCustomMode(true);
-      setCustomValue(value > 0 ? value.toString() : "0");
-    } else {
-      setCustomMode(false);
-      onChange(Number(key));
-    }
-  };
-
-  const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    setCustomValue(raw);
-
     const num = parseInt(raw, 10);
-    if (raw === "" || isNaN(num) || num < 0) {
+    if (isNaN(num) || num < 0) {
       onChange(0);
     } else if (num > 9999) {
       onChange(9999);
@@ -6786,7 +6735,7 @@ function ConnectionLimitField({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-foreground">连接数限制</span>
         <button
@@ -6803,39 +6752,18 @@ function ConnectionLimitField({
         <div className="text-xs text-default-600 space-y-1 bg-default-100 rounded-lg p-3">
           <p className="font-medium text-foreground">连接数限制说明</p>
           <p>限制该转发规则同时建立的最大连接数。超过限制后，新连接将被拒绝。</p>
-          <p>• 单直播间：1 个手机直播，留 1 个备用</p>
-          <p>• 直播+拉流：手机直播 + 电脑拉流 + 录屏</p>
+          <p>• 留空或填 0 表示不限制</p>
+          <p>• 单直播间建议 2，直播+拉流建议 5</p>
         </div>
       )}
-      <Select
+      <Input
+        description="留空或填 0 表示不限制"
         placeholder="不限制"
-        selectedKeys={[selectedKey]}
+        type="number"
+        value={value > 0 ? value.toString() : ""}
         variant="bordered"
-        onSelectionChange={(keys) => {
-          const key = Array.from(keys)[0] as string | undefined;
-          if (key) handlePresetChange(key);
-        }}
-      >
-        {CONNECTION_LIMIT_PRESETS.map((preset) => (
-          <SelectItem key={preset.value.toString()} textValue={preset.label}>
-            {preset.label}
-          </SelectItem>
-        ))}
-      </Select>
-      {customMode && (
-        <Input
-          description="0 表示不限制，范围 1-9999"
-          errorMessage={
-            parseInt(customValue, 10) > 9999 ? "最大不能超过 9999" : undefined
-          }
-          isInvalid={parseInt(customValue, 10) > 9999}
-          placeholder="0 = 不限制"
-          type="number"
-          value={customValue}
-          variant="bordered"
-          onChange={handleCustomChange}
-        />
-      )}
+        onChange={handleChange}
+      />
     </div>
   );
 }
