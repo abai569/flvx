@@ -1781,7 +1781,7 @@ export default function UserPage() {
             </div>
           </ModalBody>
           <ModalFooter className="justify-end">
-            <Button variant="flat" onPress={onMonitorModalClose}>
+            <Button variant="flat" onPress={onTunnelModalClose}>
               关闭
             </Button>
           </ModalFooter>
