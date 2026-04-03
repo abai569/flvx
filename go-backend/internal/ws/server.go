@@ -135,7 +135,7 @@ func (s *Server) GetServiceConnections(nodeID int64) map[string]int {
 }
 
 // GetForwardCurrentConnections 获取指定转发的当前连接数
-// serviceName 格式为 "forward_{forwardID}_{protocol}"
+// 服务名格式为 "{forwardID}_{userID}_{userTunnelID}_tcp" 或 "{forwardID}_{userID}_{userTunnelID}_udp"
 func (s *Server) GetForwardCurrentConnections(nodeID int64, forwardID int64) int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -145,16 +145,14 @@ func (s *Server) GetForwardCurrentConnections(nodeID int64, forwardID int64) int
 		return 0
 	}
 
-	// 服务名格式: forward_{id}_tcp 或 forward_{id}_udp
-	tcpKey := fmt.Sprintf("forward_%d_tcp", forwardID)
-	udpKey := fmt.Sprintf("forward_%d_udp", forwardID)
-
 	total := 0
-	if v, ok := conns[tcpKey]; ok {
-		total += v
-	}
-	if v, ok := conns[udpKey]; ok {
-		total += v
+	// 服务名格式: {forwardID}_{userID}_{userTunnelID}_tcp 或 _udp
+	// 遍历所有连接数，匹配以 "{forwardID}_" 开头的服务
+	prefix := fmt.Sprintf("%d_", forwardID)
+	for serviceName, count := range conns {
+		if strings.HasPrefix(serviceName, prefix) {
+			total += count
+		}
 	}
 	return total
 }
