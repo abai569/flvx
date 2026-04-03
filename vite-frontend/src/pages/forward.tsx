@@ -5171,67 +5171,70 @@ export default function ForwardPage() {
                     </Select>
                   )}
 
-                  {isAdmin && (
-                    <ConnectionLimitField
-                      value={form.maxConnections}
-                      onChange={(val) =>
-                        setForm((prev) => ({ ...prev, maxConnections: val }))
-                      }
-                    />
-                  )}
-
-                  <Select
-                    description={
-                      isEdit
-                        ? "更改隧道将释放原端口并在新隧道分配端口"
-                        : undefined
+                  {/* 连接数限制 */}
+                  <ConnectionLimitField
+                    value={form.maxConnections}
+                    onChange={(val) =>
+                      setForm((prev) => ({ ...prev, maxConnections: val }))
                     }
-                    errorMessage={errors.tunnelId}
-                    isInvalid={!!errors.tunnelId}
-                    label="选择隧道"
-                    placeholder="请选择关联的隧道"
-                    selectedKeys={
-                      form.tunnelId ? [form.tunnelId.toString()] : []
-                    }
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as string;
-
-                      if (selectedKey) {
-                        handleTunnelChange(selectedKey);
-                      }
-                    }}
-                  >
-                    {tunnels.map((tunnel) => (
-                      <SelectItem key={tunnel.id.toString()} textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}>
-                        <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
-                      </SelectItem>
-                    ))}
-                  </Select>
-
-                  <Input
-                    description={
-                      currentTunnelPortRange
-                        ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
-                        : "指定入口端口，留空则从节点可用端口中自动分配"
-                    }
-                    errorMessage={errors.inPort}
-                    isInvalid={!!errors.inPort}
-                    label="入口端口"
-                    placeholder="留空则自动分配可用端口"
-                    type="number"
-                    value={form.inPort !== null ? form.inPort.toString() : ""}
-                    variant="bordered"
-                    onChange={(e) => {
-                      const value = e.target.value;
-
-                      setForm((prev) => ({
-                        ...prev,
-                        inPort: value ? parseInt(value) : null,
-                      }));
-                    }}
                   />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 选择隧道 */}
+                    <Select
+                      description={
+                        isEdit
+                          ? "更改隧道将释放原端口并在新隧道分配端口"
+                          : "看括号内说明选择隧道"
+                      }
+                      errorMessage={errors.tunnelId}
+                      isInvalid={!!errors.tunnelId}
+                      label="选择隧道"
+                      placeholder="请选择关联的隧道"
+                      selectedKeys={
+                        form.tunnelId ? [form.tunnelId.toString()] : []
+                      }
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as string;
 
+                        if (selectedKey) {
+                          handleTunnelChange(selectedKey);
+                        }
+                      }}
+                    >
+                      {tunnels.map((tunnel) => (
+                        <SelectItem key={tunnel.id.toString()} textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}>
+                          <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
+                        </SelectItem>
+                      ))}
+                    </Select>
+                    {/* 入口端口 */}
+                    <Input
+                      description={
+                        currentTunnelPortRange
+                          ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
+                          : "指定入口端口，留空则从节点可用端口中自动分配"
+                      }
+                      errorMessage={errors.inPort}
+                      isInvalid={!!errors.inPort}
+                      label="入口端口"
+                      placeholder="留空则自动分配可用端口"
+                      type="number"
+                      value={form.inPort !== null ? form.inPort.toString() : ""}
+                      variant="bordered"
+                      onChange={(e) => {
+                        const value = e.target.value;
+
+                        setForm((prev) => ({
+                          ...prev,
+                          inPort: value ? parseInt(value) : null,
+                        }));
+                      }}
+                    />
+                  </div>
+                 
+                  {/* 监听ip */}
                   <Select
                     description={
                       isCurrentTunnelMultiEntrance
@@ -6559,7 +6562,7 @@ export default function ForwardPage() {
                         name: e.target.value,
                       }))
                     }
-                  />                
+                  />
 
                   <Input
                     label="入口监听端口 (精确)"
@@ -6763,13 +6766,11 @@ function ConnectionLimitField({
       {showHelp && (
         <div className="text-xs text-default-600 space-y-1 bg-default-100 rounded-lg p-3">
           <p className="font-medium text-foreground">连接数限制说明</p>
-          <p>限制该转发规则同时建立的最大连接数。超过限制后，新连接将被拒绝。</p>
-          <p>• 留空或填 0 表示不限制</p>
-          <p>• 单直播间建议 2，直播+拉流建议 5</p>
+          <p>• 表示不限制，限制该转发规则同时建立的最大连接数，超过限制后，新连接将被拒绝</p>
         </div>
       )}
       <Input
-        description="留空或填 0 表示不限制"
+        description="留空表示不限制"
         placeholder="不限制"
         type="number"
         value={value > 0 ? value.toString() : ""}

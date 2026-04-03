@@ -35,6 +35,7 @@ import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { DatePicker } from "@/shadcn-bridge/heroui/date-picker";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
+import { Tabs, Tab } from "@/shadcn-bridge/heroui/tabs";
 import {
   User,
   UserGroup,
@@ -66,6 +67,7 @@ import { EditIcon, DeleteIcon, SettingsIcon } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { removeItemsById, replaceItemById } from "@/utils/list-state";
+
 
 // 工具函数
 const formatFlow = (value: number, unit: string = "bytes"): string => {
@@ -167,6 +169,7 @@ const normalizeUserTunnelItem = (item: Partial<UserTunnel>): UserTunnel => {
 };
 
 export default function UserPage() {
+  const [selectedTab, setSelectedTab] = useState("tunnel");
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {
     const stored = localStorage.getItem(USER_VIEW_MODE_KEY);
@@ -864,7 +867,7 @@ export default function UserPage() {
         removeUserTunnel({ id }),
       );
       const results = await Promise.all(promises);
-      
+
       const successCount = results.filter((res) => res.code === 0).length;
       const failedCount = results.length - successCount;
 
@@ -1562,7 +1565,7 @@ export default function UserPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full sm:max-w-4xl rounded-1xl",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full sm:max-w-4xl rounded-2xl",
         }}
         isDismissable={false}
         isOpen={isTunnelModalOpen}
@@ -1572,48 +1575,17 @@ export default function UserPage() {
         onClose={onTunnelModalClose}
       >
         <ModalContent>
-          <ModalHeader>管理用户 {currentUser?.user} 的隧道权限</ModalHeader>
-          <ModalBody>
-            <div className="space-y-6">
-              {/* 分配新权限部分 */}
-              <div className="space-y-6">
-                {/* 监控权限部分 (移植自 user新) */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">监控权限</h3>
-                  <div className="w-full sm:w-full flex items-center justify-between gap-4 bg-default-100 dark:bg-default-50 p-4 rounded-lg border border-default-200 dark:border-default-100/30">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-foreground">
-                        允许访问监控功能
-                      </div>
-                      <div className="text-xs text-default-500 mt-1">
-                        授予后，该用户可以访问监控页面并管理服务监控（TCP/ICMP）。
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {monitorPermissionLoading ? <Spinner size="sm" /> : null}
-                      <Switch
-                        isDisabled={
-                          !currentUser ||
-                          monitorPermissionLoading ||
-                          monitorPermissionMutatingUserId === currentUser.id
-                        }
-                        isSelected={
-                          currentUser
-                            ? monitorPermissionUserIds.has(currentUser.id)
-                            : false
-                        }
-                        onValueChange={(v) =>
-                          currentUser &&
-                          void setUserMonitorPermission(currentUser.id, v)
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 分配新权限部分 */}
-                <h3 className="text-lg font-semibold mb-4">分配权限</h3>
-                <div className="space-y-4 relative">
+          <ModalHeader>管理用户 {currentUser?.user} 的权限</ModalHeader>
+          <ModalBody className="py-4">
+            <Tabs
+              aria-label="权限分类"
+              
+              selectedKey={selectedTab}
+              onSelectionChange={(key) => setSelectedTab(key as string)}
+            >
+              {/* Tab 1: 隧道权限 */}
+              <Tab key="tunnel" title="隧道权限">
+                <div className="pt-4 space-y-6">
                   {/* 👇 杀招 1：外层改用 Grid 布局，左边 1fr，右边自适应，从数学上锁死宽度绝对不越界 */}
                   <div className="grid grid-cols-[1fr_auto] items-center gap-3 w-full">
                     {/* 顶部触发框 */}
@@ -1644,18 +1616,16 @@ export default function UserPage() {
                         <path d="M19 9l-7 7-7-7" strokeWidth={2.5} />
                       </svg>
                     </div>
-
-                    <Button
-                      className="whitespace-nowrap px-4 h-9 text-xs font-medium shadow-sm"
-                      color="primary"
-                      isDisabled={batchTunnelSelections.size === 0}
-                      isLoading={assignLoading}
-                      onPress={handleBatchAssignTunnel}
-                    >
-                      分配
-                    </Button>
                   </div>
-
+                  <Button
+                    className="whitespace-nowrap px-4 h-9 text-xs font-medium shadow-sm"
+                    color="primary"
+                    isDisabled={batchTunnelSelections.size === 0}
+                    isLoading={assignLoading}
+                    onPress={handleBatchAssignTunnel}
+                  >
+                    分配
+                  </Button>
                   {/* 列表悬浮层 */}
                   {isTunnelListExpanded && (
                     <div
@@ -1810,136 +1780,174 @@ export default function UserPage() {
                         >
                           完成配置
                         </Button>
-                      </div> */}
+                       </div> */}
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* 已有权限部分 */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">已有权限</h3>
-                  {selectedUserTunnelIds.size > 0 && (
-                    <Button
-                      color="danger"
-                      size="sm"
-                      variant="flat"
-                      startContent={<DeleteIcon className="w-4 h-4" />}
-                      onPress={onBatchDeleteTunnelModalOpen}
+                {/* 已有权限部分 */}
+                <div>
+                  <div className="flex items-center justify-between mb-4 mt-6">
+                    <h3 className="text-lg font-semibold">已有权限</h3>
+                    {selectedUserTunnelIds.size > 0 && (
+                      <Button
+                        color="danger"
+                        size="sm"
+                        variant="flat"
+                        startContent={<DeleteIcon className="w-4 h-4" />}
+                        onPress={onBatchDeleteTunnelModalOpen}
+                      >
+                        删除已选 ({selectedUserTunnelIds.size})
+                      </Button>
+                    )}
+                  </div>
+                  <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
+                    <Table
+                      aria-label="用户隧道权限列表"
+                      classNames={{
+                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+                        td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                        tr: "hover:bg-default-50/50 transition-colors",
+                        wrapper: "shadow-none p-0",
+                      }}
                     >
-                      删除已选 ({selectedUserTunnelIds.size})
-                    </Button>
-                  )}
-                </div>
-                <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
-                  <Table
-                    aria-label="用户隧道权限列表"
-                    classNames={{
-                      th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
-                      td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                      tr: "hover:bg-default-50/50 transition-colors",
-                      wrapper: "shadow-none p-0",
-                    }}
-                  >
-                    <TableHeader>
-                      {/* 👇 增加的表头全选框 */}
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center">
-                        <Checkbox
-                          color="primary"
-                          isSelected={userTunnels.length > 0 && selectedUserTunnelIds.size === userTunnels.length}
-                          onValueChange={handleSelectAllUserTunnels}
-                        />
-                      </TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
-                        隧道名称
-                      </TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
-                        流量统计
-                      </TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                        限速
-                      </TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
-                        状态
-                      </TableColumn>
-                      <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
-                        操作
-                      </TableColumn>
-                    </TableHeader>
-                    <TableBody
-                      emptyContent="暂无隧道权限"
-                      isLoading={tunnelListLoading}
-                      items={userTunnels}
-                      loadingContent={<Spinner />}
-                    >
-                      {(userTunnel) => (
-                        <TableRow
-                          key={userTunnel.id}
-                          className={`transition-colors ${selectedUserTunnelIds.has(userTunnel.id) ? "bg-danger-50/50 dark:bg-danger-900/20 hover:bg-danger-50/80" : "hover:bg-default-50/50"}`}
-                        >
-                          {/* 👇 增加的行内选择框 */}
-                          <TableCell className="whitespace-nowrap text-center">
-                            <Checkbox
-                              color="primary"
-                              isSelected={selectedUserTunnelIds.has(userTunnel.id)}
-                              onValueChange={() => toggleUserTunnelSelection(userTunnel.id)}
-                            />
-                          </TableCell>
+                      <TableHeader>
+                        {/* 👇 增加的表头全选框 */}
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center">
+                          <Checkbox
+                            color="primary"
+                            isSelected={userTunnels.length > 0 && selectedUserTunnelIds.size === userTunnels.length}
+                            onValueChange={handleSelectAllUserTunnels}
+                          />
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                          隧道名称
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                          流量统计
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                          限速
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                          状态
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[200px] text-left">
+                          操作
+                        </TableColumn>
+                      </TableHeader>
+                      <TableBody
+                        emptyContent="暂无隧道权限"
+                        isLoading={tunnelListLoading}
+                        items={userTunnels}
+                        loadingContent={<Spinner />}
+                      >
+                        {(userTunnel) => (
+                          <TableRow
+                            key={userTunnel.id}
+                            className={`transition-colors ${selectedUserTunnelIds.has(userTunnel.id) ? "bg-danger-50/50 dark:bg-danger-900/20 hover:bg-danger-50/80" : "hover:bg-default-50/50"}`}
+                          >
+                            {/* 👇 增加的行内选择框 */}
+                            <TableCell className="whitespace-nowrap text-center">
+                              <Checkbox
+                                color="primary"
+                                isSelected={selectedUserTunnelIds.has(userTunnel.id)}
+                                onValueChange={() => toggleUserTunnelSelection(userTunnel.id)}
+                              />
+                            </TableCell>
 
-                          <TableCell className="whitespace-nowrap">
-                            <span className="font-bold text-default-700">
-                              {userTunnel.tunnelName}
-                            </span>
-                          </TableCell>
-                          
-                          {/* 下方代码保持原样... */}
-                          <TableCell className="whitespace-nowrap">
-                            <div className="flex items-center gap-1 text-sm">
-                              <span className="text-danger font-mono font-bold">
-                                {formatFlow(calculateTunnelUsedFlow(userTunnel))}
+                            <TableCell className="whitespace-nowrap">
+                              <span className="font-bold text-default-700">
+                                {userTunnel.tunnelName}
                               </span>
-                              <span className="text-default-300">/</span>
-                              <span className="text-default-500 font-mono">
-                                {formatFlow(userTunnel.flow, "gb")}
+                            </TableCell>
+
+                            {/* 下方代码保持原样... */}
+                            <TableCell className="whitespace-nowrap">
+                              <div className="flex items-center gap-1 text-sm">
+                                <span className="text-danger font-mono font-bold">
+                                  {formatFlow(calculateTunnelUsedFlow(userTunnel))}
+                                </span>
+                                <span className="text-default-300">/</span>
+                                <span className="text-default-500 font-mono">
+                                  {formatFlow(userTunnel.flow, "gb")}
+                                </span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="whitespace-nowrap">
+                              <span className="text-sm text-default-700">
+                                {userTunnel.speedLimitName
+                                  ? userTunnel.speedLimitName.replace(/^限速\s*/, "")
+                                  : "不限"}
                               </span>
-                            </div>
-                          </TableCell>
+                            </TableCell>
 
-                          <TableCell className="whitespace-nowrap">
-                            <span className="text-sm text-default-700">
-                              {userTunnel.speedLimitName
-                                ? userTunnel.speedLimitName.replace(/^限速\s*/, "")
-                                : "不限"}
-                            </span>
-                          </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              <span className={`text-sm font-medium ${userTunnel.status === 1 ? "text-success" : "text-danger"}`}>
+                                {userTunnel.status === 1 ? "正常" : "禁用"}
+                              </span>
+                            </TableCell>
 
-                          <TableCell className="whitespace-nowrap">
-                            <span className={`text-sm font-medium ${userTunnel.status === 1 ? "text-success" : "text-danger"}`}>
-                              {userTunnel.status === 1 ? "正常" : "禁用"}
-                            </span>
-                          </TableCell>
-
-                          <TableCell className="whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <Button isIconOnly className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleEditTunnel(userTunnel)}>
-                                <EditIcon className="w-4 h-4" />
-                              </Button>
-                              <Button isIconOnly className="bg-orange-50 text-orange-600 hover:bg-orange-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleResetTunnelFlow(userTunnel)}>
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path clipRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" fillRule="evenodd"/></svg>
-                              </Button>
-                              <Button isIconOnly className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleRemoveTunnel(userTunnel)}>
-                                <DeleteIcon className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                            <TableCell className="whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <Button isIconOnly className="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleEditTunnel(userTunnel)}>
+                                  <EditIcon className="w-4 h-4" />
+                                </Button>
+                                <Button isIconOnly className="bg-orange-50 text-orange-600 hover:bg-orange-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleResetTunnelFlow(userTunnel)}>
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path clipRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" fillRule="evenodd" /></svg>
+                                </Button>
+                                <Button isIconOnly className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8" size="sm" variant="flat" onPress={() => handleRemoveTunnel(userTunnel)}>
+                                  <DeleteIcon className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </Tab>
+
+              {/* Tab 2: 监控权限 */}
+              <Tab key="monitor" title="监控权限">
+                <div className="pt-4">
+                  <h3 className="text-lg font-semibold mb-4">监控权限</h3>
+                  <div className="w-full sm:w-full flex items-center justify-between gap-4 bg-default-100 dark:bg-default-50 p-4 rounded-lg border border-default-200 dark:border-default-100/30">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground">
+                        允许访问监控功能
+                      </div>
+                      <div className="text-xs text-default-500 mt-1">
+                        授予后，该用户可以访问监控页面并管理服务监控（TCP/ICMP）。
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {monitorPermissionLoading ? <Spinner size="sm" /> : null}
+                      <Switch
+                        isDisabled={
+                          !currentUser ||
+                          monitorPermissionLoading ||
+                          monitorPermissionMutatingUserId === currentUser.id
+                        }
+                        isSelected={
+                          currentUser
+                            ? monitorPermissionUserIds.has(currentUser.id)
+                            : false
+                        }
+                        onValueChange={(v) =>
+                          currentUser &&
+                          void setUserMonitorPermission(currentUser.id, v)
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Tab>
+
+
+            </Tabs>
           </ModalBody>
           <ModalFooter className="justify-end">
             <Button
