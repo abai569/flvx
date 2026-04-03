@@ -928,26 +928,27 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 	}
 
 	type fwdRow struct {
-		ID           int64
-		UserID       int64
-		UserName     string
-		Name         string
-		TunnelID     int64
-		TunnelName   string
-		TrafficRatio float64
-		RemoteAddr   string
-		Strategy     string
-		InFlow       int64
-		OutFlow      int64
-		CreatedTime  int64
-		Status       int
-		Inx          int
-		SpeedID      sql.NullInt64
+		ID             int64
+		UserID         int64
+		UserName       string
+		Name           string
+		TunnelID       int64
+		TunnelName     string
+		TrafficRatio   float64
+		RemoteAddr     string
+		Strategy       string
+		InFlow         int64
+		OutFlow        int64
+		CreatedTime    int64
+		Status         int
+		Inx            int
+		SpeedID        sql.NullInt64
+		MaxConnections int
 	}
 
 	var rows []fwdRow
 	err := r.db.Model(&model.Forward{}).
-		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id").
+		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id, COALESCE(forward.max_connections, 0) AS max_connections").
 		Joins("LEFT JOIN tunnel ON tunnel.id = forward.tunnel_id").
 		Order("forward.inx ASC, forward.id ASC").
 		Find(&rows).Error
@@ -969,6 +970,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 			"remoteAddr": row.RemoteAddr, "strategy": row.Strategy,
 			"inFlow": row.InFlow, "outFlow": row.OutFlow,
 			"createdTime": row.CreatedTime, "status": row.Status, "inx": int64(row.Inx),
+			"maxConnections": row.MaxConnections,
 		}
 		if row.SpeedID.Valid {
 			item["speedId"] = row.SpeedID.Int64
