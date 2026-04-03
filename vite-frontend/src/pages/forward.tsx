@@ -807,7 +807,7 @@ const SortableTableRow = ({
         <TableCell className={rowBg}>
           <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
             {" "}
-            
+
             {getSpeedLimitName(forward.speedId ?? null)}
           </div>
         </TableCell>
@@ -2161,6 +2161,18 @@ export default function ForwardPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // 定时刷新连接数（每5秒）
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // 只在页面可见时刷新，且不在加载中
+      if (!document.hidden && !loading) {
+        refreshForwardList(false);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [loading, refreshForwardList]);
 
   // 表单验证
   const noLimitSpeedLimitIds = useMemo(() => {
@@ -4018,7 +4030,7 @@ export default function ForwardPage() {
               {isAdmin && (
                 <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
                   {" "}
-                  
+
                   {getSpeedLimitName(forward.speedId ?? null)}
                 </div>
               )}
@@ -6547,6 +6559,33 @@ export default function ForwardPage() {
                         name: e.target.value,
                       }))
                     }
+                  />                
+
+                  <Input
+                    label="入口监听端口 (精确)"
+                    placeholder="请输入具体端口号"
+                    type="number"
+                    value={searchParams.inPort}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        inPort: e.target.value,
+                      }))
+                    }
+                  />
+
+                  <Input
+                    label="目标地址或端口 (模糊)"
+                    placeholder="请输入目标IP、域名或端口"
+                    value={searchParams.remoteAddr}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        remoteAddr: e.target.value,
+                      }))
+                    }
                   />
 
                   {isAdmin && (
@@ -6628,33 +6667,6 @@ export default function ForwardPage() {
                       </SelectItem>
                     ))}
                   </Select>
-
-                  <Input
-                    label="入口监听端口 (精确)"
-                    placeholder="请输入具体端口号"
-                    type="number"
-                    value={searchParams.inPort}
-                    variant="bordered"
-                    onChange={(e) =>
-                      setSearchParams((prev) => ({
-                        ...prev,
-                        inPort: e.target.value,
-                      }))
-                    }
-                  />
-
-                  <Input
-                    label="目标地址或端口 (模糊)"
-                    placeholder="请输入目标IP、域名或端口"
-                    value={searchParams.remoteAddr}
-                    variant="bordered"
-                    onChange={(e) =>
-                      setSearchParams((prev) => ({
-                        ...prev,
-                        remoteAddr: e.target.value,
-                      }))
-                    }
-                  />
                 </div>
               </ModalBody>
               <ModalFooter>
