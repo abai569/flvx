@@ -1735,15 +1735,12 @@ func (h *Handler) nodeReportIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		PublicIP string `json:"public_ip"`
+		PublicIP   string `json:"public_ip"`
+		PublicIPV4 string `json:"public_ip_v4"`
+		PublicIPV6 string `json:"public_ip_v6"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.WriteJSON(w, response.ErrDefault("无效的请求数据"))
-		return
-	}
-
-	if req.PublicIP == "" {
-		response.WriteJSON(w, response.ErrDefault("IP 地址不能为空"))
 		return
 	}
 
@@ -1754,14 +1751,30 @@ func (h *Handler) nodeReportIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 更新节点公网 IP
-	if err := h.repo.UpdateNodePublicIP(node.ID, req.PublicIP); err != nil {
-		response.WriteJSON(w, response.Err(-1, fmt.Sprintf("更新 IP 失败：%v", err)))
+	// 支持新格式 (public_ip_v4 + public_ip_v6) 和旧格式 (public_ip)
+	if req.PublicIPV4 != "" || req.PublicIPV6 != "" {
+		// 新格式：分别更新 IPv4 和 IPv6
+		if err := h.repo.UpdateNodePublicIPs(node.ID, req.PublicIPV4, req.PublicIPV6); err != nil {
+			response.WriteJSON(w, response.Err(-1, fmt.Sprintf("更新 IP 失败：%v", err)))
+			return
+		}
+		response.WriteJSON(w, response.OK(map[string]interface{}{
+			"node_id":      node.ID,
+			"public_ip_v4": req.PublicIPV4,
+			"public_ip_v6": req.PublicIPV6,
+		}))
+	} else if req.PublicIP != "" {
+		// 旧格式：只更新 server_ip（向后兼容）
+		if err := h.repo.UpdateNodePublicIP(node.ID, req.PublicIP); err != nil {
+			response.WriteJSON(w, response.Err(-1, fmt.Sprintf("更新 IP 失败：%v", err)))
+			return
+		}
+		response.WriteJSON(w, response.OK(map[string]interface{}{
+			"node_id":   node.ID,
+			"public_ip": req.PublicIP,
+		}))
+	} else {
+		response.WriteJSON(w, response.ErrDefault("IP 地址不能为空"))
 		return
 	}
-
-	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"node_id":   node.ID,
-		"public_ip": req.PublicIP,
-	}))
 }

@@ -184,8 +184,6 @@ var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *ht
 	return dialer.Dial(rawURL, nil)
 }
 
-
-
 // NewWebSocketReporter 创建一个新的WebSocket报告器
 func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -357,11 +355,10 @@ func (w *WebSocketReporter) connect() error {
 		w.fetchAndSaveNodeID()
 	}
 
-	// 获取并上报公网 IP（支持 IPv6）
-	publicIP := getPublicIP()
-	if publicIP != "" {
-		w.reportPublicIP(publicIP)
-	}
+	// 获取并上报公网 IPv4 和 IPv6
+	ipv4 := getPublicIPv4()
+	ipv6 := getPublicIPv6()
+	w.reportPublicIPs(ipv4, ipv6)
 
 	return nil
 }
@@ -452,51 +449,97 @@ func (w *WebSocketReporter) fetchAndSaveNodeID() {
 	}
 }
 
-// getPublicIP 获取服务器公网 IP（优先 IPv6）
-func getPublicIP() string {
-	client := &http.Client{Timeout: 5 * time.Second}
-
-	// 优先使用 ip.sb（支持 IPv6/IPv4）
-	apis := []string{
-		"https://api64.ipify.org?format=text",  // 支持 IPv6/IPv4
-		"https://ip.sb/ip",                      // 简洁快速
-		"https://ifconfig.co/ip",
-		"https://icanhazip.com",
-		"https://ident.me",
-	}
-
-	var ipv4Fallback string
-
-	for _, api := range apis {
-		resp, err := client.Get(api)
-		if err == nil && resp.StatusCode == 200 {
-			defer resp.Body.Close()
-			body, _ := io.ReadAll(resp.Body)
-			ip := strings.TrimSpace(string(body))
-			if net.ParseIP(ip) != nil {
-				// 如果是 IPv6，直接返回
-				if strings.Contains(ip, ":") {
-					fmt.Printf("🌐 获取到 IPv6 公网 IP: %s\n", ip)
-					return ip
-				}
-				// 如果是 IPv4，保存为备选
-				fmt.Printf("🌐 获取到 IPv4 公网 IP: %s\n", ip)
-				if ipv4Fallback == "" {
-					ipv4Fallback = ip
-				}
-			}
+// getPublicIPv4 获取 IPv4 公网地址
+func getPublicIPv4() string {
+	// 优先：curl -4 -s ip.sb
+	cmd := exec.Command("curl", "-4", "-s", "ip.sb")
+	out, err := cmd.Output()
+	if err == nil {
+		ip := strings.TrimSpace(string(out))
+		if net.ParseIP(ip) != nil && strings.Contains(ip, ".") {
+			fmt.Printf("🌐 获取到 IPv4 公网 IP (curl): %s\n", ip)
+			return ip
 		}
 	}
 
-	// 如果获取到 IPv4，直接返回
-	if ipv4Fallback != "" {
-		return ipv4Fallback
+	// 备选：Go HTTP client
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("https://api4.ipify.org?format=text")
+	if err == nil && resp.StatusCode == 200 {
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		ip := strings.TrimSpace(string(body))
+		if net.ParseIP(ip) != nil {
+			fmt.Printf("🌐 获取到 IPv4 公网 IP (HTTP): %s\n", ip)
+			return ip
+		}
 	}
 
-	// 最后尝试获取本地默认路由的 IP
-	return getDefaultRouteIP()
+	// 回退：本地默认路由 IPv4
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err == nil {
+		defer conn.Close()
+		localAddr := conn.LocalAddr().(*net.UDPAddr)
+		if localAddr.IP != nil {
+			ip := localAddr.IP.String()
+			fmt.Printf("🌐 使用本地 IPv4 地址： %s\n", ip)
+			return ip
+		}
+	}
+
+	return ""
 }
 
+// getPublicIPv6 获取 IPv6 公网地址
+func getPublicIPv6() string {
+	// 优先：curl -6 -s ip.sb
+	cmd := exec.Command("curl", "-6", "-s", "ip.sb")
+	out, err := cmd.Output()
+	if err == nil {
+		ip := strings.TrimSpace(string(out))
+		if net.ParseIP(ip) != nil && strings.Contains(ip, ":") {
+			fmt.Printf("🌐 获取到 IPv6 公网 IP (curl): %s\n", ip)
+			return ip
+		}
+	}
+
+	// 备选：Go HTTP client
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("https://api6.ipify.org?format=text")
+	if err == nil && resp.StatusCode == 200 {
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		ip := strings.TrimSpace(string(body))
+		if net.ParseIP(ip) != nil {
+			fmt.Printf("🌐 获取到 IPv6 公网 IP (HTTP): %s\n", ip)
+			return ip
+		}
+	}
+
+	// 回退：本地默认路由 IPv6
+	conn, err := net.Dial("udp6", "[2001:4860:4860::8888]:80")
+	if err == nil {
+		defer conn.Close()
+		localAddr := conn.LocalAddr().(*net.UDPAddr)
+		if localAddr.IP != nil && localAddr.IP.To4() == nil {
+			ip := localAddr.IP.String()
+			fmt.Printf("🌐 使用本地 IPv6 地址： %s\n", ip)
+			return ip
+		}
+	}
+
+	return ""
+}
+
+// getPublicIP 获取服务器公网 IP（优先 IPv6）
+// Deprecated: 使用 getPublicIPv4() 和 getPublicIPv6() 替代
+func getPublicIP() string {
+	ipv6 := getPublicIPv6()
+	if ipv6 != "" {
+		return ipv6
+	}
+	return getPublicIPv4()
+}
 
 // getDefaultRouteIP 获取默认路由的网卡 IP
 func getDefaultRouteIP() string {
@@ -521,8 +564,8 @@ func getDefaultRouteIP() string {
 	return ""
 }
 
-// reportPublicIP 上报公网 IP 到面板
-func (w *WebSocketReporter) reportPublicIP(publicIP string) {
+// reportPublicIPs 上报 IPv4 和 IPv6 公网地址到面板
+func (w *WebSocketReporter) reportPublicIPs(ipv4, ipv6 string) {
 	// 构建 HTTP API URL
 	httpURL := "http://" + w.addr + "/api/v1/node/report-ip"
 
@@ -535,9 +578,10 @@ func (w *WebSocketReporter) reportPublicIP(publicIP string) {
 	req.Header.Set("Authorization", w.secret)
 	req.Header.Set("Content-Type", "application/json")
 
-	// 构建请求体
+	// 构建请求体（新格式：同时上报 IPv4 和 IPv6）
 	body := map[string]string{
-		"public_ip": publicIP,
+		"public_ip_v4": ipv4,
+		"public_ip_v6": ipv6,
 	}
 	jsonBody, _ := json.Marshal(body)
 	req.Body = io.NopCloser(bytes.NewReader(jsonBody))
@@ -551,10 +595,22 @@ func (w *WebSocketReporter) reportPublicIP(publicIP string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		fmt.Printf("✅ 公网 IP 已上报：%s\n", publicIP)
+		if ipv4 != "" && ipv6 != "" {
+			fmt.Printf("✅ 公网 IP 已上报：IPv4=%s, IPv6=%s\n", ipv4, ipv6)
+		} else if ipv4 != "" {
+			fmt.Printf("✅ 公网 IPv4 已上报：%s\n", ipv4)
+		} else if ipv6 != "" {
+			fmt.Printf("✅ 公网 IPv6 已上报：%s\n", ipv6)
+		}
 	} else {
 		fmt.Printf("⚠️ 上报 IP 失败：HTTP %d\n", resp.StatusCode)
 	}
+}
+
+// reportPublicIP 上报公网 IP 到面板（旧版本，保留兼容）
+// Deprecated: 使用 reportPublicIPs() 替代
+func (w *WebSocketReporter) reportPublicIP(publicIP string) {
+	w.reportPublicIPs(publicIP, "")
 }
 
 func buildWebSocketCandidates(addr string, secret string, version string, http int, tls int, socks int, preferredScheme string) []string {

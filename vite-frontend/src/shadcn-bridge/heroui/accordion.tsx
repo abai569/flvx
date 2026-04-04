@@ -27,7 +27,7 @@ function variantClass(variant: AccordionProps["variant"]) {
     return "[&>[data-slot=accordion-item]]:mb-3 [&>[data-slot=accordion-item]]:rounded-xl [&>[data-slot=accordion-item]]:border [&>[data-slot=accordion-item]]:border-divider [&>[data-slot=accordion-item]]:border-b-0 [&>[data-slot=accordion-item]]:bg-content1 [&>[data-slot=accordion-item]]:shadow-sm [&>[data-slot=accordion-item]]:overflow-hidden [&>[data-slot=accordion-item]:last-child]:mb-0";
   }
   if (variant === "bordered") {
-    return "rounded-xl border border-divider bg-content1 overflow-hidden [&>[data-slot=accordion-item]]:border-b [&>[data-slot=accordion-item]:last-child]:border-b-0";
+    return "rounded-xl border border-divider bg-content1 [&>[data-slot=accordion-item]]:border-b [&>[data-slot=accordion-item]:last-child]:border-b-0";
   }
 
   return "";

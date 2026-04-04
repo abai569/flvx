@@ -265,6 +265,23 @@ func (r *Repository) UpdateNodePublicIP(nodeID int64, publicIP string) error {
 		Update("server_ip", publicIP).Error
 }
 
+func (r *Repository) UpdateNodePublicIPs(nodeID int64, ipv4, ipv6 string) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	serverIP := ipv6
+	if serverIP == "" {
+		serverIP = ipv4
+	}
+	return r.db.Model(&model.Node{}).
+		Where("id = ?", nodeID).
+		Updates(map[string]interface{}{
+			"server_ip":    serverIP,
+			"server_ip_v4": ipv4,
+			"server_ip_v6": ipv6,
+		}).Error
+}
+
 func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, serverHost, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")

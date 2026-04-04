@@ -716,21 +716,80 @@ export default function TunnelPage() {
     });
   };
 
-  // 更新某一跳的所有节点的连接端口
-  const updateChainPort = (groupIndex: number, port: number | undefined) => {
+  // 🎯 多端口支持：解析逗号分隔的端口字符串
+  const parsePortsFromInput = (value: string): number[] => {
+    if (!value || value.trim() === '') {
+      return [];
+    }
+    return value.split(',')
+      .map(p => p.trim())
+      .filter(p => p !== '')
+      .map(p => {
+        const port = parseInt(p, 10);
+        return isNaN(port) ? 0 : port;
+      });
+  };
+
+  // 🎯 多端口支持：格式化端口数组为显示文本
+  const formatOutNodePortsToDisplay = (outNodes: ChainTunnel[]): string => {
+    if (!outNodes || outNodes.length === 0) {
+      return '';
+    }
+    const ports = outNodes
+      .map(node => node.port ?? 0)
+      .filter(port => port > 0);
+    return ports.length > 0 ? ports.join(',') : '';
+  };
+
+  // 🎯 多端口支持：将端口应用到出口节点
+  const applyPortsToOutNodes = (value: string) => {
+    const ports = parsePortsFromInput(value);
+
+    setForm((prev) => {
+      const outNodes = prev.outNodeId || [];
+      return {
+        ...prev,
+        outNodeId: outNodes.map((node, idx) => ({
+          ...node,
+          port: idx < ports.length && ports[idx] > 0
+            ? ports[idx]
+            : undefined // 留空让后端自动分配
+        }))
+      };
+    });
+  };
+
+  // 🎯 多端口支持：格式化转发链端口为显示文本
+  const formatChainPortsToDisplay = (chainGroup: ChainTunnel[]): string => {
+    if (!chainGroup || chainGroup.length === 0) {
+      return '';
+    }
+    const ports = chainGroup
+      .map(node => node.port ?? 0)
+      .filter(port => port > 0);
+    return ports.length > 0 ? ports.join(',') : '';
+  };
+
+  // 🎯 多端口支持：将端口应用到转发链节点
+  const applyPortsToChainGroup = (groupIndex: number, value: string) => {
+    const ports = parsePortsFromInput(value);
+
     setForm((prev) => {
       const chainNodes = [...(prev.chainNodes || [])];
+      const currentGroup = chainNodes[groupIndex] || [];
 
-      chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
+      chainNodes[groupIndex] = currentGroup.map((node, idx) => ({
         ...node,
-        port,
+        port: idx < ports.length && ports[idx] > 0
+          ? ports[idx]
+          : undefined // 留空让后端自动分配
       }));
 
       return { ...prev, chainNodes };
     });
   };
 
-  // 获取所有转发链中已选择的节点ID列表
+  // 获取所有转发链中已选择的节点 ID 列表
   const getSelectedChainNodeIds = (): number[] => {
     return (form.chainNodes || []).flatMap((group) =>
       group.map((node) => node.nodeId),
@@ -2399,18 +2458,19 @@ export default function TunnelPage() {
                               ),
                               ...getSelectedChainNodeIds().map((id) => id.toString()),
                             ]
-                        }
-                        errorMessage={errors.inNodeId}
-                        isInvalid={!!errors.inNodeId}
-                        label={`入口节点${form.inNodeId.length > 0 ? ` (已选 ${form.inNodeId.length} 个)` : ""}`}
-                        placeholder="请选择入口节点（可多选）"
-                        selectedKeys={form.inNodeId.map((ct) =>
-                          ct.nodeId.toString(),
-                        )}
-                        selectionMode="multiple"
-                        variant="bordered"
-                        onSelectionChange={(keys) => {
-                          const selectedIds = toSelectedNodeIds(keys);
+                          }
+                          dropdownPlacement="top"
+                          errorMessage={errors.inNodeId}
+                          isInvalid={!!errors.inNodeId}
+                          label={`入口节点${form.inNodeId.length > 0 ? ` (已选 ${form.inNodeId.length} 个)` : ""}`}
+                          placeholder="请选择入口节点（可多选）"
+                          selectedKeys={form.inNodeId.map((ct) =>
+                            ct.nodeId.toString(),
+                          )}
+                          selectionMode="multiple"
+                          variant="bordered"
+                          onSelectionChange={(keys) => {
+                            const selectedIds = toSelectedNodeIds(keys);
 
                           setForm((prev) => {
                             let nextInIp = prev.inIp;
@@ -2504,10 +2564,14 @@ export default function TunnelPage() {
                   {form.type === 2 && (
                     <>
                       <Divider />
-                      <Accordion variant="bordered">
+                      <Accordion 
+                        variant="bordered"
+                        className="overflow-visible"
+                      >
                         <AccordionItem
                           key="chain-config"
                           aria-label="转发链配置"
+                          className="overflow-visible"
                           title={
                             <div className="flex items-center justify-between w-full pr-4">
                               <div className="flex flex-col gap-1">
@@ -2627,7 +2691,7 @@ export default function TunnelPage() {
                                                   .map((id) => id.toString()),
                                               ]
                                           }
-                                          // dropdownPlacement="top"
+                                          dropdownPlacement="top"
                                           label={`节点选择${groupNodes.filter(ct => ct.nodeId !== -1).length > 0 ? ` (已选 ${groupNodes.filter(ct => ct.nodeId !== -1).length} 个)` : ""}`}
                                           placeholder="选择节点（可多选）"
                                           selectedKeys={groupNodes
@@ -2815,25 +2879,17 @@ export default function TunnelPage() {
                                       </Select>
 
                                       <Input
-                                        description="指定当前跳被上一跳连接的端口，留空自动分配"
+                                        description="指定当前跳被上一跳连接的端口，多节点可用逗号分隔，留空自动分配"
                                         errorMessage={errors[`chainNodes_${groupIndex}_port`]}
                                         isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
                                         label="连接端口"
-                                        placeholder="留空自动分配"
+                                        placeholder="多节点可用逗号分隔，如：11111,22222"
                                         size="sm"
-                                        type="number"
-                                        value={
-                                          groupNodes.length > 0 && groupNodes[0].port
-                                            ? groupNodes[0].port.toString()
-                                            : ""
-                                        }
+                                        type="text"
+                                        value={formatChainPortsToDisplay(groupNodes)}
                                         variant="bordered"
                                         onChange={(e) => {
-                                          const value = e.target.value;
-                                          updateChainPort(
-                                            groupIndex,
-                                            value ? parseInt(value) : undefined,
-                                          );
+                                          applyPortsToChainGroup(groupIndex, e.target.value);
                                         }}
                                       />
                                     </div>
@@ -2953,7 +3009,7 @@ export default function TunnelPage() {
                                         ),
                                       ]
                                   }
-                                  // dropdownPlacement="top"
+                                  dropdownPlacement="top"
                                   errorMessage={errors.outNodeId}
                                   isInvalid={!!errors.outNodeId}
                                   label={`出口节点${form.outNodeId && form.outNodeId.filter((ct) => ct.nodeId !== -1).length > 0 ? ` (已选 ${form.outNodeId.filter((ct) => ct.nodeId !== -1).length} 个)` : ""}`}
@@ -3259,46 +3315,23 @@ export default function TunnelPage() {
                               </Select>
 
                               <Input
-                                description="指定出口节点被上一跳连接的端口，留空自动分配"
-                                label="连接端口"
-                                placeholder="留空自动分配"
-                                size="sm"
-                                type="number"
-                                value={
-                                  form.outNodeId && form.outNodeId.length > 0 && form.outNodeId[0].port
-                                    ? form.outNodeId[0].port.toString()
-                                    : ""
+                                description={
+                                  isMultiExit
+                                    ? "多出口隧道支持逗号分隔端口，如：11111,22222（按出口顺序匹配），留空自动分配"
+                                    : "指定出口节点被上一跳连接的端口，留空自动分配"
                                 }
+                                label="连接端口"
+                                placeholder={
+                                  isMultiExit
+                                    ? "多出口可用逗号分隔，如：11111,22222"
+                                    : "留空自动分配"
+                                }
+                                size="sm"
+                                type="text"
+                                value={formatOutNodePortsToDisplay(form.outNodeId || [])}
                                 variant="bordered"
                                 onChange={(e) => {
-                                  const value = e.target.value;
-
-                                  setForm((prev) => {
-                                    const currentOutNodes = prev.outNodeId || [];
-
-                                    if (currentOutNodes.length === 0) {
-                                      return {
-                                        ...prev,
-                                        outNodeId: [
-                                          {
-                                            nodeId: -1,
-                                            chainType: 3,
-                                            protocol: "tcp",
-                                            strategy: "round",
-                                            port: value ? parseInt(value) : undefined,
-                                          },
-                                        ],
-                                      };
-                                    }
-
-                                    return {
-                                      ...prev,
-                                      outNodeId: currentOutNodes.map((ct) => ({
-                                        ...ct,
-                                        port: value ? parseInt(value) : undefined,
-                                      })),
-                                    };
-                                  });
+                                  applyPortsToOutNodes(e.target.value);
                                 }}
                               />
                             </div>
