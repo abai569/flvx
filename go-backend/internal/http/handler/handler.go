@@ -170,6 +170,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/node/batch-upgrade", h.nodeBatchUpgrade)
 	mux.HandleFunc("/api/v1/node/rollback", h.nodeRollback)
 	mux.HandleFunc("/api/v1/node/releases", h.listReleases)
+	mux.HandleFunc("/api/v1/node/batch-reset-traffic", h.nodeBatchResetTraffic)
 	mux.HandleFunc("/api/v1/tunnel/list", h.tunnelList)
 	mux.HandleFunc("/api/v1/tunnel/create", h.tunnelCreate)
 	mux.HandleFunc("/api/v1/tunnel/get", h.tunnelGet)

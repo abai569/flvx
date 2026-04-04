@@ -8,6 +8,14 @@ export interface NodeApiItem {
   renewalCycle?: "month" | "quarter" | "year" | "";
   expiryReminderDismissed?: number;
   syncError?: string;
+  // 周期流量统计
+  periodTraffic?: {
+    rx: number;
+    tx: number;
+    since: number;
+    nextReset?: number;
+    cycle?: string;
+  };
   [key: string]: unknown;
 }
 

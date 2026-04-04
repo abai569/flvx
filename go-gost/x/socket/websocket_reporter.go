@@ -25,6 +25,7 @@ import (
 	"github.com/go-gost/x/internal/util/crypto"
 	"github.com/go-gost/x/registry"
 	"github.com/go-gost/x/service"
+	"github.com/go-gost/x/traffic"
 	"github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
@@ -39,20 +40,25 @@ import (
 
 // SystemInfo 系统信息结构体
 type SystemInfo struct {
-	Uptime             uint64         `json:"uptime"`
-	BytesReceived      uint64         `json:"bytes_received"`
-	BytesTransmitted   uint64         `json:"bytes_transmitted"`
-	CPUUsage           float64        `json:"cpu_usage"`
-	MemoryUsage        float64        `json:"memory_usage"`
-	DiskUsage          float64        `json:"disk_usage"`
-	Load1              float64        `json:"load1"`
-	Load5              float64        `json:"load5"`
-	Load15             float64        `json:"load15"`
-	TCPConns           int64          `json:"tcp_conns"`
-	UDPConns           int64          `json:"udp_conns"`
-	NetInSpeed         int64          `json:"net_in_speed"`
-	NetOutSpeed        int64          `json:"net_out_speed"`
-	ServiceConnections map[string]int `json:"serviceConnections"`
+	Uptime                 uint64         `json:"uptime"`
+	BytesReceived          uint64         `json:"bytes_received"`
+	BytesTransmitted       uint64         `json:"bytes_transmitted"`
+	PeriodBytesReceived    uint64         `json:"period_bytes_received"`    // 周期内接收流量
+	PeriodBytesTransmitted uint64         `json:"period_bytes_transmitted"` // 周期内发送流量
+	BaselineRecordedAt     int64          `json:"baseline_recorded_at"`     // 基线时间戳
+	NextResetAt            int64          `json:"next_reset_at"`            // 下次重置时间戳
+	RenewalCycle           string         `json:"renewal_cycle,omitempty"`  // 续费周期
+	CPUUsage               float64        `json:"cpu_usage"`
+	MemoryUsage            float64        `json:"memory_usage"`
+	DiskUsage              float64        `json:"disk_usage"`
+	Load1                  float64        `json:"load1"`
+	Load5                  float64        `json:"load5"`
+	Load15                 float64        `json:"load15"`
+	TCPConns               int64          `json:"tcp_conns"`
+	UDPConns               int64          `json:"udp_conns"`
+	NetInSpeed             int64          `json:"net_in_speed"`
+	NetOutSpeed            int64          `json:"net_out_speed"`
+	ServiceConnections     map[string]int `json:"serviceConnections"`
 }
 
 // NetworkStats 网络统计信息
@@ -159,6 +165,7 @@ type WebSocketReporter struct {
 	addr              string // 保存服务器地址
 	secret            string // 保存密钥
 	version           string // 保存版本号
+	nodeID            int64  // 节点ID
 	preferredWSScheme string
 	conn              *websocket.Conn
 	curBackoff        time.Duration // 当前重连退避间隔
@@ -572,21 +579,50 @@ func (w *WebSocketReporter) collectSystemInfo() SystemInfo {
 	lastNetBytesTransmitted = networkStats.BytesTransmitted
 	lastNetTime = now
 
+	// 计算周期流量
+	var periodRX, periodTX uint64
+	var baselineRecordedAt, nextResetAt int64
+	var renewalCycle string
+
+	if bm := traffic.GetManager(); bm != nil {
+		// 检查并执行自动重置
+		bm.CheckAndAutoReset(networkStats.BytesReceived, networkStats.BytesTransmitted)
+
+		// 计算周期流量
+		periodRX, periodTX = bm.CalculatePeriodTraffic(networkStats.BytesReceived, networkStats.BytesTransmitted)
+
+		// 获取基线信息
+		if baseline := bm.GetCurrentBaseline(); baseline != nil {
+			baselineRecordedAt = baseline.RecordedAt.UnixMilli()
+			nextResetAt = baseline.NextResetAt.UnixMilli()
+			renewalCycle = baseline.RenewalCycle
+		}
+	} else {
+		// 基线管理器未初始化，使用原始流量
+		periodRX = networkStats.BytesReceived
+		periodTX = networkStats.BytesTransmitted
+	}
+
 	return SystemInfo{
-		Uptime:             getUptime(),
-		BytesReceived:      networkStats.BytesReceived,
-		BytesTransmitted:   networkStats.BytesTransmitted,
-		CPUUsage:           cpuInfo.Usage,
-		MemoryUsage:        memoryInfo.Usage,
-		DiskUsage:          diskInfo.Usage,
-		Load1:              loadInfo.Load1,
-		Load5:              loadInfo.Load5,
-		Load15:             loadInfo.Load15,
-		TCPConns:           connInfo.TCPConns,
-		UDPConns:           connInfo.UDPConns,
-		NetInSpeed:         netInSpeed,
-		NetOutSpeed:        netOutSpeed,
-		ServiceConnections: collectServiceConnections(),
+		Uptime:                 getUptime(),
+		BytesReceived:          networkStats.BytesReceived,
+		BytesTransmitted:       networkStats.BytesTransmitted,
+		PeriodBytesReceived:    periodRX,
+		PeriodBytesTransmitted: periodTX,
+		BaselineRecordedAt:     baselineRecordedAt,
+		NextResetAt:            nextResetAt,
+		RenewalCycle:           renewalCycle,
+		CPUUsage:               cpuInfo.Usage,
+		MemoryUsage:            memoryInfo.Usage,
+		DiskUsage:              diskInfo.Usage,
+		Load1:                  loadInfo.Load1,
+		Load5:                  loadInfo.Load5,
+		Load15:                 loadInfo.Load15,
+		TCPConns:               connInfo.TCPConns,
+		UDPConns:               connInfo.UDPConns,
+		NetInSpeed:             netInSpeed,
+		NetOutSpeed:            netOutSpeed,
+		ServiceConnections:     collectServiceConnections(),
 	}
 }
 
@@ -831,6 +867,11 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 		err = w.handleSetServiceMaxConnections(cmd.Data)
 		response.Type = "SetServiceMaxConnectionsResponse"
 
+	// Traffic 相关命令
+	case "ResetTraffic":
+		err = w.handleResetTraffic(cmd.Data)
+		response.Type = "ResetTrafficResponse"
+
 	// Chain 相关命令
 	case "AddChains":
 		err = w.handleAddChain(cmd.Data)
@@ -1032,6 +1073,36 @@ func (w *WebSocketReporter) handleSetServiceMaxConnections(data interface{}) err
 	}
 	if ds, ok := svc.(interface{ SetMaxConns(int) }); ok {
 		ds.SetMaxConns(req.MaxConns)
+	}
+
+	return nil
+}
+
+func (w *WebSocketReporter) handleResetTraffic(data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("序列化数据失败: %v", err)
+	}
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.Unmarshal(jsonData, &req); err != nil {
+		return fmt.Errorf("解析请求失败: %v", err)
+	}
+
+	bm := traffic.GetManager()
+	if bm == nil {
+		return fmt.Errorf("基线管理器未初始化")
+	}
+
+	// 获取当前网卡流量
+	networkStats := getNetworkStats()
+
+	// 创建手动重置基线
+	_, err = bm.CreateManualBaseline(networkStats.BytesReceived, networkStats.BytesTransmitted, req.Reason)
+	if err != nil {
+		return fmt.Errorf("创建基线失败: %v", err)
 	}
 
 	return nil
@@ -1654,7 +1725,7 @@ func getConnectionInfo() ConnectionInfo {
 }
 
 // StartWebSocketReporterWithConfig 使用配置字段启动WebSocket报告器
-func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls int, socks int, version string) *WebSocketReporter {
+func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls int, socks int, version string, nodeID int64) *WebSocketReporter {
 
 	// 构建初始 WebSocket URL
 	candidates := buildWebSocketCandidates(addr, secret, version, http, tls, socks, "")
@@ -1667,6 +1738,31 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 	reporter.addr = addr
 	reporter.secret = secret
 	reporter.version = version
+	reporter.nodeID = nodeID
+
+	// 初始化基线管理器
+	if nodeID > 0 {
+		baselinePath := "/etc/flux_agent/traffic_baseline.json"
+		if _, err := traffic.InitBaselineManager(nodeID, baselinePath); err != nil {
+			fmt.Printf("⚠️ 初始化基线管理器失败: %v\n", err)
+		} else {
+			fmt.Printf("✅ 基线管理器初始化成功\n")
+
+			// 首次启动时创建初始基线
+			if bm := traffic.GetManager(); bm != nil {
+				if bm.GetCurrentBaseline() == nil {
+					networkStats := getNetworkStats()
+					// 续费周期从面板获取，这里先传空，后续通过命令更新
+					if _, err := bm.CreateInitialBaseline(networkStats.BytesReceived, networkStats.BytesTransmitted, ""); err != nil {
+						fmt.Printf("⚠️ 创建初始基线失败: %v\n", err)
+					} else {
+						fmt.Printf("✅ 初始流量基线已创建\n")
+					}
+				}
+			}
+		}
+	}
+
 	reporter.Start()
 	return reporter
 }

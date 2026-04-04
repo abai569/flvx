@@ -66,6 +66,7 @@ import {
   dismissNodeExpiryReminder,
   getNodeGroupList,
   assignNodeToGroup,
+  batchResetNodeTraffic,
   type ReleaseChannel,
 } from "@/api";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
@@ -308,6 +309,12 @@ const SortableItem = ({
   );
 };
 
+// 格式化日期时间戳
+const formatDate = (timestamp: number): string => {
+  if (!timestamp) return "-";
+  return new Date(timestamp).toLocaleString();
+};
+
 export default function NodePage() {
   const [nodeList, setNodeList] = useState<Node[]>([]);
   const [nodeOrder, setNodeOrder] = useState<number[]>([]);
@@ -330,6 +337,13 @@ export default function NodePage() {
         load15: number;
         tcpConns: number;
         udpConns: number;
+        periodTraffic?: {
+          rx: number;
+          tx: number;
+          since: number;
+          nextReset?: number;
+          cycle?: string;
+        };
       }
     >
   >({});
@@ -450,6 +464,8 @@ export default function NodePage() {
   const [releaseChannel, setReleaseChannel] = useState<ReleaseChannel>("dev");
   const [selectedVersion, setSelectedVersion] = useState("");
   const [batchUpgradeLoading, setBatchUpgradeLoading] = useState(false);
+  const [batchResetTrafficLoading, setBatchResetTrafficLoading] = useState(false);
+  const [batchResetTrafficModalOpen, setBatchResetTrafficModalOpen] = useState(false);
   const [upgradeProgress, setUpgradeProgress] = useState<
     Record<number, { stage: string; percent: number; message: string }>
   >({});
@@ -755,6 +771,16 @@ export default function NodePage() {
               prev[nodeId]?.downloadTraffic ??
               0,
             ),
+            // 周期流量（新字段）
+            periodTraffic: metric.period_bytes_received !== undefined || metric.period_bytes_transmitted !== undefined
+              ? {
+                  rx: Number(metric.period_bytes_received ?? 0),
+                  tx: Number(metric.period_bytes_transmitted ?? 0),
+                  since: metric.baseline_recorded_at || 0,
+                  nextReset: metric.next_reset_at || 0,
+                  cycle: metric.renewal_cycle || "",
+                }
+              : prev[nodeId]?.periodTraffic,
           },
         };
       });
@@ -1217,6 +1243,37 @@ export default function NodePage() {
       } finally {
         setBatchUpgradeLoading(false);
       }
+    }
+  };
+
+  // 批量重置流量
+  const handleBatchResetTraffic = async () => {
+    const selectedLocalIds = Array.from(selectedIds).filter((id) =>
+      localNodes.some((n) => n.id === id),
+    );
+
+    if (selectedLocalIds.length === 0) {
+      toast.error("请选择本地节点进行重置");
+      setBatchResetTrafficModalOpen(false);
+      return;
+    }
+
+    setBatchResetTrafficLoading(true);
+    try {
+      const res = await batchResetNodeTraffic(selectedLocalIds, "管理员手动重置");
+      if (res.code === 0) {
+        const successCount = (res.data as any)?.filter((r: { success: boolean }) => r.success).length || 0;
+        toast.success(`已成功重置 ${successCount}/${selectedLocalIds.length} 个节点的流量统计`);
+        setBatchResetTrafficModalOpen(false);
+        setSelectMode(false);
+        setSelectedIds(new Set());
+      } else {
+        toast.error(res.msg || "批量重置失败");
+      }
+    } catch {
+      toast.error("网络错误，请重试");
+    } finally {
+      setBatchResetTrafficLoading(false);
     }
   };
 
@@ -2005,17 +2062,50 @@ export default function NodePage() {
                   </div>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-default-600">总流量</span>
+                  <span className="text-default-600">周期流量</span>
                   <span className="font-medium text-sm text-danger-600 dark:text-danger-400">
                     {node.connectionStatus === "online" &&
                       realtimeNodeMetrics[node.id]
                       ? formatTraffic(
-                        (realtimeNodeMetrics[node.id]?.uploadTraffic ?? 0) +
-                        (realtimeNodeMetrics[node.id]?.downloadTraffic ?? 0),
-                      )
+                          (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0) +
+                          (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0),
+                        )
                       : "-"}
                   </span>
                 </div>
+                {node.connectionStatus === "online" &&
+                  realtimeNodeMetrics[node.id]?.periodTraffic && (
+                  <div className="text-xs text-default-500 space-y-0.5 mt-1">
+                    <div className="flex justify-between">
+                      <span>↑ 上行</span>
+                      <span className="font-medium">
+                        {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>↓ 下行</span>
+                      <span className="font-medium">
+                        {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0)}
+                      </span>
+                    </div>
+                    {realtimeNodeMetrics[node.id]?.periodTraffic?.since && (
+                      <div className="flex justify-between">
+                        <span>周期始于</span>
+                        <span className="font-medium">
+                          {formatDate(realtimeNodeMetrics[node.id]!.periodTraffic!.since)}
+                        </span>
+                      </div>
+                    )}
+                    {realtimeNodeMetrics[node.id]?.periodTraffic?.nextReset && (
+                      <div className="flex justify-between">
+                        <span>下次重置</span>
+                        <span className="font-medium text-primary">
+                          {formatDate(realtimeNodeMetrics[node.id]!.periodTraffic!.nextReset!)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {upgradeProgress[node.id] &&
                   upgradeProgress[node.id].percent < 100 && (
                     <div className="mt-1">
@@ -2353,6 +2443,15 @@ export default function NodePage() {
                   onPress={() => setBatchRollbackModalOpen(true)}
                 >
                   回退
+                </Button>
+                <Button
+                  color="primary"
+                  isDisabled={selectedIds.size === 0}
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setBatchResetTrafficModalOpen(true)}
+                >
+                  重置流量
                 </Button>
                 <Button
                   color="danger"
@@ -3434,6 +3533,74 @@ export default function NodePage() {
                 </Button>
                 <Button color="secondary" onPress={handleBatchRollback}>
                   确认回退
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 批量重置流量确认模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={batchResetTrafficModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onOpenChange={setBatchResetTrafficModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">确认批量重置流量</h2>
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  确定要重置以下{" "}
+                  <strong>
+                    {
+                      Array.from(selectedIds).filter(
+                        (id) =>
+                          nodeList.find((n) => n.id === id)?.isRemote !== 1,
+                      ).length
+                    }
+                  </strong>{" "}
+                  个节点的流量统计吗？
+                </p>
+                <p className="text-small text-default-500 mt-2">
+                  重置后，当前周期流量将归档到历史，新周期从 0 开始统计。
+                </p>
+                <ul className="text-small text-default-500 mt-2 space-y-1">
+                  {Array.from(selectedIds)
+                    .filter((id) => nodeList.find((n) => n.id === id)?.isRemote !== 1)
+                    .slice(0, 5)
+                    .map((id) => {
+                      const node = nodeList.find((n) => n.id === id);
+                      return node ? (
+                        <li key={id} className="truncate">
+                          • {node.name}
+                        </li>
+                      ) : null;
+                    })}
+                  {selectedIds.size > 5 && (
+                    <li>... 还有 {selectedIds.size - 5} 个节点</li>
+                  )}
+                </ul>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="primary"
+                  isLoading={batchResetTrafficLoading}
+                  onPress={handleBatchResetTraffic}
+                >
+                  确认重置
                 </Button>
               </ModalFooter>
             </>

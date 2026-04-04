@@ -286,6 +286,8 @@ export const batchDeleteTunnels = (ids: number[]) =>
   Network.post<BatchOperationResult>("/tunnel/batch-delete", { ids });
 export const batchDeleteNodes = (ids: number[]) =>
   Network.post<BatchOperationResult>("/node/batch-delete", { ids });
+export const batchResetNodeTraffic = (nodeIds: number[], reason?: string) =>
+  Network.post<BatchOperationResult>("/node/batch-reset-traffic", { nodeIds, reason });
 export const batchRedeployForwards = (ids: number[]) =>
   Network.post<BatchOperationResult>("/forward/batch-redeploy", { ids });
 export const batchRedeployTunnels = (ids: number[]) =>
