@@ -172,6 +172,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/node/releases", h.listReleases)
 	mux.HandleFunc("/api/v1/node/batch-reset-traffic", h.nodeBatchResetTraffic)
 	mux.HandleFunc("/api/v1/node/info", h.nodeInfo)
+	mux.HandleFunc("/api/v1/node/report-ip", h.nodeReportIP)
 	mux.HandleFunc("/api/v1/tunnel/list", h.tunnelList)
 	mux.HandleFunc("/api/v1/tunnel/create", h.tunnelCreate)
 	mux.HandleFunc("/api/v1/tunnel/get", h.tunnelGet)
@@ -1717,5 +1718,50 @@ func (h *Handler) nodeInfo(w http.ResponseWriter, r *http.Request) {
 		"id":     node.ID,
 		"name":   node.Name,
 		"secret": secret,
+	}))
+}
+
+// nodeReportIP 节点上报公网 IP
+func (h *Handler) nodeReportIP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	secret := r.Header.Get("Authorization")
+	if secret == "" {
+		response.WriteJSON(w, response.Err(401, "缺少认证信息"))
+		return
+	}
+
+	var req struct {
+		PublicIP string `json:"public_ip"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("无效的请求数据"))
+		return
+	}
+
+	if req.PublicIP == "" {
+		response.WriteJSON(w, response.ErrDefault("IP 地址不能为空"))
+		return
+	}
+
+	// 通过 secret 找到节点
+	node, err := h.repo.GetNodeBySecret(secret)
+	if err != nil {
+		response.WriteJSON(w, response.Err(404, "节点不存在"))
+		return
+	}
+
+	// 更新节点公网 IP
+	if err := h.repo.UpdateNodePublicIP(node.ID, req.PublicIP); err != nil {
+		response.WriteJSON(w, response.Err(-1, fmt.Sprintf("更新 IP 失败：%v", err)))
+		return
+	}
+
+	response.WriteJSON(w, response.OK(map[string]interface{}{
+		"node_id":   node.ID,
+		"public_ip": req.PublicIP,
 	}))
 }

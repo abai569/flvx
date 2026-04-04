@@ -354,6 +354,12 @@ func (w *WebSocketReporter) connect() error {
 		w.fetchAndSaveNodeID()
 	}
 
+	// 获取并上报公网 IP（支持 IPv6）
+	publicIP := getPublicIP()
+	if publicIP != "" {
+		w.reportPublicIP(publicIP)
+	}
+
 	return nil
 }
 
@@ -440,6 +446,99 @@ func (w *WebSocketReporter) fetchAndSaveNodeID() {
 				fmt.Printf("✅ 初始流量基线已创建（上行：%d, 下行：%d）\n", networkStats.BytesReceived, networkStats.BytesTransmitted)
 			}
 		}
+	}
+}
+
+// getPublicIP 获取服务器公网 IP（优先 IPv6）
+func getPublicIP() string {
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	// 优先尝试 IPv6 API
+	ipv6APIs := []string{
+		"https://api64.ipify.org?format=text",
+		"https://ifconfig.co/ip",
+		"https://icanhazip.com",
+		"https://ident.me",
+	}
+
+	for _, api := range ipv6APIs {
+		resp, err := client.Get(api)
+		if err == nil && resp.StatusCode == 200 {
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body)
+			ip := strings.TrimSpace(string(body))
+			if net.ParseIP(ip) != nil {
+				// 检查是否为 IPv6
+				if strings.Contains(ip, ":") {
+					fmt.Printf("🌐 获取到 IPv6 公网 IP: %s\n", ip)
+					return ip
+				}
+				// 如果是 IPv4，继续尝试获取 IPv6
+				fmt.Printf("🌐 获取到 IPv4 公网 IP: %s（继续尝试 IPv6）\n", ip)
+			}
+		}
+	}
+
+	// 如果所有 API 都失败，获取本地默认路由的 IP
+	return getDefaultRouteIP()
+}
+
+// getDefaultRouteIP 获取默认路由的网卡 IP
+func getDefaultRouteIP() string {
+	// 尝试 IPv6
+	conn, err := net.Dial("udp6", "[2001:4860:4860::8888]:80")
+	if err == nil {
+		defer conn.Close()
+		localAddr := conn.LocalAddr().(*net.UDPAddr)
+		if localAddr.IP != nil && localAddr.IP.To4() == nil {
+			return localAddr.IP.String()
+		}
+	}
+
+	// 尝试 IPv4
+	conn, err = net.Dial("udp", "8.8.8.8:80")
+	if err == nil {
+		defer conn.Close()
+		localAddr := conn.LocalAddr().(*net.UDPAddr)
+		return localAddr.IP.String()
+	}
+
+	return ""
+}
+
+// reportPublicIP 上报公网 IP 到面板
+func (w *WebSocketReporter) reportPublicIP(publicIP string) {
+	// 构建 HTTP API URL
+	httpURL := "http://" + w.addr + "/api/v1/node/report-ip"
+
+	// 使用 secret 作为 Authorization header
+	req, err := http.NewRequest("POST", httpURL, nil)
+	if err != nil {
+		fmt.Printf("⚠️ 创建上报 IP 请求失败：%v\n", err)
+		return
+	}
+	req.Header.Set("Authorization", w.secret)
+	req.Header.Set("Content-Type", "application/json")
+
+	// 构建请求体
+	body := map[string]string{
+		"public_ip": publicIP,
+	}
+	jsonBody, _ := json.Marshal(body)
+	req.Body = io.NopCloser(bytes.NewReader(jsonBody))
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("⚠️ 上报 IP 失败：%v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		fmt.Printf("✅ 公网 IP 已上报：%s\n", publicIP)
+	} else {
+		fmt.Printf("⚠️ 上报 IP 失败：HTTP %d\n", resp.StatusCode)
 	}
 }
 

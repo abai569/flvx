@@ -136,7 +136,7 @@ func (m *BaselineManager) CreateInitialBaseline(initialRX, initialTX uint64, ren
 	nextReset := CalculateNextReset(renewalCycle, now)
 
 	baseline := &Baseline{
-		ID:           fmt.Sprintf("initial_%s", now.Format("%Y%m%d%H%M%S")),
+		ID:           fmt.Sprintf("initial_%s", now.Format("20060102150405")),
 		Type:         "initial",
 		InitialRX:    initialRX,
 		InitialTX:    initialTX,
@@ -187,7 +187,7 @@ func (m *BaselineManager) CreateManualBaseline(currentRX, currentTX uint64, reas
 
 	// 创建新基线
 	baseline := &Baseline{
-		ID:           fmt.Sprintf("manual_%s", now.Format("%Y%m%d%H%M%S")),
+		ID:           fmt.Sprintf("manual_%s", now.Format("20060102150405")),
 		Type:         "manual",
 		InitialRX:    currentRX,
 		InitialTX:    currentTX,
@@ -244,7 +244,7 @@ func (m *BaselineManager) CheckAndAutoReset(currentRX, currentTX uint64) (*Basel
 	// 创建新基线
 	autoType := fmt.Sprintf("auto_%s", renewalCycle)
 	baseline := &Baseline{
-		ID:           fmt.Sprintf("%s_%s", autoType, now.Format("%Y%m%d%H%M%S")),
+		ID:           fmt.Sprintf("%s_%s", autoType, now.Format("20060102150405")),
 		Type:         autoType,
 		InitialRX:    currentRX,
 		InitialTX:    currentTX,

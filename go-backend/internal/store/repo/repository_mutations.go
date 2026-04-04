@@ -255,6 +255,16 @@ func (r *Repository) GetNodeStatusFields(nodeID int64) (status, httpFlag, tlsFla
 	return node.Status, node.HTTP, node.TLS, node.Socks, nil
 }
 
+// UpdateNodePublicIP 更新节点公网 IP
+func (r *Repository) UpdateNodePublicIP(nodeID int64, publicIP string) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Model(&model.Node{}).
+		Where("id = ?", nodeID).
+		Update("server_ip", publicIP).Error
+}
+
 func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, serverHost, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
