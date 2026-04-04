@@ -51,6 +51,7 @@ func (h *Handler) nodeBatchResetTraffic(w http.ResponseWriter, r *http.Request) 
 			"ResetTraffic",
 			map[string]interface{}{
 				"reason": req.Reason,
+				"nodeId": nodeID, // 传入节点 ID，用于首次初始化
 			},
 			10*time.Second,
 			false,

@@ -347,8 +347,100 @@ func (w *WebSocketReporter) connect() error {
 		return nil
 	})
 
-	fmt.Printf("✅ WebSocket连接建立成功 (%s, http=%d, tls=%d, socks=%d)\n", sanitizeWebSocketURL(usedURL), cfg.Http, cfg.Tls, cfg.Socks)
+	fmt.Printf("✅ WebSocket 连接建立成功 (%s, http=%d, tls=%d, socks=%d)\n", sanitizeWebSocketURL(usedURL), cfg.Http, cfg.Tls, cfg.Socks)
+
+	// 如果 node_id 未配置，尝试从面板获取并初始化基线管理器
+	if w.nodeID <= 0 {
+		w.fetchAndSaveNodeID()
+	}
+
 	return nil
+}
+
+// fetchAndSaveNodeID 从面板获取节点 ID 并保存到 config.json，然后初始化基线管理器
+func (w *WebSocketReporter) fetchAndSaveNodeID() {
+	// 构建 HTTP API URL（使用 ws 地址转换为 http）
+	httpURL := "http://" + w.addr + "/api/v1/node/info"
+
+	// 使用 secret 作为 Authorization header
+	req, err := http.NewRequest("GET", httpURL, nil)
+	if err != nil {
+		fmt.Printf("⚠️ 创建获取节点信息请求失败：%v\n", err)
+		return
+	}
+	req.Header.Set("Authorization", w.secret)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("⚠️ 获取节点信息失败：%v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("⚠️ 获取节点信息失败：HTTP %d\n", resp.StatusCode)
+		return
+	}
+
+	var result struct {
+		Code int `json:"code"`
+		Data struct {
+			ID int64 `json:"id"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Printf("⚠️ 解析节点信息失败：%v\n", err)
+		return
+	}
+
+	if result.Code != 0 || result.Data.ID <= 0 {
+		fmt.Printf("⚠️ 节点信息无效：code=%d, id=%d\n", result.Code, result.Data.ID)
+		return
+	}
+
+	// 保存 node_id 到 config.json
+	w.nodeID = result.Data.ID
+
+	// 读取现有 config.json
+	configPath := "config.json"
+	var config map[string]interface{}
+	if data, err := os.ReadFile(configPath); err == nil {
+		json.Unmarshal(data, &config)
+	} else {
+		config = make(map[string]interface{})
+	}
+
+	// 添加 node_id
+	config["node_id"] = w.nodeID
+
+	// 写回 config.json
+	data, _ := json.MarshalIndent(config, "", "  ")
+	if err := os.WriteFile(configPath, data, 0600); err != nil {
+		fmt.Printf("⚠️ 保存 node_id 失败：%v\n", err)
+		return
+	}
+
+	fmt.Printf("✅ 获取并保存 node_id: %d\n", w.nodeID)
+
+	// 初始化基线管理器
+	baselinePath := "/etc/flux_agent/traffic_baseline.json"
+	if _, err := traffic.InitBaselineManager(w.nodeID, baselinePath); err != nil {
+		fmt.Printf("⚠️ 初始化基线管理器失败：%v\n", err)
+	} else {
+		fmt.Printf("✅ 基线管理器初始化成功\n")
+
+		// 创建初始基线（使用当前网卡流量，这样后续显示的流量是从安装时刻开始的增量）
+		if bm := traffic.GetManager(); bm != nil {
+			networkStats := getNetworkStats()
+			if _, err := bm.CreateInitialBaseline(networkStats.BytesReceived, networkStats.BytesTransmitted, ""); err != nil {
+				fmt.Printf("⚠️ 创建初始基线失败：%v\n", err)
+			} else {
+				fmt.Printf("✅ 初始流量基线已创建（上行：%d, 下行：%d）\n", networkStats.BytesReceived, networkStats.BytesTransmitted)
+			}
+		}
+	}
 }
 
 func buildWebSocketCandidates(addr string, secret string, version string, http int, tls int, socks int, preferredScheme string) []string {
@@ -1081,17 +1173,51 @@ func (w *WebSocketReporter) handleSetServiceMaxConnections(data interface{}) err
 func (w *WebSocketReporter) handleResetTraffic(data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("序列化数据失败: %v", err)
+		return fmt.Errorf("序列化数据失败：%v", err)
 	}
 
 	var req struct {
 		Reason string `json:"reason"`
+		NodeID int64  `json:"nodeId"` // 面板传入的节点 ID
 	}
 	if err := json.Unmarshal(jsonData, &req); err != nil {
-		return fmt.Errorf("解析请求失败: %v", err)
+		return fmt.Errorf("解析请求失败：%v", err)
 	}
 
 	bm := traffic.GetManager()
+
+	// 如果基线管理器未初始化，使用传入的 nodeId 初始化
+	if bm == nil && req.NodeID > 0 {
+		baselinePath := "/etc/flux_agent/traffic_baseline.json"
+		if _, err := traffic.InitBaselineManager(req.NodeID, baselinePath); err != nil {
+			return fmt.Errorf("初始化基线管理器失败：%v", err)
+		}
+		bm = traffic.GetManager()
+
+		// 保存 node_id 到 config.json
+		w.nodeID = req.NodeID
+		configPath := "config.json"
+		var config map[string]interface{}
+		if data, err := os.ReadFile(configPath); err == nil {
+			json.Unmarshal(data, &config)
+		} else {
+			config = make(map[string]interface{})
+		}
+		config["node_id"] = w.nodeID
+		data, _ := json.MarshalIndent(config, "", "  ")
+		os.WriteFile(configPath, data, 0600)
+
+		fmt.Printf("✅ 基线管理器初始化成功，node_id: %d\n", w.nodeID)
+
+		// 创建初始基线（使用当前网卡流量，这样后续显示的流量是从安装时刻开始的增量）
+		networkStats := getNetworkStats()
+		if _, err := bm.CreateInitialBaseline(networkStats.BytesReceived, networkStats.BytesTransmitted, ""); err != nil {
+			fmt.Printf("⚠️ 创建初始基线失败：%v\n", err)
+		} else {
+			fmt.Printf("✅ 初始流量基线已创建（上行：%d, 下行：%d）\n", networkStats.BytesReceived, networkStats.BytesTransmitted)
+		}
+	}
+
 	if bm == nil {
 		return fmt.Errorf("基线管理器未初始化")
 	}
@@ -1099,16 +1225,16 @@ func (w *WebSocketReporter) handleResetTraffic(data interface{}) error {
 	// 获取当前网卡流量
 	networkStats := getNetworkStats()
 
-	// 创建手动重置基线
+	// 创建手动重置基线（归档当前周期，创建新周期）
 	_, err = bm.CreateManualBaseline(networkStats.BytesReceived, networkStats.BytesTransmitted, req.Reason)
 	if err != nil {
-		return fmt.Errorf("创建基线失败: %v", err)
+		return fmt.Errorf("创建基线失败：%v", err)
 	}
 
+	fmt.Printf("✅ 流量已重置：%s\n", req.Reason)
 	return nil
 }
 
-// Chain 命令处理函数
 func (w *WebSocketReporter) handleAddChain(data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -1731,7 +1857,7 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 	candidates := buildWebSocketCandidates(addr, secret, version, http, tls, socks, "")
 	fullURL := candidates[0]
 
-	fmt.Printf("🔗 WebSocket连接URL: %s\n", fullURL)
+	fmt.Printf("🔗 WebSocket 连接 URL: %s\n", fullURL)
 
 	reporter := NewWebSocketReporter(fullURL, secret)
 	// 保存 addr, secret, version 供重连时使用
@@ -1740,11 +1866,11 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 	reporter.version = version
 	reporter.nodeID = nodeID
 
-	// 初始化基线管理器
+	// 如果 config.json 中有 node_id，初始化基线管理器
 	if nodeID > 0 {
 		baselinePath := "/etc/flux_agent/traffic_baseline.json"
 		if _, err := traffic.InitBaselineManager(nodeID, baselinePath); err != nil {
-			fmt.Printf("⚠️ 初始化基线管理器失败: %v\n", err)
+			fmt.Printf("⚠️ 初始化基线管理器失败：%v\n", err)
 		} else {
 			fmt.Printf("✅ 基线管理器初始化成功\n")
 
@@ -1754,13 +1880,15 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 					networkStats := getNetworkStats()
 					// 续费周期从面板获取，这里先传空，后续通过命令更新
 					if _, err := bm.CreateInitialBaseline(networkStats.BytesReceived, networkStats.BytesTransmitted, ""); err != nil {
-						fmt.Printf("⚠️ 创建初始基线失败: %v\n", err)
+						fmt.Printf("⚠️ 创建初始基线失败：%v\n", err)
 					} else {
 						fmt.Printf("✅ 初始流量基线已创建\n")
 					}
 				}
 			}
 		}
+	} else {
+		fmt.Printf("ℹ️ node_id 未配置，等待首次连接时从面板获取\n")
 	}
 
 	reporter.Start()

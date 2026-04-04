@@ -171,6 +171,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/node/rollback", h.nodeRollback)
 	mux.HandleFunc("/api/v1/node/releases", h.listReleases)
 	mux.HandleFunc("/api/v1/node/batch-reset-traffic", h.nodeBatchResetTraffic)
+	mux.HandleFunc("/api/v1/node/info", h.nodeInfo)
 	mux.HandleFunc("/api/v1/tunnel/list", h.tunnelList)
 	mux.HandleFunc("/api/v1/tunnel/create", h.tunnelCreate)
 	mux.HandleFunc("/api/v1/tunnel/get", h.tunnelGet)
@@ -1691,9 +1692,30 @@ func (h *Handler) updateAnnouncement(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UnixMilli()
 	if err := h.repo.UpsertAnnouncement(req.Content, req.Enabled, now); err != nil {
-		response.WriteJSON(w, response.Err(-1, fmt.Sprintf("更新公告失败: %v", err)))
+		response.WriteJSON(w, response.Err(-1, fmt.Sprintf("更新公告失败：%v", err)))
 		return
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
+}
+
+// nodeInfo 获取当前节点信息（通过 secret 验证）
+func (h *Handler) nodeInfo(w http.ResponseWriter, r *http.Request) {
+	secret := r.Header.Get("Authorization")
+	if secret == "" {
+		response.WriteJSON(w, response.Err(401, "缺少认证信息"))
+		return
+	}
+
+	node, err := h.repo.GetNodeBySecret(secret)
+	if err != nil {
+		response.WriteJSON(w, response.Err(404, "节点不存在"))
+		return
+	}
+
+	response.WriteJSON(w, response.OK(map[string]interface{}{
+		"id":     node.ID,
+		"name":   node.Name,
+		"secret": secret,
+	}))
 }

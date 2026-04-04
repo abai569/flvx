@@ -671,6 +671,8 @@ export default function NodePage() {
             } as Node;
           }),
         );
+        // 触发一次节点列表刷新，获取最新 version
+        setTimeout(() => loadNodes({ silent: true }), 500);
       } else {
         scheduleNodeOffline(nodeId);
       }
@@ -774,12 +776,12 @@ export default function NodePage() {
             // 周期流量（新字段）
             periodTraffic: metric.period_bytes_received !== undefined || metric.period_bytes_transmitted !== undefined
               ? {
-                  rx: Number(metric.period_bytes_received ?? 0),
-                  tx: Number(metric.period_bytes_transmitted ?? 0),
-                  since: metric.baseline_recorded_at || 0,
-                  nextReset: metric.next_reset_at || 0,
-                  cycle: metric.renewal_cycle || "",
-                }
+                rx: Number(metric.period_bytes_received ?? 0),
+                tx: Number(metric.period_bytes_transmitted ?? 0),
+                since: metric.baseline_recorded_at || 0,
+                nextReset: metric.next_reset_at || 0,
+                cycle: metric.renewal_cycle || "",
+              }
               : prev[nodeId]?.periodTraffic,
           },
         };
@@ -2067,45 +2069,45 @@ export default function NodePage() {
                     {node.connectionStatus === "online" &&
                       realtimeNodeMetrics[node.id]
                       ? formatTraffic(
-                          (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0) +
-                          (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0),
-                        )
+                        (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0) +
+                        (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0),
+                      )
                       : "-"}
                   </span>
                 </div>
                 {node.connectionStatus === "online" &&
                   realtimeNodeMetrics[node.id]?.periodTraffic && (
-                  <div className="text-xs text-default-500 space-y-0.5 mt-1">
-                    <div className="flex justify-between">
-                      <span>↑ 上行</span>
-                      <span className="font-medium">
-                        {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>↓ 下行</span>
-                      <span className="font-medium">
-                        {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0)}
-                      </span>
-                    </div>
-                    {realtimeNodeMetrics[node.id]?.periodTraffic?.since && (
+                    <div className="text-xs text-default-500 space-y-0.5 mt-1">
                       <div className="flex justify-between">
-                        <span>周期始于</span>
+                        <span>↑ 上行</span>
                         <span className="font-medium">
-                          {formatDate(realtimeNodeMetrics[node.id]!.periodTraffic!.since)}
+                          {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0)}
                         </span>
                       </div>
-                    )}
-                    {realtimeNodeMetrics[node.id]?.periodTraffic?.nextReset && (
                       <div className="flex justify-between">
-                        <span>下次重置</span>
-                        <span className="font-medium text-primary">
-                          {formatDate(realtimeNodeMetrics[node.id]!.periodTraffic!.nextReset!)}
+                        <span>↓ 下行</span>
+                        <span className="font-medium">
+                          {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0)}
                         </span>
                       </div>
-                    )}
-                  </div>
-                )}
+                      {realtimeNodeMetrics[node.id]?.periodTraffic?.since && (
+                        <div className="flex justify-between">
+                          <span>周期始于</span>
+                          <span className="font-medium">
+                            {formatDate(realtimeNodeMetrics[node.id]!.periodTraffic!.since)}
+                          </span>
+                        </div>
+                      )}
+                      {realtimeNodeMetrics[node.id]?.periodTraffic?.nextReset && (
+                        <div className="flex justify-between">
+                          <span>下次重置</span>
+                          <span className="font-medium text-primary">
+                            {formatDate(realtimeNodeMetrics[node.id]!.periodTraffic!.nextReset!)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 {upgradeProgress[node.id] &&
                   upgradeProgress[node.id].percent < 100 && (
                     <div className="mt-1">
