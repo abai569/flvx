@@ -2946,34 +2946,6 @@ export default function NodePage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  description="填写一个 IPv4 地址"
-                  errorMessage={errors.serverIpV4}
-                  isInvalid={!!errors.serverIpV4}
-                  label="IPv4 地址"
-                  placeholder="例如: 192.168.1.100"
-                  value={form.serverIpV4}
-                  variant="bordered"
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, serverIpV4: e.target.value }))
-                  }
-                />
-
-                <Input
-                  description="填写一个 IPv6 地址"
-                  errorMessage={errors.serverIpV6}
-                  isInvalid={!!errors.serverIpV6}
-                  label="IPv6 地址"
-                  placeholder="例如: 2001:db8::10"
-                  value={form.serverIpV6}
-                  variant="bordered"
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, serverIpV6: e.target.value }))
-                  }
-                />
-              </div>
-
               <Accordion variant="bordered">
                 <AccordionItem
                   key="advanced"

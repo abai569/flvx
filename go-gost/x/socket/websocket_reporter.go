@@ -456,35 +456,47 @@ func (w *WebSocketReporter) fetchAndSaveNodeID() {
 func getPublicIP() string {
 	client := &http.Client{Timeout: 5 * time.Second}
 
-	// 优先尝试 IPv6 API
-	ipv6APIs := []string{
-		"https://api64.ipify.org?format=text",
+	// 优先使用 ip.sb（支持 IPv6/IPv4）
+	apis := []string{
+		"https://api64.ipify.org?format=text",  // 支持 IPv6/IPv4
+		"https://ip.sb/ip",                      // 简洁快速
 		"https://ifconfig.co/ip",
 		"https://icanhazip.com",
 		"https://ident.me",
 	}
 
-	for _, api := range ipv6APIs {
+	var ipv4Fallback string
+
+	for _, api := range apis {
 		resp, err := client.Get(api)
 		if err == nil && resp.StatusCode == 200 {
 			defer resp.Body.Close()
 			body, _ := io.ReadAll(resp.Body)
 			ip := strings.TrimSpace(string(body))
 			if net.ParseIP(ip) != nil {
-				// 检查是否为 IPv6
+				// 如果是 IPv6，直接返回
 				if strings.Contains(ip, ":") {
 					fmt.Printf("🌐 获取到 IPv6 公网 IP: %s\n", ip)
 					return ip
 				}
-				// 如果是 IPv4，继续尝试获取 IPv6
-				fmt.Printf("🌐 获取到 IPv4 公网 IP: %s（继续尝试 IPv6）\n", ip)
+				// 如果是 IPv4，保存为备选
+				fmt.Printf("🌐 获取到 IPv4 公网 IP: %s\n", ip)
+				if ipv4Fallback == "" {
+					ipv4Fallback = ip
+				}
 			}
 		}
 	}
 
-	// 如果所有 API 都失败，获取本地默认路由的 IP
+	// 如果获取到 IPv4，直接返回
+	if ipv4Fallback != "" {
+		return ipv4Fallback
+	}
+
+	// 最后尝试获取本地默认路由的 IP
 	return getDefaultRouteIP()
 }
+
 
 // getDefaultRouteIP 获取默认路由的网卡 IP
 func getDefaultRouteIP() string {
