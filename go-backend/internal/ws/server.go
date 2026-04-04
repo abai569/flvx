@@ -334,6 +334,25 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 					s.broadcastTyped(nodeID, "metric", string(envelope.Data))
 				}
 				continue
+			case "ReportPublicIP":
+				// 节点上报公网 IP
+				var envelope struct {
+					Data struct {
+						PublicIP string `json:"public_ip"`
+					} `json:"data"`
+				}
+				if err := json.Unmarshal([]byte(msg), &envelope); err == nil && envelope.Data.PublicIP != "" {
+					// 更新节点公网 IP
+					if s.onNodeMetric != nil {
+						// 通过 repo 更新数据库
+						if err := s.repo.UpdateNodePublicIP(nodeID, envelope.Data.PublicIP); err != nil {
+							fmt.Printf("⚠️ 更新节点%d公网 IP 失败：%v\n", nodeID, err)
+						} else {
+							fmt.Printf("✅ 节点%d公网 IP 已更新：%s\n", nodeID, envelope.Data.PublicIP)
+						}
+					}
+				}
+				continue
 			case "UpgradeProgress":
 				s.broadcastTyped(nodeID, "upgrade_progress", msg)
 				continue
