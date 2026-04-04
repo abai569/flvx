@@ -184,6 +184,8 @@ var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *ht
 	return dialer.Dial(rawURL, nil)
 }
 
+
+
 // NewWebSocketReporter 创建一个新的WebSocket报告器
 func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 	ctx, cancel := context.WithCancel(context.Background())
