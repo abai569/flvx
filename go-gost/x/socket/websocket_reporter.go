@@ -305,7 +305,7 @@ func (w *WebSocketReporter) connect() error {
 	}
 
 	var cfg LocalConfig
-	if b, err := os.ReadFile("config.json"); err == nil {
+	if b, err := os.ReadFile("/etc/flux_agent/config.json"); err == nil {
 		json.Unmarshal(b, &cfg)
 	}
 
@@ -1612,7 +1612,7 @@ func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
 
 // updateLocalConfigJSON 将 http/tls/socks 写入工作目录下的 config.json
 func updateLocalConfigJSON(httpVal int, tlsVal int, socksVal int) error {
-	path := "config.json"
+	path := "/etc/flux_agent/config.json"
 
 	// 读取现有配置
 	type LocalConfig struct {
