@@ -957,21 +957,15 @@ export default function NodePage() {
     const v6 = form.serverIpV6.trim();
     const host = form.serverHost.trim();
 
-    if (!v4 && !v6 && !host) {
-      const msg = "请至少填写一个 IPv4/IPv6 地址或域名";
-      newErrors.serverIpV4 = msg;
-      newErrors.serverIpV6 = msg;
-      newErrors.serverHost = msg;
-    } else {
-      if (v4 && !validateIpv4Literal(v4)) {
-        newErrors.serverIpV4 = "请输入有效的IPv4地址";
-      }
-      if (v6 && !validateIpv6Literal(v6)) {
-        newErrors.serverIpV6 = "请输入有效的IPv6地址";
-      }
-      if (host && !validateHostname(host)) {
-        newErrors.serverHost = "请输入有效的域名/主机名";
-      }
+    // IP 地址/域名可选，节点安装后会自动上报公网 IP
+    if (v4 && !validateIpv4Literal(v4)) {
+      newErrors.serverIpV4 = "请输入有效的 IPv4 地址";
+    }
+    if (v6 && !validateIpv6Literal(v6)) {
+      newErrors.serverIpV6 = "请输入有效的 IPv6 地址";
+    }
+    if (host && !validateHostname(host)) {
+      newErrors.serverHost = "请输入有效的域名/主机名";
     }
 
     const portValidation = validatePort(form.port);
@@ -2895,11 +2889,11 @@ export default function NodePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
+                  description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。可留空，节点安装后自动上报公网 IP"
                   errorMessage={errors.serverHost}
                   isInvalid={!!errors.serverHost}
                   label="域名/地址"
-                  placeholder="例如：test.example.com"
+                  placeholder="例如：test.example.com（可留空）"
                   value={form.serverHost}
                   variant="bordered"
                   onChange={(e) =>
@@ -2911,15 +2905,43 @@ export default function NodePage() {
                   classNames={{
                     input: "font-medium",
                   }}
-                  description="支持单个端口(80)、多个端口(80,443)或端口范围(10000-65535)，多个可用逗号分隔"
+                  description="支持单个端口 (80)、多个端口 (80,443) 或端口范围 (10000-65535)，多个可用逗号分隔"
                   errorMessage={errors.port}
                   isInvalid={!!errors.port}
                   label="可用端口"
-                  placeholder="例如: 80,443,10000-65535"
+                  placeholder="例如：80,443,10000-65535"
                   value={form.port}
                   variant="bordered"
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, port: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  description="可选：填写一个 IPv4 地址。可留空，节点安装后自动上报"
+                  errorMessage={errors.serverIpV4}
+                  isInvalid={!!errors.serverIpV4}
+                  label="IPv4 地址"
+                  placeholder="例如：192.168.1.100（可留空）"
+                  value={form.serverIpV4}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, serverIpV4: e.target.value }))
+                  }
+                />
+
+                <Input
+                  description="可选：填写一个 IPv6 地址。可留空，节点安装后自动上报"
+                  errorMessage={errors.serverIpV6}
+                  isInvalid={!!errors.serverIpV6}
+                  label="IPv6 地址"
+                  placeholder="例如：2001:db8::10（可留空）"
+                  value={form.serverIpV6}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, serverIpV6: e.target.value }))
                   }
                 />
               </div>
