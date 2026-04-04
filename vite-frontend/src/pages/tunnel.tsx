@@ -47,7 +47,6 @@ import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Radio, RadioGroup } from "@/shadcn-bridge/heroui/radio";
 import { TunnelGroupManager } from "./tunnel/tunnel-group-manager";
-import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import {
   getTunnelGroupNewList,
   createTunnel,
@@ -2564,32 +2563,19 @@ export default function TunnelPage() {
                   {form.type === 2 && (
                     <>
                       <Divider />
-                      <Accordion 
-                        variant="bordered"
-                        className="overflow-visible"
-                      >
-                        <AccordionItem
-                          key="chain-config"
-                          aria-label="转发链配置"
-                          className="overflow-visible"
-                          title={
-                            <div className="flex items-center justify-between w-full pr-4">
-                              <div className="flex flex-col gap-1">
-                                <h3 className="text-base font-semibold">转发链配置</h3>
-                              </div>
-                              <span className="text-sm">
-                                已配置{" "}
-                                <span className="text-red-500 font-medium">
-                                  {getChainGroups().length}
-                                </span>{" "}
-                                跳
-                              </span>
-                            </div>
-                          }
-                        >
-                          <div className="space-y-3 pt-2 px-[10px]">
-                            {getChainGroups().length > 0 ? (
-                              getChainGroups().map((groupNodes, groupIndex) => {
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                          <h3 className="text-base font-semibold">转发链配置</h3>
+                          <span className="text-sm">
+                            已配置{" "}
+                            <span className="text-red-500 font-medium">
+                              {getChainGroups().length}
+                            </span>{" "}
+                            跳
+                          </span>
+                        </div>
+                        {getChainGroups().length > 0 ? (
+                          getChainGroups().map((groupNodes, groupIndex) => {
                                 const protocol =
                                   groupNodes.length > 0
                                     ? groupNodes[0].protocol || "tcp"
@@ -2954,9 +2940,7 @@ export default function TunnelPage() {
 
                               </div>
                             )}
-                          </div>
-                        </AccordionItem>
-                      </Accordion>
+                      </div>
                     </>
                   )}
 

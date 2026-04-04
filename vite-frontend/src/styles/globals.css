@@ -211,17 +211,3 @@ body {
     opacity: 1;
   }
 }
-
-/* 🎯 修复 Accordion 内部下拉框被截断问题 */
-[data-testid="accordion-item"],
-[data-testid="accordion-item"] [data-testid="accordion-content"],
-[aria-label="转发链配置"],
-[aria-label="转发链配置"] [data-testid="accordion-content"] {
-  overflow: visible !important;
-}
-
-/* HeroUI Accordion 内容区域强制可见 */
-.accordion-content-visible,
-.accordion-content-visible > div {
-  overflow: visible !important;
-}
