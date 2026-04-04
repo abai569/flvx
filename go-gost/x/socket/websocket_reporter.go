@@ -176,7 +176,8 @@ type WebSocketReporter struct {
 	connected         bool
 	connecting        bool              // 正在连接状态
 	connMutex         sync.Mutex        // 连接状态锁
-	aesCrypto         *crypto.AESCrypto // AES加密器
+	aesCrypto         *crypto.AESCrypto // AES 加密器
+	publicIPReported  bool              // 是否已上报公网 IP
 }
 
 var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
