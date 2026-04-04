@@ -107,18 +107,16 @@ func (m *BaselineManager) load() error {
 }
 
 // save 保存基线数据到文件
+// 注意：调用 save() 前必须已经持有 m.mu 的锁！
 func (m *BaselineManager) save() error {
-	m.mu.RLock()
-	data := m.data
-	m.mu.RUnlock()
-
-	jsonData, err := json.MarshalIndent(data, "", "  ")
+	// m.mu.RLock()调用者已经持有锁，不需要再加锁
+	jsonData, err := json.MarshalIndent(m.data, "", "  ")
 	if err != nil {
-		return fmt.Errorf("序列化基线数据失败: %w", err)
+		return fmt.Errorf("序列化基线数据失败：%w", err)
 	}
 
 	if err := os.WriteFile(m.filepath, jsonData, 0644); err != nil {
-		return fmt.Errorf("写入基线文件失败: %w", err)
+		return fmt.Errorf("写入基线文件失败：%w", err)
 	}
 
 	return nil
