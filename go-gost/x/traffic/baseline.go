@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -50,18 +51,18 @@ type BaselineManager struct {
 var globalManager *BaselineManager
 
 // InitBaselineManager 初始化基线管理器
-func InitBaselineManager(nodeID int64, filepath string) (*BaselineManager, error) {
+func InitBaselineManager(nodeID int64, filePath string) (*BaselineManager, error) {
 	// 确保目录存在
-	dir := filepath[:len(filepath)-len(filepath[len(filepath)-1:])]
+	dir := filepath.Dir(filePath)
 	if dir == "" {
 		dir = "."
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("创建目录失败: %w", err)
+		return nil, fmt.Errorf("创建目录失败：%w", err)
 	}
 
 	manager := &BaselineManager{
-		filepath: filepath,
+		filepath: filePath,
 		data: &BaselineFile{
 			Version: "2.0",
 			NodeID:  nodeID,
