@@ -404,7 +404,7 @@ func (w *WebSocketReporter) fetchAndSaveNodeID() {
 	w.nodeID = result.Data.ID
 
 	// 读取现有 config.json
-	configPath := "config.json"
+	configPath := "/etc/flux_agent/config.json"
 	var config map[string]interface{}
 	if data, err := os.ReadFile(configPath); err == nil {
 		json.Unmarshal(data, &config)
@@ -1196,7 +1196,7 @@ func (w *WebSocketReporter) handleResetTraffic(data interface{}) error {
 
 		// 保存 node_id 到 config.json
 		w.nodeID = req.NodeID
-		configPath := "config.json"
+		configPath := "/etc/flux_agent/config.json"
 		var config map[string]interface{}
 		if data, err := os.ReadFile(configPath); err == nil {
 			json.Unmarshal(data, &config)
