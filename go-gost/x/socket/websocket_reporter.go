@@ -1868,6 +1868,7 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 
 	// 如果 config.json 中有 node_id，初始化基线管理器
 	if nodeID > 0 {
+		fmt.Printf("📋 检测到 node_id: %d，初始化基线管理器...\n", nodeID)
 		baselinePath := "/etc/flux_agent/traffic_baseline.json"
 		if _, err := traffic.InitBaselineManager(nodeID, baselinePath); err != nil {
 			fmt.Printf("⚠️ 初始化基线管理器失败：%v\n", err)
@@ -1876,14 +1877,18 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 
 			// 首次启动时创建初始基线
 			if bm := traffic.GetManager(); bm != nil {
+				fmt.Printf("📊 检查当前基线状态...\n")
 				if bm.GetCurrentBaseline() == nil {
+					fmt.Printf("📝 当前没有基线，创建初始基线...\n")
 					networkStats := getNetworkStats()
 					// 续费周期从面板获取，这里先传空，后续通过命令更新
 					if _, err := bm.CreateInitialBaseline(networkStats.BytesReceived, networkStats.BytesTransmitted, ""); err != nil {
 						fmt.Printf("⚠️ 创建初始基线失败：%v\n", err)
 					} else {
-						fmt.Printf("✅ 初始流量基线已创建\n")
+						fmt.Printf("✅ 初始流量基线已创建（上行：%d, 下行：%d）\n", networkStats.BytesReceived, networkStats.BytesTransmitted)
 					}
+				} else {
+					fmt.Printf("ℹ️ 已存在基线，跳过创建\n")
 				}
 			}
 		}
