@@ -222,6 +222,9 @@ func nodeRecordFromModel(n *model.Node) *model.NodeRecord {
 	if n.ServerIPV6.Valid {
 		rec.ServerIPv6 = strings.TrimSpace(n.ServerIPV6.String)
 	}
+	if n.IntranetIP.Valid {
+		rec.IntranetIP = strings.TrimSpace(n.IntranetIP.String)
+	}
 	if n.ExtraIPs.Valid {
 		rec.ExtraIPs = strings.TrimSpace(n.ExtraIPs.String)
 	}

@@ -609,6 +609,7 @@ type NodeRecord struct {
 	ServerIP      string
 	ServerIPv4    string
 	ServerIPv6    string
+	IntranetIP    string
 	ExtraIPs      string
 	Status        int
 	PortRange     string

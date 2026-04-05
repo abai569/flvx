@@ -3652,6 +3652,9 @@ func pickNodeAddressLan(node *nodeRecord) string {
 	if node == nil {
 		return ""
 	}
+	if ip := strings.TrimSpace(node.IntranetIP); ip != "" {
+		return ip
+	}
 	if ips := strings.TrimSpace(node.ExtraIPs); ips != "" {
 		for _, ip := range strings.Split(ips, ",") {
 			ip = strings.TrimSpace(ip)
