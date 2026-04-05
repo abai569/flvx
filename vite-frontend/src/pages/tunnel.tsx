@@ -746,21 +746,6 @@ export default function TunnelPage() {
     });
   };
 
-  const formatInNodeConnectIpTypes = (): string => {
-    return (form.inNodeId || []).map(n => n.connectIpType || '').join(',');
-  };
-
-  const applyInNodeConnectIpTypes = (value: string) => {
-    const types = value.split(',').map(s => s.trim());
-    setForm((prev) => ({
-      ...prev,
-      inNodeId: (prev.inNodeId || []).map((node, idx) => ({
-        ...node,
-        connectIpType: idx < types.length ? types[idx] : '',
-      })),
-    }));
-  };
-
   const formatOutNodeConnectIpTypes = (): string => {
     return (form.outNodeId || []).map(n => n.connectIpType || '').join(',');
   };
@@ -2802,7 +2787,7 @@ export default function TunnelPage() {
                                     {/* 连接 IP 和连接端口 - 转发链节点 */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                                       <Input
-                                        description="指定当前跳被上一跳连接的端口，多节点可用逗号分隔，留空自动分配"
+                                        description="指定当前跳被上一跳连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
                                         errorMessage={errors[`chainNodes_${groupIndex}_port`]}
                                         isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
                                         label="连接端口"
@@ -2816,9 +2801,9 @@ export default function TunnelPage() {
                                         }}
                                       />
                                       <Input
-                                        description="逗号分隔对应各节点，留空则自动分配"
+                                        description="逗号分隔对应各节点，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
                                         label="连接IP类型"
-                                        placeholder="例：v4,v6,lan,auto"
+                                        placeholder="例：lan,v4,v6"
                                         size="sm"
                                         type="text"
                                         value={formatConnectIpTypesToDisplay(groupNodes)}
@@ -2900,11 +2885,6 @@ export default function TunnelPage() {
                       <h3 className="text-lg font-semibold">出口配置</h3>
 
                       {(() => {
-                        const selectedOutNodeIds = (form.outNodeId || [])
-                          .filter((ct) => ct.nodeId !== -1)
-                          .map((ct) => ct.nodeId);
-                        const isMultiExit = selectedOutNodeIds.length > 1;
-
                         return (
                           <>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
@@ -3169,17 +3149,9 @@ export default function TunnelPage() {
                             {/* 连接端口和连接IP类型 - 出口节点 */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                               <Input
-                                description={
-                                  isMultiExit
-                                    ? "多选节点支持逗号分隔端口，如：11111,22222（按出口顺序匹配），留空自动分配"
-                                    : "指定出口节点被上一级连接的端口，留空自动分配"
-                                }
+                                description="多选节点支持逗号分隔端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
                                 label="连接端口"
-                                placeholder={
-                                  isMultiExit
-                                    ? "例：11111,22222"
-                                    : "留空按节点端口范围自动分配"
-                                }
+                                placeholder="例：11111,22222"
                                 size="sm"
                                 type="text"
                                 value={formatOutNodePortsToDisplay(form.outNodeId || [])}
@@ -3189,9 +3161,9 @@ export default function TunnelPage() {
                                 }}
                               />
                               <Input
-                                description="逗号分隔对应各节点，留空则自动分配"
+                                description="逗号分隔对应各节点，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
                                 label="连接IP类型"
-                                placeholder="例：v4,v6,lan,auto"
+                                placeholder="例：v4,v6,v4"
                                 size="sm"
                                 type="text"
                                 value={formatOutNodeConnectIpTypes()}
