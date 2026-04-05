@@ -175,7 +175,7 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.ID <= 0 {
-		response.WriteJSON(w, response.ErrDefault("节点ID无效"))
+		response.WriteJSON(w, response.ErrDefault("节点 ID 无效"))
 		return
 	}
 
@@ -185,40 +185,26 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		var err error
 		version, err = resolveLatestReleaseByChannel(channel)
 		if err != nil {
-			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败: %v", releaseChannelLabel(channel), err)))
+			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
 			return
 		}
 	}
 
-	proxies := resolveGitHubProxyURLs(h.repo)
-	var downloadURL, checksumURL string
-	if len(proxies) == 0 {
-		downloadURL = fmt.Sprintf(
-			"%s/%s/releases/download/%s/gost-{ARCH}",
-			githubHTMLBase, githubRepo, version,
-		)
-		checksumURL = fmt.Sprintf(
-			"%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-			githubHTMLBase, githubRepo, version,
-		)
-	} else {
-		primaryProxy := proxies[0]
-		downloadURL = buildProxyURL(primaryProxy, fmt.Sprintf(
-			"%s/%s/releases/download/%s/gost-{ARCH}",
-			githubHTMLBase, githubRepo, version,
-		))
-		checksumURL = buildProxyURL(primaryProxy, fmt.Sprintf(
-			"%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-			githubHTMLBase, githubRepo, version,
-		))
-	}
+	downloadURL := fmt.Sprintf(
+		"https://github.com/%s/releases/download/%s/gost-{ARCH}",
+		githubRepo, version,
+	)
+	checksumURL := fmt.Sprintf(
+		"https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256",
+		githubRepo, version,
+	)
 
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
 		"downloadUrl": downloadURL,
 		"checksumUrl": checksumURL,
 	}, upgradeTimeout)
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("升级失败: %v", err)))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("升级失败：%v", err)))
 		return
 	}
 	h.markNodePendingUpgradeRedeploy(req.ID)
@@ -381,35 +367,6 @@ func (h *Handler) listReleases(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.WriteJSON(w, response.OK(items))
-}
-
-func (h *Handler) nodeRollback(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		response.WriteJSON(w, response.ErrDefault("请求失败"))
-		return
-	}
-
-	var req struct {
-		ID int64 `json:"id"`
-	}
-	if err := decodeJSON(r.Body, &req); err != nil {
-		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
-		return
-	}
-	if req.ID <= 0 {
-		response.WriteJSON(w, response.ErrDefault("节点ID无效"))
-		return
-	}
-
-	result, err := h.wsServer.SendCommand(req.ID, "RollbackAgent", map[string]interface{}{}, 30*time.Second)
-	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("回退失败: %v", err)))
-		return
-	}
-
-	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"message": result.Message,
-	}))
 }
 
 func (h *Handler) markNodePendingUpgradeRedeploy(nodeID int64) {

@@ -444,7 +444,7 @@ func (h *Handler) nodeDelete(w http.ResponseWriter, r *http.Request) {
 	response.WriteJSON(w, response.OKEmpty())
 }
 
-func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) nodeInstallDomestic(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
@@ -466,7 +466,7 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 	channel := normalizeReleaseChannel(req.Channel)
 	version, err := resolveLatestReleaseByChannel(channel)
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败: %v", releaseChannelLabel(channel), err)))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
 		return
 	}
 
@@ -478,28 +478,141 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 	panelAddr, err := h.repo.GetViteConfigValue("ip")
 	if err != nil {
 		if err == sql.ErrNoRows {
-			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置ip"))
+			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置 ip"))
 			return
 		}
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
 
-	proxies := resolveGitHubProxyURLs(h.repo)
-	installPath := fmt.Sprintf("%s/%s/releases/download/%s/install.sh", githubHTMLBase, githubRepo, version)
+	cmd := fmt.Sprintf("curl -L https://chfs.646321.xyz:8/flvx/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, processServerAddress(panelAddr), secret)
+	response.WriteJSON(w, response.OK(cmd))
+}
 
-	var cmd string
-	if len(proxies) == 0 {
-		cmd = fmt.Sprintf("curl -L %s -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", installPath, version, processServerAddress(panelAddr), secret)
-	} else {
-		primaryProxy := proxies[0]
-		proxyInstallURL := buildProxyURL(primaryProxy, installPath)
-
-		proxyEnvStr := strings.Join(proxies, ",")
-		proxyEnv := fmt.Sprintf("GITHUB_PROXY=\"%s\" ", proxyEnvStr)
-
-		cmd = fmt.Sprintf("curl -L %s -o ./install.sh && chmod +x ./install.sh && %sVERSION=%s ./install.sh -a %s -s %s", proxyInstallURL, proxyEnv, version, processServerAddress(panelAddr), secret)
+func (h *Handler) nodeInstallOverseas(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
 	}
+
+	var req struct {
+		ID      int64  `json:"id"`
+		Channel string `json:"channel"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("参数错误"))
+		return
+	}
+
+	channel := normalizeReleaseChannel(req.Channel)
+	version, err := resolveLatestReleaseByChannel(channel)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
+		return
+	}
+
+	secret, err := h.repo.GetNodeSecret(req.ID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("节点不存在"))
+		return
+	}
+	panelAddr, err := h.repo.GetViteConfigValue("ip")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置 ip"))
+			return
+		}
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	cmd := fmt.Sprintf("bash <(curl -fLSs https://github.com/%s/releases/download/%s/install.sh) -a %s -s %s", githubRepo, version, processServerAddress(panelAddr), secret)
+	response.WriteJSON(w, response.OK(cmd))
+}
+
+func (h *Handler) nodeInstallAlternative(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		ID      int64  `json:"id"`
+		Channel string `json:"channel"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("参数错误"))
+		return
+	}
+
+	channel := normalizeReleaseChannel(req.Channel)
+	version, err := resolveLatestReleaseByChannel(channel)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
+		return
+	}
+
+	secret, err := h.repo.GetNodeSecret(req.ID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("节点不存在"))
+		return
+	}
+	panelAddr, err := h.repo.GetViteConfigValue("ip")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置 ip"))
+			return
+		}
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	cmd := fmt.Sprintf("curl -L https://git-proxy.abai.eu.org/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", githubRepo, version, processServerAddress(panelAddr), secret)
+	response.WriteJSON(w, response.OK(cmd))
+}
+
+func (h *Handler) nodeInstallOffline(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		ID int64 `json:"id"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("参数错误"))
+		return
+	}
+
+	secret, err := h.repo.GetNodeSecret(req.ID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("节点不存在"))
+		return
+	}
+	panelAddr, err := h.repo.GetViteConfigValue("ip")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置 ip"))
+			return
+		}
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	cmd := fmt.Sprintf("unzip -d /tmp/flux_agent -o offline.zip && bash /tmp/flux_agent/offline.sh -a %s -s %s", processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 
