@@ -380,6 +380,13 @@ get_config_params() {
 # 安装功能
 install_panel() {
   echo "🚀 开始安装面板..."
+  
+  # 创建安装目录
+  INSTALL_DIR="/opt/flux_panel"
+  echo "📁 创建安装目录：$INSTALL_DIR"
+  $SUDO_CMD mkdir -p "$INSTALL_DIR"
+  cd "$INSTALL_DIR"
+  
   check_docker
   get_config_params
 
