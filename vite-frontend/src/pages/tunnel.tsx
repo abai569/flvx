@@ -730,6 +730,12 @@ export default function TunnelPage() {
 
   const formatConnectIpTypesToDisplay = (nodes: ChainTunnel[]): string => {
     if (!nodes || nodes.length === 0) return '';
+    
+    // 检查是否所有节点都没有配置 connectIpType
+    const allEmpty = nodes.every(n => !n.connectIpType);
+    if (allEmpty) return '';  // 全部为空时返回空字符串，不显示逗号
+    
+    // 否则正常逗号分隔
     return nodes.map(n => n.connectIpType || '').join(',');
   };
 
@@ -747,7 +753,13 @@ export default function TunnelPage() {
   };
 
   const formatOutNodeConnectIpTypes = (): string => {
-    return (form.outNodeId || []).map(n => n.connectIpType || '').join(',');
+    const nodes = form.outNodeId || [];
+    
+    // 检查是否所有节点都没有配置 connectIpType
+    const allEmpty = nodes.every(n => !n.connectIpType);
+    if (allEmpty) return '';  // 全部为空时返回空字符串，不显示逗号
+    
+    return nodes.map(n => n.connectIpType || '').join(',');
   };
 
   const applyOutNodeConnectIpTypes = (value: string) => {
