@@ -330,18 +330,19 @@ func (r *Repository) ListChainNodesForTunnel(tunnelID int64) ([]model.ChainNodeR
 		return nil, errors.New("repository not initialized")
 	}
 	type row struct {
-		ChainType string
-		Inx       sql.NullInt64
-		NodeID    int64
-		Port      sql.NullInt64
-		Name      sql.NullString
-		Protocol  sql.NullString
-		Strategy  sql.NullString
-		ConnectIP sql.NullString
+		ChainType     string
+		Inx           sql.NullInt64
+		NodeID        int64
+		Port          sql.NullInt64
+		Name          sql.NullString
+		Protocol      sql.NullString
+		Strategy      sql.NullString
+		ConnectIP     sql.NullString
+		ConnectIPType sql.NullString
 	}
 	var rows []row
 	err := r.db.Model(&model.ChainTunnel{}).
-		Select("chain_tunnel.chain_type, chain_tunnel.inx, chain_tunnel.node_id, chain_tunnel.port, node.name, chain_tunnel.protocol, chain_tunnel.strategy, chain_tunnel.connect_ip").
+		Select("chain_tunnel.chain_type, chain_tunnel.inx, chain_tunnel.node_id, chain_tunnel.port, node.name, chain_tunnel.protocol, chain_tunnel.strategy, chain_tunnel.connect_ip, chain_tunnel.connect_ip_type").
 		Joins("LEFT JOIN node ON node.id = chain_tunnel.node_id").
 		Where("chain_tunnel.tunnel_id = ?", tunnelID).
 		Order("chain_tunnel.chain_type ASC, chain_tunnel.inx ASC, chain_tunnel.id ASC").
@@ -388,6 +389,9 @@ func (r *Repository) ListChainNodesForTunnel(tunnelID int64) ([]model.ChainNodeR
 		}
 		if row.ConnectIP.Valid {
 			item.ConnectIP = row.ConnectIP.String
+		}
+		if row.ConnectIPType.Valid {
+			item.ConnectIPType = row.ConnectIPType.String
 		}
 		result = append(result, item)
 	}

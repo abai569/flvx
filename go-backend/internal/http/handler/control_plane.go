@@ -34,14 +34,15 @@ type diagnosisTarget struct {
 }
 
 type diagnosisWorkItem struct {
-	fromNodeID   int64
-	targetIP     string
-	targetPort   int
-	description  string
-	metadata     map[string]interface{}
-	toNode       chainNodeRecord
-	hasChainHop  bool
-	ipPreference string
+	fromNodeID    int64
+	targetIP      string
+	targetPort    int
+	description   string
+	metadata      map[string]interface{}
+	toNode        chainNodeRecord
+	hasChainHop   bool
+	ipPreference  string
+	connectIpType string
 }
 
 type diagnosisExecOptions struct {
@@ -73,7 +74,7 @@ func (h *Handler) buildDiagnosisStreamStartItems(workItems []diagnosisWorkItem) 
 			fromNode, _ := h.cachedNode(nodeCache, workItem.fromNodeID)
 			targetNode, err := h.cachedNode(nodeCache, workItem.toNode.NodeID)
 			if err == nil {
-				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference, workItem.toNode.ConnectIP)
+				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference, workItem.toNode.ConnectIP, workItem.connectIpType)
 				if resolveErr == nil {
 					targetIP = resolvedIP
 					targetPort = resolvedPort
@@ -1107,7 +1108,7 @@ func (h *Handler) executeDiagnosisWorkItem(workItem diagnosisWorkItem, options d
 	single := make([]map[string]interface{}, 0, 1)
 	nodeCache := map[int64]*nodeRecord{}
 	if workItem.hasChainHop {
-		h.appendChainHopDiagnosis(&single, nodeCache, workItem.fromNodeID, workItem.toNode, workItem.description, workItem.metadata, workItem.ipPreference, options)
+		h.appendChainHopDiagnosis(&single, nodeCache, workItem.fromNodeID, workItem.toNode, workItem.description, workItem.metadata, workItem.ipPreference, workItem.connectIpType, options)
 	} else {
 		h.appendPathDiagnosis(&single, nodeCache, workItem.fromNodeID, workItem.targetIP, workItem.targetPort, workItem.description, workItem.metadata, options)
 	}
@@ -1292,14 +1293,14 @@ func (h *Handler) appendPathDiagnosis(results *[]map[string]interface{}, nodeCac
 	*results = append(*results, item)
 }
 
-func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nodeCache map[int64]*nodeRecord, fromNodeID int64, toNode chainNodeRecord, description string, metadata map[string]interface{}, ipPreference string, options diagnosisExecOptions) {
+func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nodeCache map[int64]*nodeRecord, fromNodeID int64, toNode chainNodeRecord, description string, metadata map[string]interface{}, ipPreference string, connectIpType string, options diagnosisExecOptions) {
 	fromNode, _ := h.cachedNode(nodeCache, fromNodeID)
 	targetNode, err := h.cachedNode(nodeCache, toNode.NodeID)
 	if err != nil {
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, "", 0, description, metadata, err.Error())
 		return
 	}
-	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference, toNode.ConnectIP)
+	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference, toNode.ConnectIP, toNode.ConnectIPType)
 	if err != nil {
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]"), toNode.Port, description, metadata, err.Error())
 		return
@@ -1307,11 +1308,11 @@ func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nod
 	h.appendPathDiagnosis(results, nodeCache, fromNodeID, targetIP, targetPort, description, metadata, options)
 }
 
-func resolveChainProbeTarget(fromNode, targetNode *nodeRecord, preferredPort int, ipPreference string, connectIp string) (string, int, error) {
+func resolveChainProbeTarget(fromNode, targetNode *nodeRecord, preferredPort int, ipPreference string, connectIp string, connectIpType string) (string, int, error) {
 	if targetNode == nil {
 		return "", 0, errors.New("目标节点不存在")
 	}
-	host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, connectIp)
+	host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, connectIp, connectIpType)
 	if err != nil {
 		host = strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]")
 	}

@@ -2900,7 +2900,7 @@ export default function TunnelPage() {
                                         }}
                                       />
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                                    <div className="mt-2">
                                       <Select
                                         classNames={{
                                           label: "text-xs",
@@ -3328,7 +3328,7 @@ export default function TunnelPage() {
                               />
                             </div>
                             {/* 连接 IP - 出口节点 */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                            <div className="mt-2">
                               <Select
                                 classNames={{
                                   label: "text-xs",

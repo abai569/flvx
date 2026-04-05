@@ -1423,22 +1423,24 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 
 	for _, r := range inNodes {
 		state.InNodes = append(state.InNodes, tunnelRuntimeNode{
-			NodeID:    r.NodeID,
-			Protocol:  r.Protocol,
-			Strategy:  r.Strategy,
-			ChainType: 1,
+			NodeID:        r.NodeID,
+			Protocol:      r.Protocol,
+			Strategy:      r.Strategy,
+			ChainType:     1,
+			ConnectIPType: r.ConnectIPType,
 		})
 		state.NodeIDList = append(state.NodeIDList, r.NodeID)
 	}
 
 	for _, r := range outNodes {
 		state.OutNodes = append(state.OutNodes, tunnelRuntimeNode{
-			NodeID:    r.NodeID,
-			Protocol:  r.Protocol,
-			Strategy:  r.Strategy,
-			ChainType: 3,
-			Port:      r.Port,
-			ConnectIP: r.ConnectIP,
+			NodeID:        r.NodeID,
+			Protocol:      r.Protocol,
+			Strategy:      r.Strategy,
+			ChainType:     3,
+			Port:          r.Port,
+			ConnectIP:     r.ConnectIP,
+			ConnectIPType: r.ConnectIPType,
 		})
 		state.NodeIDList = append(state.NodeIDList, r.NodeID)
 	}
@@ -1447,13 +1449,14 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 		stateHop := make([]tunnelRuntimeNode, 0)
 		for _, r := range hop {
 			stateHop = append(stateHop, tunnelRuntimeNode{
-				NodeID:    r.NodeID,
-				Protocol:  r.Protocol,
-				Strategy:  r.Strategy,
-				ChainType: 2,
-				Inx:       int(r.Inx),
-				Port:      r.Port,
-				ConnectIP: r.ConnectIP,
+				NodeID:        r.NodeID,
+				Protocol:      r.Protocol,
+				Strategy:      r.Strategy,
+				ChainType:     2,
+				Inx:           int(r.Inx),
+				Port:          r.Port,
+				ConnectIP:     r.ConnectIP,
+				ConnectIPType: r.ConnectIPType,
 			})
 			state.NodeIDList = append(state.NodeIDList, r.NodeID)
 		}
@@ -3207,7 +3210,7 @@ func (h *Handler) applyFederationRuntime(state *tunnelCreateState, localDomain s
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, errors.New("节点不存在")
 				}
-				host, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference, target.ConnectIP)
+				host, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference, target.ConnectIP, target.ConnectIPType)
 				if hostErr != nil {
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, hostErr
@@ -3489,7 +3492,7 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		if targetNode == nil {
 			return nil, errors.New("节点不存在")
 		}
-		host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, target.ConnectIP)
+		host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, target.ConnectIP, target.ConnectIPType)
 		if err != nil {
 			return nil, err
 		}
@@ -3565,7 +3568,7 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	return []map[string]interface{}{service}
 }
 
-func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, connectIp string) (string, error) {
+func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, connectIp string, connectIpType string) (string, error) {
 	if fromNode == nil || toNode == nil {
 		return "", errors.New("节点不存在")
 	}
@@ -3577,7 +3580,12 @@ func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, con
 	toV4 := nodeSupportsV4(toNode)
 	toV6 := nodeSupportsV6(toNode)
 
-	switch strings.TrimSpace(ipPreference) {
+	effectivePreference := strings.TrimSpace(connectIpType)
+	if effectivePreference == "" {
+		effectivePreference = strings.TrimSpace(ipPreference)
+	}
+
+	switch effectivePreference {
 	case "v6":
 		if fromV6 && toV6 {
 			if host := pickNodeAddressV6(toNode); host != "" {
@@ -3590,6 +3598,31 @@ func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, con
 			}
 		}
 	case "v4":
+		if fromV4 && toV4 {
+			if host := pickNodeAddressV4(toNode); host != "" {
+				return host, nil
+			}
+		}
+		if fromV6 && toV6 {
+			if host := pickNodeAddressV6(toNode); host != "" {
+				return host, nil
+			}
+		}
+	case "lan":
+		if host := pickNodeAddressLan(toNode); host != "" {
+			return host, nil
+		}
+		if fromV4 && toV4 {
+			if host := pickNodeAddressV4(toNode); host != "" {
+				return host, nil
+			}
+		}
+		if fromV6 && toV6 {
+			if host := pickNodeAddressV6(toNode); host != "" {
+				return host, nil
+			}
+		}
+	case "auto":
 		if fromV4 && toV4 {
 			if host := pickNodeAddressV4(toNode); host != "" {
 				return host, nil
@@ -3613,6 +3646,21 @@ func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, con
 		}
 	}
 	return "", fmt.Errorf("节点链路不兼容：%s(v4=%t,v6=%t) -> %s(v4=%t,v6=%t)", nodeDisplayName(fromNode), fromV4, fromV6, nodeDisplayName(toNode), toV4, toV6)
+}
+
+func pickNodeAddressLan(node *nodeRecord) string {
+	if node == nil {
+		return ""
+	}
+	if ips := strings.TrimSpace(node.ExtraIPs); ips != "" {
+		for _, ip := range strings.Split(ips, ",") {
+			ip = strings.TrimSpace(ip)
+			if ip != "" && !strings.HasPrefix(ip, "[") {
+				return ip
+			}
+		}
+	}
+	return ""
 }
 
 func nodeDisplayName(node *nodeRecord) string {

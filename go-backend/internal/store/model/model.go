@@ -622,14 +622,15 @@ type NodeRecord struct {
 }
 
 type ChainNodeRecord struct {
-	ChainType int
-	Inx       int64
-	NodeID    int64
-	Port      int
-	NodeName  string
-	Protocol  string
-	Strategy  string
-	ConnectIP string
+	ChainType     int
+	Inx           int64
+	NodeID        int64
+	Port          int
+	NodeName      string
+	Protocol      string
+	Strategy      string
+	ConnectIP     string
+	ConnectIPType string
 }
 
 type UserTunnelLimiterInfo struct {
