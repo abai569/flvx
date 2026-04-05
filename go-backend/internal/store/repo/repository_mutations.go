@@ -476,19 +476,20 @@ func (r *Repository) DeleteChainTunnelsByTunnelTx(tx *gorm.DB, tunnelID int64) e
 	return tx.Where("tunnel_id = ?", tunnelID).Delete(&model.ChainTunnel{}).Error
 }
 
-func (r *Repository) CreateChainTunnelTx(tx *gorm.DB, tunnelID int64, chainType string, nodeID int64, port sql.NullInt64, strategy string, inx int, protocol string, connectIp string) error {
+func (r *Repository) CreateChainTunnelTx(tx *gorm.DB, tunnelID int64, chainType string, nodeID int64, port sql.NullInt64, strategy string, inx int, protocol string, connectIp string, connectIpType string) error {
 	if tx == nil {
 		return errors.New("database unavailable")
 	}
 	ct := model.ChainTunnel{
-		TunnelID:  tunnelID,
-		ChainType: chainType,
-		NodeID:    nodeID,
-		Port:      port,
-		Strategy:  nullStringFromInterface(strategy),
-		Inx:       nullInt64FromInterface(inx),
-		Protocol:  nullStringFromInterface(protocol),
-		ConnectIP: sql.NullString{String: connectIp, Valid: connectIp != ""},
+		TunnelID:      tunnelID,
+		ChainType:     chainType,
+		NodeID:        nodeID,
+		Port:          port,
+		Strategy:      nullStringFromInterface(strategy),
+		Inx:           nullInt64FromInterface(inx),
+		Protocol:      nullStringFromInterface(protocol),
+		ConnectIP:     sql.NullString{String: connectIp, Valid: connectIp != ""},
+		ConnectIPType: sql.NullString{String: connectIpType, Valid: connectIpType != ""},
 	}
 	return tx.Create(&ct).Error
 }

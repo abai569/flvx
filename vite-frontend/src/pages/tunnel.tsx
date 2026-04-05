@@ -91,6 +91,7 @@ interface ChainTunnel {
   inx?: number; // 转发链序号
   connectIp?: string; // 连接 IP（多 IP 节点指定连接地址）
   port?: number; // 连接端口（留空自动分配）
+  connectIpType?: string; // 向下连接IP类型: "ipv4" | "ipv6" | "lan" | "auto" | ""
 }
 
 interface Tunnel {
@@ -781,11 +782,59 @@ export default function TunnelPage() {
         ...node,
         port: idx < ports.length && ports[idx] > 0
           ? ports[idx]
-          : undefined // 留空让后端自动分配
+          : undefined
       }));
 
       return { ...prev, chainNodes };
     });
+  };
+
+  const formatConnectIpTypesToDisplay = (nodes: ChainTunnel[]): string => {
+    if (!nodes || nodes.length === 0) return '';
+    return nodes.map(n => n.connectIpType || '').join(',');
+  };
+
+  const applyConnectIpTypesToChainGroup = (groupIndex: number, value: string) => {
+    const types = value.split(',').map(s => s.trim());
+    setForm((prev) => {
+      const chainNodes = [...(prev.chainNodes || [])];
+      const currentGroup = chainNodes[groupIndex] || [];
+      chainNodes[groupIndex] = currentGroup.map((node, idx) => ({
+        ...node,
+        connectIpType: idx < types.length ? types[idx] : '',
+      }));
+      return { ...prev, chainNodes };
+    });
+  };
+
+  const formatInNodeConnectIpTypes = (): string => {
+    return (form.inNodeId || []).map(n => n.connectIpType || '').join(',');
+  };
+
+  const applyInNodeConnectIpTypes = (value: string) => {
+    const types = value.split(',').map(s => s.trim());
+    setForm((prev) => ({
+      ...prev,
+      inNodeId: (prev.inNodeId || []).map((node, idx) => ({
+        ...node,
+        connectIpType: idx < types.length ? types[idx] : '',
+      })),
+    }));
+  };
+
+  const formatOutNodeConnectIpTypes = (): string => {
+    return (form.outNodeId || []).map(n => n.connectIpType || '').join(',');
+  };
+
+  const applyOutNodeConnectIpTypes = (value: string) => {
+    const types = value.split(',').map(s => s.trim());
+    setForm((prev) => ({
+      ...prev,
+      outNodeId: (prev.outNodeId || []).map((node, idx) => ({
+        ...node,
+        connectIpType: idx < types.length ? types[idx] : '',
+      })),
+    }));
   };
 
   // 获取所有转发链中已选择的节点 ID 列表
@@ -2520,6 +2569,17 @@ export default function TunnelPage() {
                     </div>
                   </div>
 
+                  <Input
+                    description="逗号分隔对应各节点，留空跟随全局默认"
+                    label="向下连接IP类型"
+                    placeholder="如：ipv4,lan,auto"
+                    size="sm"
+                    type="text"
+                    value={formatInNodeConnectIpTypes()}
+                    variant="bordered"
+                    onChange={(e) => applyInNodeConnectIpTypes(e.target.value)}
+                  />
+
                   <div className="space-y-2">
                     <Textarea
                       classNames={{
@@ -2813,6 +2873,34 @@ export default function TunnelPage() {
 
                                     {/* 连接 IP 和连接端口 - 转发链节点 */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                                      <Input
+                                        description="指定当前跳被上一跳连接的端口，多节点可用逗号分隔，留空自动分配"
+                                        errorMessage={errors[`chainNodes_${groupIndex}_port`]}
+                                        isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
+                                        label="连接端口"
+                                        placeholder="多节点可用逗号分隔，如：11111,22222"
+                                        size="sm"
+                                        type="text"
+                                        value={formatChainPortsToDisplay(groupNodes)}
+                                        variant="bordered"
+                                        onChange={(e) => {
+                                          applyPortsToChainGroup(groupIndex, e.target.value);
+                                        }}
+                                      />
+                                      <Input
+                                        description="逗号分隔对应各节点，留空跟随全局默认"
+                                        label="向下连接IP类型"
+                                        placeholder="如：ipv4,lan,auto"
+                                        size="sm"
+                                        type="text"
+                                        value={formatConnectIpTypesToDisplay(groupNodes)}
+                                        variant="bordered"
+                                        onChange={(e) => {
+                                          applyConnectIpTypesToChainGroup(groupIndex, e.target.value);
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                                       <Select
                                         classNames={{
                                           label: "text-xs",
@@ -2863,21 +2951,6 @@ export default function TunnelPage() {
                                           <SelectItem key={ip}>{ip}</SelectItem>
                                         ))}
                                       </Select>
-
-                                      <Input
-                                        description="指定当前跳被上一跳连接的端口，多节点可用逗号分隔，留空自动分配"
-                                        errorMessage={errors[`chainNodes_${groupIndex}_port`]}
-                                        isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
-                                        label="连接端口"
-                                        placeholder="多节点可用逗号分隔，如：11111,22222"
-                                        size="sm"
-                                        type="text"
-                                        value={formatChainPortsToDisplay(groupNodes)}
-                                        variant="bordered"
-                                        onChange={(e) => {
-                                          applyPortsToChainGroup(groupIndex, e.target.value);
-                                        }}
-                                      />
                                     </div>
                                     <div className="mt-2 flex justify-end">
                                       <Button
@@ -3219,8 +3292,43 @@ export default function TunnelPage() {
                               </Select>
                             </div>
 
-                            {/* 连接 IP 和连接端口 - 出口节点 */}
+                            {/* 连接端口和向下连接IP类型 - 出口节点 */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                              <Input
+                                description={
+                                  isMultiExit
+                                    ? "多出口隧道支持逗号分隔端口，如：11111,22222（按出口顺序匹配），留空自动分配"
+                                    : "指定出口节点被上一跳连接的端口，留空自动分配"
+                                }
+                                label="连接端口"
+                                placeholder={
+                                  isMultiExit
+                                    ? "多出口可用逗号分隔，如：11111,22222"
+                                    : "留空自动分配"
+                                }
+                                size="sm"
+                                type="text"
+                                value={formatOutNodePortsToDisplay(form.outNodeId || [])}
+                                variant="bordered"
+                                onChange={(e) => {
+                                  applyPortsToOutNodes(e.target.value);
+                                }}
+                              />
+                              <Input
+                                description="逗号分隔对应各节点，留空跟随全局默认"
+                                label="向下连接IP类型"
+                                placeholder="如：ipv4,lan,auto"
+                                size="sm"
+                                type="text"
+                                value={formatOutNodeConnectIpTypes()}
+                                variant="bordered"
+                                onChange={(e) => {
+                                  applyOutNodeConnectIpTypes(e.target.value);
+                                }}
+                              />
+                            </div>
+                            {/* 连接 IP - 出口节点 */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                               <Select
                                 classNames={{
                                   label: "text-xs",
@@ -3297,27 +3405,6 @@ export default function TunnelPage() {
                                   <SelectItem key={ip}>{ip}</SelectItem>
                                 ))}
                               </Select>
-
-                              <Input
-                                description={
-                                  isMultiExit
-                                    ? "多出口隧道支持逗号分隔端口，如：11111,22222（按出口顺序匹配），留空自动分配"
-                                    : "指定出口节点被上一跳连接的端口，留空自动分配"
-                                }
-                                label="连接端口"
-                                placeholder={
-                                  isMultiExit
-                                    ? "多出口可用逗号分隔，如：11111,22222"
-                                    : "留空自动分配"
-                                }
-                                size="sm"
-                                type="text"
-                                value={formatOutNodePortsToDisplay(form.outNodeId || [])}
-                                variant="bordered"
-                                onChange={(e) => {
-                                  applyPortsToOutNodes(e.target.value);
-                                }}
-                              />
                             </div>
                           </>
                         );
@@ -3327,8 +3414,8 @@ export default function TunnelPage() {
 
                   {form.type === 2 && (
                     <Select
-                      description="当节点同时拥有IPv4和IPv6地址时，选择隧道连接使用的地址类型"
-                      label="隧道连接地址偏好"
+                      description="当各级未单独指定IP类型时，使用此默认值"
+                      label="默认连接地址偏好"
                       placeholder="自动选择"
                       selectedKeys={[form.ipPreference || ""]}
                       variant="bordered"

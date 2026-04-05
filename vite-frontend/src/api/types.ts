@@ -374,6 +374,7 @@ export interface TunnelChainNodePayload {
   connectIp?: string;
   chainType?: number;
   inx?: number;
+  connectIpType?: string;
 }
 
 export interface TunnelMutationPayload {

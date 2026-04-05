@@ -958,11 +958,11 @@ export default function NodePage() {
     const intranet = form.intranetIp.trim();
 
     // IP 地址/域名可选，节点安装后会自动上报公网 IP
-    if (v4 && !validateIpv4Literal(v4)) {
-      newErrors.serverIpV4 = "请输入有效的 IPv4 地址";
+    if (v4 && !validateIpv4Literal(v4) && !validateHostname(v4)) {
+      newErrors.serverIpV4 = "请输入有效的 IPv4 地址或域名";
     }
-    if (v6 && !validateIpv6Literal(v6)) {
-      newErrors.serverIpV6 = "请输入有效的 IPv6 地址";
+    if (v6 && !validateIpv6Literal(v6) && !validateHostname(v6)) {
+      newErrors.serverIpV6 = "请输入有效的 IPv6 地址或域名";
     }
     if (intranet && !validateIpv4Literal(intranet) && !validateHostname(intranet)) {
       newErrors.intranetIp = "请输入有效的内网 IPv4 地址或域名";

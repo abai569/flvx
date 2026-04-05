@@ -1266,6 +1266,9 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 		if c.ConnectIP.Valid {
 			nodeObj["connectIp"] = c.ConnectIP.String
 		}
+		if c.ConnectIPType.Valid && c.ConnectIPType.String != "" {
+			nodeObj["connectIpType"] = c.ConnectIPType.String
+		}
 		if c.Port.Valid && c.Port.Int64 > 0 {
 			nodeObj["port"] = c.Port.Int64
 		}

@@ -2776,13 +2776,14 @@ func (h *Handler) syncPermissionsByTunnelGroup(tunnelGroupID int64) error {
 }
 
 type tunnelRuntimeNode struct {
-	NodeID    int64
-	Protocol  string
-	Strategy  string
-	Inx       int
-	ChainType int
-	Port      int
-	ConnectIP string
+	NodeID        int64
+	Protocol      string
+	Strategy      string
+	Inx           int
+	ChainType     int
+	Port          int
+	ConnectIP     string
+	ConnectIPType string
 }
 
 type tunnelCreateState struct {
@@ -2813,10 +2814,11 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 		}
 		nodeIDs = append(nodeIDs, nodeID)
 		state.InNodes = append(state.InNodes, tunnelRuntimeNode{
-			NodeID:    nodeID,
-			Protocol:  defaultString(asString(item["protocol"]), "tls"),
-			Strategy:  defaultString(asString(item["strategy"]), "round"),
-			ChainType: 1,
+			NodeID:        nodeID,
+			Protocol:      defaultString(asString(item["protocol"]), "tls"),
+			Strategy:      defaultString(asString(item["strategy"]), "round"),
+			ChainType:     1,
+			ConnectIPType: asString(item["connectIpType"]),
 		})
 	}
 	if len(state.InNodes) == 0 {
@@ -2855,12 +2857,13 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 				}
 			}
 			state.OutNodes = append(state.OutNodes, tunnelRuntimeNode{
-				NodeID:    nodeID,
-				Protocol:  defaultString(asString(item["protocol"]), "tls"),
-				Strategy:  defaultString(asString(item["strategy"]), "round"),
-				ChainType: 3,
-				Port:      port,
-				ConnectIP: asString(item["connectIp"]),
+				NodeID:        nodeID,
+				Protocol:      defaultString(asString(item["protocol"]), "tls"),
+				Strategy:      defaultString(asString(item["strategy"]), "round"),
+				ChainType:     3,
+				Port:          port,
+				ConnectIP:     asString(item["connectIp"]),
+				ConnectIPType: asString(item["connectIpType"]),
 			})
 		}
 		if len(state.OutNodes) == 0 {
@@ -2894,13 +2897,14 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 					}
 				}
 				hop = append(hop, tunnelRuntimeNode{
-					NodeID:    nodeID,
-					Protocol:  defaultString(asString(item["protocol"]), "tls"),
-					Strategy:  defaultString(asString(item["strategy"]), "round"),
-					Inx:       hopIdx + 1,
-					ChainType: 2,
-					Port:      port,
-					ConnectIP: asString(item["connectIp"]),
+					NodeID:        nodeID,
+					Protocol:      defaultString(asString(item["protocol"]), "tls"),
+					Strategy:      defaultString(asString(item["strategy"]), "round"),
+					Inx:           hopIdx + 1,
+					ChainType:     2,
+					Port:          port,
+					ConnectIP:     asString(item["connectIp"]),
+					ConnectIPType: asString(item["connectIpType"]),
 				})
 			}
 			if len(hop) > 0 {
@@ -3703,6 +3707,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			i+1,
 			defaultString(asString(n["protocol"]), "tls"),
 			"",
+			asString(n["connectIpType"]),
 		); err != nil {
 			return err
 		}
@@ -3721,6 +3726,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			}
 		}
 		connectIp := asString(n["connectIp"])
+		connectIpType := asString(n["connectIpType"])
 		if err := h.repo.CreateChainTunnelTx(
 			tx,
 			tunnelID,
@@ -3731,6 +3737,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			i+1,
 			defaultString(asString(n["protocol"]), "tls"),
 			connectIp,
+			connectIpType,
 		); err != nil {
 			return err
 		}
@@ -3751,6 +3758,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 				}
 			}
 			connectIp := asString(n["connectIp"])
+			connectIpType := asString(n["connectIpType"])
 			if err := h.repo.CreateChainTunnelTx(
 				tx,
 				tunnelID,
@@ -3761,6 +3769,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 				i+1,
 				defaultString(asString(n["protocol"]), "tls"),
 				connectIp,
+				connectIpType,
 			); err != nil {
 				return err
 			}

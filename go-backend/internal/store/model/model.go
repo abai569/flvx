@@ -155,15 +155,16 @@ type UserQuota struct {
 func (UserQuota) TableName() string { return "user_quota" }
 
 type ChainTunnel struct {
-	ID        int64          `gorm:"primaryKey;autoIncrement"`
-	TunnelID  int64          `gorm:"column:tunnel_id;not null"`
-	ChainType string         `gorm:"column:chain_type;type:varchar(10);not null"`
-	NodeID    int64          `gorm:"column:node_id;not null"`
-	Port      sql.NullInt64  `gorm:"column:port"`
-	Strategy  sql.NullString `gorm:"type:varchar(10)"`
-	Inx       sql.NullInt64  `gorm:"column:inx"`
-	Protocol  sql.NullString `gorm:"type:varchar(10)"`
-	ConnectIP sql.NullString `gorm:"column:connect_ip;type:varchar(45)"`
+	ID            int64          `gorm:"primaryKey;autoIncrement"`
+	TunnelID      int64          `gorm:"column:tunnel_id;not null"`
+	ChainType     string         `gorm:"column:chain_type;type:varchar(10);not null"`
+	NodeID        int64          `gorm:"column:node_id;not null"`
+	Port          sql.NullInt64  `gorm:"column:port"`
+	Strategy      sql.NullString `gorm:"type:varchar(10)"`
+	Inx           sql.NullInt64  `gorm:"column:inx"`
+	Protocol      sql.NullString `gorm:"type:varchar(10)"`
+	ConnectIP     sql.NullString `gorm:"column:connect_ip;type:varchar(45)"`
+	ConnectIPType sql.NullString `gorm:"column:connect_ip_type;type:varchar(10)"`
 }
 
 func (ChainTunnel) TableName() string { return "chain_tunnel" }
