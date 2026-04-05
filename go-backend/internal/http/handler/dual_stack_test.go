@@ -12,34 +12,34 @@ func TestSelectTunnelDialHost_ConnectIpPriority(t *testing.T) {
 	from := dualStackNode("from", "10.0.0.1", "2001:db8::1")
 	to := dualStackNode("to", "10.0.0.2", "2001:db8::2")
 
-	// Empty connectIp should be ignored, IP preference takes effect
+	// Empty connectIpType should fallback to default (v4 preference)
 	host, err := selectTunnelDialHost(from, to, "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if host != "10.0.0.2" {
-		t.Fatalf("empty connectIp should be ignored (v4 preference applies), got %q", host)
+		t.Fatalf("empty connectIpType should fallback to v4 preference, got %q", host)
 	}
-	// Non-empty connectIp should override IP preference
-	host, err = selectTunnelDialHost(from, to, "v6", "192.168.0.3")
+	// connectIpType v6 should select IPv6 address
+	host, err = selectTunnelDialHost(from, to, "", "v6")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if host != "192.168.0.3" {
-		t.Fatalf("connectIp should override v6 preference, got %q", host)
+	if host != "2001:db8::2" {
+		t.Fatalf("connectIpType v6 should select IPv6 address, got %q", host)
 	}
 }
 
 func TestBuildTunnelChainServiceConfig_UsesConnectIPForListen(t *testing.T) {
 	node := &nodeRecord{TCPListenAddr: "[::]"}
-	chain := tunnelRuntimeNode{Protocol: "tls", Port: 21000, ConnectIP: "2001:db8::88"}
+	chain := tunnelRuntimeNode{Protocol: "tls", Port: 21000}
 	services := buildTunnelChainServiceConfig(99, chain, node, 1)
 	if len(services) != 1 {
 		t.Fatalf("expected 1 service, got %d", len(services))
 	}
 	addr, _ := services[0]["addr"].(string)
-	if addr != "[2001:db8::88]:21000" {
-		t.Fatalf("expected connectIp listen [2001:db8::88]:21000, got %q", addr)
+	if addr != "[::]:21000" {
+		t.Fatalf("expected listen [::]:21000, got %q", addr)
 	}
 }
 

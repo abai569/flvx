@@ -2508,16 +2508,16 @@ export default function TunnelPage() {
                     </div>
                   </div>
 
-                  <Input
-                    description="逗号分隔对应各节点，留空跟随全局默认"
+                  {/* <Input
+                    description="逗号分隔对应各节点，留空则自动分配"
                     label="连接IP类型"
-                    placeholder="如：v4,v6,lan,auto"
+                    placeholder="例：v4,v6,lan,auto"
                     size="sm"
                     type="text"
                     value={formatInNodeConnectIpTypes()}
                     variant="bordered"
                     onChange={(e) => applyInNodeConnectIpTypes(e.target.value)}
-                  />
+                  /> */}
 
                   <div className="space-y-2">
                     <Textarea
@@ -2806,7 +2806,7 @@ export default function TunnelPage() {
                                         errorMessage={errors[`chainNodes_${groupIndex}_port`]}
                                         isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
                                         label="连接端口"
-                                        placeholder="多节点可用逗号分隔，如：11111,22222"
+                                        placeholder="例：11111,22222"
                                         size="sm"
                                         type="text"
                                         value={formatChainPortsToDisplay(groupNodes)}
@@ -2816,9 +2816,9 @@ export default function TunnelPage() {
                                         }}
                                       />
                                       <Input
-                                        description="逗号分隔对应各节点，留空跟随全局默认"
+                                        description="逗号分隔对应各节点，留空则自动分配"
                                         label="连接IP类型"
-                                        placeholder="如：v4,v6,lan,auto"
+                                        placeholder="例：v4,v6,lan,auto"
                                         size="sm"
                                         type="text"
                                         value={formatConnectIpTypesToDisplay(groupNodes)}
@@ -3171,14 +3171,14 @@ export default function TunnelPage() {
                               <Input
                                 description={
                                   isMultiExit
-                                    ? "多出口隧道支持逗号分隔端口，如：11111,22222（按出口顺序匹配），留空自动分配"
-                                    : "指定出口节点被上一跳连接的端口，留空自动分配"
+                                    ? "多选节点支持逗号分隔端口，如：11111,22222（按出口顺序匹配），留空自动分配"
+                                    : "指定出口节点被上一级连接的端口，留空自动分配"
                                 }
                                 label="连接端口"
                                 placeholder={
                                   isMultiExit
-                                    ? "多出口可用逗号分隔，如：11111,22222"
-                                    : "留空自动分配"
+                                    ? "例：11111,22222"
+                                    : "留空按节点端口范围自动分配"
                                 }
                                 size="sm"
                                 type="text"
@@ -3189,9 +3189,9 @@ export default function TunnelPage() {
                                 }}
                               />
                               <Input
-                                description="逗号分隔对应各节点，留空跟随全局默认"
+                                description="逗号分隔对应各节点，留空则自动分配"
                                 label="连接IP类型"
-                                placeholder="如：v4,v6,lan,auto"
+                                placeholder="例：v4,v6,lan,auto"
                                 size="sm"
                                 type="text"
                                 value={formatOutNodeConnectIpTypes()}

@@ -216,7 +216,7 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 			targetNode, nodeErr := h.getNodeRecord(outNodes[0].NodeID)
 			if nodeErr == nil && targetNode != nil {
 				fromNode, _ := h.getNodeRecord(inNodes[0].NodeID)
-				targetIP, targetPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, outNodes[0].Port, ipPreference, outNodes[0].ConnectIP, outNodes[0].ConnectIPType)
+				targetIP, targetPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, outNodes[0].Port, ipPreference, outNodes[0].ConnectIPType)
 				if resolveErr == nil {
 					lat, loss, err := p.tcpPingNode(inNodes[0].NodeID, targetIP, targetPort, options)
 					if err == nil {

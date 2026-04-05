@@ -74,7 +74,7 @@ func (h *Handler) buildDiagnosisStreamStartItems(workItems []diagnosisWorkItem) 
 			fromNode, _ := h.cachedNode(nodeCache, workItem.fromNodeID)
 			targetNode, err := h.cachedNode(nodeCache, workItem.toNode.NodeID)
 			if err == nil {
-				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference, workItem.toNode.ConnectIP, workItem.connectIpType)
+				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference, workItem.connectIpType)
 				if resolveErr == nil {
 					targetIP = resolvedIP
 					targetPort = resolvedPort
@@ -731,12 +731,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 				for _, firstNode := range chainHops[0] {
 					description := fmt.Sprintf("入口(%s)->第1跳(%s)", inNode.NodeName, firstNode.NodeName)
 					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       firstNode,
-						hasChainHop:  true,
+						fromNodeID:    inNode.NodeID,
+						toNode:        firstNode,
+						hasChainHop:   true,
 						connectIpType: firstNode.ConnectIPType,
-						ipPreference: ipPreference,
-						description:  description,
+						ipPreference:  ipPreference,
+						description:   description,
 						metadata: map[string]interface{}{
 							"fromChainType": 1,
 							"toChainType":   2,
@@ -748,12 +748,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 				for _, outNode := range outNodes {
 					description := fmt.Sprintf("入口(%s)->出口(%s)", inNode.NodeName, outNode.NodeName)
 					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       outNode,
-						hasChainHop:  true,
+						fromNodeID:    inNode.NodeID,
+						toNode:        outNode,
+						hasChainHop:   true,
 						connectIpType: outNode.ConnectIPType,
-						ipPreference: ipPreference,
-						description:  description,
+						ipPreference:  ipPreference,
+						description:   description,
 						metadata: map[string]interface{}{
 							"fromChainType": 1,
 							"toChainType":   3,
@@ -769,12 +769,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 					for _, nextNode := range chainHops[i+1] {
 						description := fmt.Sprintf("第%d跳(%s)->第%d跳(%s)", i+1, currentNode.NodeName, i+2, nextNode.NodeName)
 						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       nextNode,
-							hasChainHop:  true,
-						connectIpType: nextNode.ConnectIPType,
-							ipPreference: ipPreference,
-							description:  description,
+							fromNodeID:    currentNode.NodeID,
+							toNode:        nextNode,
+							hasChainHop:   true,
+							connectIpType: nextNode.ConnectIPType,
+							ipPreference:  ipPreference,
+							description:   description,
 							metadata: map[string]interface{}{
 								"fromChainType": 2,
 								"fromInx":       currentNode.Inx,
@@ -787,12 +787,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 					for _, outNode := range outNodes {
 						description := fmt.Sprintf("第%d跳(%s)->出口(%s)", i+1, currentNode.NodeName, outNode.NodeName)
 						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       outNode,
-							hasChainHop:  true,
-						connectIpType: outNode.ConnectIPType,
-							ipPreference: ipPreference,
-							description:  description,
+							fromNodeID:    currentNode.NodeID,
+							toNode:        outNode,
+							hasChainHop:   true,
+							connectIpType: outNode.ConnectIPType,
+							ipPreference:  ipPreference,
+							description:   description,
 							metadata: map[string]interface{}{
 								"fromChainType": 2,
 								"fromInx":       currentNode.Inx,
@@ -904,12 +904,12 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 				for _, firstNode := range chainHops[0] {
 					description := fmt.Sprintf("入口(%s)->第1跳(%s)", inNode.NodeName, firstNode.NodeName)
 					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       firstNode,
-						hasChainHop:  true,
+						fromNodeID:    inNode.NodeID,
+						toNode:        firstNode,
+						hasChainHop:   true,
 						connectIpType: firstNode.ConnectIPType,
-						ipPreference: ipPreference,
-						description:  description,
+						ipPreference:  ipPreference,
+						description:   description,
 						metadata: map[string]interface{}{
 							"fromChainType": 1,
 							"toChainType":   2,
@@ -921,12 +921,12 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 				for _, outNode := range outNodes {
 					description := fmt.Sprintf("入口(%s)->出口(%s)", inNode.NodeName, outNode.NodeName)
 					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       outNode,
-						hasChainHop:  true,
+						fromNodeID:    inNode.NodeID,
+						toNode:        outNode,
+						hasChainHop:   true,
 						connectIpType: outNode.ConnectIPType,
-						ipPreference: ipPreference,
-						description:  description,
+						ipPreference:  ipPreference,
+						description:   description,
 						metadata: map[string]interface{}{
 							"fromChainType": 1,
 							"toChainType":   3,
@@ -942,12 +942,12 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 					for _, nextNode := range chainHops[i+1] {
 						description := fmt.Sprintf("第%d跳(%s)->第%d跳(%s)", i+1, currentNode.NodeName, i+2, nextNode.NodeName)
 						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       nextNode,
-							hasChainHop:  true,
-						connectIpType: nextNode.ConnectIPType,
-							ipPreference: ipPreference,
-							description:  description,
+							fromNodeID:    currentNode.NodeID,
+							toNode:        nextNode,
+							hasChainHop:   true,
+							connectIpType: nextNode.ConnectIPType,
+							ipPreference:  ipPreference,
+							description:   description,
 							metadata: map[string]interface{}{
 								"fromChainType": 2,
 								"fromInx":       currentNode.Inx,
@@ -960,12 +960,12 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 					for _, outNode := range outNodes {
 						description := fmt.Sprintf("第%d跳(%s)->出口(%s)", i+1, currentNode.NodeName, outNode.NodeName)
 						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       outNode,
-							hasChainHop:  true,
-						connectIpType: outNode.ConnectIPType,
-							ipPreference: ipPreference,
-							description:  description,
+							fromNodeID:    currentNode.NodeID,
+							toNode:        outNode,
+							hasChainHop:   true,
+							connectIpType: outNode.ConnectIPType,
+							ipPreference:  ipPreference,
+							description:   description,
 							metadata: map[string]interface{}{
 								"fromChainType": 2,
 								"fromInx":       currentNode.Inx,
@@ -1308,7 +1308,7 @@ func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nod
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, "", 0, description, metadata, err.Error())
 		return
 	}
-	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference, toNode.ConnectIP, toNode.ConnectIPType)
+	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference, toNode.ConnectIPType)
 	if err != nil {
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]"), toNode.Port, description, metadata, err.Error())
 		return
@@ -1316,11 +1316,11 @@ func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nod
 	h.appendPathDiagnosis(results, nodeCache, fromNodeID, targetIP, targetPort, description, metadata, options)
 }
 
-func resolveChainProbeTarget(fromNode, targetNode *nodeRecord, preferredPort int, ipPreference string, connectIp string, connectIpType string) (string, int, error) {
+func resolveChainProbeTarget(fromNode, targetNode *nodeRecord, preferredPort int, ipPreference string, connectIpType string) (string, int, error) {
 	if targetNode == nil {
 		return "", 0, errors.New("目标节点不存在")
 	}
-	host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, connectIp, connectIpType)
+	host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, connectIpType)
 	if err != nil {
 		host = strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]")
 	}

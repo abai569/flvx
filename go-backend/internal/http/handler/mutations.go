@@ -1439,7 +1439,6 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 			Strategy:      r.Strategy,
 			ChainType:     3,
 			Port:          r.Port,
-			ConnectIP:     r.ConnectIP,
 			ConnectIPType: r.ConnectIPType,
 		})
 		state.NodeIDList = append(state.NodeIDList, r.NodeID)
@@ -1455,7 +1454,6 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 				ChainType:     2,
 				Inx:           int(r.Inx),
 				Port:          r.Port,
-				ConnectIP:     r.ConnectIP,
 				ConnectIPType: r.ConnectIPType,
 			})
 			state.NodeIDList = append(state.NodeIDList, r.NodeID)
@@ -2785,7 +2783,6 @@ type tunnelRuntimeNode struct {
 	Inx           int
 	ChainType     int
 	Port          int
-	ConnectIP     string
 	ConnectIPType string
 }
 
@@ -2865,7 +2862,6 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 				Strategy:      defaultString(asString(item["strategy"]), "round"),
 				ChainType:     3,
 				Port:          port,
-				ConnectIP:     asString(item["connectIp"]),
 				ConnectIPType: asString(item["connectIpType"]),
 			})
 		}
@@ -2906,7 +2902,6 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 					Inx:           hopIdx + 1,
 					ChainType:     2,
 					Port:          port,
-					ConnectIP:     asString(item["connectIp"]),
 					ConnectIPType: asString(item["connectIpType"]),
 				})
 			}
@@ -3210,7 +3205,7 @@ func (h *Handler) applyFederationRuntime(state *tunnelCreateState, localDomain s
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, errors.New("节点不存在")
 				}
-				host, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference, target.ConnectIP, target.ConnectIPType)
+				host, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference, target.ConnectIPType)
 				if hostErr != nil {
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, hostErr
@@ -3492,7 +3487,7 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		if targetNode == nil {
 			return nil, errors.New("节点不存在")
 		}
-		host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, target.ConnectIP, target.ConnectIPType)
+		host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, target.ConnectIPType)
 		if err != nil {
 			return nil, err
 		}
@@ -3553,7 +3548,7 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	}
 	service := map[string]interface{}{
 		"name":    fmt.Sprintf("%d_tls", tunnelID),
-		"addr":    processServerAddress(fmt.Sprintf("%s:%d", defaultString(strings.TrimSpace(chainNode.ConnectIP), node.TCPListenAddr), chainNode.Port)),
+		"addr":    processServerAddress(fmt.Sprintf("%s:%d", node.TCPListenAddr, chainNode.Port)),
 		"handler": handlerCfg,
 		"listener": map[string]interface{}{
 			"type": protocol,
@@ -3568,12 +3563,9 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	return []map[string]interface{}{service}
 }
 
-func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, connectIp string, connectIpType string) (string, error) {
+func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, connectIpType string) (string, error) {
 	if fromNode == nil || toNode == nil {
 		return "", errors.New("节点不存在")
-	}
-	if strings.TrimSpace(connectIp) != "" {
-		return strings.TrimSpace(connectIp), nil
 	}
 	fromV4 := nodeSupportsV4(fromNode)
 	fromV6 := nodeSupportsV6(fromNode)
