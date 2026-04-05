@@ -957,7 +957,6 @@ export default function NodePage() {
     const v6 = form.serverIpV6.trim();
     const intranet = form.intranetIp.trim();
 
-    // IP 地址/域名可选，节点安装后会自动上报公网 IP
     if (v4 && !validateIpv4Literal(v4) && !validateHostname(v4)) {
       newErrors.serverIpV4 = "请输入有效的 IPv4 地址或域名";
     }
