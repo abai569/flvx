@@ -301,7 +301,14 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := asString(req["name"])
-	serverIP := asString(req["serverIp"])
+	// 从 serverIpV4/serverIpV6/intranetIp 中选择第一个非空作为 serverIP
+	serverIP := asString(req["serverIpV4"])
+	if serverIP == "" {
+		serverIP = asString(req["serverIpV6"])
+	}
+	if serverIP == "" {
+		serverIP = asString(req["intranetIp"])
+	}
 	if name == "" || serverIP == "" {
 		response.WriteJSON(w, response.ErrDefault("节点名称和地址不能为空"))
 		return
@@ -402,9 +409,17 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 	} else {
 		groupID = nil
 	}
+	// 从 serverIpV4/serverIpV6/intranetIp 中选择第一个非空作为 serverIP
+	serverIP := asString(req["serverIpV4"])
+	if serverIP == "" {
+		serverIP = asString(req["serverIpV6"])
+	}
+	if serverIP == "" {
+		serverIP = asString(req["intranetIp"])
+	}
 	if err := h.repo.UpdateNode(id,
 		asString(req["name"]),
-		asString(req["serverIp"]),
+		serverIP,
 		nullableText(asString(req["serverIpV4"])),
 		nullableText(asString(req["serverIpV6"])),
 		nullableText(asString(req["intranetIp"])),
