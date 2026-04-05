@@ -2799,7 +2799,7 @@ export default function TunnelPage() {
                                     {/* 连接 IP 和连接端口 - 转发链节点 */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                                       <Input
-                                        description="指定当前跳被上一跳连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
+                                        description="指定当前级被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
                                         errorMessage={errors[`chainNodes_${groupIndex}_port`]}
                                         isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
                                         label="连接端口"
@@ -2813,7 +2813,7 @@ export default function TunnelPage() {
                                         }}
                                       />
                                       <Input
-                                        description="逗号分隔对应各节点，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
+                                        description="多节点可用逗号分隔，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
                                         label="连接IP类型"
                                         placeholder="例：lan,v4,v6"
                                         size="sm"
@@ -3161,7 +3161,7 @@ export default function TunnelPage() {
                             {/* 连接端口和连接IP类型 - 出口节点 */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                               <Input
-                                description="多选节点支持逗号分隔端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
+                                description="指定出口节点被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
                                 label="连接端口"
                                 placeholder="例：11111,22222"
                                 size="sm"
@@ -3173,7 +3173,7 @@ export default function TunnelPage() {
                                 }}
                               />
                               <Input
-                                description="逗号分隔对应各节点，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
+                                description="多节点可用逗号分隔，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
                                 label="连接IP类型"
                                 placeholder="例：v4,v6,v4"
                                 size="sm"
