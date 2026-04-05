@@ -2572,7 +2572,7 @@ export default function TunnelPage() {
                   <Input
                     description="逗号分隔对应各节点，留空跟随全局默认"
                     label="向下连接IP类型"
-                    placeholder="如：ipv4,lan,auto"
+                    placeholder="如：v4,lan,auto"
                     size="sm"
                     type="text"
                     value={formatInNodeConnectIpTypes()}
@@ -2890,7 +2890,7 @@ export default function TunnelPage() {
                                       <Input
                                         description="逗号分隔对应各节点，留空跟随全局默认"
                                         label="向下连接IP类型"
-                                        placeholder="如：ipv4,lan,auto"
+                                        placeholder="如：v4,lan,auto"
                                         size="sm"
                                         type="text"
                                         value={formatConnectIpTypesToDisplay(groupNodes)}
@@ -3317,7 +3317,7 @@ export default function TunnelPage() {
                               <Input
                                 description="逗号分隔对应各节点，留空跟随全局默认"
                                 label="向下连接IP类型"
-                                placeholder="如：ipv4,lan,auto"
+                                placeholder="如：v4,lan,auto"
                                 size="sm"
                                 type="text"
                                 value={formatOutNodeConnectIpTypes()}
