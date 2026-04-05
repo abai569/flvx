@@ -117,7 +117,7 @@ interface Node {
   id: number;
   name: string;
   status: number; // 1: 在线, 0: 离线
-  serverHost?: string; // 🎯 显式加上域名标识
+  intranetIp?: string; // 内网 IP
   serverIp?: string;
   serverIpV4?: string;
   serverIpV6?: string;
@@ -242,11 +242,11 @@ export default function TunnelPage() {
       }
     };
 
-    // 🎯 核心修复：把真实的域名 (serverHost) 设为最高优先级！
-    push(node.serverHost);
-    push(node.serverIp);  // 兼容旧字段
+    // 优先级：公网IPv4 → 公网IPv6 → 内网IP → 兼容字段 → extraIPs
     push(node.serverIpV4);
     push(node.serverIpV6);
+    push(node.intranetIp);
+    push(node.serverIp);  // 兼容旧字段
 
     (node.extraIPs || "")
       .split(",")
@@ -469,7 +469,7 @@ export default function TunnelPage() {
     const ips = form.inNodeId.map(ct => {
       const n = nodes.find(item => item.id === ct.nodeId);
       if (!n) return "";
-      return (n.serverHost || (n as any).server_host || n.serverIpV4 || n.serverIpV6 || n.serverIp || "").trim();
+      return (n.serverIpV4 || n.serverIpV6 || n.intranetIp || n.serverIp || "").trim();
     }).filter(Boolean);
     return ips.join("\n");
   }, [form.inNodeId, nodes]);
@@ -873,7 +873,7 @@ export default function TunnelPage() {
         const autoIps = form.inNodeId.map(ct => {
           const n = nodes.find(item => item.id === ct.nodeId);
           if (!n) return "";
-          return (n.serverHost || (n as any).server_host || n.serverIpV4 || n.serverIpV6 || n.serverIp || "").trim();
+      return (n.serverIpV4 || n.serverIpV6 || n.intranetIp || n.serverIp || "").trim();
         }).filter(Boolean);
         inIpString = autoIps.join(",");
       }
@@ -2479,8 +2479,8 @@ export default function TunnelPage() {
                               const autoIps = selectedIds.map(id => {
                                 const n = nodes.find(item => item.id === id);
                                 if (!n) return "";
-                                // 绝对优先级：域名优先，没有域名找v4，最后找v6或兼容IP
-                                return (n.serverHost || n.serverIpV4 || n.serverIpV6 || n.serverIp || "").trim();
+                                // 优先级：公网IPv4 → 公网IPv6 → 内网IP → 兼容IP
+                                return (n.serverIpV4 || n.serverIpV6 || n.intranetIp || n.serverIp || "").trim();
                               }).filter(Boolean);
                               nextInIp = autoIps.join("\n");
                             }

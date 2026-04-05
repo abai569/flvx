@@ -407,7 +407,7 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 		asString(req["serverIp"]),
 		nullableText(asString(req["serverIpV4"])),
 		nullableText(asString(req["serverIpV6"])),
-		nullableText(asString(req["serverHost"])),
+		nullableText(asString(req["intranetIp"])),
 		defaultString(asString(req["port"]), "1000-65535"),
 		nullableText(asString(req["interfaceName"])),
 		nullableText(asString(req["extraIPs"])),

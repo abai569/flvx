@@ -282,7 +282,7 @@ func (r *Repository) UpdateNodePublicIPs(nodeID int64, ipv4, ipv6 string) error 
 		}).Error
 }
 
-func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, serverHost, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
+func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, intranetIP, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -294,7 +294,7 @@ func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, ser
 		"server_ip":                 serverIP,
 		"server_ip_v4":              nullStringFromInterface(serverIPV4),
 		"server_ip_v6":              nullStringFromInterface(serverIPV6),
-		"server_host":               nullStringFromInterface(serverHost),
+		"intranet_ip":               nullStringFromInterface(intranetIP),
 		"extra_ips":                 nullStringFromInterface(extraIPs),
 		"port":                      stringFromInterface(port),
 		"interface_name":            nullStringFromInterface(interfaceName),

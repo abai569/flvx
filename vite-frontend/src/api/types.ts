@@ -354,6 +354,7 @@ export interface NodeMutationPayload {
   renewalCycle?: "month" | "quarter" | "year" | "";
   groupId?: number | null;
   serverIp?: string;
+  intranetIp?: string;
   serverIpV4?: string;
   serverIpV6?: string;
   extraIPs?: string;

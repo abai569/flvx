@@ -5282,7 +5282,7 @@ export default function ForwardPage() {
                     label="落地地址"
                     maxRows={6}
                     minRows={3}
-                    placeholder="请输入落地地址，多个地址用换行分隔，例如:&#10;192.168.1.100:10000&#10;[2001:db8::10]:10086&#10;test.example.com:10010"
+                    placeholder="请输入落地地址，多个地址用换行分隔，例如:&#10;8.8.8.8:10000&#10;[2001:db8::10]:10086&#10;test.example.com:10010"
                     value={form.remoteAddr}
                     variant="bordered"
                     onChange={(e) =>

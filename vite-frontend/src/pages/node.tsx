@@ -109,7 +109,7 @@ interface Node {
   expiryReminderDismissedUntil: number | null;
   ip: string;
   serverIp: string;
-  serverHost?: string;
+  intranetIp?: string;
   serverIpV4?: string;
   serverIpV6?: string;
   port: string;
@@ -139,7 +139,7 @@ interface NodeForm {
   expiryTime: number;
   renewalCycle: NodeRenewalCycle;
   groupId: number | null;
-  serverHost: string;
+  intranetIp: string;
   serverIpV4: string;
   serverIpV6: string;
   port: string;
@@ -393,7 +393,7 @@ export default function NodePage() {
     expiryTime: 0,
     renewalCycle: "",
     groupId: null,
-    serverHost: "",
+    intranetIp: "",
     serverIpV4: "",
     serverIpV6: "",
     port: "10000-65535",
@@ -955,7 +955,7 @@ export default function NodePage() {
 
     const v4 = form.serverIpV4.trim();
     const v6 = form.serverIpV6.trim();
-    const host = form.serverHost.trim();
+    const intranet = form.intranetIp.trim();
 
     // IP 地址/域名可选，节点安装后会自动上报公网 IP
     if (v4 && !validateIpv4Literal(v4)) {
@@ -964,8 +964,8 @@ export default function NodePage() {
     if (v6 && !validateIpv6Literal(v6)) {
       newErrors.serverIpV6 = "请输入有效的 IPv6 地址";
     }
-    if (host && !validateHostname(host)) {
-      newErrors.serverHost = "请输入有效的域名/主机名";
+    if (intranet && !validateIpv4Literal(intranet) && !validateHostname(intranet)) {
+      newErrors.intranetIp = "请输入有效的内网 IPv4 地址或域名";
     }
 
     const portValidation = validatePort(form.port);
@@ -998,9 +998,9 @@ export default function NodePage() {
       expiryTime: node.expiryTime || 0,
       renewalCycle: node.renewalCycle || "",
       groupId: node.groupId || null,
-      serverHost: node.serverHost || node.serverIp,  // 优先使用 serverHost
-      serverIpV4: node.serverIpV4 || "",  // ✅ 直接显示 ServerIPV4
-      serverIpV6: node.serverIpV6 || "",  // ✅ 直接显示 ServerIPV6
+      intranetIp: node.intranetIp || "",
+      serverIpV4: node.serverIpV4 || "",
+      serverIpV6: node.serverIpV6 || "",
       port: node.port || "10000-65535",
       tcpListenAddr: node.tcpListenAddr || "[::]",
       udpListenAddr: node.udpListenAddr || "[::]",
@@ -1341,7 +1341,7 @@ export default function NodePage() {
     try {
       const apiCall = isEdit ? updateNode : createNode;
 
-      const { serverHost, serverIpV4, serverIpV6, ...rest } = form;
+      const { intranetIp, serverIpV4, serverIpV6, ...rest } = form;
       const data = {
         ...rest,
         remark: form.remark.trim(),
@@ -1350,15 +1350,9 @@ export default function NodePage() {
         groupId: form.groupId,
         extraIPs: form.extraIPs,
         // 分别传递三个字段给后端
-        serverHost: serverHost?.trim(),
+        intranetIp: intranetIp?.trim(),
         serverIpV4: serverIpV4?.trim(),
         serverIpV6: serverIpV6?.trim(),
-        // serverIp 保持兼容性（优先级：IPv4 > IPv6 > 域名）
-        serverIp:
-          serverIpV4?.trim() ||
-          serverIpV6?.trim() ||
-          serverHost?.trim() ||
-          "",
       };
 
       const res = await apiCall(data);
@@ -1377,12 +1371,7 @@ export default function NodePage() {
                   expiryTime: form.expiryTime,
                   renewalCycle: form.renewalCycle,
                   groupId: form.groupId,
-                  serverHost: form.serverHost?.trim(),
-                  serverIp:
-                    form.serverIpV4?.trim() ||
-                    form.serverIpV6?.trim() ||
-                    form.serverHost?.trim() ||
-                    "",
+                  intranetIp: form.intranetIp?.trim(),
                   serverIpV4: form.serverIpV4,
                   serverIpV6: form.serverIpV6,
                   port: form.port,
@@ -1420,7 +1409,7 @@ export default function NodePage() {
       expiryTime: 0,
       renewalCycle: "",
       groupId: null,
-      serverHost: "",
+      intranetIp: "",
       serverIpV4: "",
       serverIpV6: "",
       port: "10000-65535",
@@ -2889,15 +2878,15 @@ export default function NodePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。可留空，节点安装后自动上报公网 IP"
-                  errorMessage={errors.serverHost}
-                  isInvalid={!!errors.serverHost}
-                  label="域名/地址"
-                  placeholder="例如：test.example.com（可留空）"
-                  value={form.serverHost}
+                  description="可选：建议填写公网IPv4或对应解析域名，可留空"
+                  errorMessage={errors.serverIpV4}
+                  isInvalid={!!errors.serverIpV4}
+                  label="域名/公网IPv4地址"
+                  placeholder="例如：test.example.com 8.8.8.8"
+                  value={form.serverIpV4}
                   variant="bordered"
                   onChange={(e) =>
-                    setForm((prev) => ({ ...prev, serverHost: e.target.value }))
+                    setForm((prev) => ({ ...prev, serverIpV4: e.target.value }))
                   }
                 />
 
@@ -2920,24 +2909,24 @@ export default function NodePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  description="可选：填写一个 IPv4 地址。可留空，节点安装后自动上报"
-                  errorMessage={errors.serverIpV4}
-                  isInvalid={!!errors.serverIpV4}
-                  label="IPv4 地址"
-                  placeholder="例如：192.168.1.100（可留空）"
-                  value={form.serverIpV4}
+                  description="可选：建议填写内网IPv4或对应解析域名，可留空"
+                  errorMessage={errors.intranetIp}
+                  isInvalid={!!errors.intranetIp}
+                  label="域名/内网IPv4地址"
+                  placeholder="例如：10.0.0.1 192.168.1.1"
+                  value={form.intranetIp}
                   variant="bordered"
                   onChange={(e) =>
-                    setForm((prev) => ({ ...prev, serverIpV4: e.target.value }))
+                    setForm((prev) => ({ ...prev, intranetIp: e.target.value }))
                   }
                 />
 
                 <Input
-                  description="可选：填写一个 IPv6 地址。可留空，节点安装后自动上报"
+                  description="可选：建议填写公网IPv6或对应解析域名，可留空"
                   errorMessage={errors.serverIpV6}
                   isInvalid={!!errors.serverIpV6}
-                  label="IPv6 地址"
-                  placeholder="例如：2001:db8::10（可留空）"
+                  label="域名/公网IPv6地址"
+                  placeholder="例如：2001:db8::10"
                   value={form.serverIpV6}
                   variant="bordered"
                   onChange={(e) =>
