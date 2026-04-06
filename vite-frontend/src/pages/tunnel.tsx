@@ -723,15 +723,9 @@ export default function TunnelPage() {
     });
   };
 
-  const formatConnectIpTypesToDisplay = (nodes: ChainTunnel[]): string => {
-    if (!nodes || nodes.length === 0) return '';
-    
-    // 检查是否所有节点都没有配置 connectIpType
-    const allEmpty = nodes.every(n => !n.connectIpType);
-    if (allEmpty) return '';  // 全部为空时返回空字符串，不显示逗号
-    
-    // 否则正常逗号分隔
-    return nodes.map(n => n.connectIpType || '').join(',');
+  // 连接 IP 类型输入框不再自动填充逗号，让用户手动输入
+  const formatConnectIpTypesToDisplay = (): string => {
+    return '';  // 返回空字符串，让用户手动输入
   };
 
   const applyConnectIpTypesToChainGroup = (groupIndex: number, value: string) => {
@@ -748,13 +742,7 @@ export default function TunnelPage() {
   };
 
   const formatOutNodeConnectIpTypes = (): string => {
-    const nodes = form.outNodeId || [];
-    
-    // 检查是否所有节点都没有配置 connectIpType
-    const allEmpty = nodes.every(n => !n.connectIpType);
-    if (allEmpty) return '';  // 全部为空时返回空字符串，不显示逗号
-    
-    return nodes.map(n => n.connectIpType || '').join(',');
+    return '';  // 返回空字符串，让用户手动输入
   };
 
   const applyOutNodeConnectIpTypes = (value: string) => {
@@ -2813,7 +2801,7 @@ export default function TunnelPage() {
                                         placeholder="例：lan,v4,v6"
                                         size="sm"
                                         type="text"
-                                        value={formatConnectIpTypesToDisplay(groupNodes)}
+                                        value={formatConnectIpTypesToDisplay()}
                                         variant="bordered"
                                         onChange={(e) => {
                                           applyConnectIpTypesToChainGroup(groupIndex, e.target.value);
