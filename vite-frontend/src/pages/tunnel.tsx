@@ -670,14 +670,9 @@ export default function TunnelPage() {
   };
 
   // 🎯 多端口支持：格式化端口数组为显示文本
-  const formatOutNodePortsToDisplay = (outNodes: ChainTunnel[]): string => {
-    if (!outNodes || outNodes.length === 0) {
-      return '';
-    }
-    const ports = outNodes
-      .map(node => node.port ?? 0)
-      .filter(port => port > 0);
-    return ports.length > 0 ? ports.join(',') : '';
+  // 出口连接端口输入框不再自动填充逗号，让用户手动输入
+  const formatOutNodePortsToDisplay = (): string => {
+    return '';  // 返回空字符串，让用户手动输入
   };
 
   // 🎯 多端口支持：将端口应用到出口节点
@@ -3149,7 +3144,7 @@ export default function TunnelPage() {
                                 placeholder="例：11111,22222"
                                 size="sm"
                                 type="text"
-                                value={formatOutNodePortsToDisplay(form.outNodeId || [])}
+                                value={formatOutNodePortsToDisplay()}
                                 variant="bordered"
                                 onChange={(e) => {
                                   applyPortsToOutNodes(e.target.value);
