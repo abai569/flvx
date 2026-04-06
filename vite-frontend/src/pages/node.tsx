@@ -46,7 +46,6 @@ import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
 import { Link } from "@/shadcn-bridge/heroui/link";
-import { Divider } from "@/shadcn-bridge/heroui/divider";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
