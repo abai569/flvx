@@ -83,11 +83,10 @@ interface NodeListViewProps {
   nodeGroups: any[];
   filterGroupId: number | null;
   setFilterGroupId: (id: number | null) => void;
-  // 新增四种对接方式的处理函数
-  handleCopyDomesticInstallCommand?: (node: Node) => void;
+  // 新增三种对接方式的处理函数
   handleCopyOverseasInstallCommand?: (node: Node) => void;
-  handleCopyAlternativeInstallCommand?: (node: Node) => void;
   handleCopyOfflineInstallCommand?: (node: Node) => void;
+  handleCopyAutoInstallCommand?: (node: Node) => void;
 }
 
 function SortableTableRow({
@@ -102,10 +101,9 @@ function SortableTableRow({
   handleDelete,
   formatTraffic,
   nodeGroups,
-  handleCopyDomesticInstallCommand,
   handleCopyOverseasInstallCommand,
-  handleCopyAlternativeInstallCommand,
   handleCopyOfflineInstallCommand,
+  handleCopyAutoInstallCommand,
 }: any) {
   const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({ id: node.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
@@ -217,10 +215,9 @@ export function NodeListView({
   nodeGroups,
   filterGroupId,
   setFilterGroupId,
-  handleCopyDomesticInstallCommand,
   handleCopyOverseasInstallCommand,
-  handleCopyAlternativeInstallCommand,
   handleCopyOfflineInstallCommand,
+  handleCopyAutoInstallCommand,
 }: NodeListViewProps) {
   const isAllSelected = displayNodes.length > 0 && selectedIds.size === displayNodes.length;
 
@@ -306,10 +303,9 @@ export function NodeListView({
               handleDelete,
               formatTraffic,
               nodeGroups,
-              handleCopyDomesticInstallCommand,
               handleCopyOverseasInstallCommand,
-              handleCopyAlternativeInstallCommand,
               handleCopyOfflineInstallCommand,
+              handleCopyAutoInstallCommand,
             }}
           />
         ))}

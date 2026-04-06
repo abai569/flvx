@@ -66,7 +66,6 @@ import {
   getNodeInstallCommand,
   getNodeInstallCommandDomestic,
   getNodeInstallCommandOverseas,
-  getNodeInstallCommandAlternative,
   getNodeInstallCommandOffline,
   updateNodeOrder,
   batchDeleteNodes,
@@ -1179,34 +1178,6 @@ export default function NodePage() {
         const copied = await tryCopyInstallCommand(res.data);
         if (copied) {
           toast.success("国外机对接命令已复制到剪贴板");
-        } else {
-          setInstallCommand(res.data);
-          setCurrentNodeName(node.name);
-          setInstallCommandModal(true);
-        }
-      } else {
-        toast.error(res.msg || "获取命令失败");
-      }
-    } catch {
-      toast.error("获取命令失败");
-    } finally {
-      setNodeList((prev) =>
-        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
-      );
-    }
-  };
-
-  const handleCopyAlternativeInstallCommand = async (node: Node) => {
-    setNodeList((prev) =>
-      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
-    );
-
-    try {
-      const res = await getNodeInstallCommandAlternative(node.id);
-      if (res.code === 0 && res.data) {
-        const copied = await tryCopyInstallCommand(res.data);
-        if (copied) {
-          toast.success("备选线路对接命令已复制到剪贴板");
         } else {
           setInstallCommand(res.data);
           setCurrentNodeName(node.name);
@@ -2881,9 +2852,8 @@ export default function NodePage() {
                                 handleDelete={handleDelete}
                                 handleEdit={handleEdit}
                                 handleRollbackNode={handleRollbackNode}
-                                handleCopyDomesticInstallCommand={handleCopyDomesticInstallCommand}
+                                handleCopyAutoInstallCommand={handleCopyDomesticInstallCommand}
                                 handleCopyOverseasInstallCommand={handleCopyOverseasInstallCommand}
-                                handleCopyAlternativeInstallCommand={handleCopyAlternativeInstallCommand}
                                 handleCopyOfflineInstallCommand={handleCopyOfflineInstallCommand}
                                 nodeGroups={nodeGroups}
                                 openInstallSelector={openInstallSelector}
@@ -2932,9 +2902,8 @@ export default function NodePage() {
                   handleDelete={handleDelete}
                   handleEdit={handleEdit}
                   handleRollbackNode={handleRollbackNode}
-                  handleCopyDomesticInstallCommand={handleCopyDomesticInstallCommand}
+                  handleCopyAutoInstallCommand={handleCopyDomesticInstallCommand}
                   handleCopyOverseasInstallCommand={handleCopyOverseasInstallCommand}
-                  handleCopyAlternativeInstallCommand={handleCopyAlternativeInstallCommand}
                   handleCopyOfflineInstallCommand={handleCopyOfflineInstallCommand}
                   nodeGroups={nodeGroups}
                   openInstallSelector={openInstallSelector}
