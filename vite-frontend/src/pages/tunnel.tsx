@@ -699,14 +699,9 @@ export default function TunnelPage() {
   };
 
   // 🎯 多端口支持：格式化转发链端口为显示文本
-  const formatChainPortsToDisplay = (chainGroup: ChainTunnel[]): string => {
-    if (!chainGroup || chainGroup.length === 0) {
-      return '';
-    }
-    const ports = chainGroup
-      .map(node => node.port ?? 0)
-      .filter(port => port > 0);
-    return ports.length > 0 ? ports.join(',') : '';
+  // 修改：不再自动格式化，返回空字符串让用户手动输入
+  const formatChainPortsToDisplay = (): string => {
+    return '';  // 返回空字符串，让用户手动输入
   };
 
   // 🎯 多端口支持：将端口应用到转发链节点
@@ -2806,7 +2801,7 @@ export default function TunnelPage() {
                                         placeholder="例：11111,22222"
                                         size="sm"
                                         type="text"
-                                        value={formatChainPortsToDisplay(groupNodes)}
+                                        value={formatChainPortsToDisplay()}
                                         variant="bordered"
                                         onChange={(e) => {
                                           applyPortsToChainGroup(groupIndex, e.target.value);
