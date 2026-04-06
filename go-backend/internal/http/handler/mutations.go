@@ -487,9 +487,9 @@ func (h *Handler) nodeInstallDomestic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	channel := normalizeReleaseChannel(req.Channel)
-	version, err := resolveLatestReleaseByChannel(channel)
+	_, err := resolveLatestReleaseByChannel(channel)
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新版本失败：%v", err)))
 		return
 	}
 
@@ -508,7 +508,7 @@ func (h *Handler) nodeInstallDomestic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := fmt.Sprintf("curl -L https://chfs.646321.xyz:8/flvx/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, processServerAddress(panelAddr), secret)
+	cmd := fmt.Sprintf("curl -L https://chfs.646321.xyz:8/chfs/shared/flvx/install-auto.sh | bash -s -- -a %s -s %s", processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 

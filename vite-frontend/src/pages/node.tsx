@@ -1224,6 +1224,38 @@ export default function NodePage() {
     }
   };
 
+  const handleCopyAutoInstallCommand = async (node: Node) => {
+    setNodeList((prev) =>
+      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
+    );
+
+    try {
+      // 自动探测线路：从国内下载源下载 install-auto.sh
+      const res = await getNodeInstallCommandDomestic(node.id);
+      if (res.code === 0 && res.data) {
+        // 修改命令，使用 install-auto.sh 而不是 install.sh
+        let command = res.data as string;
+        command = command.replace('/install.sh', '/install-auto.sh');
+        const copied = await tryCopyInstallCommand(command);
+        if (copied) {
+          toast.success("自动探测线路命令已复制到剪贴板");
+        } else {
+          setInstallCommand(command);
+          setCurrentNodeName(node.name);
+          setInstallCommandModal(true);
+        }
+      } else {
+        toast.error(res.msg || "获取命令失败");
+      }
+    } catch {
+      toast.error("获取命令失败");
+    } finally {
+      setNodeList((prev) =>
+        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
+      );
+    }
+  };
+
   const handleCopyOfflineInstallCommand = async (node: Node) => {
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
@@ -2408,28 +2440,24 @@ export default function NodePage() {
                       </DropdownTrigger>
                       <DropdownMenu aria-label="对接方式">
                         <DropdownItem
+                          key="auto"
                           onPress={() =>
-                            handleCopyDomesticInstallCommand(node)
+                            handleCopyAutoInstallCommand(node)
                           }
                         >
-                          🌏 国内机对接
+                          🔘 自动探测线路
                         </DropdownItem>
                         <DropdownItem
+                          key="overseas"
                           onPress={() =>
                             handleCopyOverseasInstallCommand(node)
                           }
                         >
-                          🌏 国外机对接
-                        </DropdownItem>
-                        <DropdownItem
-                          onPress={() =>
-                            handleCopyAlternativeInstallCommand(node)
-                          }
-                        >
-                          🌐 备选线路
+                          🌏 国外机主线路
                         </DropdownItem>
                         <DropdownMenuSeparator />
                         <DropdownItem
+                          key="offline"
                           onPress={() => handleCopyOfflineInstallCommand(node)}
                         >
                           📦 离线部署
