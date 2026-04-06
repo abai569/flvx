@@ -6409,11 +6409,11 @@ export default function ForwardPage() {
         classNames={{
           base: "!w-[calc(100%-32px)] !mx-auto sm:!w-[500px] rounded-2xl overflow-hidden",
         }}
-        isOpen={importModalOpen}
+        isOpen={batchSpeedLimitModalOpen}
         placement="center"
         scrollBehavior="inside"
         size="lg"
-        onClose={() => setImportModalOpen(false)}
+        onClose={() => setBatchSpeedLimitModalOpen(false)}
       >
         <ModalContent>
           {(onClose) => (
