@@ -1,4 +1,4 @@
-import type { NodeGroupApiItem } from "@/api/types";
+import type { NodeGroupApiItem, OfflineDeployPayload } from "@/api/types";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
@@ -45,10 +45,19 @@ import { Chip } from "@/shadcn-bridge/heroui/chip";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
+import { Link } from "@/shadcn-bridge/heroui/link";
+import { Divider } from "@/shadcn-bridge/heroui/divider";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  DropdownMenuSeparator,
+} from "@/shadcn-bridge/heroui/dropdown";
 import { NodeListView } from "@/pages/node/node-list-view";
 import {
   createNode,
@@ -56,6 +65,10 @@ import {
   updateNode,
   deleteNode,
   getNodeInstallCommand,
+  getNodeInstallCommandDomestic,
+  getNodeInstallCommandOverseas,
+  getNodeInstallCommandAlternative,
+  getNodeInstallCommandOffline,
   updateNodeOrder,
   batchDeleteNodes,
   upgradeNode,
@@ -443,6 +456,17 @@ export default function NodePage() {
   const [installSelectorOpen, setInstallSelectorOpen] = useState(false);
   const [installTargetNode, setInstallTargetNode] = useState<Node | null>(null);
   const [installChannel, setInstallChannel] = useState<ReleaseChannel>("dev");
+
+  // 离线部署相关状态
+  const [offlineModalOpen, setOfflineModalOpen] = useState(false);
+  const [offlineCommand, setOfflineCommand] = useState("");
+  const [offlineDeployData, setOfflineDeployData] = useState<OfflineDeployPayload | null>(null);
+
+  // 硬编码下载链接
+  const OFFLINE_DOWNLOAD_URLS = {
+    amd64: "https://chfs.646321.xyz:8/chfs/shared/flvx/offline-amd64.zip",
+    arm64: "https://chfs.646321.xyz:8/chfs/shared/flvx/offline-arm64.zip",
+  };
 
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeTarget, setUpgradeTarget] = useState<"single" | "batch">(
@@ -1110,6 +1134,122 @@ export default function NodePage() {
       }
     } catch {
       toast.error("获取安装命令失败");
+    } finally {
+      setNodeList((prev) =>
+        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
+      );
+    }
+  };
+
+  const handleCopyDomesticInstallCommand = async (node: Node) => {
+    setNodeList((prev) =>
+      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
+    );
+
+    try {
+      const res = await getNodeInstallCommandDomestic(node.id);
+      if (res.code === 0 && res.data) {
+        const copied = await tryCopyInstallCommand(res.data);
+        if (copied) {
+          toast.success("国内机对接命令已复制到剪贴板");
+        } else {
+          setInstallCommand(res.data);
+          setCurrentNodeName(node.name);
+          setInstallCommandModal(true);
+        }
+      } else {
+        toast.error(res.msg || "获取命令失败");
+      }
+    } catch {
+      toast.error("获取命令失败");
+    } finally {
+      setNodeList((prev) =>
+        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
+      );
+    }
+  };
+
+  const handleCopyOverseasInstallCommand = async (node: Node) => {
+    setNodeList((prev) =>
+      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
+    );
+
+    try {
+      const res = await getNodeInstallCommandOverseas(node.id);
+      if (res.code === 0 && res.data) {
+        const copied = await tryCopyInstallCommand(res.data);
+        if (copied) {
+          toast.success("国外机对接命令已复制到剪贴板");
+        } else {
+          setInstallCommand(res.data);
+          setCurrentNodeName(node.name);
+          setInstallCommandModal(true);
+        }
+      } else {
+        toast.error(res.msg || "获取命令失败");
+      }
+    } catch {
+      toast.error("获取命令失败");
+    } finally {
+      setNodeList((prev) =>
+        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
+      );
+    }
+  };
+
+  const handleCopyAlternativeInstallCommand = async (node: Node) => {
+    setNodeList((prev) =>
+      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
+    );
+
+    try {
+      const res = await getNodeInstallCommandAlternative(node.id);
+      if (res.code === 0 && res.data) {
+        const copied = await tryCopyInstallCommand(res.data);
+        if (copied) {
+          toast.success("备选线路对接命令已复制到剪贴板");
+        } else {
+          setInstallCommand(res.data);
+          setCurrentNodeName(node.name);
+          setInstallCommandModal(true);
+        }
+      } else {
+        toast.error(res.msg || "获取命令失败");
+      }
+    } catch {
+      toast.error("获取命令失败");
+    } finally {
+      setNodeList((prev) =>
+        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
+      );
+    }
+  };
+
+  const handleCopyOfflineInstallCommand = async (node: Node) => {
+    setNodeList((prev) =>
+      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
+    );
+
+    try {
+      const res = await getNodeInstallCommandOffline(node.id);
+      if (res.code === 0 && res.data) {
+        const data = res.data as OfflineDeployPayload;
+        // 前端硬编码命令格式
+        const command = `unzip -d /tmp/flux_agent -o offline.zip && bash /tmp/flux_agent/offline.sh -a ${data.panelAddr} -s ${data.secret}`;
+        const copied = await tryCopyInstallCommand(command);
+        if (copied) {
+          toast.success("离线部署命令已复制到剪贴板");
+        } else {
+          setOfflineCommand(command);
+          setOfflineDeployData(data);
+          setCurrentNodeName(data.nodeName || node.name);
+          setOfflineModalOpen(true);
+        }
+      } else {
+        toast.error(res.msg || "获取命令失败");
+      }
+    } catch {
+      toast.error("获取命令失败");
     } finally {
       setNodeList((prev) =>
         prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
@@ -2253,40 +2393,74 @@ export default function NodePage() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               {!isRemoteNode && (
-                <div className="grid grid-cols-3 gap-1.5">
-                  <Button
-                    className="min-h-8"
-                    color="success"
-                    isLoading={node.copyLoading}
-                    size="sm"
-                    variant="flat"
-                    onPress={() => openInstallSelector(node)}
-                  >
-                    安装
-                  </Button>
-                  <Button
-                    className="min-h-8"
-                    color="warning"
-                    isDisabled={node.connectionStatus !== "online"}
-                    isLoading={node.upgradeLoading}
-                    size="sm"
-                    variant="flat"
-                    onPress={() => openUpgradeModal("single", node.id)}
-                  >
-                    升级
-                  </Button>
-                  <Button
-                    className="min-h-8"
-                    color="secondary"
-                    isDisabled={node.connectionStatus !== "online"}
-                    isLoading={node.rollbackLoading}
-                    size="sm"
-                    variant="flat"
-                    onPress={() => handleRollbackNode(node)}
-                  >
-                    回退
-                  </Button>
-                </div>
+                <>
+                  <div className="mb-2">
+                    <Dropdown>
+                      <DropdownTrigger>
+                        <Button
+                          className="min-h-8 w-full"
+                          color="success"
+                          isLoading={node.copyLoading}
+                          size="sm"
+                          variant="flat"
+                        >
+                          对接
+                        </Button>
+                      </DropdownTrigger>
+                      <DropdownMenu aria-label="对接方式">
+                        <DropdownItem
+                          onPress={() =>
+                            handleCopyDomesticInstallCommand(node)
+                          }
+                        >
+                          🌏 国内机对接
+                        </DropdownItem>
+                        <DropdownItem
+                          onPress={() =>
+                            handleCopyOverseasInstallCommand(node)
+                          }
+                        >
+                          🌏 国外机对接
+                        </DropdownItem>
+                        <DropdownItem
+                          onPress={() =>
+                            handleCopyAlternativeInstallCommand(node)
+                          }
+                        >
+                          🌐 备选线路
+                        </DropdownItem>
+                        <DropdownMenuSeparator />
+                        <DropdownItem
+                          onPress={() => handleCopyOfflineInstallCommand(node)}
+                        >
+                          📦 离线部署
+                        </DropdownItem>
+                      </DropdownMenu>
+                    </Dropdown>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <Button
+                      className="min-h-8"
+                      color="warning"
+                      isDisabled={node.connectionStatus !== "online"}
+                      isLoading={node.upgradeLoading}
+                      size="sm"
+                      variant="flat"
+                      onPress={() => openUpgradeModal("single", node.id)}
+                    >
+                      升级
+                    </Button>
+                    <Button
+                      className="min-h-8"
+                      color="primary"
+                      size="sm"
+                      variant="flat"
+                      onPress={() => handleEdit(node)}
+                    >
+                      编辑
+                    </Button>
+                  </div>
+                </>
               )}
               <div
                 className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"
@@ -2680,6 +2854,10 @@ export default function NodePage() {
                                 handleDelete={handleDelete}
                                 handleEdit={handleEdit}
                                 handleRollbackNode={handleRollbackNode}
+                                handleCopyDomesticInstallCommand={handleCopyDomesticInstallCommand}
+                                handleCopyOverseasInstallCommand={handleCopyOverseasInstallCommand}
+                                handleCopyAlternativeInstallCommand={handleCopyAlternativeInstallCommand}
+                                handleCopyOfflineInstallCommand={handleCopyOfflineInstallCommand}
                                 nodeGroups={nodeGroups}
                                 openInstallSelector={openInstallSelector}
                                 openUpgradeModal={openUpgradeModal}
@@ -2727,6 +2905,10 @@ export default function NodePage() {
                   handleDelete={handleDelete}
                   handleEdit={handleEdit}
                   handleRollbackNode={handleRollbackNode}
+                  handleCopyDomesticInstallCommand={handleCopyDomesticInstallCommand}
+                  handleCopyOverseasInstallCommand={handleCopyOverseasInstallCommand}
+                  handleCopyAlternativeInstallCommand={handleCopyAlternativeInstallCommand}
+                  handleCopyOfflineInstallCommand={handleCopyOfflineInstallCommand}
                   nodeGroups={nodeGroups}
                   openInstallSelector={openInstallSelector}
                   openUpgradeModal={openUpgradeModal}
@@ -3362,6 +3544,17 @@ export default function NodePage() {
                   value={installCommand}
                   variant="bordered"
                 />
+                <Button
+                  size="sm"
+                  variant="flat"
+                  className="absolute bottom-2 right-2"
+                  onPress={() => {
+                    // 👇 直接调用你已经封装好的兼容函数，HTTP 下也能完美复制！
+                    copyToClipboard(offlineCommand, "命令");
+                  }}
+                >
+                  复制
+                </Button>
               </div>
               <div className="text-xs text-default-500">
                 💡 提示：请3击或拖拽鼠标选择上方完整文本进行手动复制
@@ -3735,6 +3928,97 @@ export default function NodePage() {
               </ModalFooter>
             </>
           )}
+        </ModalContent>
+      </Modal>
+
+      {/* 离线部署弹窗 */}
+      <Modal
+        isOpen={offlineModalOpen}
+        size="lg"
+        onOpenChange={setOfflineModalOpen}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            ℹ️ 离线部署
+          </ModalHeader>
+          <ModalBody>
+            {/* 1. 下载链接 */}
+            <Alert
+              title="请按机器的架构下载合适的离线包："
+              description={
+                // 👇 修改了这里的 className：换成 flex 水平排列，并加了 flex-wrap 防止手机端太挤换行，gap-4 控制左右间距
+                <div className="flex flex-wrap items-center gap-4 mt-2">
+                  <Link
+                    href={OFFLINE_DOWNLOAD_URLS.amd64}
+                    className="text-primary hover:underline flex items-center gap-2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    offline-amd64.zip
+                  </Link>
+                  <Link
+                    href={OFFLINE_DOWNLOAD_URLS.arm64}
+                    className="text-primary hover:underline flex items-center gap-2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    offline-arm64.zip
+                  </Link>
+                </div>
+              }
+              color="warning"
+            />
+
+
+
+            {/* 2. 命令区域 */}
+            <p className="text-sm">
+              <span className="font-bold">{offlineDeployData?.nodeName || currentNodeName}</span>
+              <span className="font-medium"> 的离线对接命令：</span>
+            </p>
+
+            <div className="relative mt-2">
+              <Textarea
+                readOnly
+                className="font-mono text-sm"
+                value={offlineCommand}
+                rows={2}
+              />
+              <Button
+                size="sm"
+                variant="flat"
+                className="absolute bottom-2 right-2"
+                onPress={() => {
+                  copyToClipboard(offlineCommand, "命令");
+                }}
+              >
+                复制
+              </Button>
+            </div>
+
+            {/* 3. 使用说明 */}
+            <Alert
+              title=""
+              description={
+                <span className="list-decimal list-inside space-y-1 text-sm mt-2">
+                  使用方法：上传离线包到【无法在线对接的机器】并重命名为 offline.zip。然后 cd 切换到【离线包所在目录】运行以上命令。
+                </span>
+              }
+              color="primary"
+            />
+
+            {/* 4. 依赖提示 */}
+            <Alert
+              title=""
+              description={
+                <span className="mt-2 block">提示：离线安装依赖 unzip 命令，请自行安装。</span>
+              }
+              color="warning"
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button onPress={() => setOfflineModalOpen(false)}>知道了</Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
 

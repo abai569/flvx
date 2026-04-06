@@ -601,3 +601,9 @@ export interface NodeTagMutationPayload {
   name: string;
   color?: string;
 }
+
+export interface OfflineDeployPayload {
+  panelAddr: string;
+  secret: string;
+  nodeName: string;
+}

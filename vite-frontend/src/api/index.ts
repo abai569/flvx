@@ -9,6 +9,7 @@ import type {
   NodeApiItem,
   NodeTagApiItem,
   NodeTagMutationPayload,
+  OfflineDeployPayload,
   SpeedLimitApiItem,
   TunnelBatchDeletePreviewApiData,
   TunnelBatchDeleteWithForwardsApiData,
@@ -99,6 +100,20 @@ export const getNodeInstallCommand = (
   id: number,
   channel: ReleaseChannel = "stable",
 ) => Network.post<string>("/node/install", { id, channel });
+export const getNodeInstallCommandDomestic = (
+  id: number,
+  channel: ReleaseChannel = "stable",
+) => Network.post<string>("/node/install-domestic", { id, channel });
+export const getNodeInstallCommandOverseas = (
+  id: number,
+  channel: ReleaseChannel = "stable",
+) => Network.post<string>("/node/install-overseas", { id, channel });
+export const getNodeInstallCommandAlternative = (
+  id: number,
+  channel: ReleaseChannel = "stable",
+) => Network.post<string>("/node/install-alternative", { id, channel });
+export const getNodeInstallCommandOffline = (id: number) =>
+  Network.post<OfflineDeployPayload>("/node/install-offline", { id });
 export const updateNodeOrder = (data: {
   nodes: Array<{ id: number; inx: number }>;
 }) => Network.post("/node/update-order", data);

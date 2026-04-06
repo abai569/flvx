@@ -10,6 +10,13 @@ import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  DropdownMenuSeparator,
+} from "@/shadcn-bridge/heroui/dropdown";
 // 🎯 补全了 Select 相关的导入
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import {
@@ -74,9 +81,13 @@ interface NodeListViewProps {
   handleDelete: (node: Node) => void;
   formatTraffic: (bytes: number) => string;
   nodeGroups: any[];
-  // 🎯 补全了父组件传下来的筛选状态
   filterGroupId: number | null;
   setFilterGroupId: (id: number | null) => void;
+  // 新增四种对接方式的处理函数
+  handleCopyDomesticInstallCommand?: (node: Node) => void;
+  handleCopyOverseasInstallCommand?: (node: Node) => void;
+  handleCopyAlternativeInstallCommand?: (node: Node) => void;
+  handleCopyOfflineInstallCommand?: (node: Node) => void;
 }
 
 function SortableTableRow({
@@ -86,13 +97,15 @@ function SortableTableRow({
   selectedIds,
   toggleSelect,
   copyToClipboard,
-  openInstallSelector,
   openUpgradeModal,
-  handleRollbackNode,
   handleEdit,
   handleDelete,
   formatTraffic,
   nodeGroups,
+  handleCopyDomesticInstallCommand,
+  handleCopyOverseasInstallCommand,
+  handleCopyAlternativeInstallCommand,
+  handleCopyOfflineInstallCommand,
 }: any) {
   const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({ id: node.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
@@ -138,8 +151,41 @@ function SortableTableRow({
       <TableCell className={`whitespace-nowrap ${rowBg}`}>{node.remark?.trim() ? (<span className="text-sm truncate block max-w-[120px]" title={node.remark.trim()}>{node.remark.trim()}</span>) : (<span className="text-sm text-default-400">-</span>)}</TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-start gap-1">
-          {!isRemoteNode && (<><Button className="min-h-7 px-2" color="success" isLoading={node.copyLoading} size="sm" variant="flat" onPress={() => openInstallSelector(node)}>安装</Button><Button className="min-h-7 px-2" color="warning" isDisabled={node.connectionStatus !== "online"} isLoading={node.upgradeLoading} size="sm" variant="flat" onPress={() => openUpgradeModal("single", node.id)}>升级</Button><Button className="min-h-7 px-2" color="secondary" isDisabled={node.connectionStatus !== "online"} isLoading={node.rollbackLoading} size="sm" variant="flat" onPress={() => handleRollbackNode(node)}>回退</Button><Button className="min-h-7 px-2" color="primary" size="sm" variant="flat" onPress={() => handleEdit(node)}>编辑</Button></>)}
-          <Button className="min-h-7 px-2" color="danger" size="sm" variant="flat" onPress={() => handleDelete(node)}>删除</Button>
+          {!isRemoteNode && (
+            <>
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button className="min-h-7 px-2" color="success" isLoading={node.copyLoading} size="sm" variant="flat">
+                    对接
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu aria-label="对接方式">
+                  <DropdownItem onPress={() => handleCopyDomesticInstallCommand?.(node)}>
+                    🌏 国内机对接
+                  </DropdownItem>
+                  <DropdownItem onPress={() => handleCopyOverseasInstallCommand?.(node)}>
+                    🌏 国外机对接
+                  </DropdownItem>
+                  <DropdownItem onPress={() => handleCopyAlternativeInstallCommand?.(node)}>
+                    🌐 备选线路
+                  </DropdownItem>
+                  <DropdownMenuSeparator />
+                  <DropdownItem onPress={() => handleCopyOfflineInstallCommand?.(node)}>
+                    📦 离线部署
+                  </DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
+              <Button className="min-h-7 px-2" color="warning" isDisabled={node.connectionStatus !== "online"} isLoading={node.upgradeLoading} size="sm" variant="flat" onPress={() => openUpgradeModal("single", node.id)}>
+                升级
+              </Button>
+              <Button className="min-h-7 px-2" color="primary" size="sm" variant="flat" onPress={() => handleEdit(node)}>
+                编辑
+              </Button>
+            </>
+          )}
+          <Button className="min-h-7 px-2" color="danger" size="sm" variant="flat" onPress={() => handleDelete(node)}>
+            删除
+          </Button>
         </div>
       </TableCell>
     </TableRow>
@@ -154,16 +200,17 @@ export function NodeListView({
   toggleSelect,
   toggleSelectAll,
   copyToClipboard,
-  openInstallSelector,
   openUpgradeModal,
-  handleRollbackNode,
   handleEdit,
   handleDelete,
   formatTraffic,
   nodeGroups,
-  // 🎯 这里的 Props 也要解构出来
   filterGroupId,
   setFilterGroupId,
+  handleCopyDomesticInstallCommand,
+  handleCopyOverseasInstallCommand,
+  handleCopyAlternativeInstallCommand,
+  handleCopyOfflineInstallCommand,
 }: NodeListViewProps) {
   const isAllSelected = displayNodes.length > 0 && selectedIds.size === displayNodes.length;
 
@@ -192,16 +239,12 @@ export function NodeListView({
               value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0",
               selectorIcon: "text-default-400 w-3.5 h-3.5 static m-0",
               innerWrapper: "w-fit flex-none",
-              // 🎯 这里的 placeholder 样式很关键，让没选中时看起来和表头一模一样
               placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
             }}
             placeholder="节点分组"
-            // 🎯 核心修改：当 filterGroupId 是 null (即选了全部) 时，传入空数组 []
-            // 这样组件就会自动显示上面定义的 placeholder="节点分组"
             selectedKeys={filterGroupId === null ? [] : filterGroupId === -1 ? ["none"] : [String(filterGroupId)]}
             onSelectionChange={(keys) => {
               const selected = Array.from(keys)[0] as string | undefined;
-              // 选了"全部分组"或者清空时，设为 null
               if (!selected || selected === "all") {
                 setFilterGroupId(null);
               } else if (selected === "none") {
@@ -241,7 +284,23 @@ export function NodeListView({
         {displayNodes.map((node) => (
           <SortableTableRow
             key={node.id}
-            {...{ node, realtimeNodeMetrics, upgradeProgress, selectedIds, toggleSelect, copyToClipboard, openInstallSelector, openUpgradeModal, handleRollbackNode, handleEdit, handleDelete, formatTraffic, nodeGroups }}
+            {...{
+              node,
+              realtimeNodeMetrics,
+              upgradeProgress,
+              selectedIds,
+              toggleSelect,
+              copyToClipboard,
+              openUpgradeModal,
+              handleEdit,
+              handleDelete,
+              formatTraffic,
+              nodeGroups,
+              handleCopyDomesticInstallCommand,
+              handleCopyOverseasInstallCommand,
+              handleCopyAlternativeInstallCommand,
+              handleCopyOfflineInstallCommand,
+            }}
           />
         ))}
       </TableBody>

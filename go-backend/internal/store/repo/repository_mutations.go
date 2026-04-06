@@ -328,6 +328,18 @@ func (r *Repository) GetNodeSecret(nodeID int64) (string, error) {
 	return node.Secret, nil
 }
 
+func (r *Repository) GetNodeName(nodeID int64) (string, error) {
+	if r == nil || r.db == nil {
+		return "", errors.New("repository not initialized")
+	}
+	var node model.Node
+	err := r.db.Select("name").Where("id = ?", nodeID).First(&node).Error
+	if err != nil {
+		return "", normalizeNotFoundErr(err)
+	}
+	return node.Name, nil
+}
+
 func (r *Repository) GetViteConfigValue(name string) (string, error) {
 	if r == nil || r.db == nil {
 		return "", errors.New("repository not initialized")

@@ -553,7 +553,7 @@ func (h *Handler) nodeInstallOverseas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := fmt.Sprintf("bash <(curl -fLSs https://github.com/%s/releases/download/%s/install.sh) -a %s -s %s", githubRepo, version, processServerAddress(panelAddr), secret)
+	cmd := fmt.Sprintf("curl -L https://github.com/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", githubRepo, version, version, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 
@@ -598,7 +598,7 @@ func (h *Handler) nodeInstallAlternative(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	cmd := fmt.Sprintf("curl -L https://git-proxy.abai.eu.org/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", githubRepo, version, processServerAddress(panelAddr), secret)
+	cmd := fmt.Sprintf("curl -L https://git-proxy.abai.eu.org/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", githubRepo, version, version, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 
@@ -634,9 +634,22 @@ func (h *Handler) nodeInstallOffline(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	nodeName, err := h.repo.GetNodeName(req.ID)
+	if err != nil {
+		nodeName = ""
+	}
 
-	cmd := fmt.Sprintf("unzip -d /tmp/flux_agent -o offline.zip && bash /tmp/flux_agent/offline.sh -a %s -s %s", processServerAddress(panelAddr), secret)
-	response.WriteJSON(w, response.OK(cmd))
+	type OfflineDeployPayload struct {
+		PanelAddr string `json:"panelAddr"`
+		Secret    string `json:"secret"`
+		NodeName  string `json:"nodeName"`
+	}
+
+	response.WriteJSON(w, response.OK(OfflineDeployPayload{
+		PanelAddr: processServerAddress(panelAddr),
+		Secret:    secret,
+		NodeName:  nodeName,
+	}))
 }
 
 func (h *Handler) nodeUpdateOrder(w http.ResponseWriter, r *http.Request) {
