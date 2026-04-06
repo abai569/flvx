@@ -133,6 +133,7 @@ interface Tunnel {
   portRangeMin?: number;
   portRangeMax?: number;
   remark?: string;
+  trafficRatio?: number;
 }
 
 interface Node {
@@ -5201,12 +5202,60 @@ export default function ForwardPage() {
                           handleTunnelChange(selectedKey);
                         }
                       }}
+                      // 👇 核心修复：使用 renderValue 强行渲染选中后输入框里的富文本样式
+                      renderValue={(items) => {
+                        return items.map((item) => {
+                          const tunnel = tunnels.find((t) => t.id.toString() === item.key);
+                          if (!tunnel) return item.textValue;
+
+                          const allTunnel = allTunnels.find((t) => t.id === tunnel.id);
+                          const trafficRatio = allTunnel?.trafficRatio;
+                          const formattedRatio = formatTunnelTrafficRatio(trafficRatio);
+
+                          return (
+                            <div key={item.key} className="flex items-center gap-1">
+                              <span className="font-medium text-foreground">{tunnel.name}</span>
+                              {/* 这里的蓝色倍率绝对生效 */}
+                              <span className="text-primary-600 font-bold text-[10px]">
+                                ^{formattedRatio}
+                              </span>
+                              {tunnel.remark && (
+                                <span className="text-default-400 text-xs ml-0.5">
+                                  ({tunnel.remark})
+                                </span>
+                              )}
+                            </div>
+                          );
+                        });
+                      }}
                     >
-                      {tunnels.map((tunnel) => (
-                        <SelectItem key={tunnel.id.toString()} textValue={tunnel.remark ? `${tunnel.name} (${tunnel.remark})` : tunnel.name}>
-                          <span>{tunnel.name}{tunnel.remark && <span className="text-xs text-default-400 ml-1">({tunnel.remark})</span>}</span>
-                        </SelectItem>
-                      ))}
+                      {tunnels.map((tunnel) => {
+                        // 从 allTunnels 中获取 trafficRatio
+                        const allTunnel = allTunnels.find((t) => t.id === tunnel.id);
+                        const trafficRatio = allTunnel?.trafficRatio;
+                        // 调用统一个格式化函数，自带 x 后缀
+                        const formattedRatio = formatTunnelTrafficRatio(trafficRatio);
+                        
+                        return (
+                          <SelectItem 
+                            key={tunnel.id.toString()} 
+                            textValue={tunnel.remark ? `${tunnel.name} ^${formattedRatio} (${tunnel.remark})` : `${tunnel.name} ^${formattedRatio}`}
+                          >
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium text-foreground">{tunnel.name}</span>
+                              {/* 只有在 PC 桌面端 (非原生 select) 展开列表时，这里的蓝色才会生效 */}
+                              <span className="text-primary-600 font-bold text-[10px]">
+                                ^{formattedRatio}
+                              </span>
+                              {tunnel.remark && (
+                                <span className="text-default-400 text-xs ml-0.5">
+                                  ({tunnel.remark})
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </Select>
                     {/* 入口端口 */}
                     <Input
@@ -5583,12 +5632,12 @@ export default function ForwardPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-2xl rounded-2xl overflow-hidden",
         }}
         isOpen={importModalOpen}
         placement="center"
-        scrollBehavior="outside"
-        size="md"
+        scrollBehavior="inside"
+        size="lg"
         onClose={() => setImportModalOpen(false)}
       >
         <ModalContent>
@@ -5614,7 +5663,7 @@ export default function ForwardPage() {
               </>
             )}
           </ModalHeader>
-          <ModalBody className="pb-6">
+          <ModalBody className="pb-6 overflow-y-auto">
             <div className="space-y-4">
               {/* 格式选择 */}
               <Select

@@ -160,19 +160,29 @@ function SortableTableRow({
                   </Button>
                 </DropdownTrigger>
                 <DropdownMenu aria-label="对接方式">
-                  <DropdownItem onPress={() => handleCopyDomesticInstallCommand?.(node)}>
-                    🌏 国内机对接
-                  </DropdownItem>
-                  <DropdownItem onPress={() => handleCopyOverseasInstallCommand?.(node)}>
-                    🌏 国外机对接
-                  </DropdownItem>
-                  <DropdownItem onPress={() => handleCopyAlternativeInstallCommand?.(node)}>
-                    🌐 备选线路
-                  </DropdownItem>
-                  <DropdownMenuSeparator />
-                  <DropdownItem onPress={() => handleCopyOfflineInstallCommand?.(node)}>
-                    📦 离线部署
-                  </DropdownItem>
+                  <DropdownItem
+                          key="auto"
+                          onPress={() =>
+                            handleCopyAutoInstallCommand(node)
+                          }
+                        >
+                          🔘 自动探测线路
+                        </DropdownItem>
+                        <DropdownItem
+                          key="overseas"
+                          onPress={() =>
+                            handleCopyOverseasInstallCommand(node)
+                          }
+                        >
+                          🌏 国外机主线路
+                        </DropdownItem>
+                        <DropdownMenuSeparator />
+                        <DropdownItem
+                          key="offline"
+                          onPress={() => handleCopyOfflineInstallCommand(node)}
+                        >
+                          📦 离线部署
+                        </DropdownItem>
                 </DropdownMenu>
               </Dropdown>
               <Button className="min-h-7 px-2" color="warning" isDisabled={node.connectionStatus !== "online"} isLoading={node.upgradeLoading} size="sm" variant="flat" onPress={() => openUpgradeModal("single", node.id)}>
