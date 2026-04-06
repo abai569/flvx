@@ -87,9 +87,25 @@ const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
 const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: "github_proxy_enabled",
-    label: "启用GitHub加速",
-    description: "开启后保存，节点安装和升级将使用默认代理加速下载，支持ipv6和国内网络环境",
+    label: "启用 GitHub 加速",
+    description: "开启后保存，节点安装和升级将使用自定义代理加速下载",
     type: "switch",
+  },
+  {
+    key: "github_proxy_url",
+    label: "自定义加速地址",
+    placeholder: "https://git-proxy.abai.eu.org",
+    description: "国外机对接和海外机器升级使用的加速地址。失效时自动切换到备用源。地址后面不要带/",
+    type: "input",
+    dependsOn: "github_proxy_enabled",
+    dependsValue: "true",
+  },
+  {
+    key: "domestic_download_host",
+    label: "国内下载源地址",
+    placeholder: "https://chfs.646321.xyz:8/chfs/shared/flvx",
+    description: "国内机器的下载源地址，留空使用默认值。用于自动探测线路和离线包下载。",
+    type: "input",
   },
   {
     key: "github_proxy_urls",

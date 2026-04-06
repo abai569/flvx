@@ -40,35 +40,42 @@ get_architecture() {
     esac
 }
 
-# 国内专用安装脚本 - 硬编码国内 CDN 路径
-DOWNLOAD_HOST="https://chfs.646321.xyz:8/chfs/shared/flvx"
-
-# 获取系统架构
-get_architecture() {
-    ARCH=$(uname -m)
-    case $ARCH in
-        x86_64)
-            echo "amd64"
-            ;;
-        aarch64|arm64)
-            echo "arm64"
-            ;;
-        *)
-            echo "amd64"  # 默认使用 amd64
-            ;;
-    esac
+# 镜像加速（所有下载均经过镜像源，以支持 IPv6）
+maybe_proxy_url() {
+  local url="$1"
+  if [[ -n "$GITHUB_PROXY" ]]; then
+    IFS=',' read -ra PROXIES <<< "$GITHUB_PROXY"
+    for proxy in "${PROXIES[@]}"; do
+      proxy=$(echo "$proxy" | xargs)
+      if [[ -n "$proxy" ]]; then
+        echo "${proxy}/${url}"
+        return 0
+      fi
+    done
+  fi
+  echo "https://git-proxy.abai.eu.org/${url}"
 }
 
-# 获取最新版本号
 resolve_latest_release_tag() {
-  local tag
-  tag=$(curl -fsSL "${DOWNLOAD_HOST}/VERSION" 2>/dev/null || echo "")
-  if [[ -n "$tag" ]]; then
+  local effective_url tag api_tag latest_url api_url
+
+  latest_url="https://github.com/${REPO}/releases/latest"
+  api_url="https://api.github.com/repos/${REPO}/releases/latest"
+
+  effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$(maybe_proxy_url "$latest_url")" 2>/dev/null || true)
+  tag="${effective_url##*/}"
+  if [[ -n "$tag" && "$tag" != "latest" ]]; then
     echo "$tag"
     return 0
   fi
-  echo "2.2.5"  # 默认版本
-  return 0
+
+  api_tag=$(curl -fsSL "$(maybe_proxy_url "$api_url")" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
+  if [[ -n "$api_tag" ]]; then
+    echo "$api_tag"
+    return 0
+  fi
+
+  return 1
 }
 
 resolve_version() {
@@ -93,15 +100,15 @@ resolve_version() {
   return 1
 }
 
-# 构建下载地址（国内 CDN）
+# 构建下载地址
 build_download_url() {
     local ARCH=$(get_architecture)
-    echo "${DOWNLOAD_HOST}/gost-${ARCH}"
+    echo "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/gost-${ARCH}"
 }
 
 # 解析版本并构建下载地址
 RESOLVED_VERSION=$(resolve_version) || exit 1
-DOWNLOAD_URL="$(build_download_url)"
+DOWNLOAD_URL=$(maybe_proxy_url "$(build_download_url)")
 
 # 显示菜单
 show_menu() {
@@ -337,7 +344,7 @@ update_service() {
   echo "🔄 开始更新 ${SERVICE_NAME}..."
   
   SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
-  SCRIPT_DOWNLOAD_URL="${DOWNLOAD_HOST}/install.sh"
+  SCRIPT_DOWNLOAD_URL=$(maybe_proxy_url "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/install.sh")
   
   echo "⬇️ 正在检查并更新安装脚本自身..."
   curl -L "$SCRIPT_DOWNLOAD_URL" -o "${SCRIPT_PATH}.new"
