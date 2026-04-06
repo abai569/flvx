@@ -301,8 +301,12 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := asString(req["name"])
-	// 从 serverIpV4/serverIpV6/intranetIp 中选择第一个非空作为 serverIP
-	serverIP := asString(req["serverIpV4"])
+	// 从 serverIp(serverIpV4/serverIpV6/intranetIp) 中选择第一个非空作为 serverIP
+	// 优先使用 serverIp（兼容旧 API），否则从 serverIpV4/serverIpV6/intranetIp 中选择
+	serverIP := asString(req["serverIp"])
+	if serverIP == "" {
+		serverIP = asString(req["serverIpV4"])
+	}
 	if serverIP == "" {
 		serverIP = asString(req["serverIpV6"])
 	}
@@ -409,8 +413,12 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 	} else {
 		groupID = nil
 	}
-	// 从 serverIpV4/serverIpV6/intranetIp 中选择第一个非空作为 serverIP
-	serverIP := asString(req["serverIpV4"])
+	// 从 serverIp(serverIpV4/serverIpV6/intranetIp) 中选择第一个非空作为 serverIP
+	// 优先使用 serverIp（兼容旧 API），否则从 serverIpV4/serverIpV6/intranetIp 中选择
+	serverIP := asString(req["serverIp"])
+	if serverIP == "" {
+		serverIP = asString(req["serverIpV4"])
+	}
 	if serverIP == "" {
 		serverIP = asString(req["serverIpV6"])
 	}
