@@ -193,12 +193,12 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 	// 构建三种下载源（国内/海外/备选）
 	downloadURLs := []string{
 		fmt.Sprintf("https://github.com/%s/releases/download/%s/gost-{ARCH}", githubRepo, version),
-		fmt.Sprintf("https://chfs.646321.xyz:8/flvx/gost-{ARCH}"),
+		fmt.Sprintf("https://chfs.646321.xyz:8/chfs/shared/flvx/gost-{ARCH}"),
 		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}", githubRepo, version),
 	}
 	checksumURLs := []string{
 		fmt.Sprintf("https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", githubRepo, version),
-		fmt.Sprintf("https://chfs.646321.xyz:8/flvx/gost-{ARCH}.sha256"),
+		fmt.Sprintf("https://chfs.646321.xyz:8/chfs/shared/flvx/gost-{ARCH}.sha256"),
 		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}.sha256", githubRepo, version),
 	}
 

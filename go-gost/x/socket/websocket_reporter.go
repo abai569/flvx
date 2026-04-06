@@ -1606,26 +1606,53 @@ func (w *WebSocketReporter) sendUpgradeProgress(stage string, percent int, messa
 func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("序列化数据失败: %v", err)
+		return fmt.Errorf("序列化数据失败：%v", err)
 	}
 
 	var req struct {
-		DownloadURL string `json:"downloadUrl"`
-		ChecksumURL string `json:"checksumUrl"`
+		DownloadURLs []string `json:"downloadUrls"`
+		ChecksumURLs []string `json:"checksumUrls"`
+		Version      string   `json:"version"`
 	}
 	if err := json.Unmarshal(jsonData, &req); err != nil {
-		return fmt.Errorf("解析升级参数失败: %v", err)
+		return fmt.Errorf("解析升级参数失败：%v", err)
 	}
-	if strings.TrimSpace(req.DownloadURL) == "" {
+	if len(req.DownloadURLs) == 0 {
 		return fmt.Errorf("下载地址不能为空")
 	}
 
-	// 替换架构占位符
-	downloadURL := strings.ReplaceAll(req.DownloadURL, "{ARCH}", runtime.GOARCH)
-	checksumURL := strings.ReplaceAll(req.ChecksumURL, "{ARCH}", runtime.GOARCH)
-
 	w.sendUpgradeProgress("downloading", 0, "开始下载升级包...")
-	fmt.Printf("📦 开始下载升级包: %s\n", downloadURL)
+
+	// 尝试多个下载源
+	var downloadURL string
+	var checksumURL string
+	var lastErr error
+
+	for i := range req.DownloadURLs {
+		downloadURL = strings.ReplaceAll(req.DownloadURLs[i], "{ARCH}", runtime.GOARCH)
+		if i < len(req.ChecksumURLs) {
+			checksumURL = strings.ReplaceAll(req.ChecksumURLs[i], "{ARCH}", runtime.GOARCH)
+		}
+
+		fmt.Printf("📦 尝试下载升级包：%s\n", downloadURL)
+
+		// 测试下载连接
+		resp, err := http.Head(downloadURL)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			resp.Body.Close()
+			fmt.Printf("✅ 下载源可用：%s\n", downloadURL)
+			break
+		}
+		if err != nil {
+			lastErr = err
+		}
+	}
+
+	if downloadURL == "" {
+		return fmt.Errorf("所有下载源都不可用：%v", lastErr)
+	}
+
+	fmt.Printf("📦 开始下载升级包：%s\n", downloadURL)
 
 	// 下载新版本二进制
 	const binaryPath = "/etc/flux_agent/flux_agent"
@@ -1634,17 +1661,17 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 
 	resp, err := http.Get(downloadURL)
 	if err != nil {
-		return fmt.Errorf("下载升级包失败: %v", err)
+		return fmt.Errorf("下载升级包失败：%v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("下载升级包失败, HTTP状态码: %d", resp.StatusCode)
+		return fmt.Errorf("下载升级包失败，HTTP 状态码：%d", resp.StatusCode)
 	}
 
 	outFile, err := os.Create(tmpPath)
 	if err != nil {
-		return fmt.Errorf("创建临时文件失败: %v", err)
+		return fmt.Errorf("创建临时文件失败：%v", err)
 	}
 
 	// 带进度的下载
@@ -1660,7 +1687,7 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 			if _, wErr := outFile.Write(buf[:n]); wErr != nil {
 				outFile.Close()
 				os.Remove(tmpPath)
-				return fmt.Errorf("写入升级包失败: %v", wErr)
+				return fmt.Errorf("写入升级包失败：%v", wErr)
 			}
 			hasher.Write(buf[:n])
 			downloaded += int64(n)
@@ -1678,7 +1705,7 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 			}
 			outFile.Close()
 			os.Remove(tmpPath)
-			return fmt.Errorf("读取升级包失败: %v", readErr)
+			return fmt.Errorf("读取升级包失败：%v", readErr)
 		}
 	}
 	outFile.Close()
@@ -1699,10 +1726,11 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 			if checksumResp.StatusCode == http.StatusOK {
 				checksumBody, err := io.ReadAll(checksumResp.Body)
 				if err == nil {
-					// 格式: "<hash>  <filename>" 或 "<hash>"
+					// 格式："<hash>  <filename>" 或 "<hash>"
 					expectedHash := strings.TrimSpace(strings.Split(string(checksumBody), " ")[0])
 					actualHash := hex.EncodeToString(hasher.Sum(nil))
 					if !strings.EqualFold(expectedHash, actualHash) {
+
 						os.Remove(tmpPath)
 						return fmt.Errorf("校验失败: 期望 %s, 实际 %s", expectedHash, actualHash)
 					}
