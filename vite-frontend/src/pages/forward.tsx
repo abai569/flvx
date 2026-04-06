@@ -1491,7 +1491,6 @@ export default function ForwardPage() {
   const [groupPreferenceHydrated, setGroupPreferenceHydrated] = useState(false);
 
   // 限速相关状态
-  const [speedLimitModalOpen, setSpeedLimitModalOpen] = useState(false);
   const [batchSpeedLimitModalOpen, setBatchSpeedLimitModalOpen] =
     useState(false);
   const [forwardToSetSpeedLimit, setForwardToSetSpeedLimit] =
@@ -3459,7 +3458,7 @@ export default function ForwardPage() {
   const handleSetSpeedLimit = (forward: Forward) => {
     setForwardToSetSpeedLimit(forward);
     setSelectedSpeedLimitId(forward.speedId ?? null);
-    setSpeedLimitModalOpen(true);
+    // speedLimitModalOpen 已删除
   };
 
   // 确认设置单条规则限速
@@ -3477,13 +3476,13 @@ export default function ForwardPage() {
         toast.success("限速设置成功");
         await refreshForwardList(false);
       } else {
-        toast.error(res.msg || "设置失败");
+      toast.error(res.msg || "设置失败");
       }
     } catch {
-      toast.error("设置失败");
+      toast.error("设置异常，请重试");
     } finally {
       setSpeedLimitLoading(false);
-      setSpeedLimitModalOpen(false);
+      // speedLimitModalOpen 已删除
       setForwardToSetSpeedLimit(null);
     }
   };
@@ -5702,7 +5701,7 @@ export default function ForwardPage() {
                   </div>
 
                   <div
-                    className="max-h-40 overflow-y-auto space-y-1"
+                    className="max-h-40 sm:max-h-60 overflow-y-auto space-y-1"
                     style={{
                       scrollbarWidth: "thin",
                       scrollbarColor: "rgb(156 163 175) transparent",
@@ -6408,10 +6407,13 @@ export default function ForwardPage() {
       {/* 限速设置模态框 */}
       <Modal
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-[500px] rounded-2xl overflow-hidden",
         }}
-        isOpen={speedLimitModalOpen}
-        onOpenChange={setSpeedLimitModalOpen}
+        isOpen={importModalOpen}
+        placement="center"
+        scrollBehavior="inside"
+        size="lg"
+        onClose={() => setImportModalOpen(false)}
       >
         <ModalContent>
           {(onClose) => (
