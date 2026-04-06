@@ -281,11 +281,12 @@ install_service() {
   echo "🔎 ${SERVICE_NAME} 版本：$($INSTALL_DIR/${SERVICE_NAME} -V)"
 
   CONFIG_FILE="$INSTALL_DIR/config.json"
-  echo "📄 创建新配置: config.json"
+  echo "📄 创建新配置：config.json"
   cat > "$CONFIG_FILE" <<EOF
 {
   "addr": "$SERVER_ADDR",
-  "secret": "$SECRET"
+  "secret": "$SECRET",
+  "service_name": "$SERVICE_NAME"
 }
 EOF
 
