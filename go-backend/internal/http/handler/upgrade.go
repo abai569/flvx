@@ -190,18 +190,21 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	downloadURL := fmt.Sprintf(
-		"https://github.com/%s/releases/download/%s/gost-{ARCH}",
-		githubRepo, version,
-	)
-	checksumURL := fmt.Sprintf(
-		"https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256",
-		githubRepo, version,
-	)
+	// 构建三种下载源（国内/海外/备选）
+	downloadURLs := []string{
+		fmt.Sprintf("https://github.com/%s/releases/download/%s/gost-{ARCH}", githubRepo, version),
+		fmt.Sprintf("https://chfs.646321.xyz:8/flvx/gost-{ARCH}"),
+		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}", githubRepo, version),
+	}
+	checksumURLs := []string{
+		fmt.Sprintf("https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", githubRepo, version),
+		fmt.Sprintf("https://chfs.646321.xyz:8/flvx/gost-{ARCH}.sha256"),
+		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}.sha256", githubRepo, version),
+	}
 
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
-		"downloadUrl": downloadURL,
-		"checksumUrl": checksumURL,
+		"downloadUrls": downloadURLs,
+		"checksumUrls": checksumURLs,
 	}, upgradeTimeout)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("升级失败：%v", err)))
@@ -249,32 +252,21 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 		var err error
 		version, err = resolveLatestReleaseByChannel(channel)
 		if err != nil {
-			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败: %v", releaseChannelLabel(channel), err)))
+			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
 			return
 		}
 	}
 
-	proxies := resolveGitHubProxyURLs(h.repo)
-	var downloadURL, checksumURL string
-	if len(proxies) == 0 {
-		downloadURL = fmt.Sprintf(
-			"%s/%s/releases/download/%s/gost-{ARCH}",
-			githubHTMLBase, githubRepo, version,
-		)
-		checksumURL = fmt.Sprintf(
-			"%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-			githubHTMLBase, githubRepo, version,
-		)
-	} else {
-		primaryProxy := proxies[0]
-		downloadURL = buildProxyURL(primaryProxy, fmt.Sprintf(
-			"%s/%s/releases/download/%s/gost-{ARCH}",
-			githubHTMLBase, githubRepo, version,
-		))
-		checksumURL = buildProxyURL(primaryProxy, fmt.Sprintf(
-			"%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-			githubHTMLBase, githubRepo, version,
-		))
+	// 构建三种下载源（国内/海外/备选）
+	downloadURLs := []string{
+		fmt.Sprintf("https://github.com/%s/releases/download/%s/gost-{ARCH}", githubRepo, version),
+		fmt.Sprintf("https://chfs.646321.xyz:8/flvx/gost-{ARCH}"),
+		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}", githubRepo, version),
+	}
+	checksumURLs := []string{
+		fmt.Sprintf("https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", githubRepo, version),
+		fmt.Sprintf("https://chfs.646321.xyz:8/flvx/gost-{ARCH}.sha256"),
+		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}.sha256", githubRepo, version),
 	}
 
 	type upgradeResult struct {
@@ -295,8 +287,8 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 			defer func() { <-sem }()
 
 			result, err := h.wsServer.SendCommand(nodeID, "UpgradeAgent", map[string]interface{}{
-				"downloadUrl": downloadURL,
-				"checksumUrl": checksumURL,
+				"downloadUrls": downloadURLs,
+				"checksumUrls": checksumURLs,
 			}, upgradeTimeout)
 			if err != nil {
 				results[index] = upgradeResult{ID: nodeID, Success: false, Message: err.Error()}

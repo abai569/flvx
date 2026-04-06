@@ -106,7 +106,40 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 
 ---
 
-## 实施计划
+## 实施状态
+
+### ✅ 已完成
+
+1. **CI 离线包构建** - 已修改 `.github/workflows/docker-build.yml`
+   - `create-release` job 中构建 `offline-amd64.zip` 和 `offline-arm64.zip`
+   - `update-release-gost` job 中也构建离线包
+   - 上传到 GitHub Release
+
+2. **后端升级支持三种下载源** - 已修改 `go-backend/internal/http/handler/upgrade.go`
+   - `nodeUpgrade` API 传递 `downloadUrls` 和 `checksumUrls` 数组
+   - `nodeBatchUpgrade` API 同样支持多下载源
+   - agent 自动尝试多个下载源，哪个成功用哪个
+
+3. **国内服务器同步脚本** - 已创建 `scripts/sync-to-chfs.sh`
+   - 从 GitHub Release 下载文件
+   - 同步到国内 HTTP 服务器
+   - 支持本地复制和 SCP/rsync 上传
+
+### ❌ 未完成
+
+1. **前端改动** - 未实施（可选）
+   - 节点列表显示服务名
+   - 对接按钮四种选项
+
+2. **国内服务器手动同步** - 需要人工操作
+   - 每次 Release 后运行 `scripts/sync-to-chfs.sh`
+   - 上传到 `chfs.646321.xyz:/flvx/`
+
+---
+
+## 原实施计划（保留参考）
+
+### 阶段 1：后端改动（已完成）
 
 ### 阶段 1：后端改动（Go）
 

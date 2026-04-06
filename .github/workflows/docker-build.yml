@@ -304,6 +304,20 @@ jobs:
           sed -i "s|^PINNED_VERSION=\"\"|PINNED_VERSION=\"${VERSION}\"|" ./artifacts/install.sh
           sed -i "s|^PINNED_VERSION=\"\"|PINNED_VERSION=\"${VERSION}\"|" ./artifacts/panel_install.sh
 
+          # 构建离线包（amd64）
+          echo "📦 构建离线包 (amd64)..."
+          mkdir -p ./artifacts/offline-amd64
+          cp ./artifacts/gost-amd64 ./artifacts/offline-amd64/flux_agent
+          cp ./install.sh ./artifacts/offline-amd64/offline.sh
+          cd ./artifacts/offline-amd64 && zip -r ../offline-amd64.zip . && cd ../..
+
+          # 构建离线包（arm64）
+          echo "📦 构建离线包 (arm64)..."
+          mkdir -p ./artifacts/offline-arm64
+          cp ./artifacts/gost-arm64 ./artifacts/offline-arm64/flux_agent
+          cp ./install.sh ./artifacts/offline-arm64/offline.sh
+          cd ./artifacts/offline-arm64 && zip -r ../offline-arm64.zip . && cd ../..
+
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -375,6 +389,10 @@ jobs:
           gh release upload "${VERSION}" ./artifacts/docker-compose-v4.yml --clobber
           gh release upload "${VERSION}" ./artifacts/docker-compose-v6.yml --clobber
 
+          echo "📤 上传离线包..."
+          gh release upload "${VERSION}" ./artifacts/offline-amd64.zip --clobber
+          gh release upload "${VERSION}" ./artifacts/offline-arm64.zip --clobber
+
           echo "✅ Release ${VERSION} 创建完成"
 
   update-release-gost:
@@ -416,6 +434,20 @@ jobs:
           mv ./artifacts/amd64/gost-amd64 ./artifacts/gost-amd64
           mv ./artifacts/arm64/gost-arm64 ./artifacts/gost-arm64
 
+      - name: Build offline packages
+        run: |
+          echo "📦 构建离线包 (amd64)..."
+          mkdir -p ./artifacts/offline-amd64
+          cp ./artifacts/gost-amd64 ./artifacts/offline-amd64/flux_agent
+          cp ./install.sh ./artifacts/offline-amd64/offline.sh
+          cd ./artifacts/offline-amd64 && zip -r ../offline-amd64.zip . && cd ../..
+
+          echo "📦 构建离线包 (arm64)..."
+          mkdir -p ./artifacts/offline-arm64
+          cp ./artifacts/gost-arm64 ./artifacts/offline-arm64/flux_agent
+          cp ./install.sh ./artifacts/offline-arm64/offline.sh
+          cd ./artifacts/offline-arm64 && zip -r ../offline-arm64.zip . && cd ../..
+
       - name: Update GOST binaries in Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -430,5 +462,9 @@ jobs:
           echo "📤 上传 GOST 校验文件..."
           gh release upload "${VERSION}" ./artifacts/gost-amd64.sha256 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
+
+          echo "📤 上传离线包..."
+          gh release upload "${VERSION}" ./artifacts/offline-amd64.zip --clobber
+          gh release upload "${VERSION}" ./artifacts/offline-arm64.zip --clobber
 
           echo "✅ GOST 二进制文件更新完成"
