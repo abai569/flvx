@@ -2433,10 +2433,12 @@ export default function NodePage() {
           )}
 
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-1.5">
+            {/* 核心修改：统一使用一个两列的 grid，它会自动把里面的 4 个元素排成 2 行 2 列 */}
+            <div className={`grid gap-2 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}>
               {!isRemoteNode && (
                 <>
-                  <div className="mb-2">
+                  {/* 第 1 个格子：对接 */}
+                  <div className="w-full">
                     <Dropdown>
                       <DropdownTrigger>
                         <Button
@@ -2452,17 +2454,13 @@ export default function NodePage() {
                       <DropdownMenu aria-label="对接方式">
                         <DropdownItem
                           key="auto"
-                          onPress={() =>
-                            handleCopyAutoInstallCommand(node)
-                          }
+                          onPress={() => handleCopyAutoInstallCommand(node)}
                         >
                           🔘 自动探测线路
                         </DropdownItem>
                         <DropdownItem
                           key="overseas"
-                          onPress={() =>
-                            handleCopyOverseasInstallCommand(node)
-                          }
+                          onPress={() => handleCopyOverseasInstallCommand(node)}
                         >
                           🌏 国外机主线路
                         </DropdownItem>
@@ -2475,25 +2473,24 @@ export default function NodePage() {
                         </DropdownItem>
                       </DropdownMenu>
                     </Dropdown>
-                    <Button
-                      className="min-h-8"
-                      color="warning"
-                      isDisabled={node.connectionStatus !== "online"}
-                      isLoading={node.upgradeLoading}
-                      size="sm"
-                      variant="flat"
-                      onPress={() => openUpgradeModal("single", node.id)}
-                    >
-                      更新
-                    </Button>
-                  </div>              
-                </>
-              )}
-              <div className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}
-              >
-                {!isRemoteNode && (
+                  </div>
+
+                  {/* 第 2 个格子：更新 */}
                   <Button
-                    className="min-h-8"
+                    className="min-h-8 w-full"
+                    color="warning"
+                    isDisabled={node.connectionStatus !== "online"}
+                    isLoading={node.upgradeLoading}
+                    size="sm"
+                    variant="flat"
+                    onPress={() => openUpgradeModal("single", node.id)}
+                  >
+                    更新
+                  </Button>
+
+                  {/* 第 3 个格子：编辑 */}
+                  <Button
+                    className="min-h-8 w-full"
                     color="primary"
                     size="sm"
                     variant="flat"
@@ -2501,17 +2498,19 @@ export default function NodePage() {
                   >
                     编辑
                   </Button>
-                )}
-                <Button
-                  className="min-h-8"
-                  color="danger"
-                  size="sm"
-                  variant="flat"
-                  onPress={() => handleDelete(node)}
-                >
-                  删除
-                </Button>
-              </div>
+                </>
+              )}
+
+              {/* 第 4 个格子：删除 (如果是远程节点，它会自动变成占满 1 整行) */}
+              <Button
+                className="min-h-8 w-full"
+                color="danger"
+                size="sm"
+                variant="flat"
+                onPress={() => handleDelete(node)}
+              >
+                删除
+              </Button>
             </div>
           </div>
 
