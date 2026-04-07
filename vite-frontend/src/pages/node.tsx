@@ -1045,55 +1045,31 @@ export default function NodePage() {
     }
   };
   const handleCopyDomesticInstallCommand = async (node: Node) => {
-    setNodeList((prev) =>
-      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
-    );
     try {
       const res = await getNodeInstallCommandDomestic(node.id);
       if (res.code === 0 && res.data) {
-        const copied = await tryCopyInstallCommand(res.data);
-        if (copied) {
-          toast.success("国内机对接命令已复制到剪贴板");
-        } else {
-          setInstallCommand(res.data);
-          setCurrentNodeName(node.name);
-          setInstallCommandModal(true);
-        }
+        setInstallCommand(res.data);
+        setCurrentNodeName(node.name);
+        setInstallCommandModal(true);
       } else {
         toast.error(res.msg || "获取命令失败");
       }
     } catch {
       toast.error("获取命令失败");
-    } finally {
-      setNodeList((prev) =>
-        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
-      );
     }
   };
   const handleCopyOverseasInstallCommand = async (node: Node) => {
-    setNodeList((prev) =>
-      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
-    );
     try {
       const res = await getNodeInstallCommandOverseas(node.id);
       if (res.code === 0 && res.data) {
-        const copied = await tryCopyInstallCommand(res.data);
-        if (copied) {
-          toast.success("国外机对接命令已复制到剪贴板");
-        } else {
-          setInstallCommand(res.data);
-          setCurrentNodeName(node.name);
-          setInstallCommandModal(true);
-        }
+        setInstallCommand(res.data);
+        setCurrentNodeName(node.name);
+        setInstallCommandModal(true);
       } else {
         toast.error(res.msg || "获取命令失败");
       }
     } catch {
       toast.error("获取命令失败");
-    } finally {
-      setNodeList((prev) =>
-        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
-      );
     }
   };
   const handleCopyAutoInstallCommand = async (node: Node) => {
