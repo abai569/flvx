@@ -292,6 +292,7 @@ jobs:
 
           # 复制并修改安装脚本
           cp install.sh ./artifacts/install.sh
+          cp install-auto.sh ./artifacts/install-auto.sh
           cp panel_install.sh ./artifacts/panel_install.sh
 
           # 替换仓库地址和版本号
@@ -383,6 +384,7 @@ jobs:
 
           echo "📤 上传安装脚本..."
           gh release upload "${VERSION}" ./artifacts/install.sh --clobber
+          gh release upload "${VERSION}" ./artifacts/install-auto.sh --clobber
           gh release upload "${VERSION}" ./artifacts/panel_install.sh --clobber
 
           echo "📤 上传 Docker Compose 配置文件..."
