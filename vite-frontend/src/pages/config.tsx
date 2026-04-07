@@ -86,19 +86,11 @@ const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
 // 网站配置项定义
 const CONFIG_ITEMS: ConfigItem[] = [
   {
-    key: "github_proxy_enabled",
-    label: "启用 GitHub 加速",
-    description: "开启后保存，节点安装和升级将使用自定义代理加速下载",
-    type: "switch",
-  },
-  {
-    key: "github_proxy_url",
-    label: "自定义加速地址",
-    placeholder: "https://git-proxy.abai.eu.org",
-    description: "国外机对接和海外机器升级使用的加速地址。失效时自动切换到备用源。地址后面不要带/",
+    key: "ghfast_url",
+    label: "海外加速地址",
+    placeholder: "https://ghfast.top",
+    description: "海外机器安装和升级时使用的加速地址，留空使用默认值 https://ghfast.top",
     type: "input",
-    dependsOn: "github_proxy_enabled",
-    dependsValue: "true",
   },
   {
     key: "domestic_download_host",
@@ -106,15 +98,6 @@ const CONFIG_ITEMS: ConfigItem[] = [
     placeholder: "https://chfs.646321.xyz:8/chfs/shared/flvx",
     description: "国内机器的下载源地址，留空使用默认值。用于自动探测线路和离线包下载。",
     type: "input",
-  },
-  {
-    key: "github_proxy_urls",
-    label: "自定义加速地址",
-    placeholder: "每行一个代理地址，按优先级排列",
-    description: "每行填写一个地址，默认使用第一行的地址，前面的地址失效时自动轮换下一个\n地址后面不要带/，否则报错，切记 切记 切记",
-    type: "input",
-    dependsOn: "github_proxy_enabled",
-    dependsValue: "true",
   },
   {
     key: "ghfast_url",
@@ -224,8 +207,8 @@ const getInitialConfigs = (): Record<string, string> => {
     "cloudflare_site_key",
     "cloudflare_secret_key",
     "forward_compact_mode",
-    "github_proxy_enabled",
-    "github_proxy_urls",
+    "ghfast_url",
+    "domestic_download_host",
     "ip",
     "panel_domain",
     "app_logo",
