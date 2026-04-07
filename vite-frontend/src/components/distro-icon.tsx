@@ -100,7 +100,6 @@ export function parseDistroFromVersion(version?: string): string {
   if (!version) return "linux";
   const lower = version.toLowerCase();
 
-  console.log("🔍 检测系统类型，version:", version);
 
   // 优先检查常见发行版名称
   const knownDistros = [
@@ -130,7 +129,6 @@ export function parseDistroFromVersion(version?: string): string {
   // 首先检查已知发行版名称
   for (const d of knownDistros) {
     if (lower.includes(d)) {
-      console.log("✅ 识别为:", d);
 
       return d;
     }
@@ -142,18 +140,15 @@ export function parseDistroFromVersion(version?: string): string {
   if (match) {
     const extracted = match[1].trim().toLowerCase();
 
-    console.log("📦 括号中提取:", extracted);
     // 验证提取的内容是否是已知发行版
     for (const d of knownDistros) {
       if (extracted.includes(d)) {
-        console.log("✅ 识别为:", d);
 
         return d;
       }
     }
   }
 
-  console.log("❌ 未识别，返回 linux");
 
   return "linux";
 }
