@@ -23,8 +23,6 @@ FILES=(
     "gost-arm64"
     "install.sh"
     "install-auto.sh"
-    "offline-amd64.zip"
-    "offline-arm64.zip"
 )
 
 # 上传文件
