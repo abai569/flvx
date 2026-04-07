@@ -45,8 +45,8 @@ detect_and_download() {
           echo "✅ 下载完成，开始安装..."
           echo ""
           chmod +x ./install_temp.sh
-          # 执行安装脚本（传递所有参数）
-          ./install_temp.sh $AUTO_ARGS
+          # 执行安装脚本（传递 DOWNLOAD_HOST 环境变量和所有参数）
+          DOWNLOAD_HOST="${download_host}" ./install_temp.sh $AUTO_ARGS
           return 0
         else
           echo "⚠️  下载的文件无效，不是有效的脚本"

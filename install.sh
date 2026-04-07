@@ -41,7 +41,8 @@ get_architecture() {
 }
 
 # 国内专用安装脚本 - 硬编码国内 CDN 路径
-DOWNLOAD_HOST="https://chfs.646321.xyz:8/chfs/shared/flvx"
+# 支持通过环境变量 DOWNLOAD_HOST 覆盖（用于 install-auto.sh 传递）
+DOWNLOAD_HOST="${DOWNLOAD_HOST:-https://chfs.646321.xyz:8/chfs/shared/flvx}"
 
 # 获取系统架构
 get_architecture() {
@@ -93,10 +94,28 @@ resolve_version() {
   return 1
 }
 
-# 构建下载地址（国内 CDN）
+# 构建下载地址
+# 国内 CDN：硬编码完整路径，不分版本
+# GitHub：需要带版本号
 build_download_url() {
     local ARCH=$(get_architecture)
-    echo "${DOWNLOAD_HOST}/gost-${ARCH}"
+    
+    # 判断是否使用 GitHub 下载（包含 github.com）
+    if [[ "$DOWNLOAD_HOST" == *"github.com"* ]]; then
+        # GitHub 下载需要带版本号
+        # 如果是 latest，需要获取实际版本号
+        if [[ "$DOWNLOAD_HOST" == *"/latest"* ]]; then
+            # 从 GitHub API 获取最新版本号
+            local actual_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/abai569/flvx/releases/latest" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || echo "")
+            if [ -n "$actual_version" ]; then
+                RESOLVED_VERSION="$actual_version"
+            fi
+        fi
+        echo "${DOWNLOAD_HOST}/${RESOLVED_VERSION}/gost-${ARCH}"
+    else
+        # 国内 CDN 硬编码完整路径，不分版本
+        echo "${DOWNLOAD_HOST}/gost-${ARCH}"
+    fi
 }
 
 # 解析版本并构建下载地址
