@@ -78,8 +78,10 @@ import {
   getNodeGroupList,
   assignNodeToGroup,
   batchResetNodeTraffic,
+  getConfigByName,
   type ReleaseChannel,
 } from "@/api";
+import { compareVersions } from "@/utils/version-update";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
 import {
   getConnectionStatusMeta,
@@ -473,6 +475,8 @@ export default function NodePage() {
   const [upgradeTargetNodeId, setUpgradeTargetNodeId] = useState<number | null>(
     null,
   );
+  const [ghfastURL, setGhfastURL] = useState<string>('https://ghfast.top');
+  const [latestVersion, setLatestVersion] = useState<string>('');
   const [releases, setReleases] = useState<
     Array<{
       version: string;
@@ -1293,6 +1297,10 @@ export default function NodePage() {
       const res = await getNodeReleases(channel);
       if (res.code === 0 && Array.isArray(res.data)) {
         setReleases(res.data);
+        // 获取最新版本号（第一个）
+        if (res.data.length > 0) {
+          setLatestVersion(res.data[0].version);
+        }
       } else {
         toast.error(res.msg || "获取版本列表失败");
       }
@@ -1307,13 +1315,41 @@ export default function NodePage() {
     target: "single" | "batch",
     nodeId?: number,
   ) => {
+    // 获取 ghfast_url 配置
+    const configRes = await getConfigByName('ghfast_url');
+    if (configRes.code === 0 && configRes.data?.value) {
+      setGhfastURL(configRes.data.value);
+    } else {
+      setGhfastURL('https://ghfast.top');
+    }
+    
     const defaultChannel: ReleaseChannel = "dev";
     setUpgradeTarget(target);
     setUpgradeTargetNodeId(nodeId || null);
     setReleaseChannel(defaultChannel);
     setSelectedVersion("");
+    setLatestVersion('');
     setUpgradeModalOpen(true);
     await loadReleasesByChannel(defaultChannel);
+  };
+
+  // 获取当前操作类型文本（升级/回退/更新）
+  const getCurrentActionText = (): string => {
+    // 未选择版本时，显示"更新"
+    if (!selectedVersion) return '更新';
+    
+    // 单个节点升级时，对比版本
+    if (upgradeTarget === "single" && upgradeTargetNodeId) {
+      const node = nodeList.find(n => n.id === upgradeTargetNodeId);
+      if (node?.version) {
+        const currentVersion = node.version.split(' ')[0]; // 提取版本号部分，如 "gost 2.2.5-beta37" → "gost"
+        const versionOnly = currentVersion.replace(/^gost\s*/i, ''); // 提取纯版本号 "2.2.5-beta37"
+        return compareVersions(selectedVersion, versionOnly) > 0 ? '升级' : '回退';
+      }
+    }
+    
+    // 批量升级时默认显示"更新"（中性词）
+    return '更新';
   };
 
   const handleConfirmUpgrade = async () => {
@@ -2446,7 +2482,7 @@ export default function NodePage() {
                       variant="flat"
                       onPress={() => openUpgradeModal("single", node.id)}
                     >
-                      升级
+                      更新
                     </Button>
                     <Button
                       className="min-h-8"
@@ -2589,7 +2625,7 @@ export default function NodePage() {
                   variant="flat"
                   onPress={() => openUpgradeModal("batch")}
                 >
-                  升级
+                  批量更新
                 </Button>
                 <Button
                   color="secondary"
@@ -3581,13 +3617,16 @@ export default function NodePage() {
         onOpenChange={setUpgradeModalOpen}
       >
         <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
+          {(onClose) => {
+            const actionText = getCurrentActionText();
+            
+            return (
+              <>
+                <ModalHeader className="flex flex-col gap-1">
                 <h2 className="text-xl font-bold">
                   {upgradeTarget === "batch"
-                    ? `批量升级 (${selectedIds.size} 个节点)`
-                    : "升级节点"}
+                    ? `批量${actionText} (${selectedIds.size} 个节点)`
+                    : `${actionText}节点`}
                 </h2>
               </ModalHeader>
               <ModalBody>
@@ -3641,9 +3680,20 @@ export default function NodePage() {
                       ))}
                     </Select>
                     <p className="text-sm text-default-500">
-                      {selectedVersion
-                        ? `将升级到版本 ${selectedVersion}`
-                        : `未选择版本，将自动使用最新${releaseChannel === "stable" ? "正式" : "测试"}版`}
+                      {selectedVersion ? (
+                        <span>
+                          将使用 {ghfastURL} 代理加速
+                          {upgradeTarget === "batch" 
+                            ? `${actionText} ${selectedVersion} 版本`
+                            : `${actionText}到版本 ${selectedVersion}`}
+                        </span>
+                      ) : (
+                        <span>
+                          未选择版本，将自动使用 {ghfastURL} 代理加速最新
+                          {releaseChannel === "stable" ? "正式版" : "测试版"}
+                          {latestVersion && ` ${latestVersion}`}
+                        </span>
+                      )}
                     </p>
                   </div>
                 )}
@@ -3657,11 +3707,12 @@ export default function NodePage() {
                   isDisabled={releasesLoading}
                   onPress={handleConfirmUpgrade}
                 >
-                  确认升级
+                  {!selectedVersion ? '确认更新' : `确认${actionText}`}
                 </Button>
               </ModalFooter>
             </>
-          )}
+            );
+          }}
         </ModalContent>
       </Modal>
 
