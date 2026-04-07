@@ -1,11 +1,8 @@
 import type { NodeRenewalCycle } from "./renewal";
 import type { NodeSystemInfo } from "./system-info";
-
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
 import { getConnectionStatusMeta } from "./display";
-
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
@@ -32,7 +29,6 @@ import {
   parseDistroFromVersion,
   getDistroColor,
 } from "@/components/distro-icon";
-
 interface Node {
   id: number;
   inx?: number;
@@ -65,7 +61,6 @@ interface Node {
   rollbackLoading?: boolean;
   groupId?: number | null;
 }
-
 interface NodeListViewProps {
   displayNodes: Node[];
   realtimeNodeMetrics: Record<number, { uploadTraffic: number; downloadTraffic: number; }>;
@@ -88,7 +83,6 @@ interface NodeListViewProps {
   handleCopyOfflineInstallCommand?: (node: Node) => void;
   handleCopyAutoInstallCommand?: (node: Node) => void;
 }
-
 function SortableTableRow({
   node,
   realtimeNodeMetrics,
@@ -110,7 +104,6 @@ function SortableTableRow({
   const rowBg = selectedIds.has(node.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
   const isRemoteNode = node.isRemote === 1;
   const connectionStatusMeta = getConnectionStatusMeta(node.connectionStatus);
-
   return (
     <TableRow key={node.id} ref={setNodeRef} className="cursor-default" style={style}>
       <TableCell className={rowBg}><div className="flex items-center justify-center h-full"><Checkbox isSelected={selectedIds.has(node.id)} onValueChange={() => toggleSelect(node.id)} /></div></TableCell>
@@ -223,7 +216,6 @@ function SortableTableRow({
     </TableRow>
   );
 }
-
 export function NodeListView({
   displayNodes,
   realtimeNodeMetrics,
@@ -244,7 +236,6 @@ export function NodeListView({
   handleCopyAutoInstallCommand,
 }: NodeListViewProps) {
   const isAllSelected = displayNodes.length > 0 && selectedIds.size === displayNodes.length;
-
   return (
     <Table
       aria-label="节点列表"

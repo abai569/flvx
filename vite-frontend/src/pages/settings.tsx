@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
@@ -23,15 +22,12 @@ import {
   deletePanelAddress,
   validatePanelAddress,
 } from "@/utils/panel";
-
 interface PanelAddress {
   name: string;
   address: string;
   inx: boolean;
 }
-
 const FORWARD_COMPACT_MODE_CONFIG_KEY = "forward_compact_mode";
-
 export const SettingsPage = () => {
   const navigate = useNavigate();
   const [panelAddresses, setPanelAddresses] = useState<PanelAddress[]>([]);
@@ -43,33 +39,26 @@ export const SettingsPage = () => {
   const [forwardCompactMode, setForwardCompactMode] = useState(false);
   const [forwardCompactModeSaving, setForwardCompactModeSaving] =
     useState(false);
-
   const admin = isAdmin();
-
   const setPanelAddressesFunc = (newAddress: PanelAddress[]) => {
     setPanelAddresses(newAddress);
   };
-
   // 加载面板地址列表
   const loadPanelAddresses = async () => {
     (window as any).setPanelAddresses = setPanelAddressesFunc;
     getPanelAddresses();
   };
-
   // 添加新面板地址
   const addPanelAddress = async () => {
     if (!newName.trim() || !newAddress.trim()) {
       toast.error("请输入名称和地址");
-
       return;
     }
-
     // 验证地址格式
     if (!validatePanelAddress(newAddress.trim())) {
       toast.error(
         "地址格式不正确，请检查：\n• 必须是完整的URL格式\n• 必须以 http:// 或 https:// 开头\n• 支持域名、IPv4、IPv6 地址\n• 端口号范围：1-65535\n• 示例：http://192.168.1.100:3000",
       );
-
       return;
     }
     (window as any).setPanelAddresses = setPanelAddressesFunc;
@@ -78,14 +67,12 @@ export const SettingsPage = () => {
     setNewAddress("");
     toast.success("添加成功");
   };
-
   // 设置当前面板地址
   const setCurrentPanel = async (name: string) => {
     (window as any).setPanelAddresses = setPanelAddressesFunc;
     setCurrentPanelAddress(name);
     reinitializeBaseURL();
   };
-
   // 删除面板地址
   const handleDeletePanelAddress = async (name: string) => {
     (window as any).setPanelAddresses = setPanelAddressesFunc;
@@ -93,13 +80,11 @@ export const SettingsPage = () => {
     reinitializeBaseURL();
     toast.success("删除成功");
   };
-
   // 页面加载时获取数据
   useEffect(() => {
     loadPanelAddresses();
     loadForwardCompactMode();
   }, []);
-
   const loadForwardCompactMode = async () => {
     try {
       const res = await getConfigByName(FORWARD_COMPACT_MODE_CONFIG_KEY);
@@ -107,20 +92,16 @@ export const SettingsPage = () => {
         res.code === 0 &&
         typeof res.data?.value === "string" &&
         res.data.value === "true";
-
       setForwardCompactMode(enabled);
     } catch {
       setForwardCompactMode(false);
     }
   };
-
   const handleForwardCompactModeChange = async (enabled: boolean) => {
     if (!admin || forwardCompactModeSaving) {
       return;
     }
-
     const previous = forwardCompactMode;
-
     setForwardCompactMode(enabled);
     setForwardCompactModeSaving(true);
     try {
@@ -128,7 +109,6 @@ export const SettingsPage = () => {
         FORWARD_COMPACT_MODE_CONFIG_KEY,
         enabled ? "true" : "false",
       );
-
       if (response.code === 0) {
         toast.success(`规则页面精简模式已${enabled ? "开启" : "关闭"}`);
         window.dispatchEvent(
@@ -147,7 +127,6 @@ export const SettingsPage = () => {
       setForwardCompactModeSaving(false);
     }
   };
-
   const handleUpdateChannelChange = (channel: UpdateReleaseChannel) => {
     setUpdateChannel(channel);
     setUpdateReleaseChannel(channel);
@@ -155,7 +134,6 @@ export const SettingsPage = () => {
       `更新通道已切换为${channel === "stable" ? "稳定版" : "开发版"}`,
     );
   };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* 顶部导航 */}
@@ -177,7 +155,6 @@ export const SettingsPage = () => {
           </div>
         </div>
       </div>
-
       {/* 内容区域 */}
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="space-y-6">
@@ -193,7 +170,6 @@ export const SettingsPage = () => {
                   onSelectionChange={(keys) => {
                     const selected =
                       (Array.from(keys)[0] as UpdateReleaseChannel) || "stable";
-
                     handleUpdateChannelChange(selected);
                   }}
                 >
@@ -210,7 +186,6 @@ export const SettingsPage = () => {
               </div>
             </CardBody>
           </Card>
-
           <Card className="border border-gray-200 dark:border-gray-700">
             <CardBody className="p-6">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -241,7 +216,6 @@ export const SettingsPage = () => {
               </div>
             </CardBody>
           </Card>
-
           {/* 添加新地址 */}
           <Card className="border border-gray-200 dark:border-gray-700">
             <CardBody className="p-6">
@@ -269,7 +243,6 @@ export const SettingsPage = () => {
               </div>
             </CardBody>
           </Card>
-
           {/* 地址列表 */}
           <Card className="border border-gray-200 dark:border-gray-700">
             <CardBody className="p-6">

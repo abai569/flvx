@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-
 import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import {
@@ -25,7 +24,6 @@ interface PasswordForm {
   newPassword: string;
   confirmPassword: string;
 }
-
 interface MenuItem {
   path: string;
   label: string;
@@ -33,7 +31,6 @@ interface MenuItem {
   color: string;
   description: string;
 }
-
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -46,13 +43,11 @@ export default function ProfilePage() {
     newPassword: "",
     confirmPassword: "",
   });
-
   useEffect(() => {
     // 获取用户信息
     setUsername(getSessionName() || "Admin");
     setIsAdmin(getAdminFlag());
   }, []);
-
   // 管理员菜单项
   const adminMenuItems: MenuItem[] = [
     {
@@ -123,57 +118,45 @@ export default function ProfilePage() {
       description: "配置网站设置",
     },
   ];
-
   // 退出登录
   const handleLogout = () => {
     safeLogout();
     navigate("/", { replace: true });
   };
-
   // 密码表单验证
   const validatePasswordForm = (): boolean => {
     if (!passwordForm.newUsername.trim()) {
       toast.error("请输入新用户名");
-
       return false;
     }
     if (passwordForm.newUsername.length < 3) {
       toast.error("用户名长度至少3位");
-
       return false;
     }
     if (!passwordForm.currentPassword) {
       toast.error("请输入当前密码");
-
       return false;
     }
     if (!passwordForm.newPassword) {
       toast.error("请输入新密码");
-
       return false;
     }
     if (passwordForm.newPassword.length < 6) {
       toast.error("新密码长度不能少于6位");
-
       return false;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast.error("两次输入密码不一致");
-
       return false;
     }
-
     return true;
   };
-
   // 提交密码修改
   const handlePasswordSubmit = async () => {
     if (!validatePasswordForm()) return;
-
     setPasswordLoading(true);
     try {
       const response = await updatePassword(passwordForm);
-
       if (response.code === 0) {
         toast.success("密码修改成功，请重新登录");
         onOpenChange();
@@ -187,7 +170,6 @@ export default function ProfilePage() {
       setPasswordLoading(false);
     }
   };
-
   // 重置密码表单
   const resetPasswordForm = () => {
     setPasswordForm({
@@ -197,7 +179,6 @@ export default function ProfilePage() {
       confirmPassword: "",
     });
   };
-
   return (
     <div className="px-3 lg:px-6 py-8 flex flex-col h-full">
       <div className="space-y-6 flex-1">
@@ -240,7 +221,6 @@ export default function ProfilePage() {
             </div>
           </CardBody>
         </Card>
-
         {/* 功能网格 */}
         <Card className="border border-gray-200 dark:border-default-200 shadow-md hover:shadow-lg transition-shadow">
           <CardBody className="p-4">
@@ -263,7 +243,6 @@ export default function ProfilePage() {
                     </span>
                   </button>
                 ))}
-
               {/* 修改密码 */}
               <button
                 className="flex flex-col items-center p-3 rounded-2xl bg-gray-50 dark:bg-default-100 hover:bg-gray-100 dark:hover:bg-default-200 transition-colors duration-200"
@@ -286,7 +265,6 @@ export default function ProfilePage() {
                   修改密码
                 </span>
               </button>
-
               {/* 退出登录 */}
               <button
                 className="flex flex-col items-center p-3 rounded-2xl bg-gray-50 dark:bg-default-100 hover:bg-gray-100 dark:hover:bg-default-200 transition-colors duration-200"
@@ -312,7 +290,6 @@ export default function ProfilePage() {
             </div>
           </CardBody>
         </Card>
-
         <VersionFooter
           containerClassName="fixed inset-x-0 bottom-20 text-center py-4"
           poweredClassName="text-xs text-gray-400 dark:text-gray-500"
@@ -323,7 +300,6 @@ export default function ProfilePage() {
           versionClassName="text-xs text-gray-400 dark:text-gray-500 mt-1"
         />
       </div>
-
       {/* 修改密码弹窗 */}
       <Modal
         backdrop="blur"

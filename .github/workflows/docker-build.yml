@@ -1,14 +1,14 @@
-﻿
+
 name: Build and Push Images
 
 env:
-  VERSION: "2.0.7-beta"  # 鍒嗘敮鎺ㄩ€佹椂浣跨敤鐨勯粯璁ょ増鏈?
+  VERSION: "2.0.7-beta"  # 分支推送时使用的默认版本
   REGISTRY: ghcr.io
 
 on:
   push:
     tags:
-      - '[0-9]*'  # 鍖归厤 2.0.8, 2.0.8-beta 绛夋牸寮?
+      - '[0-9]*'  # 匹配 2.0.8, 2.0.8-beta 等格式
 
 jobs:
   check-version:
@@ -28,37 +28,37 @@ jobs:
       - name: Determine version and build strategy
         id: version
         run: |
-          # 闀滃儚 owner 闇€瑕佸皬鍐?
+          # 镜像 owner 需要小写
           IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "image_owner=$IMAGE_OWNER" >> $GITHUB_OUTPUT
 
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            # Tag 瑙﹀彂锛氱洿鎺ヤ娇鐢?tag 鍚嶄綔涓虹増鏈紝鍏ㄩ噺鏋勫缓
+            # Tag 触发：直接使用 tag 名作为版本，全量构建
             VERSION="${{ github.ref_name }}"
-            echo "馃彿锔?Tag trigger detected: $VERSION"
+            echo "🏷️ Tag trigger detected: $VERSION"
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "is_tag=true" >> $GITHUB_OUTPUT
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "should_build_gost=true" >> $GITHUB_OUTPUT
           else
-            # 鍒嗘敮瑙﹀彂锛氫娇鐢?env.VERSION锛屾鏌ユ槸鍚﹂渶瑕佹瀯寤?
+            # 分支触发：使用 env.VERSION，检查是否需要构建
             VERSION="${{ env.VERSION }}"
-            echo "馃尶 Branch trigger detected, using version: $VERSION"
+            echo "🌿 Branch trigger detected, using version: $VERSION"
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "is_tag=false" >> $GITHUB_OUTPUT
 
-            # 妫€鏌?tag 鏄惁宸插瓨鍦?
+            # 检查 tag 是否已存在
             if git rev-parse "$VERSION" >/dev/null 2>&1; then
               echo "Tag $VERSION already exists"
               echo "should_build=false" >> $GITHUB_OUTPUT
 
-              # 妫€鏌?go-gost 鐩綍鏄惁鏈夊彉鍖?
+              # 检查 go-gost 目录是否有变化
               TAG_COMMIT=$(git rev-list -n 1 "$VERSION")
               if git diff --quiet --ignore-all-space --ignore-blank-lines $TAG_COMMIT HEAD -- go-gost/ 2>/dev/null; then
-                echo "鉁?GOST files unchanged since tag"
+                echo "✅ GOST files unchanged since tag"
                 echo "should_build_gost=false" >> $GITHUB_OUTPUT
               else
-                echo "馃攧 Detected changes in go-gost directory"
+                echo "🔄 Detected changes in go-gost directory"
                 git diff --stat $TAG_COMMIT HEAD -- go-gost/ || true
                 echo "should_build_gost=true" >> $GITHUB_OUTPUT
               fi
@@ -276,43 +276,43 @@ jobs:
           OWNER="${{ needs.check-version.outputs.image_owner }}"
           REPO="${{ github.repository }}"
 
-          # 绉诲姩浜岃繘鍒舵枃浠?
+          # 移动二进制文件
           mv ./artifacts/amd64/gost-amd64 ./artifacts/gost-amd64
           mv ./artifacts/arm64/gost-arm64 ./artifacts/gost-arm64
 
-          # 澶嶅埗骞朵慨鏀?docker-compose 鏂囦欢
+          # 复制并修改 docker-compose 文件
           cp docker-compose-v4.yml ./artifacts/docker-compose-v4.yml
           cp docker-compose-v6.yml ./artifacts/docker-compose-v6.yml
 
-          # 鏇挎崲闀滃儚鍦板潃涓?GHCR
+          # 替换镜像地址为 GHCR
           sed -i "s|image: .*flux-panel-backend:[^[:space:]]*|image: ${{ env.REGISTRY }}/${OWNER}/flux-panel-backend:${VERSION}|g" ./artifacts/docker-compose-v4.yml
           sed -i "s|image: .*vite-frontend:[^[:space:]]*|image: ${{ env.REGISTRY }}/${OWNER}/vite-frontend:${VERSION}|g" ./artifacts/docker-compose-v4.yml
           sed -i "s|image: .*flux-panel-backend:[^[:space:]]*|image: ${{ env.REGISTRY }}/${OWNER}/flux-panel-backend:${VERSION}|g" ./artifacts/docker-compose-v6.yml
           sed -i "s|image: .*vite-frontend:[^[:space:]]*|image: ${{ env.REGISTRY }}/${OWNER}/vite-frontend:${VERSION}|g" ./artifacts/docker-compose-v6.yml
 
-          # 澶嶅埗骞朵慨鏀瑰畨瑁呰剼鏈?
+          # 复制并修改安装脚本
           cp install.sh ./artifacts/install.sh
           cp panel_install.sh ./artifacts/panel_install.sh
 
-          # 鏇挎崲浠撳簱鍦板潃鍜岀増鏈彿
+          # 替换仓库地址和版本号
           sed -i "s|bqlpfy/flux-panel|${REPO}|g" ./artifacts/install.sh
           sed -i "s|bqlpfy/flux-panel|${REPO}|g" ./artifacts/panel_install.sh
           sed -i "s|2.0.7-beta|${VERSION}|g" ./artifacts/install.sh
           sed -i "s|2.0.7-beta|${VERSION}|g" ./artifacts/panel_install.sh
 
-          # 娉ㄥ叆鍥哄畾鐗堟湰鍙凤紝浣夸粠 Release 椤典笅杞界殑鑴氭湰鍙畨瑁呰鐗堟湰
+          # 注入固定版本号，使从 Release 页下载的脚本只安装该版本
           sed -i "s|^PINNED_VERSION=\"\"|PINNED_VERSION=\"${VERSION}\"|" ./artifacts/install.sh
           sed -i "s|^PINNED_VERSION=\"\"|PINNED_VERSION=\"${VERSION}\"|" ./artifacts/panel_install.sh
 
-          # 鏋勫缓绂荤嚎鍖咃紙amd64锛?
-          echo "馃摝 鏋勫缓绂荤嚎鍖?(amd64)..."
+          # 构建离线包（amd64）
+          echo "📦 构建离线包 (amd64)..."
           mkdir -p ./artifacts/offline-amd64
           cp ./artifacts/gost-amd64 ./artifacts/offline-amd64/flux_agent
           cp ./install.sh ./artifacts/offline-amd64/offline.sh
           cd ./artifacts/offline-amd64 && zip -r ../offline-amd64.zip . && cd ../..
 
-          # 鏋勫缓绂荤嚎鍖咃紙arm64锛?
-          echo "馃摝 鏋勫缓绂荤嚎鍖?(arm64)..."
+          # 构建离线包（arm64）
+          echo "📦 构建离线包 (arm64)..."
           mkdir -p ./artifacts/offline-arm64
           cp ./artifacts/gost-arm64 ./artifacts/offline-arm64/flux_agent
           cp ./install.sh ./artifacts/offline-arm64/offline.sh
@@ -325,15 +325,15 @@ jobs:
           VERSION="${{ needs.check-version.outputs.version }}"
           OWNER="${{ needs.check-version.outputs.image_owner }}"
 
-          # 鑾峰彇 commit 淇℃伅
+          # 获取 commit 信息
           COMMIT_MSG=$(git log -1 --pretty=format:"%s")
           COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
           COMMIT_DATE=$(git log -1 --pretty=format:"%ai")
 
-          # 鍒涘缓 release
+          # 创建 release
           gh release create "${VERSION}" \
             --title "Release ${VERSION}" \
-            --notes "## 馃摑 Release Information
+            --notes "## 📝 Release Information
 
           - **Version**: ${VERSION}
           - **Commit**: [\`${GITHUB_SHA:0:7}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
@@ -341,7 +341,7 @@ jobs:
           - **Date**: ${COMMIT_DATE}
           - **Message**: ${COMMIT_MSG}
 
-          ## 馃摝 Docker Images
+          ## 📦 Docker Images
 
           \`\`\`bash
           # Backend
@@ -351,49 +351,49 @@ jobs:
           docker pull ${{ env.REGISTRY }}/${OWNER}/vite-frontend:${VERSION}
           \`\`\`
 
-          ## 馃殌 Quick Install
+          ## 🚀 Quick Install
 
-          **Panel (瀹夎姝ょ増鏈?${VERSION}):**
+          **Panel (安装此版本 ${VERSION}):**
           \`\`\`bash
           curl -L https://github.com/${{ github.repository }}/releases/download/${VERSION}/panel_install.sh -o panel_install.sh && chmod +x panel_install.sh && ./panel_install.sh
           \`\`\`
 
-          **Node (瀹夎姝ょ増鏈?${VERSION}):**
+          **Node (安装此版本 ${VERSION}):**
           \`\`\`bash
           curl -L https://github.com/${{ github.repository }}/releases/download/${VERSION}/install.sh -o install.sh && chmod +x install.sh && ./install.sh
           \`\`\`
 
-          **瀹夎鏈€鏂扮増:**
+          **安装最新版:**
           \`\`\`bash
-          # 闈㈡澘绔?
+          # 面板端
           curl -L https://raw.githubusercontent.com/${{ github.repository }}/main/panel_install.sh -o panel_install.sh && chmod +x panel_install.sh && ./panel_install.sh
-          # 鑺傜偣绔?
+          # 节点端
           curl -L https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh -o install.sh && chmod +x install.sh && ./install.sh
           \`\`\`" \
             --repo ${{ github.repository }}
 
-          # 涓婁紶鎵€鏈夋枃浠跺埌 release
-          echo "馃摛 涓婁紶 GOST 浜岃繘鍒舵枃浠?.."
+          # 上传所有文件到 release
+          echo "📤 上传 GOST 二进制文件..."
           gh release upload "${VERSION}" ./artifacts/gost-amd64 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64 --clobber
 
-          echo "馃摛 涓婁紶 GOST 鏍￠獙鏂囦欢..."
+          echo "📤 上传 GOST 校验文件..."
           gh release upload "${VERSION}" ./artifacts/gost-amd64.sha256 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
 
-          echo "馃摛 涓婁紶瀹夎鑴氭湰..."
+          echo "📤 上传安装脚本..."
           gh release upload "${VERSION}" ./artifacts/install.sh --clobber
           gh release upload "${VERSION}" ./artifacts/panel_install.sh --clobber
 
-          echo "馃摛 涓婁紶 Docker Compose 閰嶇疆鏂囦欢..."
+          echo "📤 上传 Docker Compose 配置文件..."
           gh release upload "${VERSION}" ./artifacts/docker-compose-v4.yml --clobber
           gh release upload "${VERSION}" ./artifacts/docker-compose-v6.yml --clobber
 
-          echo "馃摛 涓婁紶绂荤嚎鍖?.."
+          echo "📤 上传离线包..."
           gh release upload "${VERSION}" ./artifacts/offline-amd64.zip --clobber
           gh release upload "${VERSION}" ./artifacts/offline-arm64.zip --clobber
 
-          echo "鉁?Release ${VERSION} 鍒涘缓瀹屾垚"
+          echo "✅ Release ${VERSION} 创建完成"
 
       - name: Sync to Chinese CDN
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
@@ -446,13 +446,13 @@ jobs:
 
       - name: Build offline packages
         run: |
-          echo "馃摝 鏋勫缓绂荤嚎鍖?(amd64)..."
+          echo "📦 构建离线包 (amd64)..."
           mkdir -p ./artifacts/offline-amd64
           cp ./artifacts/gost-amd64 ./artifacts/offline-amd64/flux_agent
           cp ./install.sh ./artifacts/offline-amd64/offline.sh
           cd ./artifacts/offline-amd64 && zip -r ../offline-amd64.zip . && cd ../..
 
-          echo "馃摝 鏋勫缓绂荤嚎鍖?(arm64)..."
+          echo "📦 构建离线包 (arm64)..."
           mkdir -p ./artifacts/offline-arm64
           cp ./artifacts/gost-arm64 ./artifacts/offline-arm64/flux_agent
           cp ./install.sh ./artifacts/offline-arm64/offline.sh
@@ -464,18 +464,18 @@ jobs:
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
 
-          echo "馃攧 鏇存柊 Release ${VERSION} 涓殑 GOST 浜岃繘鍒舵枃浠?.."
+          echo "🔄 更新 Release ${VERSION} 中的 GOST 二进制文件..."
 
           gh release upload "${VERSION}" ./artifacts/gost-amd64 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64 --clobber
 
-          echo "馃摛 涓婁紶 GOST 鏍￠獙鏂囦欢..."
+          echo "📤 上传 GOST 校验文件..."
           gh release upload "${VERSION}" ./artifacts/gost-amd64.sha256 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
 
-          echo "馃摛 涓婁紶绂荤嚎鍖?.."
+          echo " 📤 上传离线包..."
           gh release upload "${VERSION}" ./artifacts/offline-amd64.zip --clobber
           gh release upload "${VERSION}" ./artifacts/offline-arm64.zip --clobber
 
-          echo "鉁?GOST 浜岃繘鍒舵枃浠舵洿鏂板畬鎴?
+          echo " ✅ GOST 二进制文件更新完成
 

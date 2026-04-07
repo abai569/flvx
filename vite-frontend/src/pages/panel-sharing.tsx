@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
-
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Tabs, Tab } from "@/shadcn-bridge/heroui/tabs";
@@ -23,13 +22,11 @@ import {
   importRemoteNode,
   updatePeerShare,
 } from "@/api";
-
 interface Node {
   id: number;
   name: string;
   isRemote?: number;
 }
-
 interface PeerShare {
   id: number;
   name: string;
@@ -54,7 +51,6 @@ interface PeerShare {
   }>;
   activeRuntimeNum?: number;
 }
-
 interface RemoteUsageBinding {
   bindingId: number;
   tunnelId: number;
@@ -66,7 +62,6 @@ interface RemoteUsageBinding {
   remoteBindingId: string;
   updatedTime: number;
 }
-
 interface RemoteUsageNode {
   nodeId: number;
   nodeName: string;
@@ -81,7 +76,6 @@ interface RemoteUsageNode {
   activeBindingNum: number;
   syncError?: string;
 }
-
 export default function PanelSharingPage() {
   const [selectedTab, setSelectedTab] = useState("my-shares");
   const [shares, setShares] = useState<PeerShare[]>([]);
@@ -91,12 +85,10 @@ export default function PanelSharingPage() {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [loading, setLoading] = useState(false);
   const [remoteUsageLoading, setRemoteUsageLoading] = useState(false);
-
   // Modals
   const [createShareOpen, setCreateShareOpen] = useState(false);
   const [editShareOpen, setEditShareOpen] = useState(false);
   const [importNodeOpen, setImportNodeOpen] = useState(false);
-
   // Forms
   const [shareForm, setShareForm] = useState({
     name: "",
@@ -108,12 +100,10 @@ export default function PanelSharingPage() {
     allowedDomains: "",
     allowedIps: "",
   });
-
   const [importForm, setImportForm] = useState({
     remoteUrl: "",
     token: "",
   });
-
   const [editForm, setEditForm] = useState({
     id: 0,
     name: "",
@@ -124,12 +114,10 @@ export default function PanelSharingPage() {
     allowedDomains: "",
     allowedIps: "",
   });
-
   const loadShares = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getPeerShareList();
-
       if (res.code === 0) {
         setShares(
           Array.isArray(res.data) ? (res.data as unknown as PeerShare[]) : [],
@@ -141,16 +129,13 @@ export default function PanelSharingPage() {
       setLoading(false);
     }
   }, []);
-
   const loadNodes = useCallback(async () => {
     try {
       const res = await getNodeList();
-
       if (res.code === 0) {
         const localNodes: Node[] = (
           Array.isArray(res.data) ? (res.data as Node[]) : []
         ).filter((node: Node) => (node?.isRemote ?? 0) !== 1);
-
         setNodes(localNodes);
         setShareForm((prev) => {
           if (!prev.nodeId) {
@@ -159,7 +144,6 @@ export default function PanelSharingPage() {
           const hasSelectedNode = localNodes.some(
             (node: Node) => String(node.id) === prev.nodeId,
           );
-
           return hasSelectedNode ? prev : { ...prev, nodeId: "" };
         });
       }
@@ -167,12 +151,10 @@ export default function PanelSharingPage() {
       // ignore
     }
   }, []);
-
   const loadRemoteUsage = useCallback(async () => {
     setRemoteUsageLoading(true);
     try {
       const res = await getPeerRemoteUsageList();
-
       if (res.code === 0) {
         setRemoteUsageNodes(
           Array.isArray(res.data)
@@ -186,35 +168,28 @@ export default function PanelSharingPage() {
       setRemoteUsageLoading(false);
     }
   }, []);
-
   useEffect(() => {
     if (selectedTab === "my-shares") {
       loadShares();
       loadNodes();
-
       return;
     }
     if (selectedTab === "remote-nodes") {
       loadRemoteUsage();
     }
   }, [selectedTab, loadShares, loadNodes, loadRemoteUsage]);
-
   const handleCreateShare = async () => {
     if (!shareForm.name || !shareForm.nodeId) {
       toast.error("请填写必要信息");
-
       return;
     }
     const nodeId = parseInt(shareForm.nodeId, 10);
-
     if (Number.isNaN(nodeId) || !nodes.some((node) => node.id === nodeId)) {
       toast.error("仅可选择本地节点");
-
       return;
     }
     if (shareForm.maxBandwidth < 0) {
       toast.error("流量上限不能为负数");
-
       return;
     }
     try {
@@ -230,7 +205,6 @@ export default function PanelSharingPage() {
         allowedDomains: shareForm.allowedDomains,
         allowedIps: shareForm.allowedIps,
       });
-
       if (res.code === 0) {
         toast.success("创建成功");
         setCreateShareOpen(false);
@@ -242,11 +216,9 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const handleDeleteShare = async (id: number) => {
     try {
       const res = await deletePeerShare(id);
-
       if (res.code === 0) {
         toast.success("删除成功");
         loadShares();
@@ -257,11 +229,9 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const handleResetShareFlow = async (id: number) => {
     try {
       const res = await resetPeerShareFlow(id);
-
       if (res.code === 0) {
         toast.success("共享流量已重置");
         loadShares();
@@ -272,7 +242,6 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const openEditShare = (share: PeerShare) => {
     setEditForm({
       id: share.id,
@@ -289,16 +258,13 @@ export default function PanelSharingPage() {
     });
     setEditShareOpen(true);
   };
-
   const handleEditShare = async () => {
     if (!editForm.name) {
       toast.error("名称不能为空");
-
       return;
     }
     if (editForm.maxBandwidth < 0) {
       toast.error("流量上限不能为负数");
-
       return;
     }
     try {
@@ -312,7 +278,6 @@ export default function PanelSharingPage() {
         allowedDomains: editForm.allowedDomains,
         allowedIps: editForm.allowedIps,
       });
-
       if (res.code === 0) {
         toast.success("编辑成功");
         setEditShareOpen(false);
@@ -324,26 +289,21 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const handleImportNode = async () => {
     if (!importForm.remoteUrl || !importForm.token) {
       toast.error("请填写完整信息");
-
       return;
     }
     try {
       // Automatically add http/https if missing
       let url = importForm.remoteUrl.trim();
-
       if (!url.startsWith("http")) {
         url = "http://" + url;
       }
-
       const res = await importRemoteNode({
         remoteUrl: url,
         token: importForm.token.trim(),
       });
-
       if (res.code === 0) {
         toast.success("导入成功，请前往节点列表查看");
         setImportNodeOpen(false);
@@ -356,12 +316,10 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token);
     toast.success("Token已复制");
   };
-
   const formatFlowGB = (bytes: number) => {
     if (!Number.isFinite(bytes) || bytes <= 0) {
       return "0 B";
@@ -370,10 +328,8 @@ export default function PanelSharingPage() {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
     if (bytes < 1024 * 1024 * 1024)
       return (bytes / (1024 * 1024)).toFixed(2) + " MB";
-
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   };
-
   const formatChainType = (chainType: number, hopInx: number) => {
     if (chainType === 1) {
       return "入口节点";
@@ -384,16 +340,13 @@ export default function PanelSharingPage() {
     if (chainType === 3) {
       return "出口节点";
     }
-
     return "未知链路";
   };
-
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">面板共享 (Panel Peering)</h1>
       </div> */}
-
       <Tabs
         disableCursorAnimation
         aria-label="Options"
@@ -431,7 +384,6 @@ export default function PanelSharingPage() {
                   创建分享
                 </Button>
               </div>
-
               {loading ? (
                 <div className="text-center py-12 text-default-500">
                   加载中...
@@ -578,7 +530,6 @@ export default function PanelSharingPage() {
                   导入节点
                 </Button>
               </div>
-
               {remoteUsageLoading ? (
                 <div className="text-center py-12 text-default-500">
                   加载中...
@@ -675,7 +626,6 @@ export default function PanelSharingPage() {
           </Card>
         </Tab>
       </Tabs>
-
       {/* Create Share Modal */}
       <Modal
         backdrop="blur"
@@ -786,7 +736,6 @@ export default function PanelSharingPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* Edit Share Modal */}
       <Modal
         backdrop="blur"
@@ -889,7 +838,6 @@ export default function PanelSharingPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* Import Node Modal */}
       <Modal
         backdrop="blur"

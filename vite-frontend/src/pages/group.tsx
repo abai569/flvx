@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ChevronDown } from "lucide-react";
-
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -22,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/shadcn-bridge/heroui/table";
-
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import {
   assignGroupPermission,
@@ -42,17 +40,14 @@ import {
   updateUserGroup,
 } from "@/api";
 import { getAdminFlag } from "@/utils/session";
-
 interface TunnelItem {
   id: number;
   name: string;
 }
-
 interface UserItem {
   id: number;
   user: string;
 }
-
 interface TunnelGroup {
   id: number;
   name: string;
@@ -61,7 +56,6 @@ interface TunnelGroup {
   tunnelNames: string[];
   createdTime: number;
 }
-
 interface UserGroup {
   id: number;
   name: string;
@@ -70,7 +64,6 @@ interface UserGroup {
   userNames: string[];
   createdTime: number;
 }
-
 interface GroupPermission {
   id: number;
   userGroupId: number;
@@ -79,34 +72,27 @@ interface GroupPermission {
   tunnelGroupName: string;
   createdTime: number;
 }
-
 const formatDate = (timestamp?: number): string => {
   if (!timestamp) {
     return "-";
   }
-
   return new Date(timestamp).toLocaleString();
 };
-
 export default function GroupPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin] = useState(getAdminFlag());
-
   const [tunnelGroups, setTunnelGroups] = useState<TunnelGroup[]>([]);
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
   const [permissions, setPermissions] = useState<GroupPermission[]>([]);
   const [tunnels, setTunnels] = useState<TunnelItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
-
   const [selectedUserGroupId, setSelectedUserGroupId] = useState<number | null>(
     null,
   );
   const [selectedTunnelGroupId, setSelectedTunnelGroupId] = useState<
     number | null
   >(null);
-
   const [savingPermission, setSavingPermission] = useState(false);
-
   const {
     isOpen: tunnelGroupModalOpen,
     onOpen: onTunnelGroupModalOpen,
@@ -137,7 +123,6 @@ export default function GroupPage() {
     content: string;
     action: () => Promise<void>;
   } | null>(null);
-
   const [editingTunnelGroup, setEditingTunnelGroup] =
     useState<TunnelGroup | null>(null);
   const [editingUserGroup, setEditingUserGroup] = useState<UserGroup | null>(
@@ -146,7 +131,6 @@ export default function GroupPage() {
   const [groupName, setGroupName] = useState("");
   const [groupStatus, setGroupStatus] = useState("1");
   const [savingGroup, setSavingGroup] = useState(false);
-
   const [assignTunnelGroup, setAssignTunnelGroup] =
     useState<TunnelGroup | null>(null);
   const [assignUserGroup, setAssignUserGroup] = useState<UserGroup | null>(
@@ -159,50 +143,38 @@ export default function GroupPage() {
     new Set(),
   );
   const [savingAssign, setSavingAssign] = useState(false);
-
   const [expandedTunnelGroups, setExpandedTunnelGroups] = useState<Set<number>>(
     new Set(),
   );
   const [expandedUserGroups, setExpandedUserGroups] = useState<Set<number>>(
     new Set(),
   );
-
   const tunnelNameMap = useMemo(() => {
     const map = new Map<number, string>();
-
     tunnels.forEach((item) => {
       map.set(item.id, item.name);
     });
-
     return map;
   }, [tunnels]);
-
   const userNameMap = useMemo(() => {
     const map = new Map<number, string>();
-
     users.forEach((item) => {
       map.set(item.id, item.user);
     });
-
     return map;
   }, [users]);
-
   const selectedTunnelSummary = useMemo(() => {
     const value = Array.from(selectedTunnelKeys)
       .map((id) => tunnelNameMap.get(Number(id)) || id)
       .join("、");
-
     return value || "无";
   }, [selectedTunnelKeys, tunnelNameMap]);
-
   const selectedUserSummary = useMemo(() => {
     const value = Array.from(selectedUserKeys)
       .map((id) => userNameMap.get(Number(id)) || id)
       .join("、");
-
     return value || "无";
   }, [selectedUserKeys, userNameMap]);
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -214,7 +186,6 @@ export default function GroupPage() {
           getTunnelList(),
           getAllUsers(),
         ]);
-
       if (tunnelGroupRes.code === 0) {
         setTunnelGroups(
           Array.isArray(tunnelGroupRes.data) ? tunnelGroupRes.data : [],
@@ -236,7 +207,6 @@ export default function GroupPage() {
       if (userRes.code === 0) {
         setUsers(Array.isArray(userRes.data) ? userRes.data : []);
       }
-
       if (
         tunnelGroupRes.code !== 0 ||
         userGroupRes.code !== 0 ||
@@ -250,43 +220,36 @@ export default function GroupPage() {
       setLoading(false);
     }
   }, []);
-
   useEffect(() => {
     loadData();
   }, [loadData]);
-
   const openCreateTunnelGroup = () => {
     setEditingTunnelGroup(null);
     setGroupName("");
     setGroupStatus("1");
     onTunnelGroupModalOpen();
   };
-
   const openEditTunnelGroup = (group: TunnelGroup) => {
     setEditingTunnelGroup(group);
     setGroupName(group.name);
     setGroupStatus(String(group.status));
     onTunnelGroupModalOpen();
   };
-
   const openCreateUserGroup = () => {
     setEditingUserGroup(null);
     setGroupName("");
     setGroupStatus("1");
     onUserGroupModalOpen();
   };
-
   const openEditUserGroup = (group: UserGroup) => {
     setEditingUserGroup(group);
     setGroupName(group.name);
     setGroupStatus(String(group.status));
     onUserGroupModalOpen();
   };
-
   const saveTunnelGroup = async () => {
     if (!groupName.trim()) {
       toast.error("请输入分组名称");
-
       return;
     }
     setSavingGroup(true);
@@ -295,7 +258,6 @@ export default function GroupPage() {
       const res = editingTunnelGroup
         ? await updateTunnelGroup({ id: editingTunnelGroup.id, ...payload })
         : await createTunnelGroup(payload);
-
       if (res.code === 0) {
         toast.success(editingTunnelGroup ? "更新成功" : "创建成功");
         onTunnelGroupModalClose();
@@ -309,11 +271,9 @@ export default function GroupPage() {
       setSavingGroup(false);
     }
   };
-
   const saveUserGroup = async () => {
     if (!groupName.trim()) {
       toast.error("请输入分组名称");
-
       return;
     }
     setSavingGroup(true);
@@ -322,7 +282,6 @@ export default function GroupPage() {
       const res = editingUserGroup
         ? await updateUserGroup({ id: editingUserGroup.id, ...payload })
         : await createUserGroup(payload);
-
       if (res.code === 0) {
         toast.success(editingUserGroup ? "更新成功" : "创建成功");
         onUserGroupModalClose();
@@ -336,14 +295,12 @@ export default function GroupPage() {
       setSavingGroup(false);
     }
   };
-
   const handleDeleteTunnelGroup = (item: TunnelGroup) => {
     setConfirmConfig({
       title: "确认删除隧道分组",
       content: `确定要删除隧道分组 "${item.name}" 吗？此操作不可撤销。`,
       action: async () => {
         const res = await deleteTunnelGroup(item.id);
-
         if (res.code === 0) {
           toast.success("删除成功");
           loadData();
@@ -354,14 +311,12 @@ export default function GroupPage() {
     });
     setIsConfirmOpen(true);
   };
-
   const handleDeleteUserGroup = (item: UserGroup) => {
     setConfirmConfig({
       title: "确认删除用户分组",
       content: `确定要删除用户分组 "${item.name}" 吗？此操作不可撤销。`,
       action: async () => {
         const res = await deleteUserGroup(item.id);
-
         if (res.code === 0) {
           toast.success("删除成功");
           loadData();
@@ -372,19 +327,16 @@ export default function GroupPage() {
     });
     setIsConfirmOpen(true);
   };
-
   const openAssignTunnels = (group: TunnelGroup) => {
     setAssignTunnelGroup(group);
     setSelectedTunnelKeys(new Set(group.tunnelIds.map((id) => String(id))));
     onTunnelAssignModalOpen();
   };
-
   const openAssignUsers = (group: UserGroup) => {
     setAssignUserGroup(group);
     setSelectedUserKeys(new Set(group.userIds.map((id) => String(id))));
     onUserAssignModalOpen();
   };
-
   const saveAssignTunnels = async () => {
     if (!assignTunnelGroup) return;
     setSavingAssign(true);
@@ -394,7 +346,6 @@ export default function GroupPage() {
         groupId: assignTunnelGroup.id,
         tunnelIds,
       });
-
       if (res.code === 0) {
         toast.success("分配成功");
         onTunnelAssignModalClose();
@@ -408,7 +359,6 @@ export default function GroupPage() {
       setSavingAssign(false);
     }
   };
-
   const saveAssignUsers = async () => {
     if (!assignUserGroup) return;
     setSavingAssign(true);
@@ -418,7 +368,6 @@ export default function GroupPage() {
         groupId: assignUserGroup.id,
         userIds,
       });
-
       if (res.code === 0) {
         toast.success("分配成功");
         onUserAssignModalClose();
@@ -432,11 +381,9 @@ export default function GroupPage() {
       setSavingAssign(false);
     }
   };
-
   const handleAssignPermission = async () => {
     if (!selectedUserGroupId || !selectedTunnelGroupId) {
       toast.error("请选择用户分组和隧道分组");
-
       return;
     }
     setSavingPermission(true);
@@ -445,7 +392,6 @@ export default function GroupPage() {
         userGroupId: selectedUserGroupId,
         tunnelGroupId: selectedTunnelGroupId,
       });
-
       if (res.code === 0) {
         toast.success(res.msg || "权限分配成功");
         loadData();
@@ -458,14 +404,12 @@ export default function GroupPage() {
       setSavingPermission(false);
     }
   };
-
   const handleRemovePermission = (item: GroupPermission) => {
     setConfirmConfig({
       title: "确认回收权限",
       content: `确定要回收该关联权限吗？`,
       action: async () => {
         const res = await removeGroupPermission(item.id);
-
         if (res.code === 0) {
           toast.success("权限回收成功");
           loadData();
@@ -476,35 +420,28 @@ export default function GroupPage() {
     });
     setIsConfirmOpen(true);
   };
-
   const toggleTunnelGroupExpand = (groupId: number) => {
     setExpandedTunnelGroups((prev) => {
       const next = new Set(prev);
-
       if (next.has(groupId)) {
         next.delete(groupId);
       } else {
         next.add(groupId);
       }
-
       return next;
     });
   };
-
   const toggleUserGroupExpand = (groupId: number) => {
     setExpandedUserGroups((prev) => {
       const next = new Set(prev);
-
       if (next.has(groupId)) {
         next.delete(groupId);
       } else {
         next.add(groupId);
       }
-
       return next;
     });
   };
-
   if (!isAdmin) {
     return (
       <div className="px-3 lg:px-6 py-8">
@@ -518,7 +455,6 @@ export default function GroupPage() {
       </div>
     );
   }
-
   return (
     <div className="px-3 lg:px-6 py-8 space-y-6">
       {loading && (
@@ -526,7 +462,6 @@ export default function GroupPage() {
           <Spinner size="lg" />
         </div>
       )}
-
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <h3 className="text-lg font-semibold">隧道分组</h3>
@@ -674,7 +609,6 @@ export default function GroupPage() {
           </div>
         </CardBody>
       </Card>
-
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <h3 className="text-lg font-semibold">用户分组</h3>
@@ -822,7 +756,6 @@ export default function GroupPage() {
           </div>
         </CardBody>
       </Card>
-
       <Card>
         <CardHeader>
           <h3 className="text-lg font-semibold">权限分配</h3>
@@ -839,7 +772,6 @@ export default function GroupPage() {
               size="md"
               onSelectionChange={(keys) => {
                 const key = Array.from(keys as Set<React.Key>)[0];
-
                 setSelectedUserGroupId(key ? Number(key) : null);
               }}
             >
@@ -855,7 +787,6 @@ export default function GroupPage() {
               size="md"
               onSelectionChange={(keys) => {
                 const key = Array.from(keys as Set<React.Key>)[0];
-
                 setSelectedTunnelGroupId(key ? Number(key) : null);
               }}
             >
@@ -871,7 +802,6 @@ export default function GroupPage() {
               分配
             </Button>
           </div>
-
           <div className="overflow-x-auto w-full touch-pan-x pb-2">
             <Table
               aria-label="分组权限列表"
@@ -942,7 +872,6 @@ export default function GroupPage() {
           </div>
         </CardBody>
       </Card>
-
       <Modal
         backdrop="blur"
         classNames={{
@@ -966,7 +895,6 @@ export default function GroupPage() {
               selectedKeys={[groupStatus]}
               onSelectionChange={(keys) => {
                 const key = Array.from(keys as Set<React.Key>)[0];
-
                 if (key) {
                   setGroupStatus(String(key));
                 }
@@ -990,7 +918,6 @@ export default function GroupPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       <Modal
         backdrop="blur"
         classNames={{
@@ -1014,7 +941,6 @@ export default function GroupPage() {
               selectedKeys={[groupStatus]}
               onSelectionChange={(keys) => {
                 const key = Array.from(keys as Set<React.Key>)[0];
-
                 if (key) {
                   setGroupStatus(String(key));
                 }
@@ -1038,7 +964,6 @@ export default function GroupPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       <Modal
         backdrop="blur"
         classNames={{
@@ -1089,7 +1014,6 @@ export default function GroupPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       <Modal
         backdrop="blur"
         classNames={{
@@ -1140,7 +1064,6 @@ export default function GroupPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       <Modal
         backdrop="blur"
         classNames={{

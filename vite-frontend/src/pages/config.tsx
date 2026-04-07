@@ -41,7 +41,6 @@ import {
   isPngDataURL,
   type BrandAssetKind,
 } from "@/utils/brand-asset";
-
 // 简单的保存图标组件
 const SaveIcon = ({ className }: { className?: string }) => (
   <svg
@@ -58,7 +57,6 @@ const SaveIcon = ({ className }: { className?: string }) => (
     <polyline points="7,3 7,8 15,8" />
   </svg>
 );
-
 interface ConfigItem {
   key: string;
   label: string;
@@ -69,22 +67,31 @@ interface ConfigItem {
   dependsOn?: string; // 依赖的配置项key
   dependsValue?: string; // 依赖的配置项值
 }
-
 const BRAND_PREVIEW_KEYS = ["app_logo", "app_favicon"] as const;
-
 type BrandPreviewKey = (typeof BRAND_PREVIEW_KEYS)[number];
-
 const isBrandPreviewKey = (key: string): key is BrandPreviewKey =>
   BRAND_PREVIEW_KEYS.includes(key as BrandPreviewKey);
-
 const BRAND_FILE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
-
 const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
   return key === "app_logo" ? "logo" : "favicon";
 };
-
 // 网站配置项定义
 const CONFIG_ITEMS: ConfigItem[] = [
+  {
+    key: "ip",
+    label: "面板后端地址",
+    placeholder: "请输入面板后端 IP:PORT",
+    description:
+      '格式"ip:port"或"domain:port",用于对接节点时使用。支持套 CDN 和 HTTPS，通讯数据有加密',
+    type: "input",
+  },
+  {
+    key: "app_name",
+    label: "站点名称",
+    placeholder: "请输入站点名称",
+    description: "在浏览器标签页和导航栏显示的站点名称",
+    type: "input",
+  },
   {
     key: "ghfast_url",
     label: "海外加速地址",
@@ -97,43 +104,6 @@ const CONFIG_ITEMS: ConfigItem[] = [
     label: "国内下载源地址",
     placeholder: "https://chfs.646321.xyz:8/chfs/shared/flvx",
     description: "国内机器的下载源地址，留空使用默认值。用于自动探测线路和离线包下载。",
-    type: "input",
-  },
-  {
-    key: "ghfast_url",
-    label: "海外加速地址",
-    placeholder: "https://ghfast.top",
-    description: "海外机器安装和升级时使用的加速地址，留空使用默认值 https://ghfast.top",
-    type: "input",
-  },
-  {
-    key: "ip",
-    label: "面板后端地址",
-    placeholder: "请输入面板后端 IP:PORT",
-    description:
-      '格式"ip:port"或"domain:port",用于对接节点时使用。支持套 CDN 和 HTTPS，通讯数据有加密',
-    type: "input",
-  },
-  {
-    key: "ip",
-    label: "面板后端地址",
-    placeholder: "请输入面板后端IP:PORT",
-    description:
-      '格式"ip:port"或"domain:port",用于对接节点时使用。支持套CDN和HTTPS,通讯数据有加密',
-    type: "input",
-  },
-  {
-    key: "panel_domain",
-    label: "面板域名",
-    placeholder: "请输入面板域名",
-    description: "当前面板的域名，用于与其他面板进行联邦共享时验证身份",
-    type: "input",
-  },
-  {
-    key: "app_name",
-    label: "应用名称",
-    placeholder: "请输入应用名称",
-    description: "在浏览器标签页和导航栏显示的应用名称",
     type: "input",
   },
   {
@@ -181,7 +151,6 @@ const CONFIG_ITEMS: ConfigItem[] = [
     dependsValue: "true",
   },
 ];
-
 const BACKUP_TYPE_OPTIONS = [
   { value: "users", label: "用户" },
   { value: "nodes", label: "节点" },
@@ -194,13 +163,10 @@ const BACKUP_TYPE_OPTIONS = [
   { value: "permissions", label: "分组权限" },
   { value: "configs", label: "系统配置" },
 ] as const;
-
 const BACKUP_TYPE_VALUES = BACKUP_TYPE_OPTIONS.map((option) => option.value);
-
 // 初始化时从缓存读取配置，避免闪烁
 const getInitialConfigs = (): Record<string, string> => {
   if (typeof window === "undefined") return {};
-
   const configKeys = [
     "app_name",
     "captcha_enabled",
@@ -215,20 +181,16 @@ const getInitialConfigs = (): Record<string, string> => {
     "app_favicon",
   ];
   const initialConfigs: Record<string, string> = {};
-
   try {
     configKeys.forEach((key) => {
       const cachedValue = localStorage.getItem("vite_config_" + key);
-
       if (cachedValue) {
         initialConfigs[key] = cachedValue;
       }
     });
   } catch { }
-
   return initialConfigs;
 };
-
 export default function ConfigPage() {
   const navigate = useNavigate();
   const initialConfigs = getInitialConfigs();
@@ -241,7 +203,6 @@ export default function ConfigPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalConfigs, setOriginalConfigs] =
     useState<Record<string, string>>(initialConfigs);
-
   const [exportTypes, setExportTypes] = useState<string[]>([]);
   const [importTypes, setImportTypes] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
@@ -252,7 +213,6 @@ export default function ConfigPage() {
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
-
   const [announcement, setAnnouncement] = useState<AnnouncementData>({
     content: "",
     enabled: 0,
@@ -268,34 +228,27 @@ export default function ConfigPage() {
   const [brandUploading, setBrandUploading] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
-
   // 权限检查
   useEffect(() => {
     if (!isAdmin()) {
       toast.error("权限不足，只有管理员可以访问此页面");
       navigate("/dashboard", { replace: true });
-
       return;
     }
   }, [navigate]);
-
   // 加载配置数据（优先从缓存）
   const loadConfigs = async (currentConfigs?: Record<string, string>) => {
     const configsToCompare = currentConfigs || configs;
     const hasInitialData = Object.keys(configsToCompare).length > 0;
-
     // 如果已有缓存数据，不显示loading，静默更新
     if (!hasInitialData) {
       setLoading(true);
     }
-
     try {
       const configData = await getCachedConfigs();
-
       // 只有在数据有变化时才更新
       const hasDataChanged =
         JSON.stringify(configData) !== JSON.stringify(configsToCompare);
-
       if (hasDataChanged) {
         setConfigs(configData);
         setOriginalConfigs({ ...configData });
@@ -311,21 +264,17 @@ export default function ConfigPage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     const timer = setTimeout(() => {
       loadConfigs(initialConfigs);
       loadAnnouncement();
     }, 100);
-
     return () => clearTimeout(timer);
   }, []);
-
   const loadAnnouncement = async () => {
     setAnnouncementLoading(true);
     try {
       const res = await getAnnouncement();
-
       if (res.code === 0 && res.data) {
         setAnnouncement(res.data);
       }
@@ -334,12 +283,10 @@ export default function ConfigPage() {
       setAnnouncementLoading(false);
     }
   };
-
   const saveAnnouncement = async () => {
     setAnnouncementSaving(true);
     try {
       const res = await updateAnnouncement(announcement);
-
       if (res.code === 0) {
         toast.success("公告保存成功");
       } else {
@@ -351,7 +298,6 @@ export default function ConfigPage() {
       setAnnouncementSaving(false);
     }
   };
-
   const handleUpdateChannelChange = (channel: UpdateReleaseChannel) => {
     setUpdateChannel(channel);
     setUpdateReleaseChannel(channel);
@@ -359,16 +305,12 @@ export default function ConfigPage() {
       `更新通道已切换为${channel === "stable" ? "稳定版" : "开发版"}`,
     );
   };
-
   const handleConfigChange = (key: string, value: string) => {
     const newConfigs = { ...configs, [key]: value };
-
     setConfigs(newConfigs);
-
     if (isBrandPreviewKey(key)) {
       setPreviewLoadFailed((prev) => ({ ...prev, [key]: false }));
     }
-
     const hasChangesNow =
       Object.keys(newConfigs).some(
         (k) => newConfigs[k] !== originalConfigs[k],
@@ -376,10 +318,8 @@ export default function ConfigPage() {
       Object.keys(originalConfigs).some(
         (k) => originalConfigs[k] !== newConfigs[k],
       );
-
     setHasChanges(hasChangesNow);
   };
-
   // 保存配置
   const handleSave = async () => {
     setSaving(true);
@@ -387,31 +327,22 @@ export default function ConfigPage() {
       const changedKeys = Object.keys(configs).filter(
         (key) => configs[key] !== originalConfigs[key],
       );
-
       if (changedKeys.length === 0) {
         setHasChanges(false);
-
         return;
       }
-
       const changedPayload: Record<string, string> = {};
-
       changedKeys.forEach((key) => {
         changedPayload[key] = configs[key] || "";
       });
-
       const response = await updateConfigs(changedPayload);
-
       if (response.code === 0) {
         toast.success("配置保存成功");
-
         Object.entries(configs).forEach(([key, value]) => {
           configCache.set(key, value);
         });
-
         setOriginalConfigs({ ...configs });
         setHasChanges(false);
-
         if (
           changedKeys.some((key) =>
             ["app_name", "app_logo", "app_favicon"].includes(key),
@@ -419,7 +350,6 @@ export default function ConfigPage() {
         ) {
           await updateSiteConfig(configs);
         }
-
         // 触发配置更新事件，通知其他组件
         window.dispatchEvent(
           new CustomEvent("configUpdated", {
@@ -435,70 +365,56 @@ export default function ConfigPage() {
       setSaving(false);
     }
   };
-
   // 检查配置项是否应该显示（依赖检查）
   const shouldShowItem = (item: ConfigItem): boolean => {
     if (!item.dependsOn || !item.dependsValue) {
       return true;
     }
-
     return configs[item.dependsOn] === item.dependsValue;
   };
-
   const getBrandInputRef = (key: BrandPreviewKey) => {
     return key === "app_logo" ? logoFileInputRef : faviconFileInputRef;
   };
-
   const triggerBrandFilePicker = (key: BrandPreviewKey) => {
     if (brandUploading[key]) {
       return;
     }
-
     getBrandInputRef(key).current?.click();
   };
-
   const clearBrandAsset = (key: BrandPreviewKey) => {
     handleConfigChange(key, "");
     setPreviewLoadFailed((prev) => ({ ...prev, [key]: false }));
   };
-
   const handleBrandFileChange = async (
     key: BrandPreviewKey,
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
-
     if (!file) {
       return;
     }
-
     setBrandUploading((prev) => ({ ...prev, [key]: true }));
-
     try {
       const pngDataURL = await convertBrandAssetToPngDataURL(
         file,
         toBrandAssetKind(key),
       );
-
       handleConfigChange(key, pngDataURL);
       toast.success(key === "app_logo" ? "Logo 上传成功" : "Favicon 上传成功");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "图片处理失败，请重试";
-
       toast.error(message);
     } finally {
       setBrandUploading((prev) => ({ ...prev, [key]: false }));
       event.target.value = "";
     }
   };
-
   const renderBrandPreview = (key: BrandPreviewKey) => {
     const previewUrl = (configs[key] || "").trim();
     const appNamePreview = (configs.app_name || "").trim() || "应用名称";
     const failed = previewLoadFailed[key] === true;
     const showImage = previewUrl.length > 0 && !failed;
-
     return (
       <div className="mt-3 rounded-lg border border-default-200 dark:border-default-100/30 bg-default-50/60 dark:bg-default-100/10 p-3">
         <p className="text-xs text-default-500">实时预览</p>
@@ -549,17 +465,14 @@ export default function ConfigPage() {
             </div>
           )}
         </div>
-
         {previewUrl.length === 0 ? (
           <p className="mt-2 text-xs text-default-500">
             上传图片后会实时显示预览
           </p>
         ) : null}
-
         {previewUrl.length > 0 && failed ? (
           <p className="mt-2 text-xs text-danger">图片加载失败，请重新上传</p>
         ) : null}
-
         {previewUrl.length > 0 && !isPngDataURL(previewUrl) ? (
           <p className="mt-2 text-xs text-warning-600 dark:text-warning-400">
             当前是旧版 URL 配置，建议重新上传图片以启用无闪烁加载
@@ -568,7 +481,6 @@ export default function ConfigPage() {
       </div>
     );
   };
-
   const renderBrandAssetUploader = (
     key: BrandPreviewKey,
     isChanged: boolean,
@@ -576,7 +488,6 @@ export default function ConfigPage() {
     const value = (configs[key] || "").trim();
     const uploading = brandUploading[key] === true;
     const isLogo = key === "app_logo";
-
     return (
       <div
         className={`rounded-lg border p-3 ${isChanged
@@ -593,7 +504,6 @@ export default function ConfigPage() {
             void handleBrandFileChange(key, event);
           }}
         />
-
         <div className="flex flex-wrap items-center gap-2">
           <Button
             color="primary"
@@ -622,29 +532,24 @@ export default function ConfigPage() {
             仅支持图片文件，自动转换为 PNG
           </span>
         </div>
-
         <p className="mt-2 text-xs text-default-500">
           {isLogo
             ? "建议上传方形图片，系统会统一转换为 96x96 PNG"
             : "建议上传方形图片，系统会统一转换为 64x64 PNG"}
         </p>
-
         {renderBrandPreview(key)}
       </div>
     );
   };
-
   // 渲染不同类型的配置项
   const renderConfigItem = (item: ConfigItem) => {
     const isChanged =
       hasChanges && configs[item.key] !== originalConfigs[item.key];
-
     switch (item.type) {
       case "input":
         if (isBrandPreviewKey(item.key)) {
           return renderBrandAssetUploader(item.key, isChanged);
         }
-
         if (item.key === "github_proxy_urls") {
           const rawValue = configs[item.key] || "";
           let displayValue = "";
@@ -658,7 +563,6 @@ export default function ConfigPage() {
           } catch {
             displayValue = rawValue;
           }
-
           return (
             <Textarea
               classNames={{
@@ -682,7 +586,6 @@ export default function ConfigPage() {
             />
           );
         }
-
         return (
           <Input
             classNames={{
@@ -698,7 +601,6 @@ export default function ConfigPage() {
             onChange={(e) => handleConfigChange(item.key, e.target.value)}
           />
         );
-
       case "switch":
         return (
           <Switch
@@ -717,7 +619,6 @@ export default function ConfigPage() {
             </span>
           </Switch>
         );
-
       case "select":
         return (
           <Select
@@ -732,7 +633,6 @@ export default function ConfigPage() {
             variant="bordered"
             onSelectionChange={(keys) => {
               const selectedKey = Array.from(keys)[0] as string;
-
               if (selectedKey) {
                 handleConfigChange(item.key, selectedKey);
               }
@@ -745,16 +645,13 @@ export default function ConfigPage() {
             )) || []}
           </Select>
         );
-
       default:
         return null;
     }
   };
-
   const handleExport = async () => {
     if (exportTypes.length === 0) {
       toast.error("请至少选择一种数据类型");
-
       return;
     }
     setExporting(true);
@@ -768,41 +665,30 @@ export default function ConfigPage() {
       setExporting(false);
     }
   };
-
   const triggerImportFilePicker = () => {
     if (importTypes.length === 0) {
       toast.error("请先选择要导入的数据类型");
-
       return;
     }
-
     setImportSelectorOpen(false);
     requestAnimationFrame(() => backupFileInputRef.current?.click());
   };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-
     if (!file) return;
-
     if (importTypes.length === 0) {
       toast.error("请先选择要导入的数据类型");
-
       return;
     }
-
     setImportFileName(file.name);
     setImporting(true);
-
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-
       const response = await importBackup({
         types: importTypes,
         ...data,
       });
-
       if (response.code === 0) {
         toast.success(`导入成功: ${JSON.stringify(response.data)}`);
         setImportTypes([]);
@@ -819,7 +705,6 @@ export default function ConfigPage() {
       }
     }
   };
-
   const toggleTypeSelection = (
     type: string,
     setTypes: React.Dispatch<React.SetStateAction<string[]>>,
@@ -830,17 +715,14 @@ export default function ConfigPage() {
         : [...prev, type],
     );
   };
-
   const isAllTypesSelected = (types: string[]) =>
     BACKUP_TYPE_VALUES.every((type) => types.includes(type));
-
   const renderTypeSelection = (
     label: string,
     selectedTypes: string[],
     setTypes: React.Dispatch<React.SetStateAction<string[]>>,
   ) => {
     const allSelected = isAllTypesSelected(selectedTypes);
-
     return (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -853,7 +735,6 @@ export default function ConfigPage() {
               当前已选 {selectedTypes.length} / {BACKUP_TYPE_VALUES.length}
             </span>
           </div>
-
           <div className="flex items-center gap-2">
             <Button
               size="sm"
@@ -869,11 +750,9 @@ export default function ConfigPage() {
             </Button>
           </div>
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {BACKUP_TYPE_OPTIONS.map((option) => {
             const isSelected = selectedTypes.includes(option.value);
-
             return (
               <button
                 key={option.value}
@@ -910,7 +789,6 @@ export default function ConfigPage() {
       </div>
     );
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -918,7 +796,6 @@ export default function ConfigPage() {
       </div>
     );
   }
-
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* 页面标题 
@@ -941,7 +818,6 @@ export default function ConfigPage() {
           </p>
         </div>
       </div> */}
-
       <Card className="shadow-md">
         <CardHeader className="pb-6">
           <div className="flex items-center w-full">
@@ -953,27 +829,22 @@ export default function ConfigPage() {
             </div>
           </div>
         </CardHeader>
-
         <Divider />
-
         <CardBody className="space-y-6 pt-8 md:pt-8">
           {CONFIG_ITEMS.map((item, index) => {
             // 检查配置项是否应该显示
             if (!shouldShowItem(item)) {
               return null;
             }
-
             // 计算是否是最后一个显示的项目（用于决定是否显示分隔线）
             const remainingItems = CONFIG_ITEMS.slice(index + 1).filter(
               shouldShowItem,
             );
             const isLastItem = remainingItems.length === 0;
-
             return (
               <div key={item.key}>
                 {/* 🎯 如果是开关(switch)，使用 justify-between 左右排列；如果是其他，使用 space-y-3 上下排列 */}
                 <div className={item.type === "switch" ? "flex justify-between items-center gap-4" : "space-y-3"}>
-
                   {/* 左侧：标题和描述 */}
                   <div className="flex flex-col gap-1">
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -985,23 +856,18 @@ export default function ConfigPage() {
                       </p>
                     )}
                   </div>
-
                   {/* 右侧/下方：配置组件 */}
                   {/* flex-shrink-0 防止开关被长文本挤变形 */}
                   <div className={item.type === "switch" ? "flex-shrink-0" : ""}>
                     {renderConfigItem(item)}
                   </div>
-
                 </div>
-
                 {/* 分隔线 */}
                 {!isLastItem && <Divider className="mt-6" />}
               </div>
             );
           })}
-
           <Divider className="my-2" />
-
           <div className="space-y-3">
             <div className="flex flex-col gap-1 mt-5">
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -1012,7 +878,6 @@ export default function ConfigPage() {
                 的版本。
               </p>
             </div>
-
             <Select
               selectedKeys={[updateChannel]}
               size="md"
@@ -1020,7 +885,6 @@ export default function ConfigPage() {
               onSelectionChange={(keys) => {
                 const selected =
                   (Array.from(keys)[0] as UpdateReleaseChannel) || "stable";
-
                 handleUpdateChannelChange(selected);
               }}
             >
@@ -1035,7 +899,6 @@ export default function ConfigPage() {
               </SelectItem>
             </Select>
           </div>
-
           {/* 👇 完美靠齐卡片右侧的悬浮保存按钮 */}
           <AnimatePresence>
             {hasChanges && (
@@ -1067,10 +930,8 @@ export default function ConfigPage() {
                       配置已变更
                     </span>
                   </div>
-
                   {/* 分隔线 */}
                   <div className="w-px h-5 bg-default-200 dark:bg-default-700" />
-
                   {/* 保存按钮 */}
                   <Button
                     className="rounded-full font-medium text-white min-w-[100px]"
@@ -1121,9 +982,7 @@ export default function ConfigPage() {
             )}
           </div>
         </CardHeader>
-
         <Divider />
-
         <CardBody className="space-y-4 pt-6 md:pt-6">
           {announcementLoading ? (
             <div className="flex justify-center py-8">
@@ -1148,7 +1007,6 @@ export default function ConfigPage() {
                   setAnnouncement({ ...announcement, content: e.target.value })
                 }
               />
-
               <div className="flex justify-end mt-2 pt-4 border-t border-divider/50">
                 <Button
                   color="primary"
@@ -1163,12 +1021,10 @@ export default function ConfigPage() {
           )}
         </CardBody>
       </Card>
-
       {/* 主题设置
       <div className="mt-6 shadow-md">
         <ThemeSettings />
       </div> */}
-
       {/* 备份与恢复 */}
       <Card className="mt-6 shadow-md">
         <CardHeader className="pb-6">
@@ -1181,9 +1037,7 @@ export default function ConfigPage() {
             </div>
           </div>
         </CardHeader>
-
         <Divider />
-
         <CardBody className="space-y-6 pt-8 md:pt-8">
           {/* 导出部分 */}
           <div className="flex justify-between items-start gap-4">
@@ -1194,7 +1048,6 @@ export default function ConfigPage() {
               </p>
               {/* 🎯 计数的 <p> 标签已经被干掉了 */}
             </div>
-
             <div className="flex-shrink-0">
               <Button
                 color="primary"
@@ -1205,9 +1058,7 @@ export default function ConfigPage() {
               </Button>
             </div>
           </div>
-
           <Divider />
-
           {/* 导入部分 */}
           <div className="flex justify-between items-start gap-4">
             <div className="space-y-1.5">
@@ -1222,7 +1073,6 @@ export default function ConfigPage() {
                 </p>
               )}
             </div>
-
             <input
               ref={backupFileInputRef}
               accept=".json"
@@ -1230,7 +1080,6 @@ export default function ConfigPage() {
               type="file"
               onChange={handleFileChange}
             />
-
             <div className="flex-shrink-0">
               <Button
                 color="primary"
@@ -1244,7 +1093,6 @@ export default function ConfigPage() {
           </div>
         </CardBody>
       </Card>
-
       <Modal
         backdrop="blur"
         classNames={{
@@ -1276,7 +1124,6 @@ export default function ConfigPage() {
           )}
         </ModalContent>
       </Modal>
-
       <Modal
         backdrop="blur"
         classNames={{

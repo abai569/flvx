@@ -1,6 +1,5 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-
 import { AnimatedPage } from "@/components/animated-page";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -25,14 +24,12 @@ import {
   type DashboardNodeExpiryItem,
   type DashboardUserTunnel as UserTunnel,
 } from "@/pages/dashboard/use-dashboard-data";
-
 interface AddressItem {
   id: number;
   ip: string;
   address: string;
   copying: boolean;
 }
-
 export default function DashboardPage() {
   const {
     loading,
@@ -44,17 +41,14 @@ export default function DashboardPage() {
     isAdmin,
     announcement,
   } = useDashboardData();
-
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [addressModalTitle, setAddressModalTitle] = useState("");
   const [addressList, setAddressList] = useState<AddressItem[]>([]);
-
   const formatFlow = (value: number, unit: string = "bytes"): string => {
     // 99999 表示无限制
     if (value === 99999) {
       return "无限制";
     }
-
     if (unit === "gb") {
       return value + " GB";
     } else {
@@ -63,20 +57,16 @@ export default function DashboardPage() {
       if (value < 1024 * 1024) return (value / 1024).toFixed(2) + " KB";
       if (value < 1024 * 1024 * 1024)
         return (value / (1024 * 1024)).toFixed(2) + " MB";
-
       return (value / (1024 * 1024 * 1024)).toFixed(2) + " GB";
     }
   };
-
   const formatNumber = (value: number): string => {
     // 99999 表示无限制
     if (value === 99999) {
       return "无限制";
     }
-
     return value.toString();
   };
-
   const getNodeExpiryStatus = (
     nextDueTime?: number,
     renewalState: "unset" | "expired" | "dueSoon" | "scheduled" = "unset",
@@ -89,11 +79,9 @@ export default function DashboardPage() {
         nextDueTime: undefined as number | undefined,
       };
     }
-
     const diffDays = Math.ceil(
       (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),
     );
-
     if (renewalState === "expired" || diffDays <= 0) {
       return {
         label: "已逾期",
@@ -102,7 +90,6 @@ export default function DashboardPage() {
         nextDueTime,
       };
     }
-
     if (diffDays === 1) {
       return {
         label: "明天到期",
@@ -111,7 +98,6 @@ export default function DashboardPage() {
         nextDueTime,
       };
     }
-
     return {
       label: `${diffDays}天后到期`,
       badgeClassName:
@@ -121,7 +107,6 @@ export default function DashboardPage() {
       nextDueTime,
     };
   };
-
   const renderNodeExpiryCard = (node: DashboardNodeExpiryItem) => {
     const renewalSnapshot = getNodeRenewalSnapshot(
       node.expiryTime,
@@ -131,7 +116,6 @@ export default function DashboardPage() {
       renewalSnapshot.nextDueTime,
       renewalSnapshot.state,
     );
-
     return (
       <div
         key={node.id}
@@ -152,15 +136,12 @@ export default function DashboardPage() {
             {expiryStatus.label}
           </span>
         </div>
-
         <div className="mt-3 text-sm text-default-700 dark:text-default-300">
           {formatNodeRenewalTime(renewalSnapshot.nextDueTime)}
         </div>
-
         <div className="mt-1 text-xs text-default-500">
           {getNodeRenewalCycleLabel(node.renewalCycle)}
         </div>
-
         {node.remark?.trim() && (
           <p className="mt-3 line-clamp-2 text-xs leading-5 text-default-600 dark:text-default-400">
             {node.remark.trim()}
@@ -169,27 +150,21 @@ export default function DashboardPage() {
       </div>
     );
   };
-
   // 处理24小时流量统计数据
   const processFlowChartData = () => {
     // 生成最近24小时的时间数组（从当前小时往前推24小时）
     const now = new Date();
     const hours: string[] = [];
-
     for (let i = 23; i >= 0; i--) {
       const time = new Date(now.getTime() - i * 60 * 60 * 1000);
       const hourString = time.getHours().toString().padStart(2, "0") + ":00";
-
       hours.push(hourString);
     }
-
     // 创建数据映射
     const flowMap = new Map<string, number>();
-
     statisticsFlows.forEach((item) => {
       flowMap.set(item.time, item.flow || 0);
     });
-
     // 生成图表数据，没有数据的小时显示为0
     return hours.map((hour) => ({
       time: hour,
@@ -198,7 +173,6 @@ export default function DashboardPage() {
       formattedFlow: formatFlow(flowMap.get(hour) || 0),
     }));
   };
-
   const getExpStatus = (expTime?: string | number) => {
     if (!expTime)
       return {
@@ -206,10 +180,8 @@ export default function DashboardPage() {
         bg: "bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20",
         text: "永久",
       };
-
     const now = new Date();
     const expDate = new Date(expTime);
-
     if (isNaN(expDate.getTime())) {
       return {
         color: "text-gray-600 dark:text-gray-400",
@@ -217,7 +189,6 @@ export default function DashboardPage() {
         text: "无效",
       };
     }
-
     if (expDate < now) {
       return {
         color: "text-red-600 dark:text-red-400",
@@ -225,10 +196,8 @@ export default function DashboardPage() {
         text: "已过期",
       };
     }
-
     const diffTime = expDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
     if (diffDays <= 7) {
       return {
         color: "text-red-600 dark:text-red-400",
@@ -249,48 +218,37 @@ export default function DashboardPage() {
       };
     }
   };
-
   const calculateUserTotalUsedFlow = (): number => {
     // 后端已按计费类型处理流量，前端直接使用入站+出站总和
     return (userInfo.inFlow || 0) + (userInfo.outFlow || 0);
   };
-
   const calculateUsagePercentage = (type: "flow" | "forwards"): number => {
     if (type === "flow") {
       const totalUsed = calculateUserTotalUsedFlow();
       const totalLimit = (userInfo.flow || 0) * 1024 * 1024 * 1024;
-
       // 无限制时返回0%
       if (userInfo.flow === 99999) return 0;
-
       return totalLimit > 0 ? Math.min((totalUsed / totalLimit) * 100, 100) : 0;
     } else if (type === "forwards") {
       const totalUsed = forwardList.length;
       const totalLimit = userInfo.num || 0;
-
       // 无限制时返回0%
       if (userInfo.num === 99999) return 0;
-
       return totalLimit > 0 ? Math.min((totalUsed / totalLimit) * 100, 100) : 0;
     }
-
     return 0;
   };
-
   const getUsageColor = (percentage: number) => {
     if (percentage >= 90) return "bg-red-500 dark:bg-red-600";
     if (percentage >= 70) return "bg-orange-500 dark:bg-orange-600";
-
     return "bg-blue-500 dark:bg-blue-600";
   };
-
   const renderProgressBar = (
     percentage: number,
     size: "sm" | "md" = "md",
     isUnlimited: boolean = false,
   ) => {
     const height = size === "sm" ? "h-1.5" : "h-2";
-
     if (isUnlimited) {
       return (
         <div className="w-full">
@@ -304,7 +262,6 @@ export default function DashboardPage() {
         </div>
       );
     }
-
     return (
       <div className="w-full">
         <div
@@ -318,50 +275,37 @@ export default function DashboardPage() {
       </div>
     );
   };
-
   const calculateTunnelUsedFlow = (tunnel: UserTunnel): number => {
     if (!tunnel) return 0;
     const inFlow = tunnel.inFlow || 0;
     const outFlow = tunnel.outFlow || 0;
-
     // 后端已按计费类型处理流量，前端直接使用入站+出站总和
     return inFlow + outFlow;
   };
-
   const calculateTunnelFlowPercentage = (tunnel: UserTunnel): number => {
     const totalUsed = calculateTunnelUsedFlow(tunnel);
     const totalLimit = (tunnel.flow || 0) * 1024 * 1024 * 1024;
-
     // 无限制时返回0%
     if (tunnel.flow === 99999) return 0;
-
     return totalLimit > 0 ? Math.min((totalUsed / totalLimit) * 100, 100) : 0;
   };
-
   const getTunnelUsedForwards = (tunnelId: number): number => {
     return forwardList.filter((forward) => forward.tunnelId === tunnelId)
       .length;
   };
-
   const calculateTunnelForwardPercentage = (tunnel: UserTunnel): number => {
     const totalUsed = getTunnelUsedForwards(tunnel.tunnelId);
     const totalLimit = tunnel.num || 0;
-
     // 无限制时返回0%
     if (tunnel.num === 99999) return 0;
-
     return totalLimit > 0 ? Math.min((totalUsed / totalLimit) * 100, 100) : 0;
   };
-
   const formatResetTime = (resetDay?: number): string => {
     if (resetDay === undefined || resetDay === null) return "";
     if (resetDay === 0) return "不重置";
-
     const now = new Date();
     const currentDay = now.getDate();
-
     let daysUntilReset: number;
-
     if (resetDay > currentDay) {
       daysUntilReset = resetDay - currentDay;
     } else if (resetDay < currentDay) {
@@ -371,12 +315,10 @@ export default function DashboardPage() {
         resetDay,
       );
       const diffTime = nextMonth.getTime() - now.getTime();
-
       daysUntilReset = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     } else {
       daysUntilReset = 0;
     }
-
     if (daysUntilReset === 0) {
       return "今日重置";
     } else if (daysUntilReset === 1) {
@@ -385,15 +327,12 @@ export default function DashboardPage() {
       return `${daysUntilReset}天后重置`;
     }
   };
-
   const groupedForwards = () => {
     const groups: {
       [key: string]: { tunnelName: string; forwards: Forward[] };
     } = {};
-
     forwardList.forEach((forward) => {
       const tunnelName = forward.tunnelName || "未知隧道";
-
       if (!groups[tunnelName]) {
         groups[tunnelName] = {
           tunnelName,
@@ -402,114 +341,85 @@ export default function DashboardPage() {
       }
       groups[tunnelName].forwards.push(forward);
     });
-
     return Object.values(groups);
   };
-
   const formatInAddress = (ipString: string, port: number): string => {
     if (!ipString) return "";
-
     const items = ipString
       .split(",")
       .map((item) => item.trim())
       .filter((item) => item);
-
     if (items.length === 0) return "";
-
     // 检查第一项是否已经包含端口（格式：IP:端口）
     const firstItem = items[0];
     const hasPort = /:\d+$/.test(firstItem);
-
     if (hasPort) {
       // inIp 已经包含完整的 IP:Port 组合
       if (items.length === 1) {
         return items[0];
       }
-
       return `${items[0]} (+${items.length - 1}个)`;
     }
-
     // inIp 只包含IP，需要添加端口（兼容旧数据）
     if (!port) return "";
-
     if (items.length === 1) {
       const ip = items[0];
-
       if (ip.includes(":") && !ip.startsWith("[")) {
         return `[${ip}]:${port}`;
       } else {
         return `${ip}:${port}`;
       }
     }
-
     const firstIp = items[0];
     let formattedFirstIp: string;
-
     if (firstIp.includes(":") && !firstIp.startsWith("[")) {
       formattedFirstIp = `[${firstIp}]`;
     } else {
       formattedFirstIp = firstIp;
     }
-
     return `${formattedFirstIp}:${port} (+${items.length - 1}个)`;
   };
-
   const formatRemoteAddress = (remoteAddr: string): string => {
     if (!remoteAddr) return "";
-
     const addresses = remoteAddr
       .split(",")
       .map((addr) => addr.trim())
       .filter((addr) => addr);
-
     if (addresses.length === 0) return "";
-
     if (addresses.length === 1) {
       return addresses[0];
     }
-
     return `${addresses[0]} (+${addresses.length - 1})`;
   };
-
   const hasMultipleIps = (ipString: string): boolean => {
     if (!ipString) return false;
     const ips = ipString
       .split(",")
       .map((ip) => ip.trim())
       .filter((ip) => ip);
-
     return ips.length > 1;
   };
-
   const hasMultipleRemoteAddresses = (remoteAddr: string): boolean => {
     if (!remoteAddr) return false;
     const addresses = remoteAddr
       .split(",")
       .map((addr) => addr.trim())
       .filter((addr) => addr);
-
     return addresses.length > 1;
   };
-
   const showAddressModal = (ipString: string, port: number, title: string) => {
     if (!ipString) return;
-
     const items = ipString
       .split(",")
       .map((item) => item.trim())
       .filter((item) => item);
-
     if (items.length <= 1) {
       copyToClipboard(formatInAddress(ipString, port));
-
       return;
     }
-
     // 检查是否已经包含端口
     const hasPort = /:\d+$/.test(items[0]);
-
     let formattedList: AddressItem[];
-
     if (hasPort) {
       // 已经包含完整的 IP:Port 组合，直接使用
       formattedList = items.map((item, index) => ({
@@ -522,13 +432,11 @@ export default function DashboardPage() {
       // 只包含IP，需要添加端口
       formattedList = items.map((ip, index) => {
         let formattedAddress: string;
-
         if (ip.includes(":") && !ip.startsWith("[")) {
           formattedAddress = `[${ip}]:${port}`;
         } else {
           formattedAddress = `${ip}:${port}`;
         }
-
         return {
           id: index,
           ip: ip,
@@ -537,26 +445,20 @@ export default function DashboardPage() {
         };
       });
     }
-
     setAddressList(formattedList);
     setAddressModalTitle(`${title} (${items.length}个)`);
     setAddressModalOpen(true);
   };
-
   const showRemoteAddressModal = (remoteAddr: string, title: string) => {
     if (!remoteAddr) return;
-
     const addresses = remoteAddr
       .split(",")
       .map((addr) => addr.trim())
       .filter((addr) => addr);
-
     if (addresses.length <= 1) {
       copyToClipboard(remoteAddr);
-
       return;
     }
-
     const formattedList = addresses.map((address, index) => {
       return {
         id: index,
@@ -565,12 +467,10 @@ export default function DashboardPage() {
         copying: false,
       };
     });
-
     setAddressList(formattedList);
     setAddressModalTitle(`${title} (${addresses.length}个)`);
     setAddressModalOpen(true);
   };
-
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -579,7 +479,6 @@ export default function DashboardPage() {
       toast.error("复制失败");
     }
   };
-
   const copyAddress = async (addressItem: AddressItem) => {
     try {
       setAddressList((prev) =>
@@ -598,24 +497,18 @@ export default function DashboardPage() {
       );
     }
   };
-
   const copyAllAddresses = async () => {
     if (addressList.length === 0) return;
     const allAddresses = addressList.map((item) => item.address).join("\n");
-
     await copyToClipboard(allAddresses);
   };
-
   const calculateForwardBillingFlow = (forward: Forward): number => {
     if (!forward) return 0;
-
     const inFlow = forward.inFlow || 0;
     const outFlow = forward.outFlow || 0;
-
     // 后端已按计费类型处理流量，前端直接使用入站+出站总和
     return inFlow + outFlow;
   };
-
   if (loading) {
     return (
       <div className="px-3 lg:px-6 flex-grow pt-2 lg:pt-4">
@@ -623,7 +516,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
   return (
     <AnimatedPage className="px-3 lg:px-6 py-2 lg:py-4">
       {announcement && <AnnouncementBanner announcement={announcement} />}
@@ -646,7 +538,6 @@ export default function DashboardPage() {
             value={formatFlow(userInfo.flow, "gb")}
           />
         </div>
-
         {/* 2. 已用流量 */}
         <div className="order-1 lg:order-2 flex flex-col [&>*]:flex-1">
           <MetricCard
@@ -705,7 +596,6 @@ export default function DashboardPage() {
             value={formatFlow(calculateUserTotalUsedFlow())}
           />
         </div>
-
         {/* 3. 规则配额 */}
         <div className="order-4 lg:order-3 flex flex-col [&>*]:flex-1">
           <MetricCard
@@ -728,7 +618,6 @@ export default function DashboardPage() {
             value={formatNumber(userInfo.num || 0)}
           />
         </div>
-
         {/* 4. 已用规则 */}
         <div className="order-2 lg:order-4 flex flex-col [&>*]:flex-1">
           <MetricCard
@@ -766,13 +655,11 @@ export default function DashboardPage() {
           />
         </div>
       </div>
-
       <FlowChartCard
         chartData={processFlowChartData()}
         formatFlow={formatFlow}
         statisticsFlowsCount={statisticsFlows.length}
       />
-
       {isAdmin && nodeExpiryReminders.length > 0 && (
         <Card className="mb-6 lg:mb-8 border border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-background to-orange-50/70 shadow-md dark:border-amber-500/20 dark:from-amber-950/10 dark:to-orange-950/10">
           <CardHeader className="pb-3">
@@ -820,7 +707,6 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
       )}
-
       {/* 隧道权限 - 管理员不显示 */}
       {!isAdmin && (
         <Card className="mb-6 lg:mb-8 border border-gray-200 dark:border-default-200 shadow-md">
@@ -853,7 +739,6 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {userTunnels.map((tunnel) => {
                   const tunnelExpStatus = getExpStatus(tunnel.expTime);
-
                   return (
                     <div
                       key={tunnel.id}
@@ -886,7 +771,6 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
-
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
                         <div>
                           <p className="text-sm text-default-600 mb-1">
@@ -943,7 +827,6 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
       )}
-
       {/* 规则配置 */}
       <Card className="border border-gray-200 dark:border-default-200 shadow-md">
         <CardHeader className="pb-3">
@@ -1002,7 +885,6 @@ export default function DashboardPage() {
                       {group.forwards.length} 个规则
                     </span>
                   </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                     {group.forwards.map((forward) => (
                       <div
@@ -1056,7 +938,6 @@ export default function DashboardPage() {
                               </button>
                             </div>
                           </div>
-
                           <div className="pt-2 border-t border-gray-200 dark:border-default-200">
                             <div className="grid grid-cols-3 gap-1 text-xs">
                               <div className="text-center">
@@ -1097,7 +978,6 @@ export default function DashboardPage() {
           )}
         </CardBody>
       </Card>
-
       {/* 地址列表弹窗 */}
       <Modal
         backdrop="blur"
@@ -1115,7 +995,6 @@ export default function DashboardPage() {
                 复制全部
               </Button>
             </div>
-
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {addressList.map((item) => (
                 <div

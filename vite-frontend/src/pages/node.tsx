@@ -1,5 +1,4 @@
 import type { NodeGroupApiItem, OfflineDeployPayload } from "@/api/types";
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
@@ -20,9 +19,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
 import { NodeGroupManager } from "./node/node-group-manager";
-
 import {
   DistroIcon,
   parseDistroFromVersion,
@@ -101,16 +98,13 @@ import { useNodeOfflineTimers } from "@/pages/node/use-node-offline-timers";
 import { useNodeRealtime } from "@/pages/node/use-node-realtime";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { loadStoredOrder, saveOrder } from "@/utils/order-storage";
-
 // TypeScript 全局类型扩展
 declare global {
   interface Window {
     __pendingNodeRefresh?: Set<number>;
   }
 }
-
 const NODE_FALLBACK_REFRESH_INTERVAL_MS = 15000;
-
 interface Node {
   id: number;
   inx?: number;
@@ -144,7 +138,6 @@ interface Node {
   rollbackLoading?: boolean;
   groupId?: number | null;
 }
-
 interface NodeForm {
   id: number | null;
   name: string;
@@ -164,10 +157,8 @@ interface NodeForm {
   tls: number;
   socks: number;
 }
-
 type NodeTab = "local" | "remote";
 type NodeViewMode = "grid" | "list" | "grouped";
-
 interface RemoteUsageBinding {
   bindingId: number;
   tunnelId: number;
@@ -179,7 +170,6 @@ interface RemoteUsageBinding {
   remoteBindingId: string;
   updatedTime: number;
 }
-
 interface RemoteUsageNode {
   nodeId: number;
   nodeName: string;
@@ -194,20 +184,14 @@ interface RemoteUsageNode {
   activeBindingNum: number;
   syncError?: string;
 }
-
 const EXPIRING_SOON_DAYS = 7;
-
 type NodeExpiryState = "permanent" | "healthy" | "expiringSoon" | "expired";
-
 type NodeFilterMode = "all" | "expiringSoon" | "expired" | "withExpiry";
-
 const getNodeReminderEnabled = (node: Node): boolean => {
   return !!node.expiryTime && node.expiryTime > 0 && !!node.renewalCycle;
 };
-
 const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {
   const renewal = getNodeRenewalSnapshot(timestamp, cycle, EXPIRING_SOON_DAYS);
-
   if (renewal.state === "unset") {
     return {
       state: "permanent" as NodeExpiryState,
@@ -220,7 +204,6 @@ const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {
       nextDueTime: undefined,
     };
   }
-
   if (renewal.state === "expired") {
     return {
       state: "expired" as NodeExpiryState,
@@ -235,7 +218,6 @@ const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {
       nextDueTime: renewal.nextDueTime,
     };
   }
-
   if (renewal.state === "dueSoon") {
     return {
       state: "expiringSoon" as NodeExpiryState,
@@ -250,7 +232,6 @@ const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {
       nextDueTime: renewal.nextDueTime,
     };
   }
-
   return {
     state: "healthy" as NodeExpiryState,
     label: renewal.label,
@@ -262,7 +243,6 @@ const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {
     nextDueTime: renewal.nextDueTime,
   };
 };
-
 const mergeNodeRealtimeState = (
   incomingNode: Node,
   existingNode?: Node,
@@ -285,7 +265,6 @@ const mergeNodeRealtimeState = (
       null,
   } as Node;
 };
-
 const SortableItem = ({
   id,
   children,
@@ -301,7 +280,6 @@ const SortableItem = ({
     transition,
     isDragging,
   } = useSortable({ id });
-
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
@@ -314,25 +292,21 @@ const SortableItem = ({
     opacity: isDragging ? 0.5 : 1,
     willChange: isDragging ? "transform" : undefined,
   };
-
   return (
     <div ref={setNodeRef} className="h-full z-10 hover:z-50 focus-within:z-50" style={style} {...attributes}>
       {children(listeners)}
     </div>
   );
 };
-
 // 格式化日期时间戳
 const formatDate = (timestamp: number): string => {
   if (!timestamp) return "-";
   return new Date(timestamp).toLocaleString();
 };
-
 export default function NodePage() {
   const [nodeList, setNodeList] = useState<Node[]>([]);
   const [nodeOrder, setNodeOrder] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
-
   const [realtimeNodeMetrics, setRealtimeNodeMetrics] = useState<
     Record<
       number,
@@ -360,7 +334,6 @@ export default function NodePage() {
       }
     >
   >({});
-
   const [localSearchKeyword, setLocalSearchKeyword] = useLocalStorageState(
     "node-search-keyword-local",
     "",
@@ -373,13 +346,11 @@ export default function NodePage() {
     "node-active-tab",
     "local",
   );
-
   useEffect(() => {
     if (activeTab !== "local" && activeTab !== "remote") {
       setActiveTab("local");
     }
   }, [activeTab, setActiveTab]);
-
   const [remoteUsageMap, setRemoteUsageMap] = useState<
     Record<number, RemoteUsageNode>
   >({});
@@ -419,27 +390,22 @@ export default function NodePage() {
     socks: 0,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchRollbackModalOpen, setBatchRollbackModalOpen] = useState(false);
-
   const [viewMode, setViewMode] = useLocalStorageState<NodeViewMode>(
     "node-view-mode",
     "grid",
   );
-
   const [collapsedGroups, setCollapsedGroups] = useLocalStorageState<Record<string, boolean>>(
     "node-group-collapsed-state",
     {}
   );
-
   const [infoPopoverOpenId, setInfoPopoverOpenId] = useState<number | null>(
     null,
   );
-
   useEffect(() => {
     const handleClickOutside = () => {
       if (infoPopoverOpenId !== null) {
@@ -449,25 +415,21 @@ export default function NodePage() {
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [infoPopoverOpenId]);
-
   const [installCommandModal, setInstallCommandModal] = useState(false);
   const [installCommand, setInstallCommand] = useState("");
   const [currentNodeName, setCurrentNodeName] = useState("");
   const [installSelectorOpen, setInstallSelectorOpen] = useState(false);
   const [installTargetNode, setInstallTargetNode] = useState<Node | null>(null);
   const [installChannel, setInstallChannel] = useState<ReleaseChannel>("dev");
-
   // 离线部署相关状态
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
   const [offlineCommand, setOfflineCommand] = useState("");
   const [offlineDeployData, setOfflineDeployData] = useState<OfflineDeployPayload | null>(null);
-
   // 硬编码下载链接
   const OFFLINE_DOWNLOAD_URLS = {
     amd64: "https://chfs.646321.xyz:8/chfs/shared/flvx/offline-amd64.zip",
     arm64: "https://chfs.646321.xyz:8/chfs/shared/flvx/offline-arm64.zip",
   };
-
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeTarget, setUpgradeTarget] = useState<"single" | "batch">(
     "single",
@@ -495,17 +457,14 @@ export default function NodePage() {
   const [upgradeProgress, setUpgradeProgress] = useState<
     Record<number, { stage: string; percent: number; message: string }>
   >({});
-
   const [infoPopoverPlacement, setInfoPopoverPlacement] = useState<
     Record<number, "left" | "bottom">
   >({});
-
   const [nodeGroups, setNodeGroups] = useState<NodeGroupApiItem[]>([]);
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
   const [groupSelectorNode, setGroupSelectorNode] = useState<number | null>(
     null,
   );
-
   const updateInfoPopoverPlacement = useCallback(
     (nodeId: number, triggerElement: HTMLElement | null) => {
       if (!triggerElement) {
@@ -526,7 +485,6 @@ export default function NodePage() {
         availableLeftSpace >= estimatedPanelWidth + containerPadding
           ? "left"
           : "bottom";
-
       setInfoPopoverPlacement((prev) =>
         prev[nodeId] === nextPlacement
           ? prev
@@ -535,7 +493,6 @@ export default function NodePage() {
     },
     [],
   );
-
   const handleNodeOffline = useCallback((nodeId: number) => {
     setNodeList((prev) =>
       prev.map((node) => {
@@ -553,19 +510,16 @@ export default function NodePage() {
         } as Node;
       }),
     );
-
     setRealtimeNodeMetrics((prev) => {
       const next = { ...prev };
       delete next[nodeId];
       return next;
     });
   }, []);
-
   const { clearOfflineTimer, scheduleNodeOffline } = useNodeOfflineTimers({
     delayMs: 3000,
     onNodeOffline: handleNodeOffline,
   });
-
   const loadNodeGroups = useCallback(async () => {
     try {
       const res: any = await getNodeGroupList();
@@ -576,11 +530,9 @@ export default function NodePage() {
       // Silent fail
     }
   }, []);
-
   useEffect(() => {
     loadNodeGroups();
   }, [loadNodeGroups]);
-
   const loadRemoteUsage = useCallback(async () => {
     try {
       const res = await getPeerRemoteUsageList();
@@ -596,7 +548,6 @@ export default function NodePage() {
       // ignore
     }
   }, []);
-
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
     if (!silent) {
@@ -607,7 +558,6 @@ export default function NodePage() {
       if (res.code === 0 || res.code === 200 || !res.code) {
         const data = res.data !== undefined ? res.data : res;
         const nodesArray = Array.isArray(data) ? data : (data.list || data.items || []);
-
         const nodesData: Node[] = nodesArray.map((node: any) => ({
           ...node,
           groupId: node.groupId != null ? Number(node.groupId) : null,
@@ -624,18 +574,15 @@ export default function NodePage() {
           systemInfo: null,
           copyLoading: false,
         }));
-
         setNodeList((prev) => {
           const previousById = new Map(prev.map((node) => [node.id, node]));
           return nodesData.map((node) =>
             mergeNodeRealtimeState(node, previousById.get(node.id)),
           );
         });
-
         const hasDbOrdering = nodesData.some(
           (n) => n.inx !== undefined && n.inx !== 0,
         );
-
         if (hasDbOrdering) {
           const dbOrder = [...nodesData]
             .sort((a, b) => (a.inx ?? 0) - (b.inx ?? 0))
@@ -664,12 +611,10 @@ export default function NodePage() {
       }
     }
   }, []);
-
   const handleWebSocketMessage = (data: any) => {
     const { id, type, data: messageData } = data;
     const nodeId = Number(id);
     if (Number.isNaN(nodeId)) return;
-
     if (type === "status") {
       if (messageData === 1) {
         if (window.__pendingNodeRefresh?.has(nodeId)) {
@@ -743,7 +688,6 @@ export default function NodePage() {
           typeof messageData === "string"
             ? JSON.parse(messageData)
             : messageData;
-
         if (progressData?.data) {
           setUpgradeProgress((prev) => ({
             ...prev,
@@ -753,7 +697,6 @@ export default function NodePage() {
               message: progressData.message || "",
             },
           }));
-
           if (progressData.data.percent >= 100) {
             setNodeList((prev) =>
               prev.map((n) =>
@@ -781,7 +724,6 @@ export default function NodePage() {
       clearOfflineTimer(nodeId);
       const metric =
         typeof messageData === "string" ? JSON.parse(messageData) : messageData;
-
       setRealtimeNodeMetrics((prev) => {
         return {
           ...prev,
@@ -812,7 +754,6 @@ export default function NodePage() {
           },
         };
       });
-
       setNodeList((prev) =>
         prev.map((node) => {
           if (node.id !== nodeId) return node;
@@ -824,20 +765,16 @@ export default function NodePage() {
       );
     }
   };
-
   const { wsConnected, wsConnecting, usingPollingFallback } = useNodeRealtime({
     onMessage: handleWebSocketMessage,
   });
-
   useEffect(() => {
     loadNodes();
     loadRemoteUsage();
   }, [loadNodes, loadRemoteUsage]);
-
   useEffect(() => {
     setSelectedIds(new Set());
   }, [activeTab]);
-
   useEffect(() => {
     if (!usingPollingFallback) {
       return;
@@ -850,7 +787,6 @@ export default function NodePage() {
       window.clearInterval(interval);
     };
   }, [loadNodes, usingPollingFallback]);
-
   const formatSpeed = (bytesPerSecond: number): string => {
     if (bytesPerSecond === 0) return "0 B/s";
     const k = 1024;
@@ -860,7 +796,6 @@ export default function NodePage() {
       parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
     );
   };
-
   const formatTraffic = (bytes: number): string => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -868,7 +803,6 @@ export default function NodePage() {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
-
   const formatFlow = (bytes: number): string => {
     if (!Number.isFinite(bytes) || bytes <= 0) {
       return "0 B";
@@ -879,24 +813,20 @@ export default function NodePage() {
       return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   };
-
   const formatChainType = (chainType: number, hopInx: number) => {
     if (chainType === 1) return "入口节点";
     if (chainType === 2) return `中继跳点 #${hopInx}`;
     if (chainType === 3) return "出口节点";
     return "未知链路";
   };
-
   const ipv4Regex =
     /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
   const ipv6Regex =
     /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
-
   const validateIpv4Literal = (ip: string): boolean =>
     ipv4Regex.test(ip.trim());
   const validateIpv6Literal = (ip: string): boolean =>
     ipv6Regex.test(ip.trim());
-
   const hostnameRegex =
     /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(?:\.(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?))*$/;
   const validateHostname = (host: string): boolean => {
@@ -905,44 +835,37 @@ export default function NodePage() {
     if (v === "localhost") return true;
     return hostnameRegex.test(v);
   };
-
   const validatePort = (
     portStr: string,
   ): { valid: boolean; error?: string } => {
     if (!portStr || !portStr.trim()) {
       return { valid: false, error: "请输入端口" };
     }
-
     const trimmed = portStr.trim();
     const parts = trimmed
       .split(",")
       .map((p) => p.trim())
       .filter((p) => p);
-
     if (parts.length === 0) {
       return { valid: false, error: "请输入有效的端口" };
     }
-
     for (const part of parts) {
       if (part.includes("-")) {
         const range = part.split("-").map((p) => p.trim());
         if (range.length !== 2) {
           return { valid: false, error: `端口范围格式错误: ${part}` };
         }
-
         const start = parseInt(range[0]);
         const end = parseInt(range[1]);
         if (isNaN(start) || isNaN(end)) {
           return { valid: false, error: `端口必须是数字: ${part}` };
         }
-
         if (start < 1 || start > 65535 || end < 1 || end > 65535) {
           return {
             valid: false,
             error: `端口范围必须在 1-65535 之间: ${part}`,
           };
         }
-
         if (start >= end) {
           return { valid: false, error: `起始端口必须小于结束端口: ${part}` };
         }
@@ -951,19 +874,15 @@ export default function NodePage() {
         if (isNaN(port)) {
           return { valid: false, error: `端口必须是数字: ${part}` };
         }
-
         if (port < 1 || port > 65535) {
           return { valid: false, error: `端口必须在 1-65535 之间: ${part}` };
         }
       }
     }
-
     return { valid: true };
   };
-
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!form.name.trim()) {
       newErrors.name = "请输入节点名称";
     } else if (form.name.trim().length < 2) {
@@ -971,18 +890,15 @@ export default function NodePage() {
     } else if (form.name.trim().length > 50) {
       newErrors.name = "节点名称长度不能超过50位";
     }
-
     if (
       (form.renewalCycle && !form.expiryTime) ||
       (!form.renewalCycle && form.expiryTime)
     ) {
       newErrors.expiryTime = "请同时设置续费周期和续费基准时间";
     }
-
     const v4 = form.serverIpV4.trim();
     const v6 = form.serverIpV6.trim();
     const intranet = form.intranetIp.trim();
-
     if (v4 && !validateIpv4Literal(v4) && !validateHostname(v4)) {
       newErrors.serverIpV4 = "请输入有效的 IPv4 地址或域名";
     }
@@ -992,16 +908,13 @@ export default function NodePage() {
     if (intranet && !validateIpv4Literal(intranet) && !validateHostname(intranet)) {
       newErrors.intranetIp = "请输入有效的内网 IPv4 地址或域名";
     }
-
     const portValidation = validatePort(form.port);
     if (!portValidation.valid) {
       newErrors.port = portValidation.error || "端口格式错误";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleAdd = () => {
     setDialogTitle("新增节点");
     setIsEdit(false);
@@ -1010,12 +923,9 @@ export default function NodePage() {
     setProtocolDisabled(true);
     setProtocolDisabledReason("节点未在线，等待节点上线后再设置");
   };
-
   const handleEdit = (node: Node) => {
     setDialogTitle("编辑节点");
     setIsEdit(true);
-
-
     setForm({
       id: node.id,
       name: node.name,
@@ -1035,7 +945,6 @@ export default function NodePage() {
       tls: typeof node.tls === "number" ? node.tls : 1,
       socks: typeof node.socks === "number" ? node.socks : 1,
     });
-
     const offline = node.connectionStatus !== "online";
     setProtocolDisabled(offline);
     setProtocolDisabledReason(
@@ -1043,12 +952,10 @@ export default function NodePage() {
     );
     setDialogVisible(true);
   };
-
   const handleDelete = (node: Node) => {
     setNodeToDelete(node);
     setDeleteModalOpen(true);
   };
-
   const confirmDelete = async () => {
     if (!nodeToDelete) return;
     setDeleteLoading(true);
@@ -1068,7 +975,6 @@ export default function NodePage() {
       setDeleteLoading(false);
     }
   };
-
   const handleDismissExpiryReminder = async (nodeId: number) => {
     try {
       const res = await dismissNodeExpiryReminder(nodeId);
@@ -1087,7 +993,6 @@ export default function NodePage() {
       toast.error("网络错误，请重试");
     }
   };
-
   const handleAssignNodeToGroup = async (
     nodeId: number,
     groupId: number | null,
@@ -1103,13 +1008,11 @@ export default function NodePage() {
       toast.error("操作失败");
     }
   };
-
   const openInstallSelector = (node: Node) => {
     setInstallTargetNode(node);
     setInstallChannel("dev");
     setInstallSelectorOpen(true);
   };
-
   const handleCopyInstallCommand = async (
     node: Node,
     channel: ReleaseChannel,
@@ -1117,7 +1020,6 @@ export default function NodePage() {
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
     );
-
     try {
       const res = await getNodeInstallCommand(node.id, channel);
       if (res.code === 0 && res.data) {
@@ -1142,12 +1044,10 @@ export default function NodePage() {
       );
     }
   };
-
   const handleCopyDomesticInstallCommand = async (node: Node) => {
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
     );
-
     try {
       const res = await getNodeInstallCommandDomestic(node.id);
       if (res.code === 0 && res.data) {
@@ -1170,12 +1070,10 @@ export default function NodePage() {
       );
     }
   };
-
   const handleCopyOverseasInstallCommand = async (node: Node) => {
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
     );
-
     try {
       const res = await getNodeInstallCommandOverseas(node.id);
       if (res.code === 0 && res.data) {
@@ -1198,12 +1096,10 @@ export default function NodePage() {
       );
     }
   };
-
   const handleCopyAutoInstallCommand = async (node: Node) => {
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
     );
-
     try {
       // 自动探测线路：从国内下载源下载 install-auto.sh
       const res = await getNodeInstallCommandDomestic(node.id);
@@ -1230,12 +1126,10 @@ export default function NodePage() {
       );
     }
   };
-
   const handleCopyOfflineInstallCommand = async (node: Node) => {
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
     );
-
     try {
       const res = await getNodeInstallCommandOffline(node.id);
       if (res.code === 0 && res.data) {
@@ -1262,7 +1156,6 @@ export default function NodePage() {
       );
     }
   };
-
   const copyToClipboard = (text: string, label: string) => {
     try {
       if (navigator.clipboard && window.isSecureContext) {
@@ -1284,13 +1177,11 @@ export default function NodePage() {
       toast.error("复制失败，请手动选择文本复制");
     }
   };
-
   const handleConfirmInstallCommand = async () => {
     if (!installTargetNode) return;
     setInstallSelectorOpen(false);
     await handleCopyInstallCommand(installTargetNode, installChannel);
   };
-
   const loadReleasesByChannel = useCallback(async (channel: ReleaseChannel) => {
     setReleasesLoading(true);
     try {
@@ -1310,7 +1201,6 @@ export default function NodePage() {
       setReleasesLoading(false);
     }
   }, []);
-
   const openUpgradeModal = async (
     target: "single" | "batch",
     nodeId?: number,
@@ -1322,7 +1212,6 @@ export default function NodePage() {
     } else {
       setGhfastURL('https://ghfast.top');
     }
-    
     const defaultChannel: ReleaseChannel = "dev";
     setUpgradeTarget(target);
     setUpgradeTargetNodeId(nodeId || null);
@@ -1332,25 +1221,20 @@ export default function NodePage() {
     setUpgradeModalOpen(true);
     await loadReleasesByChannel(defaultChannel);
   };
-
   // 构建完整更新地址
   const buildFullUpdateURL = (): string => {
     const version = selectedVersion || latestVersion;
     const releaseType = version || 'latest';
-    
-    // ghfast.top 模式：需要拼接 GitHub URL
-    if (ghfastURL === 'https://ghfast.top') {
-      return `https://ghfast.top/https://github.com/abai569/flvx/releases/download/${releaseType}/gost-{ARCH}`;
+    // 检测是否为 GitHub 代理（不包含 github.com 的都需要拼接完整 GitHub URL）
+    if (!ghfastURL.includes('github.com')) {
+      return `${ghfastURL}/https://github.com/abai569/flvx/releases/download/${releaseType}/gost-{ARCH}`;
     }
-    
-    // 自定义加速地址模式：直接拼接
-    return `${ghfastURL}/${releaseType}/gost-{ARCH}`;
+    // 直连 GitHub（如 https://github.com）
+    return `${ghfastURL}/abai569/flvx/releases/download/${releaseType}/gost-{ARCH}`;
   };
-
   // 获取地址前缀文本（升级地址/回退地址）
   const getAddressPrefix = (): string => {
     if (!selectedVersion) return '升级地址';
-    
     if (upgradeTarget === "single" && upgradeTargetNodeId) {
       const node = nodeList.find(n => n.id === upgradeTargetNodeId);
       if (node?.version) {
@@ -1358,15 +1242,12 @@ export default function NodePage() {
         return compareVersions(selectedVersion, currentVersion) > 0 ? '升级地址' : '回退地址';
       }
     }
-    
     return '升级地址';
   };
-
   // 获取当前操作类型文本（升级/回退/更新）
   const getCurrentActionText = (): string => {
     // 未选择版本时，显示"更新"
     if (!selectedVersion) return '更新';
-    
     // 单个节点升级时，对比版本
     if (upgradeTarget === "single" && upgradeTargetNodeId) {
       const node = nodeList.find(n => n.id === upgradeTargetNodeId);
@@ -1376,14 +1257,11 @@ export default function NodePage() {
         return compareVersions(selectedVersion, versionOnly) > 0 ? '升级' : '回退';
       }
     }
-    
     // 批量升级时默认显示"更新"（中性词）
     return '更新';
   };
-
   const handleConfirmUpgrade = async () => {
     const version = selectedVersion || undefined;
-
     if (upgradeTarget === "single" && upgradeTargetNodeId) {
       setUpgradeModalOpen(false);
       const node = nodeList.find((n) => n.id === upgradeTargetNodeId);
@@ -1418,13 +1296,11 @@ export default function NodePage() {
         const matchedNode = nodeList.find((node) => node.id === id);
         return matchedNode?.isRemote !== 1;
       });
-
       if (selectedLocalIds.length === 0) {
         toast.error("请选择本地节点进行升级");
         setUpgradeModalOpen(false);
         return;
       }
-
       setBatchUpgradeLoading(true);
       setUpgradeModalOpen(false);
       try {
@@ -1447,19 +1323,16 @@ export default function NodePage() {
       }
     }
   };
-
   // 批量重置流量
   const handleBatchResetTraffic = async () => {
     const selectedLocalIds = Array.from(selectedIds).filter((id) =>
       localNodes.some((n) => n.id === id),
     );
-
     if (selectedLocalIds.length === 0) {
       toast.error("请选择本地节点进行重置");
       setBatchResetTrafficModalOpen(false);
       return;
     }
-
     setBatchResetTrafficLoading(true);
     try {
       const res = await batchResetNodeTraffic(selectedLocalIds, "管理员手动重置");
@@ -1478,22 +1351,18 @@ export default function NodePage() {
       setBatchResetTrafficLoading(false);
     }
   };
-
   const handleRollbackNode = (node: Node) => {
     setNodeToRollback(node);
     setRollbackModalOpen(true);
   };
-
   const confirmRollback = async () => {
     if (!nodeToRollback) return;
     const node = nodeToRollback;
     setRollbackModalOpen(false);
-
     setUpgradeProgress((prev) => ({
       ...prev,
       [node.id]: { stage: "rollback", percent: 0, message: "准备回退..." },
     }));
-
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, rollbackLoading: true } : n)),
     );
@@ -1539,14 +1408,11 @@ export default function NodePage() {
       setNodeToRollback(null);
     }
   };
-
   const handleSubmit = async () => {
     if (!validateForm()) return;
     setSubmitLoading(true);
-
     try {
       const apiCall = isEdit ? updateNode : createNode;
-
       const { intranetIp, serverIpV4, serverIpV6, ...rest } = form;
       const data = {
         ...rest,
@@ -1560,12 +1426,10 @@ export default function NodePage() {
         serverIpV4: serverIpV4?.trim(),
         serverIpV6: serverIpV6?.trim(),
       };
-
       const res = await apiCall(data);
       if (res.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
         setDialogVisible(false);
-
         if (isEdit) {
           setNodeList((prev) =>
             prev.map((n) =>
@@ -1606,7 +1470,6 @@ export default function NodePage() {
       setSubmitLoading(false);
     }
   };
-
   const resetForm = () => {
     setForm({
       id: null,
@@ -1629,26 +1492,20 @@ export default function NodePage() {
     });
     setErrors({});
   };
-
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!active || !over || active.id === over.id) return;
     if (!nodeOrder || nodeOrder.length === 0) return;
-
     const activeId = Number(active.id);
     const overId = Number(over.id);
     if (isNaN(activeId) || isNaN(overId)) return;
-
     const displayNodeIds = displayNodes.map((node) => node.id);
     const oldIndex = displayNodeIds.indexOf(activeId);
     const newIndex = displayNodeIds.indexOf(overId);
-
     if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-
     const reorderedDisplayIds = arrayMove(displayNodeIds, oldIndex, newIndex);
     const displayIdSet = new Set(displayNodeIds);
     let reorderedDisplayIndex = 0;
-
     const newOrder = nodeOrder.map((id) => {
       if (!displayIdSet.has(id)) {
         return id;
@@ -1657,10 +1514,8 @@ export default function NodePage() {
       reorderedDisplayIndex += 1;
       return nextId;
     });
-
     setNodeOrder(newOrder);
     saveOrder("node-order", newOrder);
-
     try {
       const nodesToUpdate = newOrder.map((id, index) => ({ id, inx: index }));
       const response = await updateNodeOrder({ nodes: nodesToUpdate });
@@ -1678,7 +1533,6 @@ export default function NodePage() {
       toast.error("保存排序失败，请重试");
     }
   };
-
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -1696,7 +1550,6 @@ export default function NodePage() {
       return next;
     });
   };
-
   const handleSelectAllToggle = (isSelected: boolean) => {
     if (isSelected) {
       setSelectedIds(new Set(displayNodes.map((n) => n.id)));
@@ -1708,37 +1561,30 @@ export default function NodePage() {
       setSelectMode(false);
     }
   };
-
   const selectAll = () => {
     setSelectedIds(new Set(displayNodes.map((n) => n.id)));
   };
-
   const deselectAll = () => {
     setSelectedIds(new Set());
   };
-
   const handleBatchRollback = async () => {
     const selectedLocalIds = Array.from(selectedIds).filter((id) => {
       const matchedNode = nodeList.find((node) => node.id === id);
       return matchedNode?.isRemote !== 1;
     });
-
     if (selectedLocalIds.length === 0) {
       toast.error("请选择本地节点进行回退");
       setBatchRollbackModalOpen(false);
       return;
     }
-
     setBatchRollbackModalOpen(false);
     setNodeList((prev) =>
       prev.map((n) =>
         selectedLocalIds.includes(n.id) ? { ...n, rollbackLoading: true } : n,
       ),
     );
-
     let successCount = 0;
     let failCount = 0;
-
     await Promise.all(
       selectedLocalIds.map(async (id) => {
         try {
@@ -1766,7 +1612,6 @@ export default function NodePage() {
         }
       }),
     );
-
     if (successCount > 0) {
       toast.success(
         `成功发送 ${successCount} 个节点的回退指令，节点将自动重启`,
@@ -1775,7 +1620,6 @@ export default function NodePage() {
     if (failCount > 0) {
       toast.error(`${failCount} 个节点回退指令发送失败`);
     }
-
     setTimeout(() => {
       setNodeList((prev) =>
         prev.map((n) => {
@@ -1790,7 +1634,6 @@ export default function NodePage() {
       );
     }, 15000);
   };
-
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
@@ -1811,7 +1654,6 @@ export default function NodePage() {
       setBatchLoading(false);
     }
   };
-
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {
@@ -1828,14 +1670,12 @@ export default function NodePage() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
   const nodeExpiryStats = useMemo(() => {
     return nodeList.reduce(
       (acc, node) => {
         if (node.isRemote === 1) {
           return acc;
         }
-
         const meta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
         if (meta.state === "expired") acc.expired += 1;
         if (meta.state === "expiringSoon") acc.expiringSoon += 1;
@@ -1847,7 +1687,6 @@ export default function NodePage() {
       { expired: 0, expiringSoon: 0, withExpiry: 0 },
     );
   }, [nodeList]);
-
   const sortedNodes = useMemo((): Node[] => {
     if (!nodeList || nodeList.length === 0) return [];
     const sortedByDb = [...nodeList].sort((a, b) => {
@@ -1855,7 +1694,6 @@ export default function NodePage() {
       const bInx = b.inx ?? 0;
       return aInx - bInx;
     });
-
     if (
       nodeOrder &&
       nodeOrder.length > 0 &&
@@ -1876,7 +1714,6 @@ export default function NodePage() {
     }
     return sortedByDb;
   }, [nodeList, nodeOrder]);
-
   const filterNodesByKeyword = useCallback((nodes: Node[], keyword: string) => {
     const normalizedKeyword = keyword.trim().toLowerCase();
     if (!normalizedKeyword) {
@@ -1895,23 +1732,19 @@ export default function NodePage() {
           node.serverIpV6.toLowerCase().includes(normalizedKeyword)),
     );
   }, []);
-
   const localNodes = useMemo(
     () => sortedNodes.filter((node) => node.isRemote !== 1),
     [sortedNodes],
   );
-
   const remoteNodes = useMemo(
     () => sortedNodes.filter((node) => node.isRemote === 1),
     [sortedNodes],
   );
-
   const filteredLocalNodes = useMemo(() => {
     const keywordFiltered = filterNodesByKeyword(
       localNodes,
       localSearchKeyword,
     );
-
     const groupFiltered = filterGroupId !== null
       ? keywordFiltered.filter((node) => {
         if (filterGroupId === -1) {
@@ -1920,11 +1753,9 @@ export default function NodePage() {
         return node.groupId === filterGroupId;
       })
       : keywordFiltered;
-
     if (nodeFilterMode === "all") {
       return groupFiltered;
     }
-
     return groupFiltered.filter((node) => {
       const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
       switch (nodeFilterMode) {
@@ -1945,46 +1776,37 @@ export default function NodePage() {
     nodeFilterMode,
     filterGroupId,
   ]);
-
   const filteredRemoteNodes = useMemo(
     () => filterNodesByKeyword(remoteNodes, remoteSearchKeyword),
     [filterNodesByKeyword, remoteNodes, remoteSearchKeyword],
   );
-
   const currentSearchKeyword =
     activeTab === "remote" ? remoteSearchKeyword : localSearchKeyword;
-
   const setCurrentSearchKeyword =
     activeTab === "remote" ? setRemoteSearchKeyword : setLocalSearchKeyword;
-
   const displayNodes = useMemo(
     () => (activeTab === "remote" ? filteredRemoteNodes : filteredLocalNodes),
     [activeTab, filteredLocalNodes, filteredRemoteNodes],
   );
-
   const canBatchUpgrade = activeTab === "local";
   const canUseExpiryFilter = activeTab === "local";
   const hasKeywordSearch = currentSearchKeyword.trim().length > 0;
   const hasActiveFilters = nodeFilterMode !== "all" || filterGroupId !== null;
   const isDisplayFiltered =
     hasKeywordSearch || (canUseExpiryFilter && hasActiveFilters);
-
   const sortableNodeIds = useMemo(
     () => displayNodes.map((n) => n.id),
     [displayNodes],
   );
-
   const groupedNodes = useMemo(() => {
     const groupsMap = new Map<
       number | string,
       { group: NodeGroupApiItem | null; nodes: Node[] }
     >();
-
     nodeGroups.forEach((g) => {
       groupsMap.set(Number(g.id), { group: g, nodes: [] });
     });
     groupsMap.set("none", { group: null, nodes: [] });
-
     displayNodes.forEach((node) => {
       const groupId = node.groupId && node.groupId > 0 ? Number(node.groupId) : "none";
       if (groupsMap.has(groupId)) {
@@ -1993,10 +1815,8 @@ export default function NodePage() {
         groupsMap.get("none")!.nodes.push(node);
       }
     });
-
     return Array.from(groupsMap.values()).filter((g) => g.nodes.length > 0);
   }, [displayNodes, nodeGroups]);
-
   const renderNodeCard = (node: Node, listeners: any) => {
     const isRemoteNode = node.isRemote === 1;
     const remoteUsage = isRemoteNode ? remoteUsageMap[node.id] : null;
@@ -2014,7 +1834,6 @@ export default function NodePage() {
     const hasInfoTrigger = hasRemark || hasExpiryInfo;
     const infoCount = Number(hasExpiryInfo) + Number(hasRemark);
     const infoPlacement = infoPopoverPlacement[node.id] ?? "left";
-
     return (
       <Card
         key={node.id}
@@ -2148,8 +1967,6 @@ export default function NodePage() {
                             </div>
                           </div>
                         )}
-
-
                       </div>
                     </div>
                   </div>
@@ -2165,7 +1982,7 @@ export default function NodePage() {
                 title={connectionStatusMeta.text}
               />
               {/* 这里加上 title 属性 */}
-              <h3 
+              <h3
                 className="font-semibold text-foreground truncate text-sm flex-1"
                 title={node.name}
               >
@@ -2174,7 +1991,6 @@ export default function NodePage() {
             </div>
           </div>
         </CardHeader>
-
         <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
           {isRemoteNode && node.syncError && (
             <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
@@ -2317,7 +2133,6 @@ export default function NodePage() {
               </>
             )}
           </div>
-
           {isRemoteNode && (
             <div className="space-y-3 mb-4">
               {remoteUsage ? (
@@ -2427,7 +2242,6 @@ export default function NodePage() {
               )}
             </div>
           )}
-
           {!isRemoteNode && (
             <>
               <div className="grid grid-cols-2 gap-2 text-sm mb-3">
@@ -2460,7 +2274,6 @@ export default function NodePage() {
               </div>
             </>
           )}
-
           <div className="space-y-3">
             {/* 核心修改：统一使用一个两列的 grid，它会自动把里面的 4 个元素排成 2 行 2 列 */}
             <div className={`grid gap-2 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}>
@@ -2503,7 +2316,6 @@ export default function NodePage() {
                       </DropdownMenu>
                     </Dropdown>
                   </div>
-
                   {/* 第 2 个格子：更新 */}
                   <Button
                     className="min-h-8 w-full"
@@ -2516,7 +2328,6 @@ export default function NodePage() {
                   >
                     更新
                   </Button>
-
                   {/* 第 3 个格子：编辑 */}
                   <Button
                     className="min-h-8 w-full"
@@ -2529,7 +2340,6 @@ export default function NodePage() {
                   </Button>
                 </>
               )}
-
               {/* 第 4 个格子：删除 (如果是远程节点，它会自动变成占满 1 整行) */}
               <Button
                 className="min-h-8 w-full"
@@ -2542,7 +2352,6 @@ export default function NodePage() {
               </Button>
             </div>
           </div>
-
           {/* 备注 */}
           {node.remark?.trim() && (
             <div className="mt-2 pt-2 border-t border-divider">
@@ -2555,12 +2364,10 @@ export default function NodePage() {
               </div>
             </div>
           )}
-
         </CardBody>
       </Card>
     );
   };
-
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="mb-6 space-y-3">
@@ -2586,7 +2393,6 @@ export default function NodePage() {
             <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-black/10 dark:bg-white/20 px-1.5 py-0.5 rounded text-[11px] font-medium">{remoteNodes.length}</div>
           </Button>
         </div>
-
         <div className="flex flex-row items-center justify-between gap-3 overflow-x-auto pb-1">
           <div
             className={`flex-1 max-w-sm flex items-center gap-2 shrink-0 ${isSearchVisible ? "min-w-[200px]" : "min-w-0"
@@ -2613,7 +2419,6 @@ export default function NodePage() {
               }}
             />
           </div>
-
           <div className="flex h-8 items-center justify-end gap-2 whitespace-nowrap shrink-0">
             {selectMode ? (
               <>
@@ -2712,7 +2517,6 @@ export default function NodePage() {
                     </Button>
                   )}
                 </div>
-
                 <Button
                   color={
                     viewMode === "grid"
@@ -2760,13 +2564,11 @@ export default function NodePage() {
           </div>
         </div>
       </div>
-
       <NodeGroupManager
         isOpen={groupManagerOpen}
         onGroupChange={() => { loadNodeGroups(); loadNodes({ silent: true }); }}
         onOpenChange={setGroupManagerOpen}
       />
-
       {!wsConnected && (
         <Alert
           className="mb-4"
@@ -2781,7 +2583,6 @@ export default function NodePage() {
           variant="flat"
         />
       )}
-
       {loading ? (
         <PageLoadingState message="正在加载..." />
       ) : nodeList.length === 0 ? (
@@ -2820,14 +2621,12 @@ export default function NodePage() {
               </SortableContext>
             </DndContext>
           )}
-
           {viewMode === "grouped" && (
             <div className="space-y-4">
               {groupedNodes.map(({ group, nodes }) => {
                 const groupSortableIds = nodes.map((n) => n.id);
                 const groupIdStr = String(group ? group.id : "none");
                 const isCollapsed = collapsedGroups[groupIdStr];
-
                 return (
                   <div
                     key={groupIdStr}
@@ -2887,7 +2686,6 @@ export default function NodePage() {
                         </span>
                       </div>
                     </div>
-
                     {!isCollapsed && (
                       <div className="">
                         <DndContext
@@ -2943,7 +2741,6 @@ export default function NodePage() {
               })}
             </div>
           )}
-
           {viewMode === "list" && (
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <SortableContext
@@ -2976,7 +2773,6 @@ export default function NodePage() {
           )}
         </>
       )}
-
       {/* 新增/编辑节点对话框 */}
       <Modal
         backdrop="blur"
@@ -3006,7 +2802,6 @@ export default function NodePage() {
                     setForm((prev) => ({ ...prev, name: e.target.value }))
                   }
                 />
-
                 <Textarea
                   classNames={{
                     inputWrapper: "!min-h-[20px] py-1.5",
@@ -3107,7 +2902,6 @@ export default function NodePage() {
                   }
                 />
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   description="可选：建议填写公网IPv4或对应解析域名，可留空"
@@ -3121,7 +2915,6 @@ export default function NodePage() {
                     setForm((prev) => ({ ...prev, serverIpV4: e.target.value }))
                   }
                 />
-
                 <Input
                   classNames={{
                     input: "font-medium",
@@ -3138,7 +2931,6 @@ export default function NodePage() {
                   }
                 />
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   description="可选：建议填写内网IPv4或对应解析域名，可留空"
@@ -3152,7 +2944,6 @@ export default function NodePage() {
                     setForm((prev) => ({ ...prev, intranetIp: e.target.value }))
                   }
                 />
-
                 <Input
                   description="可选：建议填写公网IPv6或对应解析域名，可留空"
                   errorMessage={errors.serverIpV6}
@@ -3166,7 +2957,6 @@ export default function NodePage() {
                   }
                 />
               </div>
-
               <Accordion variant="bordered">
                 <AccordionItem
                   key="advanced"
@@ -3189,7 +2979,6 @@ export default function NodePage() {
                         }))
                       }
                     />
-
                     <Input
                       description="多IP服务器可填写额外IP地址，逗号分隔"
                       label="额外IP地址"
@@ -3203,7 +2992,6 @@ export default function NodePage() {
                         }))
                       }
                     />
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input
                         errorMessage={errors.tcpListenAddr}
@@ -3226,7 +3014,6 @@ export default function NodePage() {
                           }))
                         }
                       />
-
                       <Input
                         errorMessage={errors.udpListenAddr}
                         isInvalid={!!errors.udpListenAddr}
@@ -3309,7 +3096,6 @@ export default function NodePage() {
                             {form.http === 1 ? "已开启" : "已关闭"}
                           </div>
                         </div>
-
                         <div className="px-3 py-3 rounded-lg bg-white dark:bg-default-50 border border-default-200 dark:border-default-100/30 hover:border-primary-200 transition-colors">
                           <div className="flex items-center gap-2 mb-2">
                             <svg
@@ -3352,7 +3138,6 @@ export default function NodePage() {
                             {form.tls === 1 ? "已开启" : "已关闭"}
                           </div>
                         </div>
-
                         <div className="px-3 py-3 rounded-lg bg-white dark:bg-default-50 border border-default-200 dark:border-default-100/30 hover:border-primary-200 transition-colors">
                           <div className="flex items-center gap-2 mb-2">
                             <svg
@@ -3395,7 +3180,6 @@ export default function NodePage() {
                         </div>
                       </div>
                     </div>
-
                     <Alert
                       color="danger"
                       description="请不要在出口节点执行屏蔽协议，否则可能影响转发；屏蔽协议仅需在入口节点执行。"
@@ -3404,7 +3188,6 @@ export default function NodePage() {
                   </div>
                 </AccordionItem>
               </Accordion>
-
               <Alert
                 className="mt-4"
                 color="primary"
@@ -3427,7 +3210,6 @@ export default function NodePage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 回退确认模态框 */}
       <Modal
         backdrop="blur"
@@ -3468,7 +3250,6 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 删除确认模态框 */}
       <Modal
         backdrop="blur"
@@ -3512,7 +3293,6 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-
       <Modal
         backdrop="blur"
         classNames={{
@@ -3563,7 +3343,6 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 安装命令模态框 */}
       <Modal
         backdrop="blur"
@@ -3622,7 +3401,6 @@ export default function NodePage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 版本选择升级模态框 */}
       <Modal
         backdrop="blur"
@@ -3638,102 +3416,100 @@ export default function NodePage() {
         <ModalContent>
           {(onClose) => {
             const actionText = getCurrentActionText();
-            
             return (
               <>
                 <ModalHeader className="flex flex-col gap-1">
-                <h2 className="text-xl font-bold">
-                  {upgradeTarget === "batch"
-                    ? `批量${actionText} (${selectedIds.size} 个节点)`
-                    : `${actionText}节点`}
-                </h2>
-              </ModalHeader>
-              <ModalBody>
-                {releasesLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Spinner size="lg" />
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <Select
-                      label="版本通道"
-                      selectedKeys={[releaseChannel]}
-                      onSelectionChange={(keys) => {
-                        const selected =
-                          (Array.from(keys)[0] as ReleaseChannel) || "stable";
-                        setReleaseChannel(selected);
-                        setSelectedVersion("");
-                        void loadReleasesByChannel(selected);
-                      }}
-                    >
-                      <SelectItem key="dev" textValue="测试版">
-                        测试版
-                      </SelectItem>
-                      <SelectItem key="stable" textValue="稳定版">
-                        稳定版
-                      </SelectItem>
-                    </Select>
-                    <Select
-                      label="选择版本"
-                      placeholder="留空则使用当前通道最新版本"
-                      selectedKeys={selectedVersion ? [selectedVersion] : []}
-                      onSelectionChange={(keys) => {
-                        const selected = Array.from(keys)[0] as string;
-                        setSelectedVersion(selected || "");
-                      }}
-                    >
-                      {releases.map((r) => (
-                        <SelectItem key={r.version} textValue={r.version}>
-                          <div className="flex justify-between items-center">
-                            <span>{r.version}</span>
-                            <span className="text-xs text-default-400">
-                              {r.publishedAt
-                                ? new Date(r.publishedAt).toLocaleDateString()
-                                : ""}
-                              {r.channel === "dev" && (
-                                <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-warning-500/10 text-warning-600 dark:text-warning-400 px-1.5 py-0.5 rounded text-[11px] font-medium">测试</div>
-                              )}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </Select>
-                    <div className="space-y-1">
-                      <p className="text-sm text-default-500">
-                        {selectedVersion ? (
-                          <span>更新到版本 {selectedVersion}</span>
-                        ) : (
-                          <span>
-                            将自动升级最新{releaseChannel === "stable" ? "稳定版" : "测试版"}
-                            {latestVersion && ` ${latestVersion}`}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-default-400 font-mono break-all">
-                        {getAddressPrefix()}：{buildFullUpdateURL()}
-                      </p>
+                  <h2 className="text-xl font-bold">
+                    {upgradeTarget === "batch"
+                      ? `批量${actionText} (${selectedIds.size} 个节点)`
+                      : `${actionText}节点`}
+                  </h2>
+                </ModalHeader>
+                <ModalBody>
+                  {releasesLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Spinner size="lg" />
                     </div>
-                  </div>
-                )}
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="primary"
-                  isDisabled={releasesLoading}
-                  onPress={handleConfirmUpgrade}
-                >
-                  {!selectedVersion ? '确认更新' : `确认${actionText}`}
-                </Button>
-              </ModalFooter>
-            </>
+                  ) : (
+                    <div className="space-y-4">
+                      <Select
+                        label="版本通道"
+                        selectedKeys={[releaseChannel]}
+                        onSelectionChange={(keys) => {
+                          const selected =
+                            (Array.from(keys)[0] as ReleaseChannel) || "stable";
+                          setReleaseChannel(selected);
+                          setSelectedVersion("");
+                          void loadReleasesByChannel(selected);
+                        }}
+                      >
+                        <SelectItem key="dev" textValue="测试版">
+                          测试版
+                        </SelectItem>
+                        <SelectItem key="stable" textValue="稳定版">
+                          稳定版
+                        </SelectItem>
+                      </Select>
+                      <Select
+                        label="选择版本"
+                        placeholder="留空则使用当前通道最新版本"
+                        selectedKeys={selectedVersion ? [selectedVersion] : []}
+                        onSelectionChange={(keys) => {
+                          const selected = Array.from(keys)[0] as string;
+                          setSelectedVersion(selected || "");
+                        }}
+                      >
+                        {releases.map((r) => (
+                          <SelectItem key={r.version} textValue={r.version}>
+                            <div className="flex justify-between items-center">
+                              <span>{r.version}</span>
+                              <span className="text-xs text-default-400">
+                                {r.publishedAt
+                                  ? new Date(r.publishedAt).toLocaleDateString()
+                                  : ""}
+                                {r.channel === "dev" && (
+                                  <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-warning-500/10 text-warning-600 dark:text-warning-400 px-1.5 py-0.5 rounded text-[11px] font-medium">测试</div>
+                                )}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </Select>
+                      <div className="space-y-1">
+                        <p className="text-sm text-default-500">
+                          {selectedVersion ? (
+                            <span>更新到版本 {selectedVersion}</span>
+                          ) : (
+                            <span>
+                              将自动升级最新{releaseChannel === "stable" ? "稳定版" : "测试版"}
+                              {latestVersion && ` ${latestVersion}`}
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-default-400 font-mono break-all">
+                          {getAddressPrefix()}：{buildFullUpdateURL()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="light" onPress={onClose}>
+                    取消
+                  </Button>
+                  <Button
+                    color="primary"
+                    isDisabled={releasesLoading}
+                    onPress={handleConfirmUpgrade}
+                  >
+                    {!selectedVersion ? '确认更新' : `确认${actionText}`}
+                  </Button>
+                </ModalFooter>
+              </>
             );
           }}
         </ModalContent>
       </Modal>
-
       {/* 批量回退确认模态框 */}
       <Modal
         backdrop="blur"
@@ -3781,7 +3557,6 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 批量重置流量确认模态框 */}
       <Modal
         backdrop="blur"
@@ -3849,7 +3624,6 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 批量删除确认模态框 */}
       <Modal
         backdrop="blur"
@@ -3893,7 +3667,6 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-
       <Modal
         classNames={{
           base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
@@ -3950,7 +3723,6 @@ export default function NodePage() {
                       ))}
                     </Select>
                   </div>
-
                   <div className="flex flex-col gap-2">
                     <p className="text-sm font-medium">按到期状态筛选</p>
                     <Select
@@ -3995,7 +3767,6 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 离线部署弹窗 */}
       <Modal
         isOpen={offlineModalOpen}
@@ -4033,15 +3804,11 @@ export default function NodePage() {
               }
               color="warning"
             />
-
-
-
             {/* 2. 命令区域 */}
             <p className="text-sm">
               <span className="font-bold">{offlineDeployData?.nodeName || currentNodeName}</span>
               <span className="font-medium"> 的离线对接命令：</span>
             </p>
-
             <div className="relative mt-2">
               <Textarea
                 readOnly
@@ -4060,7 +3827,6 @@ export default function NodePage() {
                 复制
               </Button>
             </div>
-
             {/* 3. 使用说明 */}
             <Alert
               title=""
@@ -4071,7 +3837,6 @@ export default function NodePage() {
               }
               color="primary"
             />
-
             {/* 4. 依赖提示 */}
             <Alert
               title=""
@@ -4086,7 +3851,6 @@ export default function NodePage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       <Modal
         isOpen={groupSelectorNode !== null}
         size="sm"

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
-
 import {
   AnimatedPage,
   StaggerList,
@@ -25,7 +24,6 @@ import {
   ModalBody,
   ModalFooter,
 } from "@/shadcn-bridge/heroui/modal";
-
 import {
   createSpeedLimit,
   getSpeedLimitList,
@@ -34,9 +32,7 @@ import {
 } from "@/api";
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
-
 const LIMIT_VIEW_MODE_KEY = "limit_view_mode";
-
 interface SpeedLimitRule {
   id: number;
   name: string;
@@ -45,14 +41,12 @@ interface SpeedLimitRule {
   createdTime: string;
   updatedTime: string;
 }
-
 interface SpeedLimitForm {
   id?: number;
   name: string;
   speed: number;
   status: number;
 }
-
 export default function LimitPage() {
   const [loading, setLoading] = useState(true);
   const [rules, setRules] = useState<SpeedLimitRule[]>([]);
@@ -61,26 +55,20 @@ export default function LimitPage() {
     "",
   );
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {
     const stored = localStorage.getItem(LIMIT_VIEW_MODE_KEY);
-
     return stored === "list" || stored === "card" ? stored : "card";
   });
-
   // 列表模式选中行
   const [selectedRuleId, setSelectedRuleId] = useState<number | null>(null);
-
   const filteredRules = useMemo(() => {
     if (!searchKeyword.trim()) return rules;
     const lowerKeyword = searchKeyword.toLowerCase();
-
     return rules.filter(
       (r) => r.name && r.name.toLowerCase().includes(lowerKeyword),
     );
   }, [rules, searchKeyword]);
-
   // 模态框状态
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -88,27 +76,22 @@ export default function LimitPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [ruleToDelete, setRuleToDelete] = useState<SpeedLimitRule | null>(null);
-
   // 表单状态
   const [form, setForm] = useState<SpeedLimitForm>({
     name: "",
     speed: 100,
     status: 1,
   });
-
   // 表单验证错误
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
   useEffect(() => {
     loadData();
   }, []);
-
   // 加载所有数据
   const loadData = async () => {
     setLoading(true);
     try {
       const rulesRes = await getSpeedLimitList();
-
       if (rulesRes.code === 0) {
         setRules(rulesRes.data || []);
       } else {
@@ -120,32 +103,25 @@ export default function LimitPage() {
       setLoading(false);
     }
   };
-
   // 视图模式切换
   const handleViewModeToggle = useCallback((mode: "card" | "list") => {
     setViewMode(mode);
     localStorage.setItem(LIMIT_VIEW_MODE_KEY, mode);
   }, []);
-
   // 表单验证
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
-
     if (!form.name.trim()) {
       newErrors.name = "请输入规则名称";
     } else if (form.name.length < 2 || form.name.length > 50) {
       newErrors.name = "规则名称长度应在2-50个字符之间";
     }
-
     if (!form.speed || form.speed < 1) {
       newErrors.speed = "请输入有效的速度限制（≥1 Mbps）";
     }
-
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
-
   // 新增规则
   const handleAdd = () => {
     setIsEdit(false);
@@ -157,7 +133,6 @@ export default function LimitPage() {
     setErrors({});
     setModalOpen(true);
   };
-
   // 编辑规则
   const handleEdit = (rule: SpeedLimitRule) => {
     setIsEdit(true);
@@ -170,21 +145,17 @@ export default function LimitPage() {
     setErrors({});
     setModalOpen(true);
   };
-
   // 显示删除确认
   const handleDelete = (rule: SpeedLimitRule) => {
     setRuleToDelete(rule);
     setDeleteModalOpen(true);
   };
-
   // 确认删除规则
   const confirmDelete = async () => {
     if (!ruleToDelete) return;
-
     setDeleteLoading(true);
     try {
       const res = await deleteSpeedLimit(ruleToDelete.id);
-
       if (res.code === 0) {
         toast.success("删除成功");
         setDeleteModalOpen(false);
@@ -198,11 +169,9 @@ export default function LimitPage() {
       setDeleteLoading(false);
     }
   };
-
   // 提交表单
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setSubmitLoading(true);
     try {
       let res: { code: number; msg: string };
@@ -212,7 +181,6 @@ export default function LimitPage() {
         speed: form.speed,
         status: form.status,
       };
-
       if (isEdit) {
         res = await updateSpeedLimit(payload);
       } else {
@@ -221,10 +189,8 @@ export default function LimitPage() {
           speed: payload.speed,
           status: payload.status,
         };
-
         res = await createSpeedLimit(createData);
       }
-
       if (res.code === 0) {
         toast.success(isEdit ? "修改成功" : "创建成功");
         setModalOpen(false);
@@ -238,11 +204,9 @@ export default function LimitPage() {
       setSubmitLoading(false);
     }
   };
-
   if (loading) {
     return <PageLoadingState message="正在加载..." />;
   }
-
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="flex flex-row items-center justify-between mb-6 gap-3">
@@ -259,13 +223,11 @@ export default function LimitPage() {
                 const searchInput = document.querySelector(
                   'input[placeholder*="搜索"]',
                 );
-
                 if (searchInput) (searchInput as HTMLElement).focus();
               }, 150);
             }}
           />
         </div>
-
         <div className="flex items-center gap-2">
           {/* 视图模式切换按钮 */}
           <Button
@@ -278,13 +240,11 @@ export default function LimitPage() {
           >
             {viewMode === "card" ? "列表" : "卡片"}
           </Button>
-
           <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
             新增
           </Button>
         </div>
       </div>
-
       {/* 限速规则列表 */}
       {filteredRules.length > 0 ? (
         viewMode === "list" ? (
@@ -396,7 +356,6 @@ export default function LimitPage() {
                         <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">{rule.speed}M</div>
                       </div>
                     </div>
-
                     <div className="flex gap-2 mt-4">
                       <Button
                         className="flex-1"
@@ -464,7 +423,6 @@ export default function LimitPage() {
           </CardBody>
         </Card>
       )}
-
       {/* 新增/编辑模态框 */}
       <Modal
         backdrop="blur"
@@ -501,7 +459,6 @@ export default function LimitPage() {
                       setForm((prev) => ({ ...prev, name: e.target.value }))
                     }
                   />
-
                   <Input
                     endContent={
                       <div className="pointer-events-none flex items-center">
@@ -542,7 +499,6 @@ export default function LimitPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 删除确认模态框 */}
       <Modal
         backdrop="blur"

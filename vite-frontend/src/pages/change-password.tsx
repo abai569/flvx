@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
@@ -9,14 +8,12 @@ import { title } from "@/components/primitives";
 import { updatePassword } from "@/api";
 import DefaultLayout from "@/layouts/default";
 import { safeLogout } from "@/utils/logout";
-
 interface PasswordForm {
   newUsername: string;
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
-
 export default function ChangePasswordPage() {
   const [form, setForm] = useState<PasswordForm>({
     newUsername: "",
@@ -27,10 +24,8 @@ export default function ChangePasswordPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<PasswordForm>>({});
   const navigate = useNavigate();
-
   const validateForm = (): boolean => {
     const newErrors: Partial<PasswordForm> = {};
-
     if (!form.newUsername.trim()) {
       newErrors.newUsername = "请输入新用户名";
     } else if (form.newUsername.length < 3) {
@@ -38,11 +33,9 @@ export default function ChangePasswordPage() {
     } else if (form.newUsername.length > 20) {
       newErrors.newUsername = "用户名长度不能超过20位";
     }
-
     if (!form.currentPassword.trim()) {
       newErrors.currentPassword = "请输入当前密码";
     }
-
     if (!form.newPassword.trim()) {
       newErrors.newPassword = "请输入新密码";
     } else if (form.newPassword.length < 6) {
@@ -50,35 +43,27 @@ export default function ChangePasswordPage() {
     } else if (form.newPassword.length > 20) {
       newErrors.newPassword = "新密码长度不能超过20位";
     }
-
     if (!form.confirmPassword.trim()) {
       newErrors.confirmPassword = "请再次输入新密码";
     } else if (form.confirmPassword !== form.newPassword) {
       newErrors.confirmPassword = "两次输入密码不一致";
     }
-
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
-
   const handleInputChange = (field: keyof PasswordForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
-
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
     try {
       const response = await updatePassword(form);
-
       if (response.code === 0) {
         toast.success(response.msg || "账号密码修改成功");
-
         // 使用 toast 确认对话框的替代方案
         setTimeout(() => {
           toast.success("即将跳转到登陆页面，请重新登录");
@@ -95,18 +80,15 @@ export default function ChangePasswordPage() {
       setLoading(false);
     }
   };
-
   const logout = () => {
     safeLogout();
     navigate("/");
   };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !loading) {
       handleSubmit();
     }
   };
-
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10 min-h-[calc(100dvh-200px)]">
@@ -127,13 +109,11 @@ export default function ChangePasswordPage() {
                   />
                 </svg>
               </div>
-
               <h1 className={title({ size: "sm" })}>安全提醒</h1>
               <p className="text-small text-default-500 mt-2 text-center">
                 检测到您使用的是默认账号密码，为了您的账户安全，请立即修改
               </p>
             </CardHeader>
-
             <CardBody className="px-6 py-6">
               <div className="flex flex-col gap-4">
                 <Input
@@ -149,7 +129,6 @@ export default function ChangePasswordPage() {
                   }
                   onKeyDown={handleKeyPress}
                 />
-
                 <Input
                   errorMessage={errors.currentPassword}
                   isDisabled={loading}
@@ -164,7 +143,6 @@ export default function ChangePasswordPage() {
                   }
                   onKeyDown={handleKeyPress}
                 />
-
                 <Input
                   errorMessage={errors.newPassword}
                   isDisabled={loading}
@@ -179,7 +157,6 @@ export default function ChangePasswordPage() {
                   }
                   onKeyDown={handleKeyPress}
                 />
-
                 <Input
                   errorMessage={errors.confirmPassword}
                   isDisabled={loading}
@@ -194,7 +171,6 @@ export default function ChangePasswordPage() {
                   }
                   onKeyDown={handleKeyPress}
                 />
-
                 <Button
                   className="mt-2"
                   color="warning"
@@ -205,7 +181,6 @@ export default function ChangePasswordPage() {
                 >
                   {loading ? "修改中..." : "立即修改账号密码"}
                 </Button>
-
                 <div className="bg-warning-50 border border-warning-200 text-warning-700 px-3 py-2 rounded-lg text-sm text-center">
                   ⚠️ 注意：修改账号密码后需要重新登录
                 </div>

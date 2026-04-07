@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import { parseDate } from "@internationalized/date";
-
 import { SearchBar } from "@/components/search-bar";
 import {
   AnimatedPage,
@@ -27,7 +26,6 @@ import {
   ModalFooter,
   useDisclosure,
 } from "@/shadcn-bridge/heroui/modal";
-
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { RadioGroup, Radio } from "@/shadcn-bridge/heroui/radio";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
@@ -66,7 +64,6 @@ import { EditIcon, DeleteIcon, SettingsIcon, EyeIcon, EyeOffIcon } from "@/compo
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { removeItemsById, replaceItemById } from "@/utils/list-state";
-
 // 工具函数
 const formatFlow = (value: number, unit: string = "bytes"): string => {
   if (unit === "gb") {
@@ -77,30 +74,23 @@ const formatFlow = (value: number, unit: string = "bytes"): string => {
     if (value < 1024 * 1024) return `${(value / 1024).toFixed(2)} KB`;
     if (value < 1024 * 1024 * 1024)
       return `${(value / (1024 * 1024)).toFixed(2)} MB`;
-
     return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   }
 };
-
 const formatDate = (timestamp: number): string => {
   return new Date(timestamp).toLocaleString();
 };
-
 const getExpireStatus = (expTime: number) => {
   const now = Date.now();
-
   if (expTime < now) {
     return { color: "danger" as const, text: "已过期" };
   }
   const diffDays = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
-
   if (diffDays <= 7) {
     return { color: "warning" as const, text: `${diffDays}天后过期` };
   }
-
   return { color: "success" as const, text: "正常" };
 };
-
 // 获取用户状态（根据status字段）
 const getUserStatus = (user: User) => {
   if (user.status === 1) {
@@ -109,22 +99,17 @@ const getUserStatus = (user: User) => {
     return { color: "danger" as const, text: "禁用" };
   }
 };
-
 const calculateUserTotalUsedFlow = (user: User): number => {
   return (user.inFlow || 0) + (user.outFlow || 0);
 };
-
 const calculateTunnelUsedFlow = (tunnel: UserTunnel): number => {
   const inFlow = tunnel.inFlow || 0;
   const outFlow = tunnel.outFlow || 0;
-
   // 后端已按计费类型处理流量，前端直接使用入站+出站总和
   return inFlow + outFlow;
 };
-
 const USER_SEARCH_DEBOUNCE_MS = 250;
 const USER_VIEW_MODE_KEY = "user_view_mode";
-
 const normalizeUserItem = (item: Partial<User>): User => {
   return {
     id: Number(item.id ?? 0),
@@ -146,7 +131,6 @@ const normalizeUserItem = (item: Partial<User>): User => {
     quotaDisabledAt: Number(item.quotaDisabledAt ?? 0),
   };
 };
-
 const normalizeUserTunnelItem = (item: Partial<UserTunnel>): UserTunnel => {
   return {
     id: Number(item.id ?? 0),
@@ -165,18 +149,14 @@ const normalizeUserTunnelItem = (item: Partial<UserTunnel>): UserTunnel => {
     tunnelFlow: item.tunnelFlow,
   };
 };
-
 export default function UserPage() {
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {
     const stored = localStorage.getItem(USER_VIEW_MODE_KEY);
-
     return stored === "list" || stored === "card" ? stored : "card";
   });
-
   // 列表模式选中行
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-
   // 状态管理
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -191,7 +171,6 @@ export default function UserPage() {
     total: 0,
   });
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // 用户表单相关状态
   const {
     isOpen: isUserModalOpen,
@@ -233,7 +212,6 @@ export default function UserPage() {
         : null,
     [userForm.id, users],
   );
-
   // 隧道权限管理相关状态
   const {
     isOpen: isTunnelModalOpen,
@@ -241,7 +219,6 @@ export default function UserPage() {
     onClose: onTunnelModalClose,
   } = useDisclosure();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-
   // 监控权限弹窗状态
   const {
     isOpen: isMonitorModalOpen,
@@ -249,7 +226,6 @@ export default function UserPage() {
     onClose: onMonitorModalClose,
   } = useDisclosure();
   const [monitorModalUser, setMonitorModalUser] = useState<User | null>(null);
-
   // --- 监控权限相关状态 (来自 user 新) ---
   const [monitorPermissionUserIds, setMonitorPermissionUserIds] = useState<
     Set<number>
@@ -258,19 +234,15 @@ export default function UserPage() {
     useState(false);
   const [monitorPermissionMutatingUserId, setMonitorPermissionMutatingUserId] =
     useState<number | null>(null);
-
   const loadMonitorPermissions = useCallback(async () => {
     setMonitorPermissionLoading(true);
     try {
       const response = await getMonitorPermissionList();
-
       if (response.code === 0) {
         const ids = new Set<number>();
-
         if (Array.isArray(response.data)) {
           response.data.forEach((item: any) => {
             const id = Number(item?.userId ?? 0);
-
             if (id > 0) ids.add(id);
           });
         }
@@ -281,28 +253,21 @@ export default function UserPage() {
       setMonitorPermissionLoading(false);
     }
   }, []);
-
   const setUserMonitorPermission = useCallback(
     async (userId: number, enabled: boolean) => {
       if (userId <= 0 || monitorPermissionMutatingUserId === userId) return;
       const prevEnabled = monitorPermissionUserIds.has(userId);
-
       if (prevEnabled === enabled) return;
-
       setMonitorPermissionMutatingUserId(userId);
       setMonitorPermissionUserIds((prev) => {
         const next = new Set(prev);
-
         enabled ? next.add(userId) : next.delete(userId);
-
         return next;
       });
-
       try {
         const response = enabled
           ? await assignMonitorPermission(userId)
           : await removeMonitorPermission(userId);
-
         if (response.code === 0) {
           toast.success(enabled ? "已授权监控" : "已撤销监控");
         } else {
@@ -311,9 +276,7 @@ export default function UserPage() {
       } catch {
         setMonitorPermissionUserIds((prev) => {
           const next = new Set(prev);
-
           prevEnabled ? next.add(userId) : next.delete(userId);
-
           return next;
         });
         toast.error("操作失败");
@@ -323,17 +286,14 @@ export default function UserPage() {
     },
     [monitorPermissionMutatingUserId, monitorPermissionUserIds],
   );
-
   const [userTunnels, setUserTunnels] = useState<UserTunnel[]>([]);
   const [tunnelListLoading, setTunnelListLoading] = useState(false);
-
   // 分配新隧道权限相关状态
   const [assignLoading, setAssignLoading] = useState(false);
   const [isTunnelListExpanded, setIsTunnelListExpanded] = useState(false);
   const [batchTunnelSelections, setBatchTunnelSelections] = useState<
     Map<number, number | null>
   >(new Map());
-
   // 编辑隧道权限相关状态
   const {
     isOpen: isEditTunnelModalOpen,
@@ -342,7 +302,6 @@ export default function UserPage() {
   } = useDisclosure();
   const [editTunnelForm, setEditTunnelForm] = useState<UserTunnel | null>(null);
   const [editTunnelLoading, setEditTunnelLoading] = useState(false);
-
   // 删除确认相关状态
   const {
     isOpen: isDeleteModalOpen,
@@ -350,7 +309,6 @@ export default function UserPage() {
     onClose: onDeleteModalClose,
   } = useDisclosure();
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-
   // 删除隧道权限确认相关状态
   const {
     isOpen: isDeleteTunnelModalOpen,
@@ -374,7 +332,6 @@ export default function UserPage() {
   } = useDisclosure();
   const [userToReset, setUserToReset] = useState<User | null>(null);
   const [resetFlowLoading, setResetFlowLoading] = useState(false);
-
   // 重置隧道流量确认相关状态
   const {
     isOpen: isResetTunnelFlowModalOpen,
@@ -383,12 +340,10 @@ export default function UserPage() {
   } = useDisclosure();
   const [tunnelToReset, setTunnelToReset] = useState<UserTunnel | null>(null);
   const [resetTunnelFlowLoading, setResetTunnelFlowLoading] = useState(false);
-
   // 其他数据
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [speedLimits, setSpeedLimits] = useState<SpeedLimit[]>([]);
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
-
   const noLimitSpeedLimitIds = useMemo(() => {
     return new Set(
       speedLimits
@@ -396,45 +351,35 @@ export default function UserPage() {
         .map((speedLimit) => speedLimit.id),
     );
   }, [speedLimits]);
-
   const speedLimitIds = useMemo(() => {
     return new Set(speedLimits.map((speedLimit) => speedLimit.id));
   }, [speedLimits]);
-
   const normalizeSpeedId = (speedId?: number | null): number | null => {
     if (speedId === null || speedId === undefined) {
       return null;
     }
-
     if (noLimitSpeedLimitIds.has(speedId)) {
       return null;
     }
-
     if (speedLimits.length > 0 && !speedLimitIds.has(speedId)) {
       return null;
     }
-
     return speedId;
   };
-
   const isMissingSpeedLimit = (speedId?: number | null): boolean => {
     if (speedId === null || speedId === undefined) {
       return false;
     }
-
     if (speedLimits.length === 0 || noLimitSpeedLimitIds.has(speedId)) {
       return false;
     }
-
     return !speedLimitIds.has(speedId);
   };
-
   // 视图模式切换
   const handleViewModeToggle = useCallback((mode: "card" | "list") => {
     setViewMode(mode);
     localStorage.setItem(USER_VIEW_MODE_KEY, mode);
   }, []);
-
   // 数据加载函数
   const loadUsers = useCallback(
     async (keywordOverride?: string) => {
@@ -446,12 +391,10 @@ export default function UserPage() {
           size: pagination.size,
           keyword,
         });
-
         if (response.code === 0) {
           const nextUsers = Array.isArray(response.data)
             ? response.data.map((item) => normalizeUserItem(item))
             : [];
-
           setUsers(nextUsers);
           setPagination((prev) => ({ ...prev, total: nextUsers.length }));
         } else {
@@ -465,21 +408,17 @@ export default function UserPage() {
     },
     [pagination.current, pagination.size],
   );
-
   const loadTunnels = useCallback(async () => {
     try {
       const response = await getTunnelList();
-
       if (response.code === 0) {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
     } catch { }
   }, []);
-
   const loadSpeedLimits = useCallback(async () => {
     try {
       const response = await getSpeedLimitList();
-
       if (response.code === 0) {
         const speedLimitList = Array.isArray(response.data)
           ? response.data.map((item) => ({
@@ -488,27 +427,22 @@ export default function UserPage() {
             downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
           }))
           : [];
-
         setSpeedLimits(speedLimitList);
       }
     } catch { }
   }, []);
-
   const loadUserGroups = useCallback(async () => {
     try {
       const response = await getUserGroupList();
-
       if (response.code === 0) {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
     } catch { }
   }, []);
-
   const loadUserTunnels = useCallback(async (userId: number) => {
     setTunnelListLoading(true);
     try {
       const response = await getUserTunnelList({ userId });
-
       if (response.code === 0) {
         setUserTunnels(
           Array.isArray(response.data)
@@ -524,7 +458,6 @@ export default function UserPage() {
       setTunnelListLoading(false);
     }
   }, []);
-
   // 生命周期
   useEffect(() => {
     void loadTunnels();
@@ -532,28 +465,22 @@ export default function UserPage() {
     void loadUserGroups();
     void loadMonitorPermissions();
   }, [loadSpeedLimits, loadTunnels, loadUserGroups]);
-
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
-
   useEffect(() => {
     if (searchDebounceRef.current) {
       clearTimeout(searchDebounceRef.current);
     }
-
     searchDebounceRef.current = setTimeout(() => {
       setPagination((prev) => {
         if (prev.current === 1) {
           void loadUsers(searchKeyword);
-
           return prev;
         }
-
         return { ...prev, current: 1 };
       });
     }, USER_SEARCH_DEBOUNCE_MS);
-
     return () => {
       if (searchDebounceRef.current) {
         clearTimeout(searchDebounceRef.current);
@@ -561,7 +488,6 @@ export default function UserPage() {
       }
     };
   }, [loadUsers, searchKeyword]);
-
   // 用户管理操作
   const handleAdd = () => {
     setIsEdit(false);
@@ -580,19 +506,15 @@ export default function UserPage() {
     });
     onUserModalOpen();
   };
-
   const handleEdit = async (user: User) => {
     setIsEdit(true);
     let currentGroupIds: number[] = [];
-
     try {
       const groupRes = await getUserGroups(user.id);
-
       if (groupRes.code === 0) {
         currentGroupIds = groupRes.data || [];
       }
     } catch { }
-
     setUserForm({
       id: user.id,
       name: user.name || "",
@@ -609,18 +531,14 @@ export default function UserPage() {
     });
     onUserModalOpen();
   };
-
   const handleDelete = (user: User) => {
     setUserToDelete(user);
     onDeleteModalOpen();
   };
-
   const handleConfirmDelete = async () => {
     if (!userToDelete) return;
-
     try {
       const response = await deleteUser(userToDelete.id);
-
       if (response.code === 0) {
         toast.success("删除成功");
         onDeleteModalClose();
@@ -641,14 +559,11 @@ export default function UserPage() {
       toast.error("删除失败");
     }
   };
-
   const handleSubmitUser = async () => {
     if (!userForm.user || (!userForm.pwd && !isEdit) || !userForm.expTime) {
       toast.error("请填写完整信息");
-
       return;
     }
-
     setUserFormLoading(true);
     try {
       const submitData: any = {
@@ -656,20 +571,16 @@ export default function UserPage() {
         expTime: userForm.expTime.getTime(),
         groupIds: userForm.groupIds ?? [],
       };
-
       if (isEdit && !submitData.pwd) {
         delete submitData.pwd;
       }
-
       const response = isEdit
         ? await updateUser(submitData)
         : await createUser(submitData);
-
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
         onUserModalClose();
         const responseUser = normalizeUserItem((response as any).data || {});
-
         if (
           isEdit &&
           responseUser.id > 0 &&
@@ -697,7 +608,6 @@ export default function UserPage() {
       setUserFormLoading(false);
     }
   };
-
   // 隧道权限管理操作
   const handleManageTunnels = (user: User) => {
     setCurrentUser(user);
@@ -706,20 +616,16 @@ export default function UserPage() {
     onTunnelModalOpen();
     loadUserTunnels(user.id);
   };
-
   // 打开监控权限弹窗
   const handleOpenMonitorModal = (user: User) => {
     setMonitorModalUser(user);
     onMonitorModalOpen();
   };
-
   const handleBatchAssignTunnel = async () => {
     if (batchTunnelSelections.size === 0 || !currentUser) {
       toast.error("请选择至少一个隧道");
-
       return;
     }
-
     setAssignLoading(true);
     try {
       let speedLimitAutoCleared = false;
@@ -729,20 +635,16 @@ export default function UserPage() {
         tunnelId,
         speedId: (() => {
           const cleared = normalizeSpeedId(speedId);
-
           if (isMissingSpeedLimit(speedId)) {
             speedLimitAutoCleared = true;
           }
-
           return cleared;
         })(),
       }));
-
       const response = await batchAssignUserTunnel({
         userId: currentUser.id,
         tunnels: tunnelsToAssign,
       });
-
       if (response.code === 0) {
         if (speedLimitAutoCleared) {
           toast("所选限速规则不存在，已自动清除为不限速", {
@@ -762,7 +664,6 @@ export default function UserPage() {
       setAssignLoading(false);
     }
   };
-
   const handleEditTunnel = (userTunnel: UserTunnel) => {
     setEditTunnelForm({
       ...userTunnel,
@@ -771,10 +672,8 @@ export default function UserPage() {
     });
     onEditTunnelModalOpen();
   };
-
   const handleUpdateTunnel = async () => {
     if (!editTunnelForm) return;
-
     setEditTunnelLoading(true);
     try {
       const speedLimitAutoCleared = isMissingSpeedLimit(editTunnelForm.speedId);
@@ -787,7 +686,6 @@ export default function UserPage() {
         speedId: normalizeSpeedId(editTunnelForm.speedId),
         status: editTunnelForm.status,
       });
-
       if (response.code === 0) {
         if (speedLimitAutoCleared) {
           toast("所选限速规则不存在，已自动清除为不限速", {
@@ -810,7 +708,6 @@ export default function UserPage() {
                 )?.name
                 : undefined,
           });
-
           setUserTunnels((prev) => replaceItemById(prev, nextTunnel));
         }
       } else {
@@ -822,18 +719,14 @@ export default function UserPage() {
       setEditTunnelLoading(false);
     }
   };
-
   const handleRemoveTunnel = (userTunnel: UserTunnel) => {
     setTunnelToDelete(userTunnel);
     onDeleteTunnelModalOpen();
   };
-
   const handleConfirmRemoveTunnel = async () => {
     if (!tunnelToDelete) return;
-
     try {
       const response = await removeUserTunnel({ id: tunnelToDelete.id });
-
       if (response.code === 0) {
         toast.success("删除成功");
         if (currentUser) {
@@ -848,7 +741,6 @@ export default function UserPage() {
       toast.error("删除失败");
     }
   };
-
   // 勾选/取消勾选单个权限
   const toggleUserTunnelSelection = (id: number) => {
     setSelectedUserTunnelIds((prev) => {
@@ -858,7 +750,6 @@ export default function UserPage() {
       return next;
     });
   };
-
   // 全选/取消全选
   const handleSelectAllUserTunnels = (isSelected: boolean) => {
     if (isSelected) {
@@ -867,11 +758,9 @@ export default function UserPage() {
       setSelectedUserTunnelIds(new Set());
     }
   };
-
   // 确认批量删除
   const handleConfirmBatchRemoveTunnel = async () => {
     if (selectedUserTunnelIds.size === 0) return;
-
     setBatchDeleteTunnelLoading(true);
     try {
       // 组装并发删除请求
@@ -879,10 +768,8 @@ export default function UserPage() {
         removeUserTunnel({ id }),
       );
       const results = await Promise.all(promises);
-      
       const successCount = results.filter((res) => res.code === 0).length;
       const failedCount = results.length - successCount;
-
       if (successCount > 0) {
         toast.success(`成功删除 ${successCount} 个隧道权限`);
         if (currentUser) {
@@ -902,28 +789,23 @@ export default function UserPage() {
       setBatchDeleteTunnelLoading(false);
     }
   };
-
   // 重置流量相关函数
   const handleResetFlow = (user: User) => {
     setUserToReset(user);
     onResetFlowModalOpen();
   };
-
   const handleConfirmResetFlow = async () => {
     if (!userToReset) return;
-
     setResetFlowLoading(true);
     try {
       const response = await resetUserFlow({
         id: userToReset.id,
         type: 1, // 1表示重置用户流量
       });
-
       if (response.code === 0) {
         toast.success("流量重置成功");
         onResetFlowModalClose();
         const targetUserId = userToReset.id;
-
         setUsers((prev) =>
           prev.map((user) =>
             user.id === targetUserId
@@ -941,28 +823,23 @@ export default function UserPage() {
       setResetFlowLoading(false);
     }
   };
-
   // 隧道流量重置相关函数
   const handleResetTunnelFlow = (userTunnel: UserTunnel) => {
     setTunnelToReset(userTunnel);
     onResetTunnelFlowModalOpen();
   };
-
   const handleConfirmResetTunnelFlow = async () => {
     if (!tunnelToReset) return;
-
     setResetTunnelFlowLoading(true);
     try {
       const response = await resetUserFlow({
         id: tunnelToReset.id,
         type: 2, // 2表示重置隧道流量
       });
-
       if (response.code === 0) {
         toast.success("隧道流量重置成功");
         onResetTunnelFlowModalClose();
         const targetTunnelId = tunnelToReset.id;
-
         setUserTunnels((prev) =>
           prev.map((userTunnel) =>
             userTunnel.id === targetTunnelId
@@ -980,47 +857,36 @@ export default function UserPage() {
       setResetTunnelFlowLoading(false);
     }
   };
-
   const editAvailableSpeedLimits = speedLimits.filter(
     (speedLimit) => !noLimitSpeedLimitIds.has(speedLimit.id),
   );
-
   const getSpeedLimitsForTunnel = (_tunnelId: number) => {
     return speedLimits.filter(
       (speedLimit) => !noLimitSpeedLimitIds.has(speedLimit.id),
     );
   };
-
   const editTunnelSelectedSpeedId = normalizeSpeedId(editTunnelForm?.speedId);
-
   const toggleTunnelSelection = (tunnelId: number) => {
     setBatchTunnelSelections((prev) => {
       const newMap = new Map(prev);
-
       if (newMap.has(tunnelId)) {
         newMap.delete(tunnelId);
       } else {
         newMap.set(tunnelId, null);
       }
-
       return newMap;
     });
   };
-
   const updateTunnelSpeedLimit = (tunnelId: number, speedId: number | null) => {
     setBatchTunnelSelections((prev) => {
       const newMap = new Map(prev);
-
       newMap.set(tunnelId, speedId);
-
       return newMap;
     });
   };
-
   const isTunnelAssigned = (tunnelId: number) => {
     return userTunnels.some((ut) => ut.tunnelId === tunnelId);
   };
-
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
@@ -1041,13 +907,11 @@ export default function UserPage() {
                 const searchInput = document.querySelector(
                   'input[placeholder*="搜索"]',
                 );
-
                 if (searchInput) (searchInput as HTMLElement).focus();
               }, 150);
             }}
           />
         </div>
-
         <div className="flex items-center gap-2">
           {/* 视图模式切换按钮 */}
           <Button
@@ -1060,13 +924,11 @@ export default function UserPage() {
           >
             {viewMode === "card" ? "列表" : "卡片"}
           </Button>
-
           <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
             新增
           </Button>
         </div>
       </div>
-
       {/* 用户列表 */}
       {loading ? (
         <PageLoadingState message="正在加载..." />
@@ -1109,7 +971,6 @@ export default function UserPage() {
                   ? getExpireStatus(user.expTime)
                   : null;
                 const usedFlow = calculateUserTotalUsedFlow(user);
-
                 return (
                   <TableRow
                     key={user.id}
@@ -1264,7 +1125,6 @@ export default function UserPage() {
                   100,
                 )
                 : 0;
-
             return (
               <StaggerItem key={user.id}>
                 <Card className="shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full">
@@ -1286,7 +1146,6 @@ export default function UserPage() {
                       </div>
                     </div>
                   </CardHeader>
-
                   <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -1310,7 +1169,6 @@ export default function UserPage() {
                           value={flowPercent}
                         />
                       )}
-
                       {/* 其他信息 */}
                       <div className="space-y-1.5 pt-2 border-t border-divider">
                         <div className="flex justify-between text-sm">
@@ -1363,7 +1221,6 @@ export default function UserPage() {
                         </div>
                       </div>
                     </div>
-
                     <div className="space-y-1.5 mt-3">
                       {/* 第一行：编辑和重置 */}
                       <div className="flex gap-1.5">
@@ -1401,7 +1258,6 @@ export default function UserPage() {
                           重置
                         </Button>
                       </div>
-
                       {/* 第二行：权限、监控和删除 */}
                       <div className="flex gap-1.5">
                         <Button
@@ -1442,7 +1298,6 @@ export default function UserPage() {
           })}
         </StaggerList>
       )}
-
       {/* 用户表单模态框 */}
       <Modal
         backdrop="blur"
@@ -1488,7 +1343,6 @@ export default function UserPage() {
                     const selected = Array.from(keys as Set<string>).map(
                       Number,
                     );
-
                     setUserForm((prev) => ({ ...prev, groupIds: selected }));
                   }}
                 >
@@ -1535,7 +1389,6 @@ export default function UserPage() {
                     Math.max(Number(e.target.value) || 0, 1),
                     99999,
                   );
-
                   setUserForm((prev) => ({ ...prev, num: value }));
                 }}
               />
@@ -1544,7 +1397,6 @@ export default function UserPage() {
                 selectedKeys={[userForm.flowResetTime.toString()]}
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
-
                   setUserForm((prev) => ({
                     ...prev,
                     flowResetTime: Number(value),
@@ -1586,7 +1438,6 @@ export default function UserPage() {
                       59,
                       59,
                     );
-
                     setUserForm((prev) => ({ ...prev, expTime: jsDate }));
                   } else {
                     setUserForm((prev) => ({ ...prev, expTime: null }));
@@ -1594,7 +1445,6 @@ export default function UserPage() {
                 }}
               />
             </div>
-
             {/* 配额状态保持原样 */}
             {isEdit &&
               editingUser &&
@@ -1605,7 +1455,6 @@ export default function UserPage() {
                   {/* ... 省略内部配额显示代码 ... */}
                 </div>
               )}
-
             <RadioGroup
               label="状态"
               orientation="horizontal"
@@ -1630,7 +1479,6 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 隧道权限管理模态框 */}
       <Modal
         backdrop="blur"
@@ -1646,16 +1494,13 @@ export default function UserPage() {
       >
         <ModalContent>
           <ModalHeader>管理用户 {currentUser?.user} 的隧道权限</ModalHeader>
-          
           {/* 👇 核心修复 1：ModalBody 必须加 overflow-x-hidden，防止内部表格强行撑大整个弹窗 */}
           <ModalBody className="py-4 overflow-x-hidden">
             <div className="space-y-6 w-full min-w-0">
-              
               {/* 分配新权限部分 */}
               <div className="space-y-3 w-full">
                 <h3 className="text-base font-semibold">分配权限</h3>
                 <div className="relative w-full">
-                  
                   {/* 👇 核心修复 2：分配按钮必须和选择框放在同一行！用 flex-1 min-w-0 压制选择框宽度 */}
                   <div className="flex flex-row items-center gap-2 sm:gap-3 w-full">
                     <div
@@ -1682,7 +1527,6 @@ export default function UserPage() {
                       分配
                     </Button>
                   </div>
-
                   {/* 列表悬浮层 */}
                   {isTunnelListExpanded && (
                     <div className="absolute top-full left-0 w-full mt-2 overflow-hidden border border-divider rounded-xl sm:rounded-2xl bg-content1 shadow-2xl z-[999] animate-appearance-in" onClick={(e) => e.stopPropagation()}>
@@ -1728,7 +1572,6 @@ export default function UserPage() {
                   )}
                 </div>
               </div>
-
               {/* 已有权限部分 */}
               <div className="space-y-3 w-full">
                 <div className="flex flex-row items-center justify-between gap-2 mt-4">
@@ -1737,7 +1580,6 @@ export default function UserPage() {
                     <Button color="danger" size="sm" variant="flat" className="h-8 text-xs sm:text-sm px-2 sm:px-3" startContent={<DeleteIcon className="w-3.5 h-3.5" />} onPress={onBatchDeleteTunnelModalOpen}>删除已选 ({selectedUserTunnelIds.size})</Button>
                   )}
                 </div>
-                
                 {/* 👇 核心修复 3：表格的外部父容器必须死死锁住 w-full min-w-0 */}
                 <div className="w-full min-w-0 overflow-hidden rounded-xl border border-divider bg-content1 shadow-sm relative">
                   <div className="overflow-x-auto max-h-[350px] sm:max-h-none scrollbar-thin scrollbar-thumb-default-300 w-full">
@@ -1787,7 +1629,6 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 监控权限弹窗 */}
       <Modal
         backdrop="blur"
@@ -1842,7 +1683,6 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 编辑隧道权限模态框 */}
       <Modal
         backdrop="blur"
@@ -1873,7 +1713,6 @@ export default function UserPage() {
                     const selectedKey = Array.from(keys)[0] as
                       | string
                       | undefined;
-
                     setEditTunnelForm((prev) =>
                       prev
                         ? {
@@ -1893,7 +1732,6 @@ export default function UserPage() {
                     </SelectItem>
                   ))}
                 </Select>
-
                 <RadioGroup
                   label="状态"
                   orientation="horizontal"
@@ -1922,7 +1760,6 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 删除确认对话框 */}
       <Modal
         backdrop="blur"
@@ -1968,7 +1805,6 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 删除隧道权限确认对话框 */}
       <Modal
         backdrop="blur"
@@ -2016,7 +1852,6 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 批量删除隧道权限确认对话框 */}
       <Modal
         backdrop="blur"
@@ -2062,7 +1897,6 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 重置流量确认对话框 */}
       <Modal
         backdrop="blur"
@@ -2154,7 +1988,6 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 重置隧道流量确认对话框 */}
       <Modal
         backdrop="blur"

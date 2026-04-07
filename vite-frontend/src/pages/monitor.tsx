@@ -1,25 +1,20 @@
 import type { MonitorNodeApiItem } from "@/api/types";
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Server, ArrowRightLeft } from "lucide-react";
-
 import { AnimatedPage } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { getMonitorNodes } from "@/api";
 import { MonitorView } from "@/pages/node/monitor-view";
 import { TunnelMonitorView } from "@/pages/node/tunnel-monitor-view";
-
 type MonitorNode = {
   id: number;
   name: string;
   connectionStatus: "online" | "offline";
   version?: string;
 };
-
 type MonitorTab = "nodes" | "tunnels";
-
 export default function MonitorPage() {
   const [nodes, setNodes] = useState<MonitorNodeApiItem[]>([]);
   const [nodesLoading, setNodesLoading] = useState(false);
@@ -28,28 +23,21 @@ export default function MonitorPage() {
   const [activeTab, setActiveTab] = useState<MonitorTab>("nodes");
   const [tunnelsLoading, setTunnelsLoading] = useState(false);
   const [tunnelRefreshTrigger, setTunnelRefreshTrigger] = useState(0);
-
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
-
     if (!silent) setNodesLoading(true);
     try {
       const response = await getMonitorNodes();
-
       if (response.code === 0 && Array.isArray(response.data)) {
         setNodesError(null);
         setNodes(response.data);
-
         return;
       }
-
       if (response.code === 403) {
         setNodes([]);
         setNodesError(response.msg || "暂无监控权限，请联系管理员授权");
-
         return;
       }
-
       if (!silent) toast.error(response.msg || "加载节点失败");
     } catch {
       if (!silent) toast.error("加载节点失败");
@@ -57,19 +45,15 @@ export default function MonitorPage() {
       if (!silent) setNodesLoading(false);
     }
   }, []);
-
   useEffect(() => {
     void loadNodes();
   }, [loadNodes]);
-
   useEffect(() => {
     const timer = window.setInterval(() => {
       void loadNodes({ silent: true });
     }, 30_000);
-
     return () => window.clearInterval(timer);
   }, [loadNodes]);
-
   const nodeMap = useMemo(() => {
     const list: MonitorNode[] = nodes
       .filter((n) => Number(n.id) > 0)
@@ -79,10 +63,8 @@ export default function MonitorPage() {
         connectionStatus: n.status === 1 ? "online" : "offline",
         version: n.version,
       }));
-
     return new Map<number, MonitorNode>(list.map((n) => [n.id, n]));
   }, [nodes]);
-
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="mb-4 space-y-3">
@@ -116,7 +98,6 @@ export default function MonitorPage() {
             </Button>
           </div>
         </div>
-
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">
           <button
@@ -142,7 +123,6 @@ export default function MonitorPage() {
             隧道
           </button>
         </div>
-
         {nodesError && activeTab === "nodes" ? (
           <Card>
             <CardHeader>
@@ -154,7 +134,6 @@ export default function MonitorPage() {
           </Card>
         ) : null}
       </div>
-
       <>
         <div className={activeTab === "nodes" ? "block" : "hidden"}>
           <MonitorView nodeMap={nodeMap} viewMode={viewMode} />

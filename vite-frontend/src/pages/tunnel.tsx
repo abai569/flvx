@@ -4,7 +4,6 @@ import type {
   TunnelBatchDeletePreviewApiData,
   TunnelDeletePreviewApiData,
 } from "@/api/types";
-
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
@@ -24,7 +23,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
 import { SearchBar } from "@/components/search-bar";
 import { AnimatedPage } from "@/components/animated-page";
 import { BatchActionResultModal } from "@/components/batch-action-result-modal";
@@ -82,7 +80,6 @@ import {
   extractBatchFailures,
   extractApiErrorMessage,
 } from "@/api/error-message";
-
 interface ChainTunnel {
   nodeId: number;
   protocol?: string; // 'tls' | 'wss' | 'tcp' | 'mtls' | 'mwss' | 'mtcp' - 转发链协议
@@ -92,7 +89,6 @@ interface ChainTunnel {
   port?: number; // 连接端口（留空自动分配）
   connectIpType?: string; // 向下连接 IP 类型："v4" | "v6" | "lan" | "auto" | ""
 }
-
 interface Tunnel {
   id: number;
   inx?: number;
@@ -112,7 +108,6 @@ interface Tunnel {
   tunnelGroupId?: number | null;
   remark?: string;
 }
-
 interface Node {
   id: number;
   name: string;
@@ -124,7 +119,6 @@ interface Node {
   extraIPs?: string;
   remark?: string;
 }
-
 interface TunnelForm {
   id?: number;
   name: string;
@@ -140,34 +134,27 @@ interface TunnelForm {
   tunnelGroupId: number | null;
   remark: string;
 }
-
 interface BatchProgressState {
   active: boolean;
   label: string;
   percent: number;
 }
-
 interface BatchResultModalState {
   failures: BatchOperationFailure[];
   open: boolean;
   summary: string;
   title: string;
 }
-
 type TunnelDeleteAction = "replace" | "delete_forwards";
-
 const EMPTY_BATCH_RESULT_MODAL_STATE: BatchResultModalState = {
   failures: [],
   open: false,
   summary: "",
   title: "",
 };
-
 const DEFAULT_TUNNEL_DELETE_ACTION: TunnelDeleteAction = "replace";
-
 const TUNNEL_ORDER_KEY = "tunnel-order";
 const TUNNEL_VIEW_MODE_KEY = "tunnel_view_mode";
-
 const mapTunnelApiItems = (items: any[]): Tunnel[] => {
   return (items || []).map((tunnel) => ({
     ...tunnel,
@@ -184,7 +171,6 @@ const mapTunnelApiItems = (items: any[]): Tunnel[] => {
     remark: tunnel.remark || "",
   }));
 };
-
 export default function TunnelPage() {
   const [loading, setLoading] = useState(true);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
@@ -195,7 +181,6 @@ export default function TunnelPage() {
     "",
   );
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-
   // 模态框状态
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -225,13 +210,10 @@ export default function TunnelPage() {
     timedOut: false,
   });
   const diagnosisAbortRef = useRef<AbortController | null>(null);
-
   // 表单状态
   const [form, setForm] = useState<TunnelForm>(createTunnelFormDefaults());
-
   // 表单验证错误
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
   // 批量操作相关状态
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
@@ -252,38 +234,30 @@ export default function TunnelPage() {
   });
   const [batchResultModal, setBatchResultModal] =
     useState<BatchResultModalState>(EMPTY_BATCH_RESULT_MODAL_STATE);
-
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {
     const stored = localStorage.getItem(TUNNEL_VIEW_MODE_KEY);
     return (stored === "list" || stored === "card") ? stored : "card";
   });
-
   // 隧道分组状态
   const [tunnelGroupsNew, setTunnelGroupsNew] = useState<TunnelGroupNewApiItem[]>([]);
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
-
   // 筛选状态
   const [tunnelFilterMode, setTunnelFilterMode] = useLocalStorageState<"all" | "enabled" | "disabled">("tunnel-filter-mode", "all");
   const [filterGroupId, setFilterGroupId] = useLocalStorageState<number | null>("tunnel-filter-group-id", null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-
   // 列表模式选中行
   const [selectedTunnelIds, setSelectedTunnelIds] = useState<Set<number>>(new Set());
-
   const selectAllTunnels = useCallback(() => {
     const allIds = tunnels.map(t => t.id);
     setSelectedTunnelIds(new Set(allIds));
   }, [tunnels]);
-
   const deselectAllTunnels = useCallback(() => {
     setSelectedTunnelIds(new Set());
   }, []);
-
   const isAllTunnelsSelected = useMemo(() => {
     return tunnels.length > 0 && selectedTunnelIds.size === tunnels.length;
   }, [tunnels, selectedTunnelIds]);
-
   const handleSelectAllTunnelsToggle = useCallback((isSelected: boolean) => {
     if (isSelected) {
       selectAllTunnels();
@@ -291,31 +265,24 @@ export default function TunnelPage() {
       deselectAllTunnels();
     }
   }, [selectAllTunnels, deselectAllTunnels]);
-
   useEffect(() => {
     return () => {
       diagnosisAbortRef.current?.abort();
       diagnosisAbortRef.current = null;
     };
   }, []);
-
   const applyTunnelList = useCallback((items: Tunnel[]) => {
     setTunnels(items);
-
     const hasDbOrdering = items.some(
       (tunnel) => tunnel.inx !== undefined && tunnel.inx !== 0,
     );
-
     if (hasDbOrdering) {
       const dbOrder = [...items]
         .sort((a, b) => (a.inx ?? 0) - (b.inx ?? 0))
         .map((tunnel) => tunnel.id);
-
       setTunnelOrder(dbOrder);
-
       return;
     }
-
     setTunnelOrder(
       loadStoredOrder(
         TUNNEL_ORDER_KEY,
@@ -323,16 +290,13 @@ export default function TunnelPage() {
       ),
     );
   }, []);
-
   const refreshTunnelList = useCallback(
     async (withLoading = true) => {
       if (withLoading) {
         setLoading(true);
       }
-
       try {
         const tunnelsRes = await getTunnelList();
-
         if (tunnelsRes.code === 0) {
           applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));
         } else {
@@ -348,17 +312,14 @@ export default function TunnelPage() {
     },
     [applyTunnelList],
   );
-
   const refreshNodes = useCallback(async () => {
     try {
       const nodesRes = await getNodeList();
-
       if (nodesRes.code === 0) {
         setNodes(nodesRes.data || []);
       }
     } catch { }
   }, []);
-
   // 加载隧道分组
   const loadTunnelGroupsNew = useCallback(async () => {
     const res = await getTunnelGroupNewList();
@@ -366,7 +327,6 @@ export default function TunnelPage() {
       setTunnelGroupsNew(res.data);
     }
   }, []);
-
   // 加载所有数据
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -378,11 +338,9 @@ export default function TunnelPage() {
       setLoading(false);
     }
   }, [refreshNodes, refreshTunnelList, loadTunnelGroupsNew]);
-
   useEffect(() => {
     loadData();
   }, [loadData]);
-
   const resetDeleteState = useCallback(() => {
     setDeleteLoading(false);
     setDeletePreviewLoading(false);
@@ -391,7 +349,6 @@ export default function TunnelPage() {
     setDeleteAction(DEFAULT_TUNNEL_DELETE_ACTION);
     setDeleteTargetTunnelId(null);
   }, []);
-
   const handleDeleteModalOpenChange = useCallback(
     (open: boolean) => {
       setDeleteModalOpen(open);
@@ -401,14 +358,12 @@ export default function TunnelPage() {
     },
     [resetDeleteState],
   );
-
   const resetBatchDeleteState = useCallback(() => {
     setBatchDeletePreviewLoading(false);
     setBatchDeletePreview(null);
     setBatchDeleteAction(DEFAULT_TUNNEL_DELETE_ACTION);
     setBatchDeleteTargetTunnelId(null);
   }, []);
-
   const handleBatchDeleteModalOpenChange = useCallback(
     (open: boolean) => {
       setBatchDeleteModalOpen(open);
@@ -427,7 +382,6 @@ export default function TunnelPage() {
     }).filter(Boolean);
     return ips.join("\n");
   }, [form.inNodeId, nodes]);
-
   // 🎯 智能检测2：判断隧道当前地址是否已经过期（与节点最新配置不符）
   const isInIpOutdated = useMemo(() => {
     if (!form.inIp || !expectedInIps) return false;
@@ -437,12 +391,9 @@ export default function TunnelPage() {
   // 表单验证
   const validateForm = (): boolean => {
     const newErrors = validateTunnelForm(form, nodes);
-
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
-
   // 新增隧道
   const handleAdd = () => {
     setIsEdit(false);
@@ -450,11 +401,9 @@ export default function TunnelPage() {
     setErrors({});
     setModalOpen(true);
   };
-
   // 编辑隧道 - 只能修改部分字段
   const handleEdit = (tunnel: Tunnel) => {
     setIsEdit(true);
-
     // 直接使用列表数据，保持所有节点勾选状态（包括离线节点）
     setForm({
       id: tunnel.id,
@@ -479,28 +428,22 @@ export default function TunnelPage() {
     setErrors({});
     setModalOpen(true);
   };
-
   // 删除隧道
   const handleDelete = async (tunnel: Tunnel) => {
     setTunnelToDelete(tunnel);
     setDeleteModalOpen(true);
-
     setDeletePreviewLoading(true);
     setTunnelDeletePreview(null);
     setDeleteAction(DEFAULT_TUNNEL_DELETE_ACTION);
     setDeleteTargetTunnelId(null);
-
     try {
       const response = await previewTunnelDelete(tunnel.id);
-
       if (response.code !== 0 || !response.data) {
         toast.error(response.msg || "获取删除依赖失败");
         setDeleteModalOpen(false);
         resetDeleteState();
-
         return;
       }
-
       setTunnelDeletePreview(response.data);
     } catch (error) {
       toast.error(extractApiErrorMessage(error, "获取删除依赖失败"));
@@ -510,14 +453,11 @@ export default function TunnelPage() {
       setDeletePreviewLoading(false);
     }
   };
-
   const confirmDelete = async () => {
     if (!tunnelToDelete) return;
-
     const forwardCount = tunnelDeletePreview?.forwardCount ?? 0;
     const action: TunnelDeleteAction =
       forwardCount > 0 ? deleteAction : "delete_forwards";
-
     if (
       action === "replace" &&
       forwardCount > 0 &&
@@ -527,10 +467,8 @@ export default function TunnelPage() {
         ))
     ) {
       toast.error("请选择替换规则的目标隧道");
-
       return;
     }
-
     setDeleteLoading(true);
     try {
       const response = await deleteTunnelWithForwards({
@@ -539,12 +477,10 @@ export default function TunnelPage() {
         targetTunnelId:
           action === "replace" ? deleteTargetTunnelId ?? undefined : undefined,
       });
-
       if (response.code === 0) {
         const deleteResult = (response.data || null) as {
           warnings?: string[];
         } | null;
-
         if ((deleteResult?.warnings?.length ?? 0) > 0) {
           toast.success(
             `删除成功，另有 ${deleteResult?.warnings?.length ?? 0} 条节点清理提示`,
@@ -558,16 +494,12 @@ export default function TunnelPage() {
         );
         setTunnelOrder((prev) => {
           const next = prev.filter((id) => id !== tunnelToDelete.id);
-
           saveOrder(TUNNEL_ORDER_KEY, next);
-
           return next;
         });
         setSelectedIds((prev) => {
           const next = new Set(prev);
-
           next.delete(tunnelToDelete.id);
-
           return next;
         });
         resetDeleteState();
@@ -581,7 +513,6 @@ export default function TunnelPage() {
           successCount?: number;
         };
         const failures = extractBatchFailures(response.data);
-
         if (failures.length > 0) {
           setBatchResultModal({
             failures,
@@ -600,7 +531,6 @@ export default function TunnelPage() {
       setDeleteLoading(false);
     }
   };
-
   // 隧道类型改变时的处理
   const handleTypeChange = (type: number) => {
     setForm((prev) => ({
@@ -610,7 +540,6 @@ export default function TunnelPage() {
       chainNodes: type === 1 ? [] : prev.chainNodes,
     }));
   };
-
   // 删除转发链中的某一跳（删除整个分组）
   const removeChainNode = (groupIndex: number) => {
     setForm((prev) => ({
@@ -620,41 +549,33 @@ export default function TunnelPage() {
       ),
     }));
   };
-
   const toSelectedNodeIds = (keys: Iterable<unknown>): number[] => {
     return Array.from(keys)
       .map((key) => Number.parseInt(String(key), 10))
       .filter((nodeId) => Number.isFinite(nodeId));
   };
-
   // 更新某一跳的所有节点的协议
   const updateChainProtocol = (groupIndex: number, protocol: string) => {
     setForm((prev) => {
       const chainNodes = [...(prev.chainNodes || [])];
-
       chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
         ...node,
         protocol,
       }));
-
       return { ...prev, chainNodes };
     });
   };
-
   // 更新某一跳的所有节点的策略
   const updateChainStrategy = (groupIndex: number, strategy: string) => {
     setForm((prev) => {
       const chainNodes = [...(prev.chainNodes || [])];
-
       chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
         ...node,
         strategy,
       }));
-
       return { ...prev, chainNodes };
     });
   };
-
   // 🎯 多端口支持：解析逗号分隔的端口字符串
   const parsePortsFromInput = (value: string): number[] => {
     if (!value || value.trim() === '') {
@@ -668,17 +589,14 @@ export default function TunnelPage() {
         return isNaN(port) ? 0 : port;
       });
   };
-
   // 🎯 多端口支持：格式化端口数组为显示文本
   // 出口连接端口输入框不再自动填充逗号，让用户手动输入
   const formatOutNodePortsToDisplay = (): string => {
     return '';  // 返回空字符串，让用户手动输入
   };
-
   // 🎯 多端口支持：将端口应用到出口节点
   const applyPortsToOutNodes = (value: string) => {
     const ports = parsePortsFromInput(value);
-
     setForm((prev) => {
       const outNodes = prev.outNodeId || [];
       return {
@@ -692,37 +610,30 @@ export default function TunnelPage() {
       };
     });
   };
-
   // 🎯 多端口支持：格式化转发链端口为显示文本
   // 修改：不再自动格式化，返回空字符串让用户手动输入
   const formatChainPortsToDisplay = (): string => {
     return '';  // 返回空字符串，让用户手动输入
   };
-
   // 🎯 多端口支持：将端口应用到转发链节点
   const applyPortsToChainGroup = (groupIndex: number, value: string) => {
     const ports = parsePortsFromInput(value);
-
     setForm((prev) => {
       const chainNodes = [...(prev.chainNodes || [])];
       const currentGroup = chainNodes[groupIndex] || [];
-
       chainNodes[groupIndex] = currentGroup.map((node, idx) => ({
         ...node,
         port: idx < ports.length && ports[idx] > 0
           ? ports[idx]
           : undefined
       }));
-
       return { ...prev, chainNodes };
     });
   };
-
   // 连接 IP 类型输入框不再自动填充逗号，让用户手动输入
   const formatConnectIpTypesToDisplay = (): string => {
     return '';  // 返回空字符串，让用户手动输入
   };
-
   const applyConnectIpTypesToChainGroup = (groupIndex: number, value: string) => {
     const types = value.split(',').map(s => s.trim());
     setForm((prev) => {
@@ -735,11 +646,9 @@ export default function TunnelPage() {
       return { ...prev, chainNodes };
     });
   };
-
   const formatOutNodeConnectIpTypes = (): string => {
     return '';  // 返回空字符串，让用户手动输入
   };
-
   const applyOutNodeConnectIpTypes = (value: string) => {
     const types = value.split(',').map(s => s.trim());
     setForm((prev) => ({
@@ -750,19 +659,16 @@ export default function TunnelPage() {
       })),
     }));
   };
-
   // 获取所有转发链中已选择的节点 ID 列表
   const getSelectedChainNodeIds = (): number[] => {
     return (form.chainNodes || []).flatMap((group) =>
       group.map((node) => node.nodeId),
     );
   };
-
   // 获取转发链分组（已经是二维数组）
   const getChainGroups = (): ChainTunnel[][] => {
     return form.chainNodes || [];
   };
-
   const mergeOrderedNodes = (
     currentNodes: ChainTunnel[],
     selectedNodeIds: number[],
@@ -774,10 +680,8 @@ export default function TunnelPage() {
     const added = selectedNodeIds
       .filter((nodeId) => !keptIds.has(nodeId))
       .map((nodeId) => buildDefault(nodeId));
-
     return [...kept, ...added];
   };
-
   const syncChainGroupNodes = (
     groupIndex: number,
     selectedNodeIds: number[],
@@ -798,39 +702,32 @@ export default function TunnelPage() {
           strategy,
         }),
       );
-
       chainNodes[groupIndex] =
         mergedNodes.length > 0
           ? mergedNodes
           : [{ nodeId: -1, chainType: 2, protocol, strategy }];
-
       return { ...prev, chainNodes };
     });
   };
-
   // 提交表单
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setSubmitLoading(true);
     try {
       // 过滤掉占位节点（nodeId === -1 的节点）
       const cleanedChainNodes = (form.chainNodes || [])
         .map((group) => group.filter((node) => node.nodeId !== -1))
         .filter((group) => group.length > 0); // 移除空组
-
       // 过滤掉出口节点中的占位节点
       const cleanedOutNodeId = (form.outNodeId || []).filter(
         (node) => node.nodeId !== -1,
       );
-
       // 将换行符分隔的 IP 转换为逗号分隔
       let inIpString = form.inIp
         .split("\n")
         .map((ip) => ip.trim())
         .filter((ip) => ip)
         .join(",");
-
       // 🎯 前端强拦截：如果留空，自动提取域名
       if (!inIpString && form.inNodeId && form.inNodeId.length > 0) {
         const autoIps = form.inNodeId.map(ct => {
@@ -840,7 +737,6 @@ export default function TunnelPage() {
         }).filter(Boolean);
         inIpString = autoIps.join(",");
       }
-
       // 🎯 终极杀招：同时发送驼峰和下划线字段，专治后端更新接口“挑食”！
       const data = {
         ...form,
@@ -849,7 +745,6 @@ export default function TunnelPage() {
         outNodeId: cleanedOutNodeId,
         chainNodes: cleanedChainNodes,
         tunnelGroupId: form.tunnelGroupId,
-
         // 下划线命名，给更新接口看 (强制绑定)
         in_ip: inIpString,
         in_node_id: form.inNodeId,
@@ -857,11 +752,9 @@ export default function TunnelPage() {
         chain_nodes: cleanedChainNodes,
         tunnel_group_id: form.tunnelGroupId,
       };
-
       const response = isEdit
         ? await updateTunnel(data)
         : await createTunnel(data);
-
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
         setModalOpen(false);
@@ -875,14 +768,11 @@ export default function TunnelPage() {
       setSubmitLoading(false);
     }
   };
-
   // 诊断隧道
   const handleDiagnose = async (tunnel: Tunnel) => {
     diagnosisAbortRef.current?.abort();
     const abortController = new AbortController();
-
     diagnosisAbortRef.current = abortController;
-
     setCurrentDiagnosisTunnel(tunnel);
     setDiagnosisModalOpen(true);
     setDiagnosisLoading(true);
@@ -899,7 +789,6 @@ export default function TunnelPage() {
       timestamp: Date.now(),
       results: [],
     });
-
     try {
       let streamErrorMessage = "";
       const streamResult = await diagnoseTunnelStream(
@@ -922,7 +811,6 @@ export default function TunnelPage() {
             const startItems = Array.isArray(payload.items)
               ? (payload.items as DiagnosisResult["results"])
               : [];
-
             setDiagnosisResult((prev) => ({
               tunnelName: startTunnelName,
               tunnelType: startTunnelType,
@@ -952,7 +840,6 @@ export default function TunnelPage() {
                   item.targetIp === result.targetIp &&
                   item.targetPort === result.targetPort,
               );
-
               if (existingIndex >= 0) {
                 nextResults[existingIndex] = {
                   ...result,
@@ -964,7 +851,6 @@ export default function TunnelPage() {
                   diagnosing: false,
                 });
               }
-
               return {
                 ...base,
                 timestamp: Date.now(),
@@ -994,17 +880,14 @@ export default function TunnelPage() {
         },
         abortController.signal,
       );
-
       if (streamResult.fallback) {
         const response = await diagnoseTunnel(tunnel.id);
-
         if (response.code === 0) {
           const resultData = response.data as DiagnosisResult;
           const successCount = resultData.results.filter(
             (r) => r.success,
           ).length;
           const failedCount = resultData.results.length - successCount;
-
           setDiagnosisResult(resultData);
           setDiagnosisProgress({
             total: resultData.results.length,
@@ -1031,10 +914,8 @@ export default function TunnelPage() {
             timedOut: false,
           });
         }
-
         return;
       }
-
       if (streamErrorMessage) {
         toast.error(streamErrorMessage);
       }
@@ -1068,40 +949,28 @@ export default function TunnelPage() {
       setDiagnosisLoading(false);
     }
   };
-
   // 处理拖拽结束
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-
     if (!active || !over || active.id === over.id) return;
     if (!tunnelOrder || tunnelOrder.length === 0) return;
-
     const activeId = Number(active.id);
     const overId = Number(over.id);
-
     if (isNaN(activeId) || isNaN(overId)) return;
-
     const oldIndex = tunnelOrder.indexOf(activeId);
     const newIndex = tunnelOrder.indexOf(overId);
-
     if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-
     const newOrder = arrayMove(tunnelOrder, oldIndex, newIndex);
-
     setTunnelOrder(newOrder);
-
     saveOrder(TUNNEL_ORDER_KEY, newOrder);
-
     // 持久化到数据库
     try {
       const tunnelsToUpdate = newOrder.map((id, index) => ({ id, inx: index }));
       const response = await updateTunnelOrder({ tunnels: tunnelsToUpdate });
-
       if (response.code === 0) {
         setTunnels((prev) =>
           prev.map((tunnel) => {
             const updated = tunnelsToUpdate.find((t) => t.id === tunnel.id);
-
             return updated ? { ...tunnel, inx: updated.inx } : tunnel;
           }),
         );
@@ -1112,10 +981,8 @@ export default function TunnelPage() {
       toast.error("保存排序失败，请重试");
     }
   };
-
   const toggleSelect = (id: number) => {
     const newSet = new Set(selectedIds);
-
     if (newSet.has(id)) {
       newSet.delete(id);
     } else {
@@ -1123,17 +990,13 @@ export default function TunnelPage() {
     }
     setSelectedIds(newSet);
   };
-
   const selectAll = () => {
     const allIds = sortedTunnels.map((t) => t.id);
-
     setSelectedIds(new Set(allIds));
   };
-
   const deselectAll = () => {
     setSelectedIds(new Set());
   };
-
   const openBatchResultModal = useCallback(
     (title: string, summary: string, failures: BatchOperationFailure[]) => {
       setBatchResultModal({
@@ -1145,27 +1008,21 @@ export default function TunnelPage() {
     },
     [],
   );
-
   const handleOpenBatchDeleteModal = async () => {
     if (selectedIds.size === 0) return;
-
     setBatchDeleteModalOpen(true);
     setBatchDeletePreviewLoading(true);
     setBatchDeletePreview(null);
     setBatchDeleteAction(DEFAULT_TUNNEL_DELETE_ACTION);
     setBatchDeleteTargetTunnelId(null);
-
     try {
       const response = await previewBatchTunnelDelete(selectedTunnelIdList);
-
       if (response.code !== 0 || !response.data) {
         toast.error(response.msg || "获取批量删除依赖失败");
         setBatchDeleteModalOpen(false);
         resetBatchDeleteState();
-
         return;
       }
-
       setBatchDeletePreview(response.data);
     } catch (error) {
       toast.error(extractApiErrorMessage(error, "获取批量删除依赖失败"));
@@ -1175,7 +1032,6 @@ export default function TunnelPage() {
       setBatchDeletePreviewLoading(false);
     }
   };
-
   const handleBatchDelete = async () => {
     if (selectedTunnelIdList.length === 0) return;
     if (
@@ -1184,10 +1040,8 @@ export default function TunnelPage() {
       (!batchDeleteTargetTunnelId || batchDeleteReplaceUnavailable)
     ) {
       toast.error("请选择替换规则的目标隧道");
-
       return;
     }
-
     setBatchLoading(true);
     setBatchProgress({
       active: true,
@@ -1205,7 +1059,6 @@ export default function TunnelPage() {
             ? batchDeleteTargetTunnelId ?? undefined
             : undefined,
       });
-
       if (res.code === 0) {
         const result = (res.data || {
           successCount: 0,
@@ -1217,12 +1070,10 @@ export default function TunnelPage() {
           warnings?: string[];
         };
         const warningCount = result?.warnings?.length ?? 0;
-
         if (result.failCount === 0 && warningCount === 0) {
           toast.success(`成功删除 ${result.successCount} 项`);
         } else if (result.failCount > 0) {
           const failures = extractBatchFailures(result);
-
           if (failures.length > 0) {
             openBatchResultModal(
               "批量删除结果",
@@ -1242,13 +1093,11 @@ export default function TunnelPage() {
             `删除完成：成功 ${result.successCount} 项，${warningCount} 项有警告`,
           );
         }
-
         if (viewMode === "list") {
           setSelectedTunnelIds(new Set());
         } else {
           setSelectedIds(new Set());
         }
-
         setBatchProgress({
           active: true,
           label: `删除完成：成功 ${result.successCount} 项，正在刷新列表...`,
@@ -1265,7 +1114,6 @@ export default function TunnelPage() {
       setBatchProgress({ active: false, label: "", percent: 0 });
     }
   };
-
   const handleBatchRedeploy = async () => {
     const idsToRedeploy = viewMode === "list" ? Array.from(selectedTunnelIds) : Array.from(selectedIds);
     if (idsToRedeploy.length === 0) return;
@@ -1277,15 +1125,12 @@ export default function TunnelPage() {
     });
     try {
       const res = await batchRedeployTunnels(idsToRedeploy);
-
       if (res.code === 0) {
         const result = res.data;
-
         if (result.failCount === 0) {
           toast.success(`成功重新下发 ${result.successCount} 项`);
         } else {
           const failures = extractBatchFailures(result);
-
           if (failures.length > 0) {
             openBatchResultModal(
               "批量下发结果",
@@ -1322,7 +1167,6 @@ export default function TunnelPage() {
       setBatchProgress({ active: false, label: "", percent: 0 });
     }
   };
-
   // 传感器配置
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -1340,19 +1184,15 @@ export default function TunnelPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
   // 视图模式切换
   const handleViewModeToggle = useCallback((mode: "card" | "list") => {
     setViewMode(mode);
     localStorage.setItem(TUNNEL_VIEW_MODE_KEY, mode);
   }, []);
-
   // 根据排序顺序获取隧道列表
   const sortedTunnels = useMemo((): Tunnel[] => {
     if (!tunnels || tunnels.length === 0) return [];
-
     let filteredTunnels = tunnels;
-
     // 按分组筛选
     if (filterGroupId !== null) {
       if (filterGroupId === -1) {
@@ -1362,7 +1202,6 @@ export default function TunnelPage() {
         filteredTunnels = filteredTunnels.filter((t) => t.tunnelGroupId === filterGroupId);
       }
     }
-
     // 按状态筛选
     if (tunnelFilterMode !== "all") {
       if (tunnelFilterMode === "enabled") {
@@ -1371,11 +1210,9 @@ export default function TunnelPage() {
         filteredTunnels = filteredTunnels.filter((t) => t.status === 0);
       }
     }
-
     // 按关键词搜索
     if (searchKeyword.trim()) {
       const lowerKeyword = searchKeyword.toLowerCase();
-
       filteredTunnels = filteredTunnels.filter(
         (t) =>
           (t.name && t.name.toLowerCase().includes(lowerKeyword)) ||
@@ -1383,14 +1220,11 @@ export default function TunnelPage() {
           (t.remark && t.remark.toLowerCase().includes(lowerKeyword)),
       );
     }
-
     const sortedByDb = [...filteredTunnels].sort((a, b) => {
       const aInx = a.inx ?? 0;
       const bInx = b.inx ?? 0;
-
       return aInx - bInx;
     });
-
     // 如果数据库中没有排序信息，则使用本地存储的顺序
     if (
       tunnelOrder &&
@@ -1399,70 +1233,54 @@ export default function TunnelPage() {
     ) {
       const tunnelMap = new Map(filteredTunnels.map((t) => [t.id, t] as const));
       const localSorted: Tunnel[] = [];
-
       tunnelOrder.forEach((id) => {
         const tunnel = tunnelMap.get(id);
-
         if (tunnel) localSorted.push(tunnel);
       });
-
       filteredTunnels.forEach((tunnel) => {
         if (!tunnelOrder.includes(tunnel.id)) {
           localSorted.push(tunnel);
         }
       });
-
       return localSorted;
     }
-
     return sortedByDb;
   }, [tunnels, tunnelOrder, searchKeyword, tunnelFilterMode, filterGroupId]);
-
   const sortableTunnelIds = useMemo(
     () => sortedTunnels.map((t) => t.id),
     [sortedTunnels],
   );
-
   const deleteReplacementTunnels = useMemo(() => {
     if (!tunnelToDelete) {
       return [] as Tunnel[];
     }
-
     return tunnels
       .filter((tunnel) => tunnel.id !== tunnelToDelete.id && tunnel.status === 1)
       .sort((a, b) => {
         const aInx = a.inx ?? 0;
         const bInx = b.inx ?? 0;
-
         return aInx - bInx;
       });
   }, [tunnelToDelete, tunnels]);
-
   useEffect(() => {
     if (!deleteModalOpen) {
       return;
     }
-
     if ((tunnelDeletePreview?.forwardCount ?? 0) <= 0) {
       return;
     }
-
     if (deleteReplacementTunnels.length === 0) {
       setDeleteAction("delete_forwards");
       setDeleteTargetTunnelId(null);
-
       return;
     }
-
     if (deleteAction !== "replace") {
       return;
     }
-
     setDeleteTargetTunnelId((prev) => {
       if (prev && deleteReplacementTunnels.some((tunnel) => tunnel.id === prev)) {
         return prev;
       }
-
       return deleteReplacementTunnels[0]?.id ?? null;
     });
   }, [
@@ -1471,7 +1289,6 @@ export default function TunnelPage() {
     deleteReplacementTunnels,
     tunnelDeletePreview?.forwardCount,
   ]);
-
   const deletePreviewForwardCount = tunnelDeletePreview?.forwardCount ?? 0;
   const deleteHasForwardDependencies = deletePreviewForwardCount > 0;
   const deleteReplaceUnavailable =
@@ -1481,7 +1298,6 @@ export default function TunnelPage() {
       ? "迁移规则后删除该隧道"
       : "删除规则并删除该隧道"
     : "删除该隧道";
-
   const selectedTunnelIdList = useMemo(
     () => viewMode === "list" ? Array.from(selectedTunnelIds) : Array.from(selectedIds),
     [viewMode, selectedTunnelIds, selectedIds],
@@ -1490,37 +1306,29 @@ export default function TunnelPage() {
     if (selectedIds.size === 0) {
       return [] as Tunnel[];
     }
-
     return tunnels
       .filter((tunnel) => !selectedIds.has(tunnel.id) && tunnel.status === 1)
       .sort((a, b) => {
         const aInx = a.inx ?? 0;
         const bInx = b.inx ?? 0;
-
         return aInx - bInx;
       });
   }, [selectedIds, tunnels]);
-
   useEffect(() => {
     if (!batchDeleteModalOpen) {
       return;
     }
-
     if ((batchDeletePreview?.totalForwardCount ?? 0) <= 0) {
       return;
     }
-
     if (batchDeleteReplacementTunnels.length === 0) {
       setBatchDeleteAction("delete_forwards");
       setBatchDeleteTargetTunnelId(null);
-
       return;
     }
-
     if (batchDeleteAction !== "replace") {
       return;
     }
-
     setBatchDeleteTargetTunnelId((prev) => {
       if (
         prev &&
@@ -1528,7 +1336,6 @@ export default function TunnelPage() {
       ) {
         return prev;
       }
-
       return batchDeleteReplacementTunnels[0]?.id ?? null;
     });
   }, [
@@ -1537,7 +1344,6 @@ export default function TunnelPage() {
     batchDeletePreview?.totalForwardCount,
     batchDeleteReplacementTunnels,
   ]);
-
   const batchDeleteTotalForwardCount = batchDeletePreview?.totalForwardCount ?? 0;
   const batchDeleteHasForwardDependencies = batchDeleteTotalForwardCount > 0;
   const batchDeleteDependentTunnelCount =
@@ -1551,7 +1357,6 @@ export default function TunnelPage() {
       if ((a.forwardCount > 0) === (b.forwardCount > 0)) {
         return a.tunnelName.localeCompare(b.tunnelName, "zh-CN");
       }
-
       return a.forwardCount > 0 ? -1 : 1;
     });
   }, [batchDeletePreview?.items]);
@@ -1566,7 +1371,6 @@ export default function TunnelPage() {
       ? `迁移规则后删除这 ${selectedTunnelIdList.length} 条隧道`
       : `删除规则并删除 ${selectedTunnelIdList.length} 条隧道`
     : `删除这 ${selectedTunnelIdList.length} 条隧道`;
-
   const SortableListRowItem = ({ id, children }: { id: number; children: (props: any) => any }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
     const style: React.CSSProperties = {
@@ -1580,7 +1384,6 @@ export default function TunnelPage() {
     };
     return children({ setNodeRef, style, attributes, listeners });
   };
-
   const SortableItem = ({
     id,
     children,
@@ -1596,7 +1399,6 @@ export default function TunnelPage() {
       transition,
       isDragging,
     } = useSortable({ id });
-
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
@@ -1609,18 +1411,15 @@ export default function TunnelPage() {
       opacity: isDragging ? 0.5 : 1,
       willChange: isDragging ? "transform" : undefined,
     };
-
     return (
       <div ref={setNodeRef} style={style} {...attributes}>
         {children(listeners)}
       </div>
     );
   };
-
   if (loading) {
     return <PageLoadingState message="正在加载..." />;
   }
-
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="flex flex-row items-center justify-between mb-6 gap-3">
@@ -1640,7 +1439,6 @@ export default function TunnelPage() {
             }}
           />
         </div>
-
         <div className="flex items-center gap-2">
           {(viewMode === "list" && selectedTunnelIds.size > 0) || (viewMode === "card" && selectedIds.size > 0) ? (
             <>
@@ -1709,7 +1507,6 @@ export default function TunnelPage() {
                   重置
                 </Button>
               ) : null}
-
               <Button
                 color={viewMode === "card" ? "warning" : "primary"}
                 size="sm"
@@ -1738,7 +1535,6 @@ export default function TunnelPage() {
           )}
         </div>
       </div>
-
       {batchProgress.active && (
         <div className="mb-4">
           <Alert
@@ -1755,7 +1551,6 @@ export default function TunnelPage() {
           />
         </div>
       )}
-
       {/* 隧道列表 */}
       {tunnels.length > 0 ? (
         viewMode === "list" ? (
@@ -1818,7 +1613,6 @@ export default function TunnelPage() {
                           ))}
                         </Select>
                       </th>
-
                       <th className="py-3 px-4 w-[100px] align-middle">类型</th>
                       <th className="py-3 px-4 w-[100px] text-center align-middle">入口</th>
                       <th className="py-3 px-4 w-[80px] text-center align-middle">跳数</th>
@@ -1836,7 +1630,6 @@ export default function TunnelPage() {
                       const inCount = tunnel.inNodeId?.length || 0;
                       const outCount = tunnel.outNodeId?.length || 0;
                       const chainCount = tunnel.chainNodes?.length || 0;
-
                       return (
                         <SortableListRowItem key={tunnel.id} id={tunnel.id}>
                           {({ setNodeRef, style, attributes, listeners }) => (
@@ -1956,7 +1749,6 @@ export default function TunnelPage() {
                     tunnel.type === 1
                       ? "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400"
                       : "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-success-500/10 text-success-600 dark:text-success-400";
-
                   return (
                     <SortableItem key={tunnel.id} id={tunnel.id}>
                       {(listeners) => (
@@ -2006,7 +1798,6 @@ export default function TunnelPage() {
                               </div>
                             </div>
                           </CardHeader>
-
                           <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
                             <div className="space-y-3">
                               {/* 拓扑结构 */}
@@ -2030,7 +1821,6 @@ export default function TunnelPage() {
                                       {tunnel.inNodeId?.length || 0}入口
                                     </span>
                                   </div>
-
                                   {/* 箭头 */}
                                   <svg
                                     aria-hidden="true"
@@ -2046,7 +1836,6 @@ export default function TunnelPage() {
                                       strokeWidth={2}
                                     />
                                   </svg>
-
                                   {/* 转发链 */}
                                   <div className="flex items-center gap-1 px-2 py-1 bg-secondary-50 dark:bg-secondary-100/20 rounded border border-secondary-200 dark:border-secondary-300/20">
                                     <svg
@@ -2068,7 +1857,6 @@ export default function TunnelPage() {
                                       跳
                                     </span>
                                   </div>
-
                                   {/* 箭头 */}
                                   <svg
                                     aria-hidden="true"
@@ -2084,7 +1872,6 @@ export default function TunnelPage() {
                                       strokeWidth={2}
                                     />
                                   </svg>
-
                                   {/* 出口节点 */}
                                   <div className="flex items-center gap-1 px-2 py-1 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
                                     <svg
@@ -2108,7 +1895,6 @@ export default function TunnelPage() {
                                   </div>
                                 </div>
                               </div>
-
                               {/* 流量配置 */}
                               <div
                                 className={`grid gap-2 ${tunnel.type === 2 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}
@@ -2143,7 +1929,6 @@ export default function TunnelPage() {
                                 )}
                               </div>
                             </div>
-
                             <div className="flex gap-1.5 mt-3">
                               <Button
                                 className="flex-1 min-h-8"
@@ -2248,7 +2033,6 @@ export default function TunnelPage() {
         </Card>
       )
       }
-
       {/* 新增/编辑模态框 */}
       <Modal
         backdrop="blur"
@@ -2288,7 +2072,6 @@ export default function TunnelPage() {
                         setForm((prev) => ({ ...prev, name: e.target.value }))
                       }
                     />
-
                     <Textarea
                       classNames={{
                         inputWrapper: "!min-h-[20px] py-1.5",
@@ -2332,7 +2115,6 @@ export default function TunnelPage() {
                         </SelectItem>
                       ))}
                     </Select>
-
                     <Select
                       description={isEdit ? "编辑时无法修改隧道类型" : undefined}
                       errorMessage={errors.type}
@@ -2344,7 +2126,6 @@ export default function TunnelPage() {
                       variant="bordered"
                       onSelectionChange={(keys) => {
                         const selectedKey = Array.from(keys)[0] as string;
-
                         if (selectedKey) {
                           handleTypeChange(parseInt(selectedKey));
                         }
@@ -2364,7 +2145,6 @@ export default function TunnelPage() {
                       variant="bordered"
                       onSelectionChange={(keys) => {
                         const selectedKey = Array.from(keys)[0] as string;
-
                         if (selectedKey) {
                           setForm((prev) => ({
                             ...prev,
@@ -2376,7 +2156,6 @@ export default function TunnelPage() {
                       <SelectItem key="1">单向计算（仅上传）</SelectItem>
                       <SelectItem key="2">双向计算（上传+下载）</SelectItem>
                     </Select>
-
                     <Input
                       errorMessage={errors.trafficRatio}
                       isInvalid={!!errors.trafficRatio}
@@ -2396,10 +2175,8 @@ export default function TunnelPage() {
                       }
                     />
                   </div>
-
                   <Divider />
                   <h3 className="text-lg font-semibold">入口配置</h3>
-
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                     {/* 节点选择 - 移动端100%，桌面端100% */}
                     <div className="col-span-1 md:col-span-4">
@@ -2433,10 +2210,8 @@ export default function TunnelPage() {
                           variant="bordered"
                           onSelectionChange={(keys) => {
                             const selectedIds = toSelectedNodeIds(keys);
-
                           setForm((prev) => {
                             let nextInIp = prev.inIp;
-
                             // 🎯 终极智能逻辑：如果是新增隧道，或者用户在编辑时把“入口地址”主动清空了，就触发自动抓取
                             if (!isEdit || !prev.inIp.trim()) {
                               const autoIps = selectedIds.map(id => {
@@ -2447,7 +2222,6 @@ export default function TunnelPage() {
                               }).filter(Boolean);
                               nextInIp = autoIps.join("\n");
                             }
-
                             return {
                               ...prev,
                               inIp: nextInIp, // 自动填入入口地址框
@@ -2482,7 +2256,6 @@ export default function TunnelPage() {
                       </Select>
                     </div>
                   </div>
-
                   {/* <Input
                     description="逗号分隔对应各节点，留空则自动分配"
                     label="连接IP类型"
@@ -2493,7 +2266,6 @@ export default function TunnelPage() {
                     variant="bordered"
                     onChange={(e) => applyInNodeConnectIpTypes(e.target.value)}
                   /> */}
-
                   <div className="space-y-2">
                     <Textarea
                       classNames={{
@@ -2512,7 +2284,6 @@ export default function TunnelPage() {
                         setForm((prev) => ({ ...prev, inIp: e.target.value }))
                       }
                     />
-
                     {/* 🎯 预警 UI：只要发现地址过期，立刻显示同步按钮 */}
                     {isEdit && isInIpOutdated && (
                       <div className="flex items-center justify-between bg-warning-50 dark:bg-warning-900/20 px-3 py-2 rounded-lg border border-warning-200 dark:border-warning-700/50 transition-all animate-appearance-in">
@@ -2532,7 +2303,6 @@ export default function TunnelPage() {
                       </div>
                     )}
                   </div>
-
                   {/* 隧道转发时显示转发链配置 */}
                   {form.type === 2 && (
                     <>
@@ -2558,7 +2328,6 @@ export default function TunnelPage() {
                                   groupNodes.length > 0
                                     ? groupNodes[0].strategy || "round"
                                     : "round";
-
                                 return (
                                   <div
                                     key={groupIndex}
@@ -2592,7 +2361,6 @@ export default function TunnelPage() {
                                         </svg>
                                       </Button>
                                     </div>
-
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                                       {/* 节点选择 - 移动端100%，桌面端50% */}
                                       <div className="col-span-1 md:col-span-2">
@@ -2710,7 +2478,6 @@ export default function TunnelPage() {
                                           ))}
                                         </Select>
                                       </div>
-
                                       {/* 协议选择 - 25% */}
                                       <Select
                                         classNames={{
@@ -2726,7 +2493,6 @@ export default function TunnelPage() {
                                           const selectedKey = Array.from(
                                             keys,
                                           )[0] as string;
-
                                           if (selectedKey) {
                                             updateChainProtocol(
                                               groupIndex,
@@ -2741,9 +2507,7 @@ export default function TunnelPage() {
                                         <SelectItem key="mtls">MTLS</SelectItem>
                                         <SelectItem key="wss">WSS</SelectItem>
                                         <SelectItem key="mwss">MWSS</SelectItem>
-
                                       </Select>
-
                                       {/* 负载策略 - 25% */}
                                       <Select
                                         classNames={{
@@ -2759,7 +2523,6 @@ export default function TunnelPage() {
                                           const selectedKey = Array.from(
                                             keys,
                                           )[0] as string;
-
                                           if (selectedKey) {
                                             updateChainStrategy(
                                               groupIndex,
@@ -2773,7 +2536,6 @@ export default function TunnelPage() {
                                         <SelectItem key="rand">随机</SelectItem>
                                       </Select>
                                     </div>
-
                                     {/* 连接 IP 和连接端口 - 转发链节点 */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                                       <Input
@@ -2861,19 +2623,16 @@ export default function TunnelPage() {
                                 <p className="text-sm text-default-500 mt-4">
                                   还没有转发链 点击按钮开始添加
                                 </p>
-
                               </div>
                             )}
                       </div>
                     </>
                   )}
-
                   {/* 隧道转发时显示隧道连接地址偏好 */}
                   {form.type === 2 && (
                     <>
                       <Divider />
                       <h3 className="text-lg font-semibold">出口配置</h3>
-
                       {(() => {
                         return (
                           <>
@@ -2926,7 +2685,6 @@ export default function TunnelPage() {
                                   variant="bordered"
                                   onSelectionChange={(keys) => {
                                     const selectedIds = toSelectedNodeIds(keys);
-
                                     setForm((prev) => {
                                       const currentOutNodes =
                                         prev.outNodeId || [];
@@ -2937,7 +2695,6 @@ export default function TunnelPage() {
                                       const realNodes = currentOutNodes.filter(
                                         (ct) => ct.nodeId !== -1,
                                       );
-
                                       return {
                                         ...prev,
                                         outNodeId: mergeOrderedNodes(
@@ -2991,7 +2748,6 @@ export default function TunnelPage() {
                                   ))}
                                 </Select>
                               </div>
-
                               {/* 协议选择 - 25% */}
                               <Select
                                 classNames={{
@@ -3009,7 +2765,6 @@ export default function TunnelPage() {
                                       form.outNodeId.length === 0
                                     )
                                       return "tcp";
-
                                     return form.outNodeId[0].protocol || "tcp";
                                   })(),
                                 ]}
@@ -3018,7 +2773,6 @@ export default function TunnelPage() {
                                   const selectedKey = Array.from(
                                     keys,
                                   )[0] as string;
-
                                   if (selectedKey) {
                                     setForm((prev) => {
                                       const currentOutNodes =
@@ -3028,7 +2782,6 @@ export default function TunnelPage() {
                                           ? currentOutNodes[0].strategy ||
                                           "round"
                                           : "round";
-
                                       if (currentOutNodes.length === 0) {
                                         // 如果还没有出口节点，创建一个占位节点保存设置
                                         return {
@@ -3043,7 +2796,6 @@ export default function TunnelPage() {
                                           ],
                                         };
                                       }
-
                                       // 更新所有出口节点的协议
                                       return {
                                         ...prev,
@@ -3064,9 +2816,7 @@ export default function TunnelPage() {
                                 <SelectItem key="mtls">MTLS</SelectItem>
                                 <SelectItem key="wss">WSS</SelectItem>
                                 <SelectItem key="mwss">MWSS</SelectItem>
-
                               </Select>
-
                               {/* 负载策略 - 25% */}
                               <Select
                                 classNames={{
@@ -3082,7 +2832,6 @@ export default function TunnelPage() {
                                       form.outNodeId.length === 0
                                     )
                                       return "round";
-
                                     return (
                                       form.outNodeId[0].strategy || "round"
                                     );
@@ -3093,7 +2842,6 @@ export default function TunnelPage() {
                                   const selectedKey = Array.from(
                                     keys,
                                   )[0] as string;
-
                                   if (selectedKey) {
                                     setForm((prev) => {
                                       const currentOutNodes =
@@ -3102,7 +2850,6 @@ export default function TunnelPage() {
                                         currentOutNodes.length > 0
                                           ? currentOutNodes[0].protocol || "tcp"
                                           : "tcp";
-
                                       if (currentOutNodes.length === 0) {
                                         return {
                                           ...prev,
@@ -3116,7 +2863,6 @@ export default function TunnelPage() {
                                           ],
                                         };
                                       }
-
                                       return {
                                         ...prev,
                                         outNodeId: currentOutNodes.map(
@@ -3135,7 +2881,6 @@ export default function TunnelPage() {
                                 <SelectItem key="rand">随机</SelectItem>
                               </Select>
                             </div>
-
                             {/* 连接端口和连接IP类型 - 出口节点 */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                               <Input
@@ -3192,7 +2937,6 @@ export default function TunnelPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 删除确认模态框 */}
       <Modal
         backdrop="blur"
@@ -3230,7 +2974,6 @@ export default function TunnelPage() {
                       title="发现关联规则"
                       variant="flat"
                     />
-
                     {(tunnelDeletePreview?.sampleForwards?.length ?? 0) > 0 ? (
                       <div className="space-y-3 rounded-xl border border-divider bg-content2/40 p-3 sm:p-4">
                         <div className="flex items-center justify-between gap-3">
@@ -3269,19 +3012,16 @@ export default function TunnelPage() {
                         ) : null}
                       </div>
                     ) : null}
-
                     <RadioGroup
                       label="处理方式"
                       value={deleteAction}
                       onValueChange={(value) => {
                         const nextAction = value as TunnelDeleteAction;
-
                         setDeleteAction(nextAction);
                         if (nextAction !== "replace") {
                           setDeleteTargetTunnelId(null);
                           return;
                         }
-
                         setDeleteTargetTunnelId(
                           deleteReplacementTunnels[0]?.id ?? null,
                         );
@@ -3292,7 +3032,6 @@ export default function TunnelPage() {
                       </Radio>
                       <Radio value="delete_forwards">直接删除这些关联规则</Radio>
                     </RadioGroup>
-
                     {deleteReplaceUnavailable ? (
                       <Alert
                         color="warning"
@@ -3300,7 +3039,6 @@ export default function TunnelPage() {
                         variant="flat"
                       />
                     ) : null}
-
                     {deleteAction === "replace" && !deleteReplaceUnavailable ? (
                       <div className="space-y-2">
                         <Select
@@ -3314,7 +3052,6 @@ export default function TunnelPage() {
                           variant="bordered"
                           onSelectionChange={(keys) => {
                             const selected = Array.from(keys)[0];
-
                             setDeleteTargetTunnelId(
                               selected ? Number(selected) : null,
                             );
@@ -3363,7 +3100,6 @@ export default function TunnelPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 诊断结果模态框 */}
       <Modal
         backdrop="blur"
@@ -3426,7 +3162,6 @@ export default function TunnelPage() {
                         <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">流式更新中</div>
                       </div>
                     )}
-
                     {diagnosisProgress.timedOut && (
                       <Alert
                         color="warning"
@@ -3435,7 +3170,6 @@ export default function TunnelPage() {
                         variant="flat"
                       />
                     )}
-
                     {/* 统计摘要 */}
                     <div className="grid grid-cols-3 gap-3">
                       <div className="text-center p-3 bg-default-100 dark:bg-gray-800 rounded-lg border border-divider">
@@ -3473,7 +3207,6 @@ export default function TunnelPage() {
                         </div>
                       </div>
                     </div>
-
                     {/* 桌面端表格展示 */}
                     <div className="hidden md:block space-y-3">
                       {(() => {
@@ -3490,7 +3223,6 @@ export default function TunnelPage() {
                             (r) => r.fromChainType === 3,
                           ),
                         };
-
                         // 按 inx 分组链路测试
                         diagnosisResult.results.forEach((r) => {
                           if (r.fromChainType === 2 && r.fromInx != null) {
@@ -3500,13 +3232,11 @@ export default function TunnelPage() {
                             groupedResults.chains[r.fromInx].push(r);
                           }
                         });
-
                         const renderTableSection = (
                           title: string,
                           results: typeof diagnosisResult.results,
                         ) => {
                           if (results.length === 0) return null;
-
                           return (
                             <div
                               key={title}
@@ -3547,7 +3277,6 @@ export default function TunnelPage() {
                                       result.averageTime,
                                       result.packetLoss,
                                     );
-
                                     return (
                                       <tr
                                         key={index}
@@ -3634,7 +3363,6 @@ export default function TunnelPage() {
                             </div>
                           );
                         };
-
                         return (
                           <>
                             {/* 入口测试 */}
@@ -3642,7 +3370,6 @@ export default function TunnelPage() {
                               "🚪 入口测试",
                               groupedResults.entry,
                             )}
-
                             {/* 链路测试（按跳数排序） */}
                             {Object.keys(groupedResults.chains)
                               .map(Number)
@@ -3653,7 +3380,6 @@ export default function TunnelPage() {
                                   groupedResults.chains[hop],
                                 ),
                               )}
-
                             {/* 出口测试 */}
                             {renderTableSection(
                               "🚀 出口测试",
@@ -3663,7 +3389,6 @@ export default function TunnelPage() {
                         );
                       })()}
                     </div>
-
                     {/* 移动端卡片展示 */}
                     <div className="md:hidden space-y-3">
                       {(() => {
@@ -3680,7 +3405,6 @@ export default function TunnelPage() {
                             (r) => r.fromChainType === 3,
                           ),
                         };
-
                         // 按 inx 分组链路测试
                         diagnosisResult.results.forEach((r) => {
                           if (r.fromChainType === 2 && r.fromInx != null) {
@@ -3690,13 +3414,11 @@ export default function TunnelPage() {
                             groupedResults.chains[r.fromInx].push(r);
                           }
                         });
-
                         const renderCardSection = (
                           title: string,
                           results: typeof diagnosisResult.results,
                         ) => {
                           if (results.length === 0) return null;
-
                           return (
                             <div key={title} className="space-y-2">
                               <div className="px-2 py-1.5 bg-primary/10 dark:bg-primary/20 rounded-lg border border-primary/30">
@@ -3711,7 +3433,6 @@ export default function TunnelPage() {
                                   result.averageTime,
                                   result.packetLoss,
                                 );
-
                                 return (
                                   <div
                                     key={index}
@@ -3749,7 +3470,6 @@ export default function TunnelPage() {
                                             ? "成功"
                                             : "失败"}</div>
                                     </div>
-
                                     {isSuccess ? (
                                       <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-divider">
                                         <div className="text-center">
@@ -3804,7 +3524,6 @@ export default function TunnelPage() {
                             </div>
                           );
                         };
-
                         return (
                           <>
                             {/* 入口测试 */}
@@ -3812,7 +3531,6 @@ export default function TunnelPage() {
                               "🚪 入口测试",
                               groupedResults.entry,
                             )}
-
                             {/* 链路测试（按跳数排序） */}
                             {Object.keys(groupedResults.chains)
                               .map(Number)
@@ -3823,7 +3541,6 @@ export default function TunnelPage() {
                                   groupedResults.chains[hop],
                                 ),
                               )}
-
                             {/* 出口测试 */}
                             {renderCardSection(
                               "🚀 出口测试",
@@ -3833,7 +3550,6 @@ export default function TunnelPage() {
                         );
                       })()}
                     </div>
-
                     {/* 失败详情（仅桌面端显示，移动端已在卡片中显示） */}
                     {diagnosisResult.results.some(
                       (r) => r.success === false && !r.diagnosing,
@@ -3901,7 +3617,6 @@ export default function TunnelPage() {
           )}
         </ModalContent>
       </Modal>
-
       <Modal
         backdrop="blur"
         classNames={{
@@ -3933,7 +3648,6 @@ export default function TunnelPage() {
                       title="发现关联规则"
                       variant="flat"
                     />
-
                     <div className="max-h-64 space-y-3 overflow-y-auto rounded-xl border border-divider bg-content2/40 p-3 sm:max-h-72 sm:p-4">
                       {batchDeleteDependentItems.map((item) => (
                         <div
@@ -3951,7 +3665,6 @@ export default function TunnelPage() {
                             </div>
                             <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">有关联</div>
                           </div>
-
                           {item.sampleForwards.length > 0 ? (
                             <div className="mt-3 space-y-2">
                               {item.sampleForwards.map((forward) => (
@@ -3982,19 +3695,16 @@ export default function TunnelPage() {
                         </div>
                       ))}
                     </div>
-
                     <RadioGroup
                       label="处理方式"
                       value={batchDeleteAction}
                       onValueChange={(value) => {
                         const nextAction = value as TunnelDeleteAction;
-
                         setBatchDeleteAction(nextAction);
                         if (nextAction !== "replace") {
                           setBatchDeleteTargetTunnelId(null);
                           return;
                         }
-
                         setBatchDeleteTargetTunnelId(
                           batchDeleteReplacementTunnels[0]?.id ?? null,
                         );
@@ -4005,7 +3715,6 @@ export default function TunnelPage() {
                       </Radio>
                       <Radio value="delete_forwards">直接删除这些关联规则</Radio>
                     </RadioGroup>
-
                     {batchDeleteReplaceUnavailable ? (
                       <Alert
                         color="warning"
@@ -4013,7 +3722,6 @@ export default function TunnelPage() {
                         variant="flat"
                       />
                     ) : null}
-
                     {batchDeleteAction === "replace" &&
                       !batchDeleteReplaceUnavailable ? (
                       <div className="space-y-2">
@@ -4028,7 +3736,6 @@ export default function TunnelPage() {
                           variant="bordered"
                           onSelectionChange={(keys) => {
                             const selected = Array.from(keys)[0];
-
                             setBatchDeleteTargetTunnelId(
                               selected ? Number(selected) : null,
                             );
@@ -4078,14 +3785,12 @@ export default function TunnelPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 分组管理组件 */}
       <TunnelGroupManager
         isOpen={groupManagerOpen}
         onOpenChange={setGroupManagerOpen}
         onGroupChange={loadTunnelGroupsNew}
       />
-
       {/* 筛选 Modal */}
       <Modal
         isOpen={isFilterModalOpen}
@@ -4133,7 +3838,6 @@ export default function TunnelPage() {
                   ))}
                 </Select>
               </div>
-
               {/* 按状态筛选 */}
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium">按状态筛选</p>
@@ -4169,7 +3873,6 @@ export default function TunnelPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       <BatchActionResultModal
         failures={batchResultModal.failures}
         isOpen={batchResultModal.open}
@@ -4178,7 +3881,6 @@ export default function TunnelPage() {
         onOpenChange={(open) => {
           if (open) {
             setBatchResultModal((prev) => ({ ...prev, open: true }));
-
             return;
           }
           setBatchResultModal(EMPTY_BATCH_RESULT_MODAL_STATE);
