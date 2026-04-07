@@ -1057,3 +1057,46 @@ A: 不会，升级是逐个进行的，失败的实例会被跳过。
 - `install.sh` - 安装脚本（主要改动文件）
 - `plans/069-node-install-domestic-overseas-offline.md` - 三种对接方式计划（已完成）
 - `plans/070-multi-panel-support.md` - 本文档（待实施）
+
+---
+
+## 变更记录
+
+### 2026-04-07 - 更新服务名输入逻辑
+
+**问题发现：**
+- 使用 `-a` 和 `-s` 参数安装时，不会提示输入服务名
+- 原因：`get_config_params()` 只在参数为空时才询问
+
+**修复方案：**
+- 修改 `get_config_params()` 始终询问服务名（除非使用 `-n` 参数指定）
+- 即使提供了 `-a` 和 `-s`，也会提示"服务名 (默认：flux_agent):"
+- 用户可以直接回车使用默认值，或输入自定义服务名
+
+**修改位置：**
+- `install.sh` 第 256-280 行
+
+**修改逻辑：**
+```bash
+get_config_params() {
+  # 始终询问服务名（除非使用 -n 参数指定）
+  if [[ -z "$SPECIFIED_SERVICE_NAME" ]]; then
+    read -p "服务名 (默认：${SERVICE_NAME}): " input_name
+    if [[ -n "$input_name" ]]; then
+      SERVICE_NAME="$input_name"
+      INSTALL_DIR="/etc/${SERVICE_NAME}"
+    fi
+  fi
+  
+  # 如果 SERVER_ADDR 或 SECRET 为空，询问
+  if [[ -z "$SERVER_ADDR" ]]; then
+    read -p "服务器地址：" SERVER_ADDR
+  fi
+  
+  if [[ -z "$SECRET" ]]; then
+    read -p "密钥：" SECRET
+  fi
+}
+```
+
+**实施状态：** ⏳ 待实施
