@@ -84,7 +84,6 @@ import {
   getConnectionStatusMeta,
   getRemoteSyncErrorMessage,
 } from "@/pages/node/display";
-import { tryCopyInstallCommand } from "@/pages/node/install-command";
 import {
   getNodeRenewalSnapshot,
   formatNodeRenewalTime,
@@ -1017,31 +1016,17 @@ export default function NodePage() {
     node: Node,
     channel: ReleaseChannel,
   ) => {
-    setNodeList((prev) =>
-      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
-    );
     try {
       const res = await getNodeInstallCommand(node.id, channel);
       if (res.code === 0 && res.data) {
-        const copied = await tryCopyInstallCommand(res.data);
-        if (copied) {
-          toast.success(
-            `${channel === "stable" ? "正式版" : "测试版"}安装命令已复制到剪贴板`,
-          );
-        } else {
-          setInstallCommand(res.data);
-          setCurrentNodeName(node.name);
-          setInstallCommandModal(true);
-        }
+        setInstallCommand(res.data);
+        setCurrentNodeName(node.name);
+        setInstallCommandModal(true);
       } else {
         toast.error(res.msg || "获取安装命令失败");
       }
     } catch {
       toast.error("获取安装命令失败");
-    } finally {
-      setNodeList((prev) =>
-        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
-      );
     }
   };
   const handleCopyDomesticInstallCommand = async (node: Node) => {
@@ -1073,63 +1058,36 @@ export default function NodePage() {
     }
   };
   const handleCopyAutoInstallCommand = async (node: Node) => {
-    setNodeList((prev) =>
-      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
-    );
     try {
-      // 自动探测线路：从国内下载源下载 install-auto.sh
       const res = await getNodeInstallCommandDomestic(node.id);
       if (res.code === 0 && res.data) {
-        // 修改命令，使用 install-auto.sh 而不是 install.sh
         let command = res.data as string;
         command = command.replace('/install.sh', '/install-auto.sh');
-        const copied = await tryCopyInstallCommand(command);
-        if (copied) {
-          toast.success("自动探测线路命令已复制到剪贴板");
-        } else {
-          setInstallCommand(command);
-          setCurrentNodeName(node.name);
-          setInstallCommandModal(true);
-        }
+        setInstallCommand(command);
+        setCurrentNodeName(node.name);
+        setInstallCommandModal(true);
       } else {
         toast.error(res.msg || "获取命令失败");
       }
     } catch {
       toast.error("获取命令失败");
-    } finally {
-      setNodeList((prev) =>
-        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
-      );
     }
   };
   const handleCopyOfflineInstallCommand = async (node: Node) => {
-    setNodeList((prev) =>
-      prev.map((n) => (n.id === node.id ? { ...n, copyLoading: true } : n)),
-    );
     try {
       const res = await getNodeInstallCommandOffline(node.id);
       if (res.code === 0 && res.data) {
         const data = res.data as OfflineDeployPayload;
-        // 前端硬编码命令格式
         const command = `unzip -d /tmp/flux_agent -o offline.zip && bash /tmp/flux_agent/offline.sh -a ${data.panelAddr} -s ${data.secret}`;
-        const copied = await tryCopyInstallCommand(command);
-        if (copied) {
-          toast.success("离线部署命令已复制到剪贴板");
-        } else {
-          setOfflineCommand(command);
-          setOfflineDeployData(data);
-          setCurrentNodeName(data.nodeName || node.name);
-          setOfflineModalOpen(true);
-        }
+        setOfflineCommand(command);
+        setOfflineDeployData(data);
+        setCurrentNodeName(data.nodeName || node.name);
+        setOfflineModalOpen(true);
       } else {
         toast.error(res.msg || "获取命令失败");
       }
     } catch {
       toast.error("获取命令失败");
-    } finally {
-      setNodeList((prev) =>
-        prev.map((n) => (n.id === node.id ? { ...n, copyLoading: false } : n)),
-      );
     }
   };
   const copyToClipboard = (text: string, label: string) => {
