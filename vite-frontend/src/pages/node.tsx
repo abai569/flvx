@@ -2135,7 +2135,11 @@ export default function NodePage() {
                   }`}
                 title={connectionStatusMeta.text}
               />
-              <h3 className="font-semibold text-foreground truncate text-sm flex-1">
+              {/* 这里加上 title 属性 */}
+              <h3 
+                className="font-semibold text-foreground truncate text-sm flex-1"
+                title={node.name}
+              >
                 {node.name}
               </h3>
             </div>

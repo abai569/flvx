@@ -126,10 +126,34 @@ function SortableTableRow({
         <div className="text-left text-xs min-w-0 flex-1 min-h-[2.125rem]">
           {node.serverIpV4?.trim() || node.serverIpV6?.trim() ? (
             <div className="space-y-0.5">
-              {node.serverIpV4?.trim() && (<span className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit block" onClick={(e) => { e.stopPropagation(); copyToClipboard(node.serverIpV4!.trim(), "IPv4 地址"); }}>{node.serverIpV4.trim()}</span>)}
-              {node.serverIpV6?.trim() && (<span className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors block max-w-[150px] truncate w-fit" onClick={(e) => { e.stopPropagation(); copyToClipboard(node.serverIpV6!.trim(), "IPv6 地址"); }}>{node.serverIpV6.trim()}</span>)}
+              {node.serverIpV4?.trim() && (
+                <span 
+                  className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit block" 
+                  title={node.serverIpV4.trim()} 
+                  onClick={(e) => { e.stopPropagation(); copyToClipboard(node.serverIpV4!.trim(), "IPv4 地址"); }}
+                >
+                  {node.serverIpV4.trim()}
+                </span>
+              )}
+              {node.serverIpV6?.trim() && (
+                <span 
+                  className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors block max-w-[150px] truncate w-fit" 
+                  title={node.serverIpV6.trim()} 
+                  onClick={(e) => { e.stopPropagation(); copyToClipboard(node.serverIpV6!.trim(), "IPv6 地址"); }}
+                >
+                  {node.serverIpV6.trim()}
+                </span>
+              )}
             </div>
-          ) : (<span className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit block" onClick={(e) => { e.stopPropagation(); copyToClipboard(node.serverIp.trim(), "IP 地址"); }}>{node.serverIp.trim()}</span>)}
+          ) : (
+            <span 
+              className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit block truncate max-w-[150px]" 
+              title={node.serverIp.trim()} 
+              onClick={(e) => { e.stopPropagation(); copyToClipboard(node.serverIp.trim(), "IP 地址"); }}
+            >
+              {node.serverIp.trim()}
+            </span>
+          )}
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
