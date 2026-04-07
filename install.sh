@@ -100,21 +100,34 @@ resolve_version() {
 build_download_url() {
     local ARCH=$(get_architecture)
     
-    # 判断是否使用 GitHub 下载（包含 github.com）
-    if [[ "$DOWNLOAD_HOST" == *"github.com"* ]]; then
-        # GitHub 下载需要带版本号
-        # 如果是 latest，需要获取实际版本号
-        if [[ "$DOWNLOAD_HOST" == *"/latest"* ]]; then
-            # 从 GitHub API 获取最新版本号
-            local actual_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/abai569/flvx/releases/latest" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || echo "")
-            if [ -n "$actual_version" ]; then
-                RESOLVED_VERSION="$actual_version"
-            fi
+    # 国内 CDN 直接硬编码完整路径，不经过任何判断
+    if [[ "$DOWNLOAD_HOST" == *"chfs.646321.xyz"* ]]; then
+        echo "https://chfs.646321.xyz:8/chfs/shared/flvx/gost-${ARCH}"
+        return
+    fi
+    
+    # GitHub 或其他源需要版本号
+    local actual_version="$RESOLVED_VERSION"
+    if [[ "$DOWNLOAD_HOST" == *"/latest"* ]]; then
+        # 从 GitHub API 获取最新版本号
+        actual_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/abai569/flvx/releases/latest" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || echo "")
+        if [ -n "$actual_version" ]; then
+            RESOLVED_VERSION="$actual_version"
         fi
-        echo "${DOWNLOAD_HOST}/${RESOLVED_VERSION}/gost-${ARCH}"
+    fi
+    
+    echo "${DOWNLOAD_HOST}/${RESOLVED_VERSION}/gost-${ARCH}"
+}
+
+# 显示下载源信息
+show_download_source() {
+    local url="$1"
+    if [[ "$url" == *"chfs.646321.xyz"* ]]; then
+        echo "🌏 正在通过国内镜像源下载 flux_agent 中..."
+    elif [[ "$url" == *"github.com"* ]]; then
+        echo "🌍 正在通过 GitHub 镜像源下载 flux_agent 中..."
     else
-        # 国内 CDN 硬编码完整路径，不分版本
-        echo "${DOWNLOAD_HOST}/gost-${ARCH}"
+        echo "🌐 正在通过自定义镜像源下载 flux_agent 中..."
     fi
 }
 
@@ -281,7 +294,8 @@ install_service() {
 
   [[ -f "$INSTALL_DIR/${SERVICE_NAME}" ]] && echo "🧹 删除旧文件 ${SERVICE_NAME}" && rm -f "$INSTALL_DIR/${SERVICE_NAME}"
 
-  echo "⬇️ 下载 ${SERVICE_NAME} 中..."
+  # 显示下载源并下载
+  show_download_source "$DOWNLOAD_URL"
   curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/${SERVICE_NAME}"
   if [[ ! -f "$INSTALL_DIR/${SERVICE_NAME}" || ! -s "$INSTALL_DIR/${SERVICE_NAME}" ]]; then
     echo "❌ 下载失败，请检查网络或下载链接。"
@@ -369,11 +383,12 @@ update_service() {
     rm -f "${SCRIPT_PATH}.new" 2>/dev/null
   fi
 
-  echo "📥 使用服务下载地址: $DOWNLOAD_URL"
+  echo "📥 使用服务下载地址：$DOWNLOAD_URL"
   
   check_and_install_tcpkill
   
-  echo "⬇️ 下载服务最新版本..."
+  # 显示下载源并下载
+  show_download_source "$DOWNLOAD_URL"
   curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/${SERVICE_NAME}.new"
   if [[ ! -f "$INSTALL_DIR/${SERVICE_NAME}.new" || ! -s "$INSTALL_DIR/${SERVICE_NAME}.new" ]]; then
     echo "❌ 下载失败。"
