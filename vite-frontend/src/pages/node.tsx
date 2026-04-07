@@ -1333,6 +1333,35 @@ export default function NodePage() {
     await loadReleasesByChannel(defaultChannel);
   };
 
+  // 构建完整更新地址
+  const buildFullUpdateURL = (): string => {
+    const version = selectedVersion || latestVersion;
+    const releaseType = version || 'latest';
+    
+    // ghfast.top 模式：需要拼接 GitHub URL
+    if (ghfastURL === 'https://ghfast.top') {
+      return `https://ghfast.top/https://github.com/abai569/flvx/releases/download/${releaseType}/gost-{ARCH}`;
+    }
+    
+    // 自定义加速地址模式：直接拼接
+    return `${ghfastURL}/${releaseType}/gost-{ARCH}`;
+  };
+
+  // 获取地址前缀文本（升级地址/回退地址）
+  const getAddressPrefix = (): string => {
+    if (!selectedVersion) return '升级地址';
+    
+    if (upgradeTarget === "single" && upgradeTargetNodeId) {
+      const node = nodeList.find(n => n.id === upgradeTargetNodeId);
+      if (node?.version) {
+        const currentVersion = node.version.split(' ')[0].replace(/^gost\s*/i, '');
+        return compareVersions(selectedVersion, currentVersion) > 0 ? '升级地址' : '回退地址';
+      }
+    }
+    
+    return '升级地址';
+  };
+
   // 获取当前操作类型文本（升级/回退/更新）
   const getCurrentActionText = (): string => {
     // 未选择版本时，显示"更新"
@@ -3669,22 +3698,21 @@ export default function NodePage() {
                         </SelectItem>
                       ))}
                     </Select>
-                    <p className="text-sm text-default-500">
-                      {selectedVersion ? (
-                        <span>
-                          将使用 {ghfastURL} 代理加速
-                          {upgradeTarget === "batch" 
-                            ? `${actionText} ${selectedVersion} 版本`
-                            : `${actionText}到版本 ${selectedVersion}`}
-                        </span>
-                      ) : (
-                        <span>
-                          未选择版本，将自动使用 {ghfastURL} 代理加速最新
-                          {releaseChannel === "stable" ? "正式版" : "测试版"}
-                          {latestVersion && ` ${latestVersion}`}
-                        </span>
-                      )}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-default-500">
+                        {selectedVersion ? (
+                          <span>更新到版本 {selectedVersion}</span>
+                        ) : (
+                          <span>
+                            将自动升级最新{releaseChannel === "stable" ? "稳定版" : "测试版"}
+                            {latestVersion && ` ${latestVersion}`}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-default-400 font-mono break-all">
+                        {getAddressPrefix()}：{buildFullUpdateURL()}
+                      </p>
+                    </div>
                   </div>
                 )}
               </ModalBody>
