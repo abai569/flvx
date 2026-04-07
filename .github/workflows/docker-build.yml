@@ -399,7 +399,7 @@ jobs:
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         run: ./scripts/sync-to-chfs.sh
         env:
-          IS_PRERELEASE: ${{ github.event.release.prerelease || 'false' }}
+          IS_PRERELEASE: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
           CHFS_URL: ${{ secrets.CHSF_URL }}
           CHFS_USER: ${{ secrets.CHSF_USER }}
           CHFS_PASS: ${{ secrets.CHSF_PASS }}
