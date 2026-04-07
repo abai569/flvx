@@ -2429,7 +2429,7 @@ export default function NodePage() {
           )}
 
           <div className="space-y-3">
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {!isRemoteNode && (
                 <>
                   <div className="mb-2">
@@ -2471,8 +2471,6 @@ export default function NodePage() {
                         </DropdownItem>
                       </DropdownMenu>
                     </Dropdown>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
                     <Button
                       className="min-h-8"
                       color="warning"
@@ -2484,21 +2482,10 @@ export default function NodePage() {
                     >
                       更新
                     </Button>
-                    <Button
-                      className="min-h-8"
-                      color="primary"
-                      size="sm"
-                      variant="flat"
-                      onPress={() => handleEdit(node)}
-                    >
-                      编辑
-                    </Button>
-                  </div>
+                  </div>              
                 </>
               )}
-              <div
-                className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"
-                  }`}
+              <div className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}
               >
                 {!isRemoteNode && (
                   <Button

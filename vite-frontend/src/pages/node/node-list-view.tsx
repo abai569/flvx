@@ -136,7 +136,7 @@ function SortableTableRow({
         {!isRemoteNode ? (
           <div className="flex flex-col gap-1 min-w-[100px] justify-center">
             {upgradeProgress?.[node.id]?.percent !== undefined && upgradeProgress[node.id].percent < 100 ? (
-              <><Progress aria-label="升级进度" className="w-full" color="warning" size="sm" value={upgradeProgress[node.id].percent} /><span className="text-[10px] text-warning-600 truncate">{upgradeProgress[node.id].message}</span></>
+              <><Progress aria-label="更新进度" className="w-full" color="warning" size="sm" value={upgradeProgress[node.id].percent} /><span className="text-[10px] text-warning-600 truncate">{upgradeProgress[node.id].message}</span></>
             ) : (
               <div className="flex items-center gap-1.5">{node.version && (<DistroIcon distro={parseDistroFromVersion(node.version)} className="w-4 h-4 shrink-0" style={{ color: getDistroColor(parseDistroFromVersion(node.version)) }} />)}<span className="text-sm font-medium text-default-600">{node.version ? node.version.split(" ")[0] : "未知"}</span></div>
             )}
@@ -184,7 +184,7 @@ function SortableTableRow({
                 </DropdownMenu>
               </Dropdown>
               <Button className="min-h-7 px-2" color="warning" isDisabled={node.connectionStatus !== "online"} isLoading={node.upgradeLoading} size="sm" variant="flat" onPress={() => openUpgradeModal("single", node.id)}>
-                升级
+                更新
               </Button>
               <Button className="min-h-7 px-2" color="primary" size="sm" variant="flat" onPress={() => handleEdit(node)}>
                 编辑
