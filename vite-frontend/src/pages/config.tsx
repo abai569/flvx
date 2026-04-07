@@ -117,6 +117,21 @@ const CONFIG_ITEMS: ConfigItem[] = [
     dependsValue: "true",
   },
   {
+    key: "ghfast_url",
+    label: "海外加速地址",
+    placeholder: "https://ghfast.top",
+    description: "海外机器安装和升级时使用的加速地址，留空使用默认值 https://ghfast.top",
+    type: "input",
+  },
+  {
+    key: "ip",
+    label: "面板后端地址",
+    placeholder: "请输入面板后端 IP:PORT",
+    description:
+      '格式"ip:port"或"domain:port",用于对接节点时使用。支持套 CDN 和 HTTPS，通讯数据有加密',
+    type: "input",
+  },
+  {
     key: "ip",
     label: "面板后端地址",
     placeholder: "请输入面板后端IP:PORT",

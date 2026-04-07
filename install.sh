@@ -95,14 +95,15 @@ resolve_version() {
 }
 
 # 构建下载地址
-# 国内 CDN：硬编码完整路径，不分版本
+# 国内 CDN：硬编码完整路径，支持 CHANNEL（stable/beta）
 # GitHub：需要带版本号
 build_download_url() {
     local ARCH=$(get_architecture)
     
-    # 国内 CDN 直接硬编码完整路径，不经过任何判断
+    # 国内 CDN 直接硬编码完整路径，添加 CHANNEL 支持
     if [[ "$DOWNLOAD_HOST" == *"chfs.646321.xyz"* ]]; then
-        echo "https://chfs.646321.xyz:8/chfs/shared/flvx/gost-${ARCH}"
+        CHANNEL="${CHANNEL:-stable}"
+        echo "https://chfs.646321.xyz:8/chfs/shared/flvx/${CHANNEL}/gost-${ARCH}"
         return
     fi
     
@@ -123,7 +124,8 @@ build_download_url() {
 show_download_source() {
     local url="$1"
     if [[ "$url" == *"chfs.646321.xyz"* ]]; then
-        echo "🌏 正在通过国内镜像源下载 flux_agent 中..."
+        CHANNEL="${CHANNEL:-stable}"
+        echo "🌏 正在通过国内镜像源下载 flux_agent 中... (${CHANNEL})"
     elif [[ "$url" == *"github.com"* ]]; then
         echo "🌍 正在通过 GitHub 镜像源下载 flux_agent 中..."
     else

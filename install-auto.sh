@@ -51,6 +51,9 @@ do_cloudflare_detect() {
   fi
 }
 
+# 版本通道（stable/beta）
+CHANNEL="${CHANNEL:-stable}"
+
 # 主检测逻辑
 do_apple_detect
 if [ "$CN" != "1" ]; then
@@ -60,16 +63,16 @@ fi
 # 根据检测结果设置下载源
 if [ "$CN" == "1" ]; then
   # 国内网络：使用国内 CDN
-  download_host="https://chfs.646321.xyz:8/chfs/shared/flvx"
-  echo "🌏 使用国内 CDN"
+  download_host="https://chfs.646321.xyz:8/chfs/shared/flvx/${CHANNEL}"
+  echo "🌏 使用国内 CDN (${CHANNEL})"
 elif [ "$OS" == "1" ]; then
-  # 海外网络：使用 GitHub
-  download_host="https://github.com/abai569/flvx/releases/latest/download"
-  echo "🌍 使用 GitHub"
+  # 海外网络：使用 ghfast.top 加速
+  download_host="${GHFAST_URL:-https://ghfast.top}/https://github.com/abai569/flvx/releases/latest/download"
+  echo "🌍 使用 GitHub 加速 (${download_host})"
 else
   # 检测失败：默认使用 GitHub
-  download_host="https://github.com/abai569/flvx/releases/latest/download"
-  echo "⚠️  网络检测失败，默认使用 GitHub"
+  download_host="${GHFAST_URL:-https://ghfast.top}/https://github.com/abai569/flvx/releases/latest/download"
+  echo "⚠️  网络检测失败，使用 GitHub 加速"
 fi
 
 # 下载安装脚本（带重试）
@@ -100,13 +103,13 @@ while [ $retry -lt $max_retries ]; do
   # 切换备用源
   if [ $retry -lt $max_retries ]; then
     case "$download_host" in
-      *"github.com"*)
-        download_host="https://chfs.646321.xyz:8/chfs/shared/flvx"
+      *"github.com"*|*"ghfast.top"*)
+        download_host="https://chfs.646321.xyz:8/chfs/shared/flvx/${CHANNEL}"
         echo "⚠️  GitHub 下载失败，切换到国内 CDN..."
         ;;
       *"chfs.646321.xyz"*)
-        download_host="https://github.com/abai569/flvx/releases/latest/download"
-        echo "⚠️  国内 CDN 下载失败，切换回 GitHub..."
+        download_host="${GHFAST_URL:-https://ghfast.top}/https://github.com/abai569/flvx/releases/latest/download"
+        echo "⚠️  国内 CDN 下载失败，切换到 GitHub 加速..."
         ;;
     esac
   fi

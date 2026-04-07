@@ -395,6 +395,16 @@ jobs:
 
           echo "✅ Release ${VERSION} 创建完成"
 
+      - name: Sync to Chinese CDN
+        if: github.event_name == 'release'
+        run: ./scripts/sync-to-chfs.sh
+        env:
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+          CHFS_URL: ${{ secrets.CHSF_URL }}
+          CHFS_USER: ${{ secrets.CHSF_USER }}
+          CHFS_PASS: ${{ secrets.CHSF_PASS }}
+          ARTIFACTS_DIR: ./artifacts
+
   update-release-gost:
     name: Update GOST Binaries in Release
     needs: [check-version, build-gost]
