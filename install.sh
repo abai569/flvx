@@ -47,12 +47,12 @@ detect_download_host() {
     if [[ "$script_url" == *"chfs.646321.xyz"* ]]; then
         echo "https://chfs.646321.xyz:8/chfs/shared/flvx"
     elif [[ "$script_url" == *"ghfast.top"* ]]; then
-        echo "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
+        echo "https://ghfast.top/https://github.com/abai569/flvx/releases/download"
     elif [[ "$script_url" == *"github.com"* ]]; then
-        echo "https://github.com/abai569/flvx/releases/latest/download"
+        echo "https://github.com/abai569/flvx/releases/download"
     else
         # 默认使用 GitHub
-        echo "https://github.com/abai569/flvx/releases/latest/download"
+        echo "https://github.com/abai569/flvx/releases/download"
     fi
 }
 
