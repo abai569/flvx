@@ -514,9 +514,15 @@ func (h *Handler) nodeInstallDomestic(w http.ResponseWriter, r *http.Request) {
 		domesticURL = "https://chfs.646321.xyz:8/chfs/shared/flvx"
 	}
 
-	// 生成安装命令
-	cmd := fmt.Sprintf(`curl -L %s/install-auto.sh | bash -s -- -a %s -s %s`,
-		domesticURL, processServerAddress(panelAddr), secret)
+	// 获取自定义全局加速地址（用于 fallback）
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
+	}
+
+	// 生成安装命令，传递 GLOBAL_DOWNLOAD_URL 环境变量
+	cmd := fmt.Sprintf(`GLOBAL_DOWNLOAD_URL="%s" curl -L %s/install-auto.sh | bash -s -- -a %s -s %s`,
+		globalURL, domesticURL, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 

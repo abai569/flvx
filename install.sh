@@ -46,6 +46,9 @@ detect_download_host() {
     local script_url="$1"
     if [[ "$script_url" == *"chfs.646321.xyz"* ]]; then
         echo "https://chfs.646321.xyz:8/chfs/shared/flvx"
+    elif [[ "$script_url" == *"git-proxy.abai.eu.org"* ]]; then
+        # 提取代理地址和 GitHub 路径
+        echo "$script_url" | sed 's|/releases/.*||'
     elif [[ "$script_url" == *"ghfast.top"* ]]; then
         echo "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
     elif [[ "$script_url" == *"github.com"* ]]; then
