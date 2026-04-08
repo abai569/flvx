@@ -393,7 +393,7 @@ export default function NodePage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
-  const [batchRollbackModalOpen, setBatchRollbackModalOpen] = useState(false);
+  const [, setBatchRollbackModalOpen] = useState(false);
   const [viewMode, setViewMode] = useLocalStorageState<NodeViewMode>(
     "node-view-mode",
     "grid",
@@ -1093,19 +1093,44 @@ export default function NodePage() {
   const copyToClipboard = (text: string, label: string) => {
     try {
       if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text);
-        toast.success(`${label}已复制到剪贴板`);
+        navigator.clipboard.writeText(text).then(() => {
+          toast.success(`${label}已复制到剪贴板`);
+        }).catch(() => {
+          toast.error("复制失败，请手动选择文本复制");
+        });
       } else {
+        // HTTP 环境下的经典降级复制方案
         const textArea = document.createElement("textarea");
         textArea.value = text;
+        // 确保它完全不可见且不影响页面滚动
         textArea.style.position = "fixed";
+        textArea.style.top = "0";
         textArea.style.left = "-9999px";
-        document.body.appendChild(textArea);
+        textArea.style.opacity = "0";
+
+        // 👇 核心修复：寻找当前是否打开了弹窗
+        // 如果有弹窗，就把文本框挂载到弹窗内部；如果没有，才挂载到 body。
+        // 这样就能完美绕过 HeroUI 的 Modal 焦点陷阱！
+        const modalElement = document.querySelector('[role="dialog"]');
+        const targetContainer = modalElement || document.body;
+
+        targetContainer.appendChild(textArea);
+        
+        // 选中并复制
         textArea.focus();
         textArea.select();
-        document.execCommand("copy");
-        toast.success(`${label}已复制到剪贴板`);
-        document.body.removeChild(textArea);
+        // 增加更兼容移动端的选中方式
+        textArea.setSelectionRange(0, 99999); 
+
+        const successful = document.execCommand("copy");
+        
+        if (successful) {
+          toast.success(`${label}已复制到剪贴板`);
+        } else {
+          toast.error("复制失败，请手动选择文本复制");
+        }
+
+        targetContainer.removeChild(textArea);
       }
     } catch {
       toast.error("复制失败，请手动选择文本复制");
@@ -1500,73 +1525,6 @@ export default function NodePage() {
   };
   const deselectAll = () => {
     setSelectedIds(new Set());
-  };
-  const handleBatchRollback = async () => {
-    const selectedLocalIds = Array.from(selectedIds).filter((id) => {
-      const matchedNode = nodeList.find((node) => node.id === id);
-      return matchedNode?.isRemote !== 1;
-    });
-    if (selectedLocalIds.length === 0) {
-      toast.error("请选择本地节点进行回退");
-      setBatchRollbackModalOpen(false);
-      return;
-    }
-    setBatchRollbackModalOpen(false);
-    setNodeList((prev) =>
-      prev.map((n) =>
-        selectedLocalIds.includes(n.id) ? { ...n, rollbackLoading: true } : n,
-      ),
-    );
-    let successCount = 0;
-    let failCount = 0;
-    await Promise.all(
-      selectedLocalIds.map(async (id) => {
-        try {
-          const res = await rollbackNode(id);
-          if (res.code === 0) {
-            successCount++;
-            window.__pendingNodeRefresh =
-              window.__pendingNodeRefresh || new Set();
-            window.__pendingNodeRefresh.add(id);
-          } else {
-            failCount++;
-            setNodeList((prev) =>
-              prev.map((n) =>
-                n.id === id ? { ...n, rollbackLoading: false } : n,
-              ),
-            );
-          }
-        } catch {
-          failCount++;
-          setNodeList((prev) =>
-            prev.map((n) =>
-              n.id === id ? { ...n, rollbackLoading: false } : n,
-            ),
-          );
-        }
-      }),
-    );
-    if (successCount > 0) {
-      toast.success(
-        `成功发送 ${successCount} 个节点的回退指令，节点将自动重启`,
-      );
-    }
-    if (failCount > 0) {
-      toast.error(`${failCount} 个节点回退指令发送失败`);
-    }
-    setTimeout(() => {
-      setNodeList((prev) =>
-        prev.map((n) => {
-          if (
-            selectedLocalIds.includes(n.id) &&
-            window.__pendingNodeRefresh?.has(n.id)
-          ) {
-            return { ...n, rollbackLoading: false };
-          }
-          return n;
-        }),
-      );
-    }, 15000);
   };
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -3314,7 +3272,7 @@ export default function NodePage() {
                   className="absolute bottom-2 right-2"
                   onPress={() => {
                     // 👇 直接调用你已经封装好的兼容函数，HTTP 下也能完美复制！
-                    copyToClipboard(offlineCommand, "命令");
+                    copyToClipboard(installCommand, "命令");
                   }}
                 >
                   复制
@@ -3442,53 +3400,6 @@ export default function NodePage() {
               </>
             );
           }}
-        </ModalContent>
-      </Modal>
-      {/* 批量回退确认模态框 */}
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={batchRollbackModalOpen}
-        placement="center"
-        scrollBehavior="outside"
-        size="md"
-        onOpenChange={setBatchRollbackModalOpen}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                <h2 className="text-xl font-bold">确认批量回退</h2>
-              </ModalHeader>
-              <ModalBody>
-                <p>
-                  确定要将选中的{" "}
-                  <strong>
-                    {
-                      Array.from(selectedIds).filter(
-                        (id) =>
-                          nodeList.find((n) => n.id === id)?.isRemote !== 1,
-                      ).length
-                    }
-                  </strong>{" "}
-                  个本地节点回退到上一个版本吗？
-                </p>
-                <p className="text-small text-default-500">
-                  节点将执行版本回退并自动重启，期间会导致节点短暂离线。
-                </p>
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button color="secondary" onPress={handleBatchRollback}>
-                  确认回退
-                </Button>
-              </ModalFooter>
-            </>
-          )}
         </ModalContent>
       </Modal>
       {/* 批量重置流量确认模态框 */}
