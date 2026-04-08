@@ -424,11 +424,6 @@ export default function NodePage() {
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
   const [offlineCommand, setOfflineCommand] = useState("");
   const [offlineDeployData, setOfflineDeployData] = useState<OfflineDeployPayload | null>(null);
-  // 硬编码下载链接
-  const OFFLINE_DOWNLOAD_URLS = {
-    amd64: "https://chfs.646321.xyz:8/chfs/shared/flvx/offline-amd64.zip",
-    arm64: "https://chfs.646321.xyz:8/chfs/shared/flvx/offline-arm64.zip",
-  };
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeTarget, setUpgradeTarget] = useState<"single" | "batch">(
     "single",
@@ -1115,15 +1110,15 @@ export default function NodePage() {
         const targetContainer = modalElement || document.body;
 
         targetContainer.appendChild(textArea);
-        
+
         // 选中并复制
         textArea.focus();
         textArea.select();
         // 增加更兼容移动端的选中方式
-        textArea.setSelectionRange(0, 99999); 
+        textArea.setSelectionRange(0, 99999);
 
         const successful = document.execCommand("copy");
-        
+
         if (successful) {
           toast.success(`${label}已复制到剪贴板`);
         } else {
@@ -3273,6 +3268,8 @@ export default function NodePage() {
                   onPress={() => {
                     // 👇 直接调用你已经封装好的兼容函数，HTTP 下也能完美复制！
                     copyToClipboard(installCommand, "命令");
+                    // 👇 加上这行，复制完立马关闭弹窗
+                    setInstallCommandModal(false);
                   }}
                 >
                   复制
@@ -3630,7 +3627,7 @@ export default function NodePage() {
                 // 👇 修改了这里的 className：换成 flex 水平排列，并加了 flex-wrap 防止手机端太挤换行，gap-4 控制左右间距
                 <div className="flex flex-wrap items-center gap-4 mt-2">
                   <Link
-                    href={OFFLINE_DOWNLOAD_URLS.amd64}
+                    href={offlineDeployData?.amd64Download}
                     className="text-primary hover:underline flex items-center gap-2"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -3638,7 +3635,7 @@ export default function NodePage() {
                     offline-amd64.zip
                   </Link>
                   <Link
-                    href={OFFLINE_DOWNLOAD_URLS.arm64}
+                    href={offlineDeployData?.arm64Download}
                     className="text-primary hover:underline flex items-center gap-2"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -3667,6 +3664,8 @@ export default function NodePage() {
                 className="absolute bottom-2 right-2"
                 onPress={() => {
                   copyToClipboard(offlineCommand, "命令");
+                  // 👇 加上这行，复制完立马关闭弹窗
+                  setOfflineModalOpen(false);
                 }}
               >
                 复制

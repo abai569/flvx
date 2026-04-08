@@ -670,17 +670,19 @@ func (h *Handler) nodeInstallOffline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type OfflineDeployPayload struct {
-		PanelAddr   string `json:"panelAddr"`
-		Secret      string `json:"secret"`
-		NodeName    string `json:"nodeName"`
-		DownloadURL string `json:"downloadUrl"`
+		PanelAddr     string `json:"panelAddr"`
+		Secret        string `json:"secret"`
+		NodeName      string `json:"nodeName"`
+		AMD64Download string `json:"amd64Download"`
+		ARM64Download string `json:"arm64Download"`
 	}
 
 	response.WriteJSON(w, response.OK(OfflineDeployPayload{
-		PanelAddr:   processServerAddress(panelAddr),
-		Secret:      secret,
-		NodeName:    nodeName,
-		DownloadURL: fmt.Sprintf("%s/offline-amd64.zip", globalURL),
+		PanelAddr:     processServerAddress(panelAddr),
+		Secret:        secret,
+		NodeName:      nodeName,
+		AMD64Download: fmt.Sprintf("%s/https://github.com/%s/releases/latest/download/offline-amd64.zip", globalURL, githubRepo),
+		ARM64Download: fmt.Sprintf("%s/https://github.com/%s/releases/latest/download/offline-arm64.zip", globalURL, githubRepo),
 	}))
 }
 

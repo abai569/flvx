@@ -606,4 +606,6 @@ export interface OfflineDeployPayload {
   panelAddr: string;
   secret: string;
   nodeName: string;
+  amd64Download: string;
+  arm64Download: string;
 }
