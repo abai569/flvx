@@ -591,8 +591,13 @@ export default function TunnelPage() {
   };
   // 🎯 多端口支持：格式化端口数组为显示文本
   // 出口连接端口输入框不再自动填充逗号，让用户手动输入
-  const formatOutNodePortsToDisplay = (): string => {
-    return '';  // 返回空字符串，让用户手动输入
+  const formatOutNodePortsToDisplay = (outNodes?: typeof form.outNodeId): string => {
+    const nodes = outNodes || form.outNodeId || [];
+    if (!nodes || nodes.length === 0) return '';
+    const ports = nodes
+      .map(node => node.port ?? 0)
+      .filter(port => port > 0);
+    return ports.length > 0 ? ports.join(',') : '';
   };
   // 🎯 多端口支持：将端口应用到出口节点
   const applyPortsToOutNodes = (value: string) => {
@@ -636,7 +641,14 @@ export default function TunnelPage() {
   // 连接 IP 类型格式化显示
   const formatConnectIpTypesToDisplay = (nodes: ChainTunnel[]): string => {
     if (!nodes || nodes.length === 0) return '';
-    return nodes.map(n => n.connectIpType || '').join(',');
+    const types = nodes.map(n => n.connectIpType || '');
+    
+    // 如果所有节点的 connectIpType 都为空，返回空字符串
+    if (types.every(t => t === '')) {
+      return '';
+    }
+    
+    return types.join(',');
   };
   const applyConnectIpTypesToChainGroup = (groupIndex: number, value: string) => {
     const types = value.split(',').map(s => s.trim());
@@ -652,7 +664,14 @@ export default function TunnelPage() {
   };
   const formatOutNodeConnectIpTypes = (): string => {
     const nodes = form.outNodeId || [];
-    return nodes.map(n => n.connectIpType || '').join(',');
+    const types = nodes.map(n => n.connectIpType || '');
+    
+    // 如果所有节点的 connectIpType 都为空，返回空字符串
+    if (types.every(t => t === '')) {
+      return '';
+    }
+    
+    return types.join(',');
   };
   const applyOutNodeConnectIpTypes = (value: string) => {
     const types = value.split(',').map(s => s.trim());
@@ -714,9 +733,108 @@ export default function TunnelPage() {
       return { ...prev, chainNodes };
     });
   };
+  // 验证连接端口
+  const validatePorts = (value: string, nodeCount: number): string | null => {
+    if (!value || value.trim() === '') {
+      return '连接端口不能为空';
+    }
+    
+    // 检查格式（只允许数字、逗号、连字符）
+    if (!/^[\d,\-]+$/.test(value)) {
+      return '端口格式错误，只允许数字、逗号和连字符';
+    }
+    
+    const parts = value.split(',');
+    
+    // 检查节点数匹配
+    if (parts.length !== nodeCount) {
+      return `节点数为 ${nodeCount}，需要输入 ${nodeCount} 个端口（用逗号分隔）`;
+    }
+    
+    // 检查每个端口
+    for (const part of parts) {
+      if (part.includes('-')) {
+        // 范围格式：11330-11352
+        const [start, end] = part.split('-').map(Number);
+        if (start < 1 || end > 65535 || start > end) {
+          return '端口范围无效（1-65535）';
+        }
+      } else {
+        // 单个端口
+        const port = Number(part);
+        if (port < 1 || port > 65535) {
+          return '端口无效（1-65535）';
+        }
+      }
+    }
+    
+    return null;  // 验证通过
+  };
+  // 验证连接 IP 类型
+  const validateIpTypes = (value: string, nodeCount: number): string | null => {
+    if (!value || value.trim() === '') {
+      return '连接 IP 类型不能为空';
+    }
+    
+    const parts = value.split(',').map(s => s.trim()).filter(s => s !== '');
+    
+    // 检查节点数匹配
+    if (parts.length !== nodeCount) {
+      return `节点数为 ${nodeCount}，需要输入 ${nodeCount} 个 IP 类型（用逗号分隔）`;
+    }
+    
+    // 检查每个类型
+    const validTypes = ['v4', 'v6', 'lan', 'auto'];
+    for (const type of parts) {
+      if (!validTypes.includes(type.toLowerCase())) {
+        return `无效的 IP 类型 "${type}"，只允许：${validTypes.join(', ')}`;
+      }
+    }
+    
+    return null;  // 验证通过
+  };
   // 提交表单
   const handleSubmit = async () => {
     if (!validateForm()) return;
+    
+    // 验证转发链
+    for (let i = 0; i < (form.chainNodes || []).length; i++) {
+      const group = (form.chainNodes || [])[i].filter(node => node.nodeId !== -1);
+      if (group.length === 0) continue;
+      
+      const portValue = formatChainPortsToDisplay(group);
+      const portError = validatePorts(portValue, group.length);
+      if (portError) {
+        toast.error(`转发链第${i + 1}跳：${portError}`);
+        return;
+      }
+      
+      const ipTypeValue = formatConnectIpTypesToDisplay(group);
+      const ipTypeError = validateIpTypes(ipTypeValue, group.length);
+      if (ipTypeError) {
+        toast.error(`转发链第${i + 1}跳：${ipTypeError}`);
+        return;
+      }
+    }
+    
+    // 验证出口节点
+    const outNodes = (form.outNodeId || []).filter(node => node.nodeId !== -1);
+    if (outNodes.length > 0) {
+      const outPortValue = formatOutNodePortsToDisplay(outNodes);
+      const outPortError = validatePorts(outPortValue, outNodes.length);
+      if (outPortError) {
+        toast.error(`出口节点：${outPortError}`);
+        return;
+      }
+      
+      const outIpTypeValue = formatOutNodeConnectIpTypes();
+      const outIpTypeError = validateIpTypes(outIpTypeValue, outNodes.length);
+      if (outIpTypeError) {
+        toast.error(`出口节点：${outIpTypeError}`);
+        return;
+      }
+    }
+    
     setSubmitLoading(true);
     try {
       // 过滤掉占位节点（nodeId === -1 的节点）

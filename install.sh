@@ -69,22 +69,6 @@ fi
 # 检测下载源
 DOWNLOAD_HOST=$(detect_download_host "$SCRIPT_URL")
 
-# 获取系统架构
-get_architecture() {
-    ARCH=$(uname -m)
-    case $ARCH in
-        x86_64)
-            echo "amd64"
-            ;;
-        aarch64|arm64)
-            echo "arm64"
-            ;;
-        *)
-            echo "amd64"  # 默认使用 amd64
-            ;;
-    esac
-}
-
 # 获取最新版本号
 resolve_latest_release_tag() {
   local tag
@@ -321,7 +305,7 @@ install_service() {
 
   # 显示下载源并下载
   show_download_source "$DOWNLOAD_URL"
-  curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/${SERVICE_NAME}"
+  wget -q "$DOWNLOAD_URL" -O "$INSTALL_DIR/${SERVICE_NAME}"
   if [[ ! -f "$INSTALL_DIR/${SERVICE_NAME}" || ! -s "$INSTALL_DIR/${SERVICE_NAME}" ]]; then
     echo "❌ 下载失败，请检查网络或下载链接。"
     exit 1
@@ -398,7 +382,7 @@ update_service() {
   SCRIPT_DOWNLOAD_URL="${DOWNLOAD_HOST}/install.sh"
   
   echo "⬇️ 正在检查并更新安装脚本自身..."
-  curl -L "$SCRIPT_DOWNLOAD_URL" -o "${SCRIPT_PATH}.new"
+  wget -q "$SCRIPT_DOWNLOAD_URL" -O "${SCRIPT_PATH}.new"
   if [[ -f "${SCRIPT_PATH}.new" && -s "${SCRIPT_PATH}.new" ]]; then
     mv "${SCRIPT_PATH}.new" "$SCRIPT_PATH"
     chmod +x "$SCRIPT_PATH"
@@ -414,7 +398,7 @@ update_service() {
   
   # 显示下载源并下载
   show_download_source "$DOWNLOAD_URL"
-  curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/${SERVICE_NAME}.new"
+  wget -q "$DOWNLOAD_URL" -O "$INSTALL_DIR/${SERVICE_NAME}.new"
   if [[ ! -f "$INSTALL_DIR/${SERVICE_NAME}.new" || ! -s "$INSTALL_DIR/${SERVICE_NAME}.new" ]]; then
     echo "❌ 下载失败。"
     return 1

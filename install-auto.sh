@@ -83,13 +83,15 @@ elif [ "$OS" == "1" ]; then
   # 海外网络：使用 GitHub 加速
   if [ -n "$GLOBAL_DOWNLOAD_URL" ]; then
     DOWNLOAD_HOSTS=(
-      "https://github.com/abai569/flvx/releases/latest/download"
+      "https://chfs.646321.xyz:8/chfs/shared/flvx" 
+      "https://gh-proxy.com/https://github.com/abai569/flvx/releases/latest/download"
       "$GLOBAL_DOWNLOAD_URL"
       "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
     )
   else
     DOWNLOAD_HOSTS=(
-      "https://github.com/abai569/flvx/releases/latest/download"
+      "https://chfs.646321.xyz:8/chfs/shared/flvx" 
+      "https://gh-proxy.com/https://github.com/abai569/flvx/releases/latest/download"
       "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
     )
   fi
@@ -97,6 +99,7 @@ elif [ "$OS" == "1" ]; then
 else
   # 检测失败：默认使用 GitHub
   DOWNLOAD_HOSTS=(
+    "https://chfs.646321.xyz:8/chfs/shared/flvx" 
     "https://github.com/abai569/flvx/releases/latest/download"
     "$GLOBAL_DOWNLOAD_URL"
     "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
@@ -108,7 +111,7 @@ fi
 for host in "${DOWNLOAD_HOSTS[@]}"; do
   [ -z "$host" ] && continue
   echo "⬇️  尝试从 $host 下载..."
-  if curl -L --max-time 30 "$host/install.sh" -o "./install_temp.sh" 2>/dev/null; then
+  if wget -q --timeout=30 "$host/install.sh" -O "./install_temp.sh" 2>/dev/null; then
     if [ -s "./install_temp.sh" ]; then
       if head -1 "./install_temp.sh" | grep -q "^#!"; then
         echo "✅ 下载成功，使用源：$host"
