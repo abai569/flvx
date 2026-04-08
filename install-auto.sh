@@ -51,67 +51,75 @@ do_cloudflare_detect() {
   fi
 }
 
-# 版本通道（stable/beta）
-CHANNEL="${CHANNEL:-stable}"
-
 # 主检测逻辑
 do_apple_detect
 if [ "$CN" != "1" ]; then
   do_cloudflare_detect
 fi
 
+# 接收环境变量
+DOMESTIC_DOWNLOAD_URL="${DOMESTIC_DOWNLOAD_URL:-}"
+GLOBAL_DOWNLOAD_URL="${GLOBAL_DOWNLOAD_URL:-}"
+
 # 根据检测结果设置下载源
 if [ "$CN" == "1" ]; then
-  # 国内网络：使用国内 CDN
-  download_host="https://chfs.646321.xyz:8/chfs/shared/flvx/${CHANNEL}"
-  echo "🌏 使用国内 CDN (${CHANNEL})"
+  # 国内网络：使用国内加速地址
+  if [ -n "$DOMESTIC_DOWNLOAD_URL" ]; then
+    DOWNLOAD_HOSTS=(
+      "$DOMESTIC_DOWNLOAD_URL"
+      "https://chfs.646321.xyz:8/chfs/shared/flvx"
+      "$GLOBAL_DOWNLOAD_URL"
+      "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
+    )
+  else
+    DOWNLOAD_HOSTS=(
+      "https://chfs.646321.xyz:8/chfs/shared/flvx"
+      "$GLOBAL_DOWNLOAD_URL"
+      "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
+    )
+  fi
+  echo "🌏 使用国内加速地址"
 elif [ "$OS" == "1" ]; then
-  # 海外网络：使用 ghfast.top 加速
-  download_host="${GHFAST_URL:-https://ghfast.top}/https://github.com/abai569/flvx/releases/latest/download"
-  echo "🌍 使用 GitHub 加速 (${download_host})"
+  # 海外网络：使用 GitHub 加速
+  if [ -n "$GLOBAL_DOWNLOAD_URL" ]; then
+    DOWNLOAD_HOSTS=(
+      "https://github.com/abai569/flvx/releases/latest/download"
+      "$GLOBAL_DOWNLOAD_URL"
+      "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
+    )
+  else
+    DOWNLOAD_HOSTS=(
+      "https://github.com/abai569/flvx/releases/latest/download"
+      "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
+    )
+  fi
+  echo "🌍 使用 GitHub 加速"
 else
   # 检测失败：默认使用 GitHub
-  download_host="${GHFAST_URL:-https://ghfast.top}/https://github.com/abai569/flvx/releases/latest/download"
+  DOWNLOAD_HOSTS=(
+    "https://github.com/abai569/flvx/releases/latest/download"
+    "$GLOBAL_DOWNLOAD_URL"
+    "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
+  )
   echo "⚠️  网络检测失败，使用 GitHub 加速"
 fi
 
-# 下载安装脚本（带重试）
-max_retries=3
-retry=0
-
-while [ $retry -lt $max_retries ]; do
-  echo "⬇️  下载安装脚本 (尝试 $((retry + 1))/$max_retries)..."
-  if curl -L --max-time 30 "${download_host}/install.sh" -o "./install_temp.sh" 2>/dev/null; then
+# 循环尝试每个下载源
+for host in "${DOWNLOAD_HOSTS[@]}"; do
+  [ -z "$host" ] && continue
+  echo "⬇️  尝试从 $host 下载..."
+  if curl -L --max-time 30 "$host/install.sh" -o "./install_temp.sh" 2>/dev/null; then
     if [ -s "./install_temp.sh" ]; then
-      # 验证下载的是否是有效脚本（检查是否包含 shebang）
       if head -1 "./install_temp.sh" | grep -q "^#!"; then
-        echo "✅ 下载完成，开始安装..."
-        echo ""
+        echo "✅ 下载成功，使用源：$host"
         chmod +x ./install_temp.sh
-        # 执行安装脚本（传递 DOWNLOAD_HOST 环境变量和所有参数）
-        DOWNLOAD_HOST="${download_host}" ./install_temp.sh $AUTO_ARGS
+        ./install_temp.sh $AUTO_ARGS
         exit 0
       else
         echo "⚠️  下载的文件无效，不是有效的脚本"
         rm -f ./install_temp.sh
       fi
     fi
-  fi
-  
-  retry=$((retry + 1))
-  
-  # 切换备用源
-  if [ $retry -lt $max_retries ]; then
-    case "$download_host" in
-      *"github.com"*|*"ghfast.top"*)
-        download_host="https://chfs.646321.xyz:8/chfs/shared/flvx/${CHANNEL}"
-        echo "⚠️  GitHub 下载失败，切换到国内 CDN..."
-        ;;
-      *"chfs.646321.xyz"*)
-        download_host="${GHFAST_URL:-https://ghfast.top}/https://github.com/abai569/flvx/releases/latest/download"
-        echo "⚠️  国内 CDN 下载失败，切换到 GitHub 加速..."
-        ;;
-    esac
   fi
 done
 

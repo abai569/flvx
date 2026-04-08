@@ -209,22 +209,18 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 获取自定义加速地址
-	ghfastURL, _ := h.repo.GetViteConfigValue("ghfast_url")
-	if ghfastURL == "" {
-		ghfastURL = "https://ghfast.top"
+	// 获取自定义全局加速地址
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
 	}
 
-	// 构建三种下载源（自定义加速/国内 CDN/备选）
+	// 构建下载源（只使用全局加速地址）
 	downloadURLs := []string{
-		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}", ghfastURL, githubRepo, version),
-		fmt.Sprintf("https://chfs.646321.xyz:8/chfs/shared/flvx/gost-{ARCH}"),
-		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}", githubRepo, version),
+		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}", globalURL, githubRepo, version),
 	}
 	checksumURLs := []string{
-		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", ghfastURL, githubRepo, version),
-		fmt.Sprintf("https://chfs.646321.xyz:8/chfs/shared/flvx/gost-{ARCH}.sha256"),
-		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}.sha256", githubRepo, version),
+		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", globalURL, githubRepo, version),
 	}
 
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
@@ -283,22 +279,18 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 获取自定义加速地址
-	ghfastURL, _ := h.repo.GetViteConfigValue("ghfast_url")
-	if ghfastURL == "" {
-		ghfastURL = "https://ghfast.top"
+	// 获取自定义全局加速地址
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
 	}
 
-	// 构建三种下载源（自定义加速/国内 CDN/备选）
+	// 构建下载源（只使用全局加速地址）
 	downloadURLs := []string{
-		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}", ghfastURL, githubRepo, version),
-		fmt.Sprintf("https://chfs.646321.xyz:8/chfs/shared/flvx/gost-{ARCH}"),
-		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}", githubRepo, version),
+		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}", globalURL, githubRepo, version),
 	}
 	checksumURLs := []string{
-		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", ghfastURL, githubRepo, version),
-		fmt.Sprintf("https://chfs.646321.xyz:8/chfs/shared/flvx/gost-{ARCH}.sha256"),
-		fmt.Sprintf("https://git-proxy.abai.eu.org/%s/releases/download/%s/gost-{ARCH}.sha256", githubRepo, version),
+		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", globalURL, githubRepo, version),
 	}
 
 	if len(downloadURLs) == 0 {

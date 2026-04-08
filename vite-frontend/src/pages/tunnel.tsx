@@ -611,9 +611,12 @@ export default function TunnelPage() {
     });
   };
   // 🎯 多端口支持：格式化转发链端口为显示文本
-  // 修改：不再自动格式化，返回空字符串让用户手动输入
-  const formatChainPortsToDisplay = (): string => {
-    return '';  // 返回空字符串，让用户手动输入
+  const formatChainPortsToDisplay = (chainGroup: ChainTunnel[]): string => {
+    if (!chainGroup || chainGroup.length === 0) return '';
+    const ports = chainGroup
+      .map(node => node.port ?? 0)
+      .filter(port => port > 0);
+    return ports.length > 0 ? ports.join(',') : '';
   };
   // 🎯 多端口支持：将端口应用到转发链节点
   const applyPortsToChainGroup = (groupIndex: number, value: string) => {
@@ -630,9 +633,10 @@ export default function TunnelPage() {
       return { ...prev, chainNodes };
     });
   };
-  // 连接 IP 类型输入框不再自动填充逗号，让用户手动输入
-  const formatConnectIpTypesToDisplay = (): string => {
-    return '';  // 返回空字符串，让用户手动输入
+  // 连接 IP 类型格式化显示
+  const formatConnectIpTypesToDisplay = (nodes: ChainTunnel[]): string => {
+    if (!nodes || nodes.length === 0) return '';
+    return nodes.map(n => n.connectIpType || '').join(',');
   };
   const applyConnectIpTypesToChainGroup = (groupIndex: number, value: string) => {
     const types = value.split(',').map(s => s.trim());
@@ -647,7 +651,8 @@ export default function TunnelPage() {
     });
   };
   const formatOutNodeConnectIpTypes = (): string => {
-    return '';  // 返回空字符串，让用户手动输入
+    const nodes = form.outNodeId || [];
+    return nodes.map(n => n.connectIpType || '').join(',');
   };
   const applyOutNodeConnectIpTypes = (value: string) => {
     const types = value.split(',').map(s => s.trim());
@@ -2546,7 +2551,7 @@ export default function TunnelPage() {
                                         placeholder="例：11111,22222"
                                         size="sm"
                                         type="text"
-                                        value={formatChainPortsToDisplay()}
+                                        value={formatChainPortsToDisplay(groupNodes)}
                                         variant="bordered"
                                         onChange={(e) => {
                                           applyPortsToChainGroup(groupIndex, e.target.value);
@@ -2558,7 +2563,7 @@ export default function TunnelPage() {
                                         placeholder="例：lan,v4,v6"
                                         size="sm"
                                         type="text"
-                                        value={formatConnectIpTypesToDisplay()}
+                                        value={formatConnectIpTypesToDisplay(groupNodes)}
                                         variant="bordered"
                                         onChange={(e) => {
                                           applyConnectIpTypesToChainGroup(groupIndex, e.target.value);

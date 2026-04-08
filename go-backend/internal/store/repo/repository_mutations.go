@@ -344,12 +344,36 @@ func (r *Repository) GetViteConfigValue(name string) (string, error) {
 	if r == nil || r.db == nil {
 		return "", errors.New("repository not initialized")
 	}
+
+	// 先尝试新配置项名称
 	var cfg model.ViteConfig
 	err := r.db.Select("value").Where("name = ?", name).First(&cfg).Error
-	if err != nil {
-		return "", normalizeNotFoundErr(err)
+	if err == nil && cfg.Value != "" {
+		return cfg.Value, nil
 	}
-	return cfg.Value, nil
+
+	// 尝试旧配置项名称（向后兼容）
+	oldName := getOldConfigName(name)
+	if oldName != "" {
+		err = r.db.Select("value").Where("name = ?", oldName).First(&cfg).Error
+		if err == nil && cfg.Value != "" {
+			return cfg.Value, nil
+		}
+	}
+
+	return "", normalizeNotFoundErr(err)
+}
+
+// getOldConfigName 返回旧配置项名称（用于向后兼容）
+func getOldConfigName(newName string) string {
+	switch newName {
+	case "global_download_url":
+		return "ghfast_url"
+	case "domestic_download_url":
+		return "domestic_download_host"
+	default:
+		return ""
+	}
 }
 
 func (r *Repository) UpdateNodeOrder(nodeID int64, inx int, now int64) {
