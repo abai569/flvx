@@ -113,7 +113,8 @@ for host in "${DOWNLOAD_HOSTS[@]}"; do
       if head -1 "./install_temp.sh" | grep -q "^#!"; then
         echo "✅ 下载成功，使用源：$host"
         chmod +x ./install_temp.sh
-        ./install_temp.sh $AUTO_ARGS
+        # 传递 SCRIPT_URL 给 install.sh，让它知道下载源
+        SCRIPT_URL="$host/install.sh" ./install_temp.sh $AUTO_ARGS
         exit 0
       else
         echo "⚠️  下载的文件无效，不是有效的脚本"

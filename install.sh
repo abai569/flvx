@@ -40,9 +40,31 @@ get_architecture() {
     esac
 }
 
-# 国内专用安装脚本 - 硬编码国内 CDN 路径
-# 支持通过环境变量 DOWNLOAD_HOST 覆盖（用于 install-auto.sh 传递）
-DOWNLOAD_HOST="${DOWNLOAD_HOST:-https://chfs.646321.xyz:8/chfs/shared/flvx}"
+# 自动检测下载源
+# 根据脚本下载 URL 判断使用哪个下载源
+detect_download_host() {
+    local script_url="$1"
+    if [[ "$script_url" == *"chfs.646321.xyz"* ]]; then
+        echo "https://chfs.646321.xyz:8/chfs/shared/flvx"
+    elif [[ "$script_url" == *"ghfast.top"* ]]; then
+        echo "https://ghfast.top/https://github.com/abai569/flvx/releases/latest/download"
+    elif [[ "$script_url" == *"github.com"* ]]; then
+        echo "https://github.com/abai569/flvx/releases/latest/download"
+    else
+        # 默认使用 GitHub
+        echo "https://github.com/abai569/flvx/releases/latest/download"
+    fi
+}
+
+# 获取下载脚本的 URL
+SCRIPT_URL="${SCRIPT_URL:-}"
+if [ -z "$SCRIPT_URL" ]; then
+    # 尝试从 $0 获取
+    SCRIPT_URL="$0"
+fi
+
+# 检测下载源
+DOWNLOAD_HOST=$(detect_download_host "$SCRIPT_URL")
 
 # 获取系统架构
 get_architecture() {
