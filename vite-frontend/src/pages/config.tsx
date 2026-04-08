@@ -94,16 +94,16 @@ const CONFIG_ITEMS: ConfigItem[] = [
   },
   {
     key: "global_download_url",
-    label: "自定义全局加速地址",
+    label: "自定义全局加速源",
     placeholder: "https://ghfast.top",
     description: "海外机器安装和更新时使用的加速地址，留空使用默认值",
     type: "input",
   },
   {
     key: "domestic_download_url",
-    label: "自定义国内加速地址",
+    label: "自定义国内镜像源",
     placeholder: "https://chfs.646321.xyz:8/chfs/shared/flvx",
-    description: "国内机器首次对接安装的加速地址，留空使用默认值",
+    description: "国内机器首次对接安装时使用的加速地址，留空使用默认值",
     type: "input",
   },
   {
