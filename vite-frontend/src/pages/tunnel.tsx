@@ -214,6 +214,8 @@ export default function TunnelPage() {
   const [form, setForm] = useState<TunnelForm>(createTunnelFormDefaults());
   // 表单验证错误
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  // 👇 新增这行：用于暂存正在编辑中的文本框内容，防止逗号被吞
+  const [focusedInputs, setFocusedInputs] = useState<Record<string, string>>({});
   // 批量操作相关状态
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
@@ -641,14 +643,9 @@ export default function TunnelPage() {
   // 连接 IP 类型格式化显示
   const formatConnectIpTypesToDisplay = (nodes: ChainTunnel[]): string => {
     if (!nodes || nodes.length === 0) return '';
-    const types = nodes.map(n => n.connectIpType || '');
-    
-    // 如果所有节点的 connectIpType 都为空，返回空字符串
-    if (types.every(t => t === '')) {
-      return '';
-    }
-    
-    return types.join(',');
+    const result = nodes.map(n => n.connectIpType || '').join(',');
+    // 清理多余的逗号（但不要完全过滤空值）
+    return result.replace(/,+/g, ',');
   };
   const applyConnectIpTypesToChainGroup = (groupIndex: number, value: string) => {
     const types = value.split(',').map(s => s.trim());
@@ -665,13 +662,10 @@ export default function TunnelPage() {
   const formatOutNodeConnectIpTypes = (): string => {
     const nodes = form.outNodeId || [];
     const types = nodes.map(n => n.connectIpType || '');
-    
-    // 如果所有节点的 connectIpType 都为空，返回空字符串
-    if (types.every(t => t === '')) {
-      return '';
-    }
-    
-    return types.join(',');
+
+    // 过滤掉空值后再 join，避免自动补全逗号
+    const nonEmptyTypes = types.filter(t => t !== '');
+    return nonEmptyTypes.join(',');
   };
   const applyOutNodeConnectIpTypes = (value: string) => {
     const types = value.split(',').map(s => s.trim());
@@ -738,19 +732,19 @@ export default function TunnelPage() {
     if (!value || value.trim() === '') {
       return '连接端口不能为空';
     }
-    
+
     // 检查格式（只允许数字、逗号、连字符）
     if (!/^[\d,\-]+$/.test(value)) {
       return '端口格式错误，只允许数字、逗号和连字符';
     }
-    
+
     const parts = value.split(',');
-    
+
     // 检查节点数匹配
     if (parts.length !== nodeCount) {
       return `节点数为 ${nodeCount}，需要输入 ${nodeCount} 个端口（用逗号分隔）`;
     }
-    
+
     // 检查每个端口
     for (const part of parts) {
       if (part.includes('-')) {
@@ -767,7 +761,7 @@ export default function TunnelPage() {
         }
       }
     }
-    
+
     return null;  // 验证通过
   };
   // 验证连接 IP 类型
@@ -775,14 +769,14 @@ export default function TunnelPage() {
     if (!value || value.trim() === '') {
       return '连接 IP 类型不能为空';
     }
-    
+
     const parts = value.split(',').map(s => s.trim()).filter(s => s !== '');
-    
+
     // 检查节点数匹配
     if (parts.length !== nodeCount) {
       return `节点数为 ${nodeCount}，需要输入 ${nodeCount} 个 IP 类型（用逗号分隔）`;
     }
-    
+
     // 检查每个类型
     const validTypes = ['v4', 'v6', 'lan', 'auto'];
     for (const type of parts) {
@@ -790,25 +784,25 @@ export default function TunnelPage() {
         return `无效的 IP 类型 "${type}"，只允许：${validTypes.join(', ')}`;
       }
     }
-    
+
     return null;  // 验证通过
   };
   // 提交表单
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    
+
     // 验证转发链
     for (let i = 0; i < (form.chainNodes || []).length; i++) {
       const group = (form.chainNodes || [])[i].filter(node => node.nodeId !== -1);
       if (group.length === 0) continue;
-      
+
       const portValue = formatChainPortsToDisplay(group);
       const portError = validatePorts(portValue, group.length);
       if (portError) {
         toast.error(`转发链第${i + 1}跳：${portError}`);
         return;
       }
-      
+
       const ipTypeValue = formatConnectIpTypesToDisplay(group);
       const ipTypeError = validateIpTypes(ipTypeValue, group.length);
       if (ipTypeError) {
@@ -816,7 +810,7 @@ export default function TunnelPage() {
         return;
       }
     }
-    
+
     // 验证出口节点
     const outNodes = (form.outNodeId || []).filter(node => node.nodeId !== -1);
     if (outNodes.length > 0) {
@@ -826,7 +820,7 @@ export default function TunnelPage() {
         toast.error(`出口节点：${outPortError}`);
         return;
       }
-      
+
       const outIpTypeValue = formatOutNodeConnectIpTypes();
       const outIpTypeError = validateIpTypes(outIpTypeValue, outNodes.length);
       if (outIpTypeError) {
@@ -834,7 +828,7 @@ export default function TunnelPage() {
         return;
       }
     }
-    
+
     setSubmitLoading(true);
     try {
       // 过滤掉占位节点（nodeId === -1 的节点）
@@ -856,7 +850,7 @@ export default function TunnelPage() {
         const autoIps = form.inNodeId.map(ct => {
           const n = nodes.find(item => item.id === ct.nodeId);
           if (!n) return "";
-      return (n.serverIpV4 || n.serverIpV6 || n.intranetIp || n.serverIp || "").trim();
+          return (n.serverIpV4 || n.serverIpV6 || n.intranetIp || n.serverIp || "").trim();
         }).filter(Boolean);
         inIpString = autoIps.join(",");
       }
@@ -2320,19 +2314,19 @@ export default function TunnelPage() {
                               ),
                               ...getSelectedChainNodeIds().map((id) => id.toString()),
                             ]
-                          }
-                          dropdownPlacement="top"
-                          errorMessage={errors.inNodeId}
-                          isInvalid={!!errors.inNodeId}
-                          label={`入口节点${form.inNodeId.length > 0 ? ` (已选 ${form.inNodeId.length} 个)` : ""}`}
-                          placeholder="请选择入口节点（可多选）"
-                          selectedKeys={form.inNodeId.map((ct) =>
-                            ct.nodeId.toString(),
-                          )}
-                          selectionMode="multiple"
-                          variant="bordered"
-                          onSelectionChange={(keys) => {
-                            const selectedIds = toSelectedNodeIds(keys);
+                        }
+                        dropdownPlacement="top"
+                        errorMessage={errors.inNodeId}
+                        isInvalid={!!errors.inNodeId}
+                        label={`入口节点${form.inNodeId.length > 0 ? ` (已选 ${form.inNodeId.length} 个)` : ""}`}
+                        placeholder="请选择入口节点（可多选）"
+                        selectedKeys={form.inNodeId.map((ct) =>
+                          ct.nodeId.toString(),
+                        )}
+                        selectionMode="multiple"
+                        variant="bordered"
+                        onSelectionChange={(keys) => {
+                          const selectedIds = toSelectedNodeIds(keys);
                           setForm((prev) => {
                             let nextInIp = prev.inIp;
                             // 🎯 终极智能逻辑：如果是新增隧道，或者用户在编辑时把“入口地址”主动清空了，就触发自动抓取
@@ -2443,311 +2437,319 @@ export default function TunnelPage() {
                         </div>
                         {getChainGroups().length > 0 ? (
                           getChainGroups().map((groupNodes, groupIndex) => {
-                                const protocol =
-                                  groupNodes.length > 0
-                                    ? groupNodes[0].protocol || "tcp"
-                                    : "tcp";
-                                const strategy =
-                                  groupNodes.length > 0
-                                    ? groupNodes[0].strategy || "round"
-                                    : "round";
-                                return (
-                                  <div
-                                    key={groupIndex}
-                                    className="border border-default-200 rounded-lg p-3"
+                            const protocol =
+                              groupNodes.length > 0
+                                ? groupNodes[0].protocol || "tcp"
+                                : "tcp";
+                            const strategy =
+                              groupNodes.length > 0
+                                ? groupNodes[0].strategy || "round"
+                                : "round";
+                            return (
+                              <div
+                                key={groupIndex}
+                                className="border border-default-200 rounded-lg p-3"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium text-default-600">
+                                    第{groupIndex + 1}跳
+                                  </span>
+                                  <Button
+                                    isIconOnly
+                                    aria-label={`删除第${groupIndex + 1}跳`}
+                                    color="danger"
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() => removeChainNode(groupIndex)}
                                   >
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="text-sm font-medium text-default-600">
-                                        第{groupIndex + 1}跳
-                                      </span>
-                                      <Button
-                                        isIconOnly
-                                        aria-label={`删除第${groupIndex + 1}跳`}
-                                        color="danger"
-                                        size="sm"
-                                        variant="light"
-                                        onPress={() => removeChainNode(groupIndex)}
-                                      >
-                                        <svg
-                                          aria-hidden="true"
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
+                                    <svg
+                                      aria-hidden="true"
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        d="M6 18L18 6M6 6l12 12"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                      />
+                                    </svg>
+                                  </Button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                                  {/* 节点选择 - 移动端100%，桌面端50% */}
+                                  <div className="col-span-1 md:col-span-2">
+                                    <Select
+                                      classNames={{
+                                        base: "w-full",
+                                        label: "text-xs",
+                                        value: "text-sm",
+                                      }}
+                                      disabledKeys={
+                                        isEdit
+                                          ? [
+                                            ...form.inNodeId.map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            ...(form.outNodeId || []).map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            ...(form.chainNodes || [])
+                                              .flatMap((group, idx) =>
+                                                idx !== groupIndex
+                                                  ? group.map((ct) => ct.nodeId)
+                                                  : [],
+                                              )
+                                              .filter((id) => id !== -1)
+                                              .map((id) => id.toString()),
+                                          ]
+                                          : [
+                                            ...nodes
+                                              .filter((node) => node.status !== 1)
+                                              .map((node) => node.id.toString()),
+                                            ...form.inNodeId.map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            ...(form.outNodeId || []).map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            ...(form.chainNodes || [])
+                                              .flatMap((group, idx) =>
+                                                idx !== groupIndex
+                                                  ? group.map((ct) => ct.nodeId)
+                                                  : [],
+                                              )
+                                              .filter((id) => id !== -1)
+                                              .map((id) => id.toString()),
+                                          ]
+                                      }
+                                      dropdownPlacement="top"
+                                      label={`节点选择${groupNodes.filter(ct => ct.nodeId !== -1).length > 0 ? ` (已选 ${groupNodes.filter(ct => ct.nodeId !== -1).length} 个)` : ""}`}
+                                      placeholder="选择节点（可多选）"
+                                      selectedKeys={groupNodes
+                                        .filter((ct) => ct.nodeId !== -1)
+                                        .map((ct) => ct.nodeId.toString())}
+                                      selectionMode="multiple"
+                                      size="sm"
+                                      variant="bordered"
+                                      onSelectionChange={(keys) => {
+                                        syncChainGroupNodes(
+                                          groupIndex,
+                                          toSelectedNodeIds(keys),
+                                        );
+                                      }}
+                                    >
+                                      {nodes.map((node) => (
+                                        <SelectItem
+                                          key={node.id}
+                                          textValue={node.remark ? `${node.name} (${node.remark})` : node.name}
                                         >
-                                          <path
-                                            d="M6 18L18 6M6 6l12 12"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                          />
-                                        </svg>
-                                      </Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                                      {/* 节点选择 - 移动端100%，桌面端50% */}
-                                      <div className="col-span-1 md:col-span-2">
-                                        <Select
-                                          classNames={{
-                                            base: "w-full",
-                                            label: "text-xs",
-                                            value: "text-sm",
-                                          }}
-                                          disabledKeys={
-                                            isEdit
-                                              ? [
-                                                ...form.inNodeId.map((ct) =>
-                                                  ct.nodeId.toString(),
-                                                ),
-                                                ...(form.outNodeId || []).map((ct) =>
-                                                  ct.nodeId.toString(),
-                                                ),
-                                                ...(form.chainNodes || [])
-                                                  .flatMap((group, idx) =>
-                                                    idx !== groupIndex
-                                                      ? group.map((ct) => ct.nodeId)
-                                                      : [],
-                                                  )
-                                                  .filter((id) => id !== -1)
-                                                  .map((id) => id.toString()),
-                                              ]
-                                              : [
-                                                ...nodes
-                                                  .filter((node) => node.status !== 1)
-                                                  .map((node) => node.id.toString()),
-                                                ...form.inNodeId.map((ct) =>
-                                                  ct.nodeId.toString(),
-                                                ),
-                                                ...(form.outNodeId || []).map((ct) =>
-                                                  ct.nodeId.toString(),
-                                                ),
-                                                ...(form.chainNodes || [])
-                                                  .flatMap((group, idx) =>
-                                                    idx !== groupIndex
-                                                      ? group.map((ct) => ct.nodeId)
-                                                      : [],
-                                                  )
-                                                  .filter((id) => id !== -1)
-                                                  .map((id) => id.toString()),
-                                              ]
-                                          }
-                                          dropdownPlacement="top"
-                                          label={`节点选择${groupNodes.filter(ct => ct.nodeId !== -1).length > 0 ? ` (已选 ${groupNodes.filter(ct => ct.nodeId !== -1).length} 个)` : ""}`}
-                                          placeholder="选择节点（可多选）"
-                                          selectedKeys={groupNodes
-                                            .filter((ct) => ct.nodeId !== -1)
-                                            .map((ct) => ct.nodeId.toString())}
-                                          selectionMode="multiple"
-                                          size="sm"
-                                          variant="bordered"
-                                          onSelectionChange={(keys) => {
-                                            syncChainGroupNodes(
-                                              groupIndex,
-                                              toSelectedNodeIds(keys),
-                                            );
-                                          }}
-                                        >
-                                          {nodes.map((node) => (
-                                            <SelectItem
-                                              key={node.id}
-                                              textValue={node.remark ? `${node.name} (${node.remark})` : node.name}
-                                            >
-                                              <div className="flex items-center justify-between">
-                                                <span className="text-sm">
-                                                  {node.name}
-                                                  {node.remark && (
-                                                    <span className="text-xs text-default-400 ml-1">
-                                                      ({node.remark})
-                                                    </span>
-                                                  )}
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm">
+                                              {node.name}
+                                              {node.remark && (
+                                                <span className="text-xs text-default-400 ml-1">
+                                                  ({node.remark})
                                                 </span>
-                                                <div className="flex items-center gap-2">
-                                                  <Chip
-                                                    color={
-                                                      node.status === 1
-                                                        ? "success"
-                                                        : "default"
-                                                    }
-                                                    size="sm"
-                                                    variant="flat"
-                                                  >
-                                                    {node.status === 1 ? "在线" : "离线"}
-                                                  </Chip>
-                                                  {form.inNodeId.some(
-                                                    (ct) => ct.nodeId === node.id,
-                                                  ) && (
-                                                      <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">已选为入口</div>
-                                                    )}
-                                                  {form.outNodeId &&
-                                                    form.outNodeId.some(
-                                                      (ct) => ct.nodeId === node.id,
-                                                    ) && (
-                                                      <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-danger-500/10 text-danger-600 dark:text-danger-400">已选为出口</div>
-                                                    )}
-                                                  {(form.chainNodes || []).some(
-                                                    (group, idx) =>
-                                                      idx !== groupIndex &&
-                                                      group.some(
-                                                        (ct) =>
-                                                          ct.nodeId === node.id &&
-                                                          ct.nodeId !== -1,
-                                                      ),
-                                                  ) && (
-                                                      <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">已选为其他跳</div>
-                                                    )}
-                                                </div>
-                                              </div>
-                                            </SelectItem>
-                                          ))}
-                                        </Select>
-                                      </div>
-                                      {/* 协议选择 - 25% */}
-                                      <Select
-                                        classNames={{
-                                          label: "text-xs",
-                                          value: "text-sm",
-                                        }}
-                                        label="协议"
-                                        placeholder="选择协议"
-                                        selectedKeys={[protocol]}
-                                        size="sm"
-                                        variant="bordered"
-                                        onSelectionChange={(keys) => {
-                                          const selectedKey = Array.from(
-                                            keys,
-                                          )[0] as string;
-                                          if (selectedKey) {
-                                            updateChainProtocol(
-                                              groupIndex,
-                                              selectedKey,
-                                            );
-                                          }
-                                        }}
-                                      >
-                                        <SelectItem key="tcp">TCP</SelectItem>
-                                        <SelectItem key="mtcp">MTCP</SelectItem>
-                                        <SelectItem key="tls">TLS</SelectItem>
-                                        <SelectItem key="mtls">MTLS</SelectItem>
-                                        <SelectItem key="wss">WSS</SelectItem>
-                                        <SelectItem key="mwss">MWSS</SelectItem>
-                                      </Select>
-                                      {/* 负载策略 - 25% */}
-                                      <Select
-                                        classNames={{
-                                          label: "text-xs",
-                                          value: "text-sm",
-                                        }}
-                                        label="负载策略"
-                                        placeholder="选择策略"
-                                        selectedKeys={[strategy]}
-                                        size="sm"
-                                        variant="bordered"
-                                        onSelectionChange={(keys) => {
-                                          const selectedKey = Array.from(
-                                            keys,
-                                          )[0] as string;
-                                          if (selectedKey) {
-                                            updateChainStrategy(
-                                              groupIndex,
-                                              selectedKey,
-                                            );
-                                          }
-                                        }}
-                                      >
-                                        <SelectItem key="fifo">主备</SelectItem>
-                                        <SelectItem key="round">轮询</SelectItem>
-                                        <SelectItem key="rand">随机</SelectItem>
-                                      </Select>
-                                    </div>
-                                    {/* 连接 IP 和连接端口 - 转发链节点 */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                                      <Input
-                                        description="指定当前级被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
-                                        errorMessage={errors[`chainNodes_${groupIndex}_port`]}
-                                        isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
-                                        label="连接端口"
-                                        placeholder="例：11111,22222"
-                                        size="sm"
-                                        type="text"
-                                        value={formatChainPortsToDisplay(groupNodes)}
-                                        variant="bordered"
-                                        onChange={(e) => {
-                                          applyPortsToChainGroup(groupIndex, e.target.value);
-                                        }}
-                                      />
-                                      <Input
-                                        description="多节点可用逗号分隔，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
-                                        label="连接IP类型"
-                                        placeholder="例：lan,v4,v6"
-                                        size="sm"
-                                        type="text"
-                                        value={formatConnectIpTypesToDisplay(groupNodes)}
-                                        variant="bordered"
-                                        onChange={(e) => {
-                                          applyConnectIpTypesToChainGroup(groupIndex, e.target.value);
-                                        }}
-                                      />
-                                    </div>
-                                    <div className="mt-2 flex justify-end">
-                                      <Button
-                                        color="primary"
-                                        size="sm"
-                                        variant="flat"
-                                        onPress={(e) => {
-                                          e.stopPropagation();
-                                          setForm((prev) => ({
-                                            ...prev,
-                                            chainNodes: [
-                                              ...(prev.chainNodes || []),
-                                              [
-                                                {
-                                                  nodeId: -1,
-                                                  chainType: 2,
-                                                  protocol: "tcp",
-                                                  strategy: "round",
-                                                },
-                                              ],
-                                            ],
-                                          }));
-                                        }}
-                                      >
-                                        再加一跳
-                                      </Button>
-                                    </div>
+                                              )}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                              <Chip
+                                                color={
+                                                  node.status === 1
+                                                    ? "success"
+                                                    : "default"
+                                                }
+                                                size="sm"
+                                                variant="flat"
+                                              >
+                                                {node.status === 1 ? "在线" : "离线"}
+                                              </Chip>
+                                              {form.inNodeId.some(
+                                                (ct) => ct.nodeId === node.id,
+                                              ) && (
+                                                  <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">已选为入口</div>
+                                                )}
+                                              {form.outNodeId &&
+                                                form.outNodeId.some(
+                                                  (ct) => ct.nodeId === node.id,
+                                                ) && (
+                                                  <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-danger-500/10 text-danger-600 dark:text-danger-400">已选为出口</div>
+                                                )}
+                                              {(form.chainNodes || []).some(
+                                                (group, idx) =>
+                                                  idx !== groupIndex &&
+                                                  group.some(
+                                                    (ct) =>
+                                                      ct.nodeId === node.id &&
+                                                      ct.nodeId !== -1,
+                                                  ),
+                                              ) && (
+                                                  <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">已选为其他跳</div>
+                                                )}
+                                            </div>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </Select>
                                   </div>
-                                );
-                              })
-                            ) : (
-                              <div className="text-center py-4 bg-default-50 dark:bg-default-100/50 rounded border border-dashed border-default-300">
-                                <Button
-                                  color="primary"
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={(e) => {
-                                    e.stopPropagation();
-                                    setForm((prev) => ({
-                                      ...prev,
-                                      chainNodes: [
-                                        ...(prev.chainNodes || []),
-                                        [
-                                          {
-                                            nodeId: -1,
-                                            chainType: 2,
-                                            protocol: "tcp",
-                                            strategy: "round",
-                                          },
+                                  {/* 协议选择 - 25% */}
+                                  <Select
+                                    classNames={{
+                                      label: "text-xs",
+                                      value: "text-sm",
+                                    }}
+                                    label="协议"
+                                    placeholder="选择协议"
+                                    selectedKeys={[protocol]}
+                                    size="sm"
+                                    variant="bordered"
+                                    onSelectionChange={(keys) => {
+                                      const selectedKey = Array.from(
+                                        keys,
+                                      )[0] as string;
+                                      if (selectedKey) {
+                                        updateChainProtocol(
+                                          groupIndex,
+                                          selectedKey,
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <SelectItem key="tcp">TCP</SelectItem>
+                                    <SelectItem key="mtcp">MTCP</SelectItem>
+                                    <SelectItem key="tls">TLS</SelectItem>
+                                    <SelectItem key="mtls">MTLS</SelectItem>
+                                    <SelectItem key="wss">WSS</SelectItem>
+                                    <SelectItem key="mwss">MWSS</SelectItem>
+                                  </Select>
+                                  {/* 负载策略 - 25% */}
+                                  <Select
+                                    classNames={{
+                                      label: "text-xs",
+                                      value: "text-sm",
+                                    }}
+                                    label="负载策略"
+                                    placeholder="选择策略"
+                                    selectedKeys={[strategy]}
+                                    size="sm"
+                                    variant="bordered"
+                                    onSelectionChange={(keys) => {
+                                      const selectedKey = Array.from(
+                                        keys,
+                                      )[0] as string;
+                                      if (selectedKey) {
+                                        updateChainStrategy(
+                                          groupIndex,
+                                          selectedKey,
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <SelectItem key="fifo">主备</SelectItem>
+                                    <SelectItem key="round">轮询</SelectItem>
+                                    <SelectItem key="rand">随机</SelectItem>
+                                  </Select>
+                                </div>
+                                {/* 连接 IP 和连接端口 - 转发链节点 */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                                  <Input
+                                    description="指定当前级被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
+                                    errorMessage={errors[`chainNodes_${groupIndex}_port`]}
+                                    isInvalid={!!errors[`chainNodes_${groupIndex}_port`]}
+                                    label="连接端口"
+                                    placeholder="例：11111,22222"
+                                    size="sm"
+                                    type="text"
+                                    // 👇 替换这部分
+                                    value={focusedInputs[`chain_${groupIndex}_port`] ?? formatChainPortsToDisplay(groupNodes)}
+                                    onFocus={() => setFocusedInputs(prev => ({ ...prev, [`chain_${groupIndex}_port`]: formatChainPortsToDisplay(groupNodes) }))}
+                                    onBlur={() => setFocusedInputs(prev => { const next = { ...prev }; delete next[`chain_${groupIndex}_port`]; return next; })}
+                                    variant="bordered"
+                                    onChange={(e) => {
+                                      setFocusedInputs(prev => ({ ...prev, [`chain_${groupIndex}_port`]: e.target.value }));
+                                      applyPortsToChainGroup(groupIndex, e.target.value);
+                                    }}
+                                  />
+                                  <Input
+                                    description="多节点可用逗号分隔，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
+                                    label="连接IP类型"
+                                    placeholder="例：lan,v4,v6"
+                                    size="sm"
+                                    type="text"
+                                    // 👇 替换这部分
+                                    value={focusedInputs[`chain_${groupIndex}_ipType`] ?? formatConnectIpTypesToDisplay(groupNodes)}
+                                    onFocus={() => setFocusedInputs(prev => ({ ...prev, [`chain_${groupIndex}_ipType`]: formatConnectIpTypesToDisplay(groupNodes) }))}
+                                    onBlur={() => setFocusedInputs(prev => { const next = { ...prev }; delete next[`chain_${groupIndex}_ipType`]; return next; })}
+                                    variant="bordered"
+                                    onChange={(e) => {
+                                      setFocusedInputs(prev => ({ ...prev, [`chain_${groupIndex}_ipType`]: e.target.value }));
+                                      applyConnectIpTypesToChainGroup(groupIndex, e.target.value);
+                                    }}
+                                  />
+                                </div>
+                                <div className="mt-2 flex justify-end">
+                                  <Button
+                                    color="primary"
+                                    size="sm"
+                                    variant="flat"
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      setForm((prev) => ({
+                                        ...prev,
+                                        chainNodes: [
+                                          ...(prev.chainNodes || []),
+                                          [
+                                            {
+                                              nodeId: -1,
+                                              chainType: 2,
+                                              protocol: "tcp",
+                                              strategy: "round",
+                                            },
+                                          ],
                                         ],
-                                      ],
-                                    }));
-                                  }}
-                                >
-                                  添加一跳
-                                </Button>
-                                <p className="text-sm text-default-500 mt-4">
-                                  还没有转发链 点击按钮开始添加
-                                </p>
+                                      }));
+                                    }}
+                                  >
+                                    再加一跳
+                                  </Button>
+                                </div>
                               </div>
-                            )}
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-4 bg-default-50 dark:bg-default-100/50 rounded border border-dashed border-default-300">
+                            <Button
+                              color="primary"
+                              size="sm"
+                              variant="flat"
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                setForm((prev) => ({
+                                  ...prev,
+                                  chainNodes: [
+                                    ...(prev.chainNodes || []),
+                                    [
+                                      {
+                                        nodeId: -1,
+                                        chainType: 2,
+                                        protocol: "tcp",
+                                        strategy: "round",
+                                      },
+                                    ],
+                                  ],
+                                }));
+                              }}
+                            >
+                              添加一跳
+                            </Button>
+                            <p className="text-sm text-default-500 mt-4">
+                              还没有转发链 点击按钮开始添加
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
@@ -3012,9 +3014,13 @@ export default function TunnelPage() {
                                 placeholder="例：11111,22222"
                                 size="sm"
                                 type="text"
-                                value={formatOutNodePortsToDisplay()}
+                                // 👇 替换这部分
+                                value={focusedInputs[`out_port`] ?? formatOutNodePortsToDisplay()}
+                                onFocus={() => setFocusedInputs(prev => ({ ...prev, [`out_port`]: formatOutNodePortsToDisplay() }))}
+                                onBlur={() => setFocusedInputs(prev => { const next = { ...prev }; delete next[`out_port`]; return next; })}
                                 variant="bordered"
                                 onChange={(e) => {
+                                  setFocusedInputs(prev => ({ ...prev, [`out_port`]: e.target.value }));
                                   applyPortsToOutNodes(e.target.value);
                                 }}
                               />
@@ -3024,9 +3030,13 @@ export default function TunnelPage() {
                                 placeholder="例：v4,v6,v4"
                                 size="sm"
                                 type="text"
-                                value={formatOutNodeConnectIpTypes()}
+                                // 👇 替换这部分
+                                value={focusedInputs[`out_ipType`] ?? formatOutNodeConnectIpTypes()}
+                                onFocus={() => setFocusedInputs(prev => ({ ...prev, [`out_ipType`]: formatOutNodeConnectIpTypes() }))}
+                                onBlur={() => setFocusedInputs(prev => { const next = { ...prev }; delete next[`out_ipType`]; return next; })}
                                 variant="bordered"
                                 onChange={(e) => {
+                                  setFocusedInputs(prev => ({ ...prev, [`out_ipType`]: e.target.value }));
                                   applyOutNodeConnectIpTypes(e.target.value);
                                 }}
                               />
@@ -3437,10 +3447,10 @@ export default function TunnelPage() {
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           <div className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium ${isDiagnosing ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : isSuccess ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{isDiagnosing
-                                              ? "诊断中"
-                                              : isSuccess
-                                                ? "成功"
-                                                : "失败"}</div>
+                                            ? "诊断中"
+                                            : isSuccess
+                                              ? "成功"
+                                              : "失败"}</div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess ? (
@@ -3588,10 +3598,10 @@ export default function TunnelPage() {
                                         </div>
                                       </div>
                                       <div className={`flex-shrink-0 inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium ${isDiagnosing ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : isSuccess ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{isDiagnosing
-                                          ? "诊断中"
-                                          : isSuccess
-                                            ? "成功"
-                                            : "失败"}</div>
+                                        ? "诊断中"
+                                        : isSuccess
+                                          ? "成功"
+                                          : "失败"}</div>
                                     </div>
                                     {isSuccess ? (
                                       <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-divider">

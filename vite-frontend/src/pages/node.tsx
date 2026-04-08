@@ -1160,7 +1160,7 @@ export default function NodePage() {
     nodeId?: number,
   ) => {
     // 获取 ghfast_url 配置
-    const configRes = await getConfigByName('ghfast_url');
+    const configRes = await getConfigByName('global_download_url');
     if (configRes.code === 0 && configRes.data?.value) {
       setGhfastURL(configRes.data.value);
     } else {
@@ -2336,7 +2336,7 @@ export default function NodePage() {
                   variant="flat"
                   onPress={() => openUpgradeModal("batch")}
                 >
-                  批量更新
+                  更新
                 </Button>
                 <Button
                   color="secondary"
@@ -2354,7 +2354,7 @@ export default function NodePage() {
                   variant="flat"
                   onPress={() => setBatchResetTrafficModalOpen(true)}
                 >
-                  重置流量
+                  重置
                 </Button>
                 <Button
                   color="danger"
@@ -3276,18 +3276,18 @@ export default function NodePage() {
                 </Button>
               </div>
               <div className="text-xs text-default-500">
-                💡 提示：请3击或拖拽鼠标选择上方完整文本进行手动复制
+                💡 提示：如果自动复制失败请3击或拖拽鼠标选择上方完整文本进行手动复制
               </div>
             </div>
           </ModalBody>
-          <ModalFooter>
+          {/* <ModalFooter>
             <Button
               variant="flat"
               onPress={() => setInstallCommandModal(false)}
             >
               关闭
             </Button>
-          </ModalFooter>
+          </ModalFooter> */}
         </ModalContent>
       </Modal>
       {/* 版本选择升级模态框 */}
@@ -3609,7 +3609,7 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-      {/* 离线部署弹窗 */}
+      {/* 离线部署模态框 */}
       <Modal
         isOpen={offlineModalOpen}
         size="lg"
@@ -3690,9 +3690,9 @@ export default function NodePage() {
               color="warning"
             />
           </ModalBody>
-          <ModalFooter>
+          {/* <ModalFooter>
             <Button onPress={() => setOfflineModalOpen(false)}>知道了</Button>
-          </ModalFooter>
+          </ModalFooter> */}
         </ModalContent>
       </Modal>
       <Modal
