@@ -102,16 +102,16 @@ export const getNodeInstallCommand = (
 ) => Network.post<string>("/node/install", { id, channel });
 export const getNodeInstallCommandDomestic = (
   id: number,
-  channel: ReleaseChannel = "stable",
-) => Network.post<string>("/node/install-domestic", { id, channel });
+  channel?: ReleaseChannel,
+) => Network.post<string>("/node/install-domestic", { id, channel: channel || "" });
 export const getNodeInstallCommandOverseas = (
   id: number,
-  channel: ReleaseChannel = "stable",
-) => Network.post<string>("/node/install-overseas", { id, channel });
+  channel?: ReleaseChannel,
+) => Network.post<string>("/node/install-overseas", { id, channel: channel || "" });
 export const getNodeInstallCommandAlternative = (
   id: number,
-  channel: ReleaseChannel = "stable",
-) => Network.post<string>("/node/install-alternative", { id, channel });
+  channel?: ReleaseChannel,
+) => Network.post<string>("/node/install-alternative", { id, channel: channel || "" });
 export const getNodeInstallCommandOffline = (id: number) =>
   Network.post<OfflineDeployPayload>("/node/install-offline", { id });
 export const updateNodeOrder = (data: {

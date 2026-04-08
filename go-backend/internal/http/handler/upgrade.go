@@ -102,6 +102,21 @@ func resolveLatestReleaseByChannel(channel string) (string, error) {
 		return "", err
 	}
 
+	// 如果 channel 为空，返回第一个非 draft 的 release（最新版本）
+	if normalizedChannel == "" {
+		for _, r := range releases {
+			if r.Draft {
+				continue
+			}
+			tag := strings.TrimSpace(r.TagName)
+			if tag != "" {
+				return tag, nil
+			}
+		}
+		return "", fmt.Errorf("未找到版本号")
+	}
+
+	// 否则按通道查找
 	for _, r := range releases {
 		if r.Draft {
 			continue
