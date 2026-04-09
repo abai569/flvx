@@ -152,6 +152,52 @@ const EMPTY_BATCH_RESULT_MODAL_STATE: BatchResultModalState = {
   summary: "",
   title: "",
 };
+const SortableListRowItem = ({ id, children }: { id: number; children: (props: any) => any }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    const style: React.CSSProperties = {
+      transform: transform ? CSS.Transform.toString({ ...transform, x: 0, y: Math.round(transform.y) }) : undefined,
+      transition: isDragging ? undefined : transition || undefined,
+      opacity: isDragging ? 0.9 : 1,
+      zIndex: isDragging ? 50 : 1,
+      position: isDragging ? "relative" : undefined,
+      backgroundColor: isDragging ? "var(--heroui-content2)" : undefined,
+      boxShadow: isDragging ? "0 10px 15px -3px rgba(0, 0, 0, 0.1)" : undefined,
+    };
+    return children({ setNodeRef, style, attributes, listeners });
+  };
+  const SortableItem = ({
+    id,
+    children,
+  }: {
+    id: number;
+    children: (listeners: any) => any;
+  }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id });
+    const style: React.CSSProperties = {
+      transform: transform
+        ? CSS.Transform.toString({
+          ...transform,
+          x: Math.round(transform.x),
+          y: Math.round(transform.y),
+        })
+        : undefined,
+      transition: isDragging ? undefined : transition || undefined,
+      opacity: isDragging ? 0.5 : 1,
+      willChange: isDragging ? "transform" : undefined,
+    };
+    return (
+      <div ref={setNodeRef} style={style} {...attributes}>
+        {children(listeners)}
+      </div>
+    );
+  };
 const DEFAULT_TUNNEL_DELETE_ACTION: TunnelDeleteAction = "replace";
 const TUNNEL_ORDER_KEY = "tunnel-order";
 const TUNNEL_VIEW_MODE_KEY = "tunnel_view_mode";
@@ -875,12 +921,33 @@ export default function TunnelPage() {
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
         setModalOpen(false);
-        setTimeout(() => {
-          refreshTunnelList(false).then(() => {
-            // 恢复滚动位置
-            window.scrollTo(0, scrollY);
-          });
-        }, 300);
+        if (isEdit) {
+          // 乐观更新：直接修改本地状态，不触发整个列表的重绘
+          setTunnels((prev) =>
+            prev.map((t) =>
+              t.id === form.id
+                ? {
+                    ...t,
+                    name: form.name,
+                    type: form.type,
+                    inNodeId: form.inNodeId,
+                    outNodeId: cleanedOutNodeId,
+                    chainNodes: cleanedChainNodes,
+                    flow: form.flow,
+                    trafficRatio: form.trafficRatio,
+                    inIp: inIpString,
+                    ipPreference: form.ipPreference,
+                    tunnelGroupId: form.tunnelGroupId,
+                    remark: form.remark,
+                  }
+                : t,
+            ),
+          );
+        } else {
+          // 新增时才需要刷新以获取新分配的 ID
+          refreshTunnelList(false);
+        }
+        
       } else {
         toast.error(response.msg || (isEdit ? "更新失败" : "创建失败"));
       }
@@ -1220,12 +1287,12 @@ export default function TunnelPage() {
         } else {
           setSelectedIds(new Set());
         }
+        setTunnels((prev) => prev.filter((t) => !selectedTunnelIdList.includes(t.id)));
         setBatchProgress({
           active: true,
-          label: `删除完成：成功 ${result.successCount} 项，正在刷新列表...`,
+          label: `删除完成：成功 ${result.successCount} 项`,
           percent: 100,
         });
-        await refreshTunnelList(false);
       } else {
         toast.error(res.msg || "删除失败");
       }
@@ -1275,10 +1342,9 @@ export default function TunnelPage() {
         }
         setBatchProgress({
           active: true,
-          label: `重新下发完成：成功 ${result.successCount} 项，正在刷新列表...`,
+          label: `重新下发完成：成功 ${result.successCount} 项`,
           percent: 100,
         });
-        await refreshTunnelList(false);
       } else {
         toast.error(res.msg || "下发失败");
       }
@@ -1289,7 +1355,7 @@ export default function TunnelPage() {
       setBatchProgress({ active: false, label: "", percent: 0 });
     }
   };
-  // 传感器配置 - 修改 TouchSensor 配置
+  // 传感器配置
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {
@@ -1300,11 +1366,6 @@ export default function TunnelPage() {
       activationConstraint: {
         delay: 250,
         tolerance: 8,
-      },
-      // 添加 onActivation 配置
-      onActivation: ({ event }) => {
-        // 阻止默认行为，防止页面滚动
-        event.preventDefault();
       },
     }),
     useSensor(KeyboardSensor, {
@@ -1498,71 +1559,7 @@ export default function TunnelPage() {
       ? `迁移规则后删除这 ${selectedTunnelIdList.length} 条隧道`
       : `删除规则并删除 ${selectedTunnelIdList.length} 条隧道`
     : `删除这 ${selectedTunnelIdList.length} 条隧道`;
-  const SortableListRowItem = ({ id, children }: { id: number; children: (props: any) => any }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-    const style: React.CSSProperties = {
-      transform: transform ? CSS.Transform.toString({ ...transform, x: 0, y: Math.round(transform.y) }) : undefined,
-      transition: isDragging ? undefined : transition || undefined,
-      opacity: isDragging ? 0.9 : 1,
-      zIndex: isDragging ? 50 : 1,
-      position: isDragging ? "relative" : undefined,
-      backgroundColor: isDragging ? "var(--heroui-content2)" : undefined,
-      boxShadow: isDragging ? "0 10px 15px -3px rgba(0, 0, 0, 0.1)" : undefined,
-    };
-    return children({ setNodeRef, style, attributes, listeners });
-  };
-
-  const SortableItem = ({
-    id,
-    children,
-  }: {
-    id: number;
-    children: (listeners: any, setDragHandleRef: (el: HTMLElement | null) => void) => any;
-  }) => {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id });
-
-    const dragHandleRef = useRef<HTMLElement | null>(null);
-
-    const style: React.CSSProperties = {
-      transform: transform
-        ? CSS.Transform.toString({
-          ...transform,
-          x: Math.round(transform.x),
-          y: Math.round(transform.y),
-        })
-        : undefined,
-      transition: isDragging ? undefined : transition || undefined,
-      opacity: isDragging ? 0.5 : 1,
-      willChange: isDragging ? "transform" : undefined,
-    };
-
-    // 自定义拖拽手柄 ref 设置器
-    const setDragHandleRef = useCallback((el: HTMLElement | null) => {
-      dragHandleRef.current = el;
-    }, []);
-
-    // 阻止按钮点击事件冒泡到拖拽元素
-    const handleClick = useCallback((e: React.MouseEvent) => {
-      // 如果点击的是按钮或其子元素，阻止事件继续传播
-      const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('[role="button"]')) {
-        e.stopPropagation();
-      }
-    }, []);
-
-    return (
-      <div ref={setNodeRef} style={style} {...attributes} onClick={handleClick}>
-        {children(listeners, setDragHandleRef)}
-      </div>
-    );
-  };
+  
   if (loading) {
     return <PageLoadingState message="正在加载..." />;
   }
@@ -1700,383 +1697,185 @@ export default function TunnelPage() {
       {/* 隧道列表 */}
       {tunnels.length > 0 ? (
         viewMode === "list" ? (
-          // 替换卡片视图部分
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <SortableContext
-              items={sortableTunnelIds}
-              strategy={rectSortingStrategy}
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                {sortedTunnels.map((tunnel) => {
-                  const typeDisplay = getTunnelTypeDisplay(tunnel.type);
-                  const tunnelTypeChipClassName =
-                    tunnel.type === 1
-                      ? "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400"
-                      : "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-success-500/10 text-success-600 dark:text-success-400";
-                  return (
-                    <SortableItem key={tunnel.id} id={tunnel.id}>
-                      {(listeners, setDragHandleRef) => (
-                        <Card
-                          key={tunnel.id}
-                          className={`group shadow-sm border border-divider transition-shadow duration-200 overflow-hidden h-full cursor-pointer ${
-                            selectedIds.has(tunnel.id)
-                              ? "bg-primary-50 dark:bg-primary-900/30 shadow-md"
-                              : "hover:shadow-md"
-                          }`}
-                          onClick={() => {
-                            const newSet = new Set(selectedIds);
-                            newSet.add(tunnel.id);
-                            setSelectedIds(newSet);
+            <SortableContext items={sortableTunnelIds} strategy={verticalListSortingStrategy}>
+              <div className="overflow-x-auto rounded-xl border border-divider bg-content1 shadow-md">
+                <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
+                  <thead className="bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider uppercase tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4 w-[56px] text-center align-middle">
+                        <div className="flex items-center justify-center h-full">
+                          <Checkbox
+                            isSelected={isAllTunnelsSelected}
+                            onValueChange={handleSelectAllTunnelsToggle}
+                            aria-label="全选"
+                          />
+                        </div>
+                      </th>
+                      <th className="py-3 px-4 w-[56px] text-center align-middle">排序</th>
+                      <th className="py-3 px-4 w-[200px] align-middle">隧道名称</th>
+                      {/* <th className="py-3 px-4 w-[120px] align-middle">分组名</th> */}
+                      <th className="py-3 px-4 w-[140px] align-middle">
+                        <Select
+                          aria-label="按分组筛选"
+                          variant="flat"
+                          size="sm"
+                          className="w-full min-w-[100px]"
+                          classNames={{
+                            trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                            value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                            selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                            innerWrapper: "w-fit flex-none",
+                          }}
+                          placeholder="隧道分组"
+                          selectedKeys={filterGroupId === null ? [] : [filterGroupId === -1 ? "-1" : String(filterGroupId)]}
+                          onSelectionChange={(keys) => {
+                            const selected = Array.from(keys)[0] as string | undefined;
+                            if (!selected || selected === "all") {
+                              setFilterGroupId(null);
+                            } else if (selected === "-1") {
+                              setFilterGroupId(-1);
+                            } else {
+                              setFilterGroupId(parseInt(selected));
+                            }
                           }}
                         >
-                          <CardHeader className="pb-0 md:pb-0">
-                            {/* 顶部工具栏：选择框 + 拖拽手柄 */}
-                            <div className="flex justify-between items-center w-full mb-2">
-                              <Checkbox
-                                isSelected={selectedIds.has(tunnel.id)}
-                                onValueChange={(checked) => {
-                                  if (checked) {
-                                    toggleSelect(tunnel.id);
-                                  }
-                                }}
-                                aria-label="选择"
-                                onTouchStart={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                }}
-                              />
-                              {/* 拖拽手柄 - 仅此区域可拖拽 */}
-                              <div
-                                ref={(el) => {
-                                  // 同时设置拖拽手柄 ref 和 dnd-kit 的 setNodeRef
-                                  if (el) {
-                                    setDragHandleRef(el);
-                                    // 手动应用 listeners 到手柄元素
-                                    const { onPointerDown, onPointerUp, onPointerMove, onPointerCancel, onPointerEnter, onPointerLeave, onMouseDown, onTouchStart, onKeyDown, ...otherListeners } = listeners;
-
-                                    // 存储原始事件处理器以便清理
-                                    if (!(el as any)._dndListeners) {
-                                      (el as any)._dndListeners = {};
-                                    }
-
-                                    // 清理旧的事件监听器
-                                    const oldListeners = (el as any)._dndListeners;
-                                    if (oldListeners.onPointerDown) el.removeEventListener('pointerdown', oldListeners.onPointerDown);
-                                    if (oldListeners.onPointerUp) el.removeEventListener('pointerup', oldListeners.onPointerUp);
-                                    if (oldListeners.onPointerMove) el.removeEventListener('pointermove', oldListeners.onPointerMove);
-                                    if (oldListeners.onPointerCancel) el.removeEventListener('pointercancel', oldListeners.onPointerCancel);
-                                    if (oldListeners.onPointerEnter) el.removeEventListener('pointerenter', oldListeners.onPointerEnter);
-                                    if (oldListeners.onPointerLeave) el.removeEventListener('pointerleave', oldListeners.onPointerLeave);
-                                    if (oldListeners.onMouseDown) el.removeEventListener('mousedown', oldListeners.onMouseDown);
-                                    if (oldListeners.onTouchStart) el.removeEventListener('touchstart', oldListeners.onTouchStart);
-                                    if (oldListeners.onKeyDown) el.removeEventListener('keydown', oldListeners.onKeyDown);
-
-                                    // 添加新的事件监听器
-                                    const wrappedListeners = {
-                                      onPointerDown: (e: PointerEvent) => {
-                                        e.preventDefault();
-                                        onPointerDown?.(e as any);
-                                      },
-                                      onPointerUp: (e: PointerEvent) => onPointerUp?.(e as any),
-                                      onPointerMove: (e: PointerEvent) => onPointerMove?.(e as any),
-                                      onPointerCancel: (e: PointerEvent) => onPointerCancel?.(e as any),
-                                      onPointerEnter: (e: PointerEvent) => onPointerEnter?.(e as any),
-                                      onPointerLeave: (e: PointerEvent) => onPointerLeave?.(e as any),
-                                      onMouseDown: (e: MouseEvent) => onMouseDown?.(e as any),
-                                      onTouchStart: (e: TouchEvent) => {
-                                        e.preventDefault();
-                                        onTouchStart?.(e as any);
-                                      },
-                                      onKeyDown: (e: KeyboardEvent) => onKeyDown?.(e as any),
-                                    };
-
-                                    el.addEventListener('pointerdown', wrappedListeners.onPointerDown);
-                                    el.addEventListener('pointerup', wrappedListeners.onPointerUp);
-                                    el.addEventListener('pointermove', wrappedListeners.onPointerMove);
-                                    el.addEventListener('pointercancel', wrappedListeners.onPointerCancel);
-                                    el.addEventListener('pointerenter', wrappedListeners.onPointerEnter);
-                                    el.addEventListener('pointerleave', wrappedListeners.onPointerLeave);
-                                    el.addEventListener('mousedown', wrappedListeners.onMouseDown);
-                                    el.addEventListener('touchstart', wrappedListeners.onTouchStart);
-                                    el.addEventListener('keydown', wrappedListeners.onKeyDown);
-
-                                    (el as any)._dndListeners = wrappedListeners;
-                                  }
-                                }}
-                                className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
-                                style={{ touchAction: "none" }}
-                                title="拖拽排序"
-                              >
-                                <svg
-                                  aria-hidden="true"
-                                  className="w-4 h-4"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
-                                </svg>
+                          <SelectItem key="all" textValue="全部分组">全部分组</SelectItem>
+                          <SelectItem key="-1" textValue="未分组">未分组</SelectItem>
+                          {tunnelGroupsNew.map((group) => (
+                            <SelectItem key={String(group.id)} textValue={group.name}>
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: group.color }}
+                                />
+                                <span>{group.name}</span>
+                                <span className="text-default-400 text-xs ml-auto">{group.tunnelCount}</span>
                               </div>
-                            </div>
-                            {/* 隧道名称和类型 */}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-foreground truncate text-sm">
-                                {tunnel.name}
-                              </h3>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <div className={tunnelTypeChipClassName}>{typeDisplay.text}</div>
+                            </SelectItem>
+                          ))}
+                        </Select>
+                      </th>
+                      <th className="py-3 px-4 w-[100px] align-middle">类型</th>
+                      <th className="py-3 px-4 w-[100px] text-center align-middle">入口</th>
+                      <th className="py-3 px-4 w-[80px] text-center align-middle">跳数</th>
+                      <th className="py-3 px-4 w-[100px] text-center align-middle">出口</th>
+                      <th className="py-3 px-4 w-[100px] text-center align-middle">流量</th>
+                      <th className="py-3 px-4 w-[80px] text-center align-middle">倍率</th>
+                      <th className="py-3 px-4 w-[80px] text-center align-middle">偏好</th>
+                      <th className="py-3 px-4 w-[150px] align-middle">备注</th>
+                      <th className="py-3 px-4 w-[280px] align-middle">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedTunnels.map((tunnel) => {
+                      const typeDisplay = getTunnelTypeDisplay(tunnel.type);
+                      const inCount = tunnel.inNodeId?.length || 0;
+                      const outCount = tunnel.outNodeId?.length || 0;
+                      const chainCount = tunnel.chainNodes?.length || 0;
+                      return (
+                        <SortableListRowItem key={tunnel.id} id={tunnel.id}>
+                          {({ setNodeRef, style, attributes, listeners }) => (
+                            <tr
+                              ref={setNodeRef}
+                              style={style}
+                              className={`cursor-pointer transition-colors border-b border-divider/50 last:border-b-0 hover:bg-default-50/50 ${selectedTunnelIds.has(tunnel.id) ? "bg-primary-50 dark:bg-primary-900/30" : ""}`}
+                            >
+                              <td className="py-3 px-4 text-center align-middle">
+                                <div className="flex items-center justify-center h-full">
+                                  <Checkbox
+                                    isSelected={selectedTunnelIds.has(tunnel.id)}
+                                    onValueChange={(isSelected) => {
+                                      if (isSelected) {
+                                        setSelectedTunnelIds(prev => new Set(prev).add(tunnel.id));
+                                      } else {
+                                        setSelectedTunnelIds(prev => {
+                                          const next = new Set(prev);
+                                          next.delete(tunnel.id);
+                                          return next;
+                                        });
+                                      }
+                                    }}
+                                    aria-label="选择"
+                                  />
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-center align-middle">
+                                <div
+                                  {...attributes}
+                                  {...listeners}
+                                  className="cursor-grab active:cursor-grabbing inline-flex p-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation"
+                                  style={{ touchAction: "none" }}
+                                >
+                                  <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+                                  </svg>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 align-middle">
+                                <span className="font-medium text-foreground truncate">{tunnel.name}</span>
+                              </td>
+                              <td className="py-3 px-4 align-middle">
                                 {tunnel.tunnelGroupId && tunnel.tunnelGroupId > 0 ? (
                                   (() => {
                                     const group = tunnelGroupsNew.find(g => g.id === tunnel.tunnelGroupId);
                                     return group ? (
                                       <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: `${group.color}1A`, color: group.color }}>{group.name}</div>
-                                    ) : null;
+                                    ) : (
+                                      <div className="inline-flex items-center justify-center bg-default-500/10 text-default-500 px-2 py-0.5 rounded text-xs font-medium">未分组</div>
+                                    );
                                   })()
-                                ) : null}
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
-                            <div className="space-y-3">
-                              {/* 拓扑结构 */}
-                              <div className="pt-2 border-t border-divider">
-                                <div className="flex items-center justify-center gap-2 text-xs">
-                                  {/* 入口节点 */}
-                                  <div className="flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
-                                    <svg
-                                      aria-hidden="true"
-                                      className="w-3 h-3 text-primary-600"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        clipRule="evenodd"
-                                        d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2v8h10V6H5z"
-                                        fillRule="evenodd"
-                                      />
-                                    </svg>
-                                    <span className="font-semibold text-primary-700 dark:text-primary-400">
-                                      {tunnel.inNodeId?.length || 0}入口
-                                    </span>
-                                  </div>
-                                  {/* 箭头 */}
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-4 h-4 text-default-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      d="M9 5l7 7-7 7"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                    />
-                                  </svg>
-                                  {/* 转发链 */}
-                                  <div className="flex items-center gap-1 px-2 py-1 bg-secondary-50 dark:bg-secondary-100/20 rounded border border-secondary-200 dark:border-secondary-300/20">
-                                    <svg
-                                      aria-hidden="true"
-                                      className="w-3 h-3 text-secondary-600"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        clipRule="evenodd"
-                                        d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
-                                        fillRule="evenodd"
-                                      />
-                                    </svg>
-                                    <span className="font-semibold text-secondary-700 dark:text-secondary-400">
-                                      {tunnel.type === 2
-                                        ? tunnel.chainNodes?.length || 0
-                                        : 0}
-                                      跳
-                                    </span>
-                                  </div>
-                                  {/* 箭头 */}
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-4 h-4 text-default-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      d="M9 5l7 7-7 7"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                    />
-                                  </svg>
-                                  {/* 出口节点 */}
-                                  <div className="flex items-center gap-1 px-2 py-1 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
-                                    <svg
-                                      aria-hidden="true"
-                                      className="w-3 h-3 text-success-600"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        clipRule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z"
-                                        fillRule="evenodd"
-                                      />
-                                    </svg>
-                                    <span className="font-semibold text-success-700 dark:text-success-400">
-                                      {tunnel.type === 2
-                                        ? tunnel.outNodeId?.length || 0
-                                        : tunnel.inNodeId?.length || 0}
-                                      出口
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              {/* 流量配置 */}
-                              <div
-                                className={`grid gap-2 ${tunnel.type === 2 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}
-                              >
-                                <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
-                                  <div className="text-xs text-default-500">
-                                    流量计算
-                                  </div>
-                                  <div className="text-sm font-semibold text-foreground mt-0.5">
-                                    {getTunnelFlowDisplay(tunnel.flow)}
-                                  </div>
-                                </div>
-                                <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
-                                  <div className="text-xs text-default-500">
-                                    流量倍率
-                                  </div>
-                                  <div className="text-sm font-semibold text-foreground mt-0.5">
-                                    {tunnel.trafficRatio}x
-                                  </div>
-                                </div>
-                                {tunnel.type === 2 && tunnel.ipPreference && (
-                                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
-                                    <div className="text-xs text-default-500">
-                                      连接偏好
-                                    </div>
-                                    <div className="text-sm font-semibold text-foreground mt-0.5">
-                                      {tunnel.ipPreference === "v4"
-                                        ? "IPv4"
-                                        : "IPv6"}
-                                    </div>
-                                  </div>
+                                ) : (
+                                  <div className="inline-flex items-center justify-center bg-default-500/10 text-default-500 px-2 py-0.5 rounded text-xs font-medium">未分组</div>
                                 )}
-                              </div>
-                            </div>
-                            {/* 操作按钮 - 添加阻止冒泡 */}
-                            <div className="flex gap-1.5 mt-3">
-                              <Button
-                                className="flex-1 min-h-8"
-                                color="primary"
-                                size="sm"
-                                startContent={
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-3 h-3"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
+                              </td>
+                              <td className="py-3 px-4 align-middle">
+                                <div className={typeDisplay.color === "primary" ? "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400" : "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-success-500/10 text-success-600 dark:text-success-400"}>{typeDisplay.text}</div>
+                              </td>
+                              <td className="py-3 px-4 text-center align-middle">
+                                <span className="font-medium text-foreground">{inCount}个</span>
+                              </td>
+                              <td className="py-3 px-4 text-center align-middle">
+                                <span className="font-medium text-foreground">{chainCount}跳</span>
+                              </td>
+                              <td className="py-3 px-4 text-center align-middle">
+                                <span className="font-medium text-foreground">{outCount}个</span>
+                              </td>
+                              <td className="py-3 px-4 text-center align-middle">
+                                <span className="font-medium text-foreground">{getTunnelFlowDisplay(tunnel.flow)}</span>
+                              </td>
+                              <td className="py-3 px-4 text-center align-middle">
+                                <span className="font-medium text-foreground">{tunnel.trafficRatio}x</span>
+                              </td>
+                              <td className="py-3 px-4 text-center align-middle">
+                                <span className="font-medium text-foreground">{tunnel.ipPreference === "v6" ? "IPv6" : "IPv4"}</span>
+                              </td>
+                              <td className="py-3 px-4 align-middle">
+                                {tunnel.remark ? (
+                                  <div
+                                    className="text-sm text-default-600 truncate max-w-[140px]"
+                                    title={tunnel.remark}
                                   >
-                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                  </svg>
-                                }
-                                variant="flat"
-                                onPress={() => handleEdit(tunnel)}
-                                // 阻止触摸事件冒泡到拖拽元素
-                                onTouchStart={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                }}
-                              >
-                                编辑
-                              </Button>
-                              <Button
-                                className="flex-1 min-h-8"
-                                color="warning"
-                                size="sm"
-                                startContent={
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-3 h-3"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      clipRule="evenodd"
-                                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                      fillRule="evenodd"
-                                    />
-                                  </svg>
-                                }
-                                variant="flat"
-                                onPress={() => handleDiagnose(tunnel)}
-                                // ========== 添加这两行 ==========
-                                onTouchStart={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                }}
-                              // ================================
-                              >
-                                诊断
-                              </Button>
-                              <Button
-                                className="flex-1 min-h-8"
-                                color="danger"
-                                size="sm"
-                                startContent={
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-3 h-3"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      clipRule="evenodd"
-                                      d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"
-                                      fillRule="evenodd"
-                                    />
-                                    <path
-                                      clipRule="evenodd"
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z"
-                                      fillRule="evenodd"
-                                    />
-                                  </svg>
-                                }
-                                variant="flat"
-                                onPress={() => handleDelete(tunnel)}
-                                onTouchStart={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                }}
-                              >
-                                删除
-                              </Button>
-                            </div>
-                            {/* 备注 */}
-                            {tunnel.remark && (
-                              <div className="mt-2 pt-2 border-t border-divider">
-                                <div className="flex items-center text-xs text-default-500">
-                                  <span className="font-medium text-red-500 flex-shrink-0">备注：</span>
-                                  <span className="truncate ml-1">{tunnel.remark}</span>
+                                    {tunnel.remark}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-default-400">-</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 align-middle">
+                                <div className="flex gap-1.5">
+                                  <Button className="min-h-7 min-w-[64px]" color="primary" size="sm" variant="flat" onPress={() => handleEdit(tunnel)}>编辑</Button>
+                                  <Button className="min-h-7 min-w-[64px]" color="secondary" size="sm" variant="flat" onPress={() => handleDiagnose(tunnel)}>诊断</Button>
+                                  <Button className="min-h-7 min-w-[64px]" color="danger" size="sm" variant="flat" onPress={() => handleDelete(tunnel)}>删除</Button>
                                 </div>
-                              </div>
-                            )}
-                          </CardBody>
-                        </Card>
-                      )}
-                    </SortableItem>
-                  );
-                })}
+                              </td>
+                            </tr>
+                          )}
+                        </SortableListRowItem>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </SortableContext>
           </DndContext>
@@ -2098,34 +1897,15 @@ export default function TunnelPage() {
                       {(listeners) => (
                         <Card
                           key={tunnel.id}
-                          className={`group shadow-sm border border-divider transition-shadow duration-200 overflow-hidden h-full cursor-pointer ${
-                            selectedIds.has(tunnel.id)
-                              ? "bg-primary-50 dark:bg-primary-900/30 shadow-md"
-                              : "hover:shadow-md"
-                          }`}
-                          onClick={() => {
-                            const newSet = new Set(selectedIds);
-                            newSet.add(tunnel.id);
-                            setSelectedIds(newSet);
-                          }}
+                          className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full"
                         >
                           <CardHeader className="pb-0 md:pb-0">
                             {/* 顶部工具栏：选择框 + 拖拽 */}
                             <div className="flex justify-between items-center w-full mb-2">
                               <Checkbox
                                 isSelected={selectedIds.has(tunnel.id)}
-                                onValueChange={(checked) => {
-                                  if (checked) {
-                                    toggleSelect(tunnel.id);
-                                  }
-                                }}
+                                onValueChange={() => toggleSelect(tunnel.id)}
                                 aria-label="选择"
-                                onTouchStart={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                }}
                               />
                               <div
                                 className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
@@ -2332,14 +2112,6 @@ export default function TunnelPage() {
                                 }
                                 variant="flat"
                                 onPress={() => handleDiagnose(tunnel)}
-                                // ========== 添加这两行 ==========
-                                onTouchStart={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                }}
-                              // ================================
                               >
                                 诊断
                               </Button>
@@ -2368,12 +2140,6 @@ export default function TunnelPage() {
                                 }
                                 variant="flat"
                                 onPress={() => handleDelete(tunnel)}
-                                onTouchStart={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                }}
                               >
                                 删除
                               </Button>
@@ -2419,7 +2185,7 @@ export default function TunnelPage() {
         }}
         isOpen={modalOpen}
         placement="center"
-        scrollBehavior="inside"
+        scrollBehavior="outside"
         size="xl"
         onOpenChange={setModalOpen}
       >
@@ -3339,7 +3105,7 @@ export default function TunnelPage() {
         }}
         isOpen={deleteModalOpen}
         placement="center"
-        scrollBehavior="inside"
+        scrollBehavior="outside"
         size="xl"
         onOpenChange={handleDeleteModalOpenChange}
       >
@@ -3502,7 +3268,7 @@ export default function TunnelPage() {
         }}
         isOpen={diagnosisModalOpen}
         placement="center"
-        scrollBehavior="inside"
+        scrollBehavior="outside"
         size="2xl"
         onOpenChange={(open) => {
           setDiagnosisModalOpen(open);
