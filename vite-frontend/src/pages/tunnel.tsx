@@ -1725,8 +1725,18 @@ export default function TunnelPage() {
                             <div className="flex justify-between items-center w-full mb-2">
                               <Checkbox
                                 isSelected={selectedIds.has(tunnel.id)}
-                                onValueChange={() => toggleSelect(tunnel.id)}
+                                onValueChange={(checked) => {
+                                  if (checked) {
+                                    toggleSelect(tunnel.id);
+                                  }
+                                }}
                                 aria-label="选择"
+                                onTouchStart={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                onPointerDown={(e) => {
+                                  e.stopPropagation();
+                                }}
                               />
                               {/* 拖拽手柄 - 仅此区域可拖拽 */}
                               <div
@@ -2086,8 +2096,18 @@ export default function TunnelPage() {
                             <div className="flex justify-between items-center w-full mb-2">
                               <Checkbox
                                 isSelected={selectedIds.has(tunnel.id)}
-                                onValueChange={() => toggleSelect(tunnel.id)}
+                                onValueChange={(checked) => {
+                                  if (checked) {
+                                    toggleSelect(tunnel.id);
+                                  }
+                                }}
                                 aria-label="选择"
+                                onTouchStart={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                onPointerDown={(e) => {
+                                  e.stopPropagation();
+                                }}
                               />
                               <div
                                 className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
