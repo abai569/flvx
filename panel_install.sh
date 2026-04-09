@@ -438,6 +438,14 @@ EOF
 # 更新功能
 update_panel() {
   echo "🔄 开始更新面板..."
+  # 切换到安装目录
+  INSTALL_DIR="/opt/flux_panel"
+  if [[ ! -d "$INSTALL_DIR" ]]; then
+    echo "❌ 安装目录不存在：$INSTALL_DIR"
+    return 1
+  fi
+  cd "$INSTALL_DIR"
+  
   check_docker
 
   if [[ ! -f ".env" ]]; then

@@ -2234,7 +2234,6 @@ export default function NodePage() {
                   </Button>
                 </>
               )}
-              {/* 第 4 个格子：删除 (如果是远程节点，它会自动变成占满 1 整行) */}
               <Button
                 className="min-h-8 w-full"
                 color="danger"
@@ -2265,7 +2264,7 @@ export default function NodePage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="mb-6 space-y-3">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {/* <div className="flex items-center gap-2 overflow-x-auto pb-1">
           <Button
             className={`shrink-0 text-white font-medium ${activeTab === "local" ? "" : "bg-default-400 hover:bg-default-500"}`}
             color={activeTab === "local" ? "primary" : "default"}
@@ -2286,7 +2285,7 @@ export default function NodePage() {
             远程节点
             <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-black/10 dark:bg-white/20 px-1.5 py-0.5 rounded text-[11px] font-medium">{remoteNodes.length}</div>
           </Button>
-        </div>
+        </div> */}
         <div className="flex flex-row items-center justify-between gap-3 overflow-x-auto pb-1">
           <div
             className={`flex-1 max-w-sm flex items-center gap-2 shrink-0 ${isSearchVisible ? "min-w-[200px]" : "min-w-0"
