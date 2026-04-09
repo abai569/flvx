@@ -98,6 +98,7 @@ type SystemInfo struct {
 	UDPConns           int64          `json:"udp_conns"`
 	NetInSpeed         int64          `json:"net_in_speed"`
 	NetOutSpeed        int64          `json:"net_out_speed"`
+	ServiceName        string         `json:"service_name,omitempty"`
 	ServiceConnections map[string]int `json:"serviceConnections"`
 }
 
@@ -321,6 +322,10 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 						s.mu.Lock()
 						s.serviceConnections[nodeID] = sysInfo.ServiceConnections
 						s.serviceConnUpdateTime[nodeID] = time.Now().Unix()
+						// 更新 service_name
+						if sysInfo.ServiceName != "" {
+							_ = s.repo.UpdateNodeServiceName(nodeID, sysInfo.ServiceName)
+						}
 						s.mu.Unlock()
 
 						s.mu.RLock()

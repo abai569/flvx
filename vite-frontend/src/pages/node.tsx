@@ -416,6 +416,7 @@ export default function NodePage() {
   }, [infoPopoverOpenId]);
   const [installCommandModal, setInstallCommandModal] = useState(false);
   const [installCommand, setInstallCommand] = useState("");
+  const [installServiceName, setInstallServiceName] = useState("flux_agent");
   const [currentNodeName, setCurrentNodeName] = useState("");
   const [installSelectorOpen, setInstallSelectorOpen] = useState(false);
   const [installTargetNode, setInstallTargetNode] = useState<Node | null>(null);
@@ -1014,6 +1015,7 @@ export default function NodePage() {
     try {
       const res = await getNodeInstallCommand(node.id, channel);
       if (res.code === 0 && res.data) {
+        setInstallServiceName("flux_agent");
         setInstallCommand(res.data);
         setCurrentNodeName(node.name);
         setInstallCommandModal(true);
@@ -1028,6 +1030,7 @@ export default function NodePage() {
     try {
       const res = await getNodeInstallCommandDomestic(node.id);
       if (res.code === 0 && res.data) {
+        setInstallServiceName("flux_agent");
         setInstallCommand(res.data);
         setCurrentNodeName(node.name);
         setInstallCommandModal(true);
@@ -1042,6 +1045,7 @@ export default function NodePage() {
     try {
       const res = await getNodeInstallCommandOverseas(node.id);
       if (res.code === 0 && res.data) {
+        setInstallServiceName("flux_agent");
         setInstallCommand(res.data);
         setCurrentNodeName(node.name);
         setInstallCommandModal(true);
@@ -1056,7 +1060,10 @@ export default function NodePage() {
     try {
       const res = await getNodeInstallCommandDomestic(node.id);
       if (res.code === 0 && res.data) {
+        setInstallServiceName('flux_agent');
         let command = res.data as string;
+        // 移除 GLOBAL_DOWNLOAD_URL 前缀
+        command = command.replace(/^GLOBAL_DOWNLOAD_URL="[^"]*"\s*/, '');
         command = command.replace('/install.sh', '/install-auto.sh');
         setInstallCommand(command);
         setCurrentNodeName(node.name);
@@ -3249,6 +3256,25 @@ export default function NodePage() {
               <p className="text-sm text-default-600">
                 请复制以下安装命令到服务器上执行：
               </p>
+              
+              {/* 服务名输入框 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium whitespace-nowrap">服务名：</label>
+                  <Input
+                    size="sm"
+                    className="flex-1"
+                    value={installServiceName}
+                    placeholder="flux_agent"
+                    variant="bordered"
+                    onChange={(e) => setInstallServiceName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                  />
+                </div>
+                <p className="text-xs text-default-500">
+                  💡 提示：同一台节点机可以对接多个面板，使用不同的服务名区分
+                </p>
+              </div>
+              
               <div className="relative">
                 <Textarea
                   readOnly
@@ -3258,7 +3284,7 @@ export default function NodePage() {
                   }}
                   maxRows={10}
                   minRows={6}
-                  value={installCommand}
+                  value={`${installCommand} -n ${installServiceName}`}
                   variant="bordered"
                 />
                 <Button
@@ -3267,7 +3293,7 @@ export default function NodePage() {
                   className="absolute bottom-2 right-2"
                   onPress={() => {
                     // 👇 直接调用你已经封装好的兼容函数，HTTP 下也能完美复制！
-                    copyToClipboard(installCommand, "命令");
+                    copyToClipboard(`${installCommand} -n ${installServiceName}`, "命令");
                     // 👇 加上这行，复制完立马关闭弹窗
                     setInstallCommandModal(false);
                   }}

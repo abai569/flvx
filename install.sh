@@ -4,7 +4,7 @@
 REPO="abai569/flvx"
 
 # 固定版本号（Release 构建时自动填充，留空则获取最新版）
-PINNED_VERSION=""
+PINNED_VERSION="2.2.6-beta3"
 
 # 默认服务名
 SERVICE_NAME="flux_agent"
@@ -69,16 +69,21 @@ fi
 # 检测下载源
 DOWNLOAD_HOST=$(detect_download_host "$SCRIPT_URL")
 
+# 添加默认值（如果 detect_download_host 返回空）
+if [[ -z "$DOWNLOAD_HOST" ]]; then
+    DOWNLOAD_HOST="https://github.com"
+fi
+
 # 获取最新版本号
 resolve_latest_release_tag() {
   local tag
-  tag=$(curl -fsSL "${DOWNLOAD_HOST}/VERSION" 2>/dev/null || echo "")
+  # 直接使用 GitHub API 获取最新版本号
+  tag=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || echo "")
   if [[ -n "$tag" ]]; then
     echo "$tag"
     return 0
   fi
-  echo "2.2.5"  # 默认版本
-  return 0
+  return 1
 }
 
 resolve_version() {
@@ -125,7 +130,7 @@ build_download_url() {
         fi
     fi
     
-    echo "${DOWNLOAD_HOST}/${RESOLVED_VERSION}/gost-${ARCH}"
+        echo "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/gost-${ARCH}"
 }
 
 # 显示下载源信息

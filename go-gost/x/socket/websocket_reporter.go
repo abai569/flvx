@@ -58,6 +58,7 @@ type SystemInfo struct {
 	UDPConns               int64          `json:"udp_conns"`
 	NetInSpeed             int64          `json:"net_in_speed"`
 	NetOutSpeed            int64          `json:"net_out_speed"`
+	ServiceName            string         `json:"service_name,omitempty"` // 服务名
 	ServiceConnections     map[string]int `json:"serviceConnections"`
 }
 
@@ -165,7 +166,7 @@ type WebSocketReporter struct {
 	addr              string // 保存服务器地址
 	secret            string // 保存密钥
 	version           string // 保存版本号
-	nodeID            int64  // 节点ID
+	nodeID            int64  // 节点 ID
 	preferredWSScheme string
 	conn              *websocket.Conn
 	curBackoff        time.Duration // 当前重连退避间隔
@@ -178,6 +179,7 @@ type WebSocketReporter struct {
 	connMutex         sync.Mutex        // 连接状态锁
 	aesCrypto         *crypto.AESCrypto // AES 加密器
 	publicIPReported  bool              // 是否已上报公网 IP
+	serviceName       string            // 服务名
 }
 
 var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
@@ -298,16 +300,20 @@ func (w *WebSocketReporter) connect() error {
 
 	// 重新读取 config.json 获取最新的协议配置
 	type LocalConfig struct {
-		Addr   string `json:"addr"`
-		Secret string `json:"secret"`
-		Http   int    `json:"http"`
-		Tls    int    `json:"tls"`
-		Socks  int    `json:"socks"`
+		Addr        string `json:"addr"`
+		Secret      string `json:"secret"`
+		Http        int    `json:"http"`
+		Tls         int    `json:"tls"`
+		Socks       int    `json:"socks"`
+		ServiceName string `json:"service_name"`
 	}
 
 	var cfg LocalConfig
 	if b, err := os.ReadFile("/etc/flux_agent/config.json"); err == nil {
 		json.Unmarshal(b, &cfg)
+		if cfg.ServiceName != "" {
+			w.serviceName = cfg.ServiceName
+		}
 	}
 
 	candidates := buildWebSocketCandidates(w.addr, w.secret, w.version, cfg.Http, cfg.Tls, cfg.Socks, w.preferredWSScheme)
@@ -884,6 +890,7 @@ func (w *WebSocketReporter) collectSystemInfo() SystemInfo {
 		UDPConns:               connInfo.UDPConns,
 		NetInSpeed:             netInSpeed,
 		NetOutSpeed:            netOutSpeed,
+		ServiceName:            w.serviceName,
 		ServiceConnections:     collectServiceConnections(),
 	}
 }

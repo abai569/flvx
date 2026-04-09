@@ -770,7 +770,17 @@ func (r *Repository) UpdateNodeStatus(nodeID int64, status int) error {
 	}).Error
 }
 
-// ─── Flow ────────────────────────────────────────────────────────────
+// UpdateNodeServiceName 更新节点服务名
+func (r *Repository) UpdateNodeServiceName(nodeID int64, serviceName string) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Model(&model.Node{}).Where("id = ?", nodeID).Updates(map[string]interface{}{
+		"service_name": serviceName, "updated_time": unixMilliNow(),
+	}).Error
+}
+
+// ─── Flow ─────────────────────────────────────────────────────────────
 
 func (r *Repository) AddFlow(forwardID, userID int64, userTunnelID int64, inFlow, outFlow int64) error {
 	if r == nil || r.db == nil {
