@@ -1731,9 +1731,17 @@ export default function NodePage() {
     return (
       <Card
         key={node.id}
-        className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName
-          }`}
+        className={`group relative overflow-visible shadow-sm border border-divider transition-shadow duration-200 h-full flex flex-col cursor-pointer ${
+          selectedIds.has(node.id)
+            ? "bg-primary-50 dark:bg-primary-900/30 shadow-md"
+            : "hover:shadow-md"
+        } ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName}`}
         data-node-card="true"
+        onClick={() => {
+          const newSet = new Set(selectedIds);
+          newSet.add(node.id);
+          setSelectedIds(newSet);
+        }}
       >
         <CardHeader className="pb-3 md:pb-3">
           <div className="flex flex-col gap-2 w-full">
@@ -2229,6 +2237,12 @@ export default function NodePage() {
                     size="sm"
                     variant="flat"
                     onPress={() => handleEdit(node)}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                    }}
                   >
                     编辑
                   </Button>
@@ -2240,6 +2254,12 @@ export default function NodePage() {
                 size="sm"
                 variant="flat"
                 onPress={() => handleDelete(node)}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
               >
                 删除
               </Button>

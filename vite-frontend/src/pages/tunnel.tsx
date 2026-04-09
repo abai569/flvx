@@ -1718,7 +1718,16 @@ export default function TunnelPage() {
                       {(listeners, setDragHandleRef) => (
                         <Card
                           key={tunnel.id}
-                          className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full"
+                          className={`group shadow-sm border border-divider transition-shadow duration-200 overflow-hidden h-full cursor-pointer ${
+                            selectedIds.has(tunnel.id)
+                              ? "bg-primary-50 dark:bg-primary-900/30 shadow-md"
+                              : "hover:shadow-md"
+                          }`}
+                          onClick={() => {
+                            const newSet = new Set(selectedIds);
+                            newSet.add(tunnel.id);
+                            setSelectedIds(newSet);
+                          }}
                         >
                           <CardHeader className="pb-0 md:pb-0">
                             {/* 顶部工具栏：选择框 + 拖拽手柄 */}
@@ -2089,7 +2098,16 @@ export default function TunnelPage() {
                       {(listeners) => (
                         <Card
                           key={tunnel.id}
-                          className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full"
+                          className={`group shadow-sm border border-divider transition-shadow duration-200 overflow-hidden h-full cursor-pointer ${
+                            selectedIds.has(tunnel.id)
+                              ? "bg-primary-50 dark:bg-primary-900/30 shadow-md"
+                              : "hover:shadow-md"
+                          }`}
+                          onClick={() => {
+                            const newSet = new Set(selectedIds);
+                            newSet.add(tunnel.id);
+                            setSelectedIds(newSet);
+                          }}
                         >
                           <CardHeader className="pb-0 md:pb-0">
                             {/* 顶部工具栏：选择框 + 拖拽 */}

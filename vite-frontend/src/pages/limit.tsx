@@ -281,8 +281,16 @@ export default function LimitPage() {
                 {filteredRules.map((rule) => (
                   <TableRow
                     key={rule.id}
-                    className={`cursor-pointer transition-colors ${selectedRuleId === rule.id ? "bg-primary-50 dark:bg-primary-900/30" : "hover:bg-default-50/50"}`}
-                    onClick={() => setSelectedRuleId(rule.id)}
+                    className={`cursor-pointer transition-colors ${
+                      selectedRuleId === rule.id
+                        ? "bg-primary-50 dark:bg-primary-900/30"
+                        : "hover:bg-default-50/50"
+                    }`}
+                    onClick={() => {
+                      if (selectedRuleId !== rule.id) {
+                        setSelectedRuleId(rule.id);
+                      }
+                    }}
                   >
                     <TableCell className="whitespace-nowrap">
                       <span className="font-medium text-foreground truncate">
@@ -313,6 +321,12 @@ export default function LimitPage() {
                           size="sm"
                           variant="flat"
                           onPress={() => handleEdit(rule)}
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                          }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                          }}
                         >
                           编辑
                         </Button>
@@ -322,6 +336,12 @@ export default function LimitPage() {
                           size="sm"
                           variant="flat"
                           onPress={() => handleDelete(rule)}
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                          }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                          }}
                         >
                           删除
                         </Button>
@@ -373,6 +393,12 @@ export default function LimitPage() {
                         }
                         variant="flat"
                         onPress={() => handleEdit(rule)}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                        }}
                       >
                         编辑
                       </Button>
@@ -401,6 +427,12 @@ export default function LimitPage() {
                         }
                         variant="flat"
                         onPress={() => handleDelete(rule)}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                        }}
                       >
                         删除
                       </Button>
