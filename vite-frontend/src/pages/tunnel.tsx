@@ -874,8 +874,13 @@ export default function TunnelPage() {
         : await createTunnel(data);
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
-        setModalOpen(false);
-        await refreshTunnelList(false);
+        setModalOpen(false); // 1. 先立刻触发关窗动作，让滚动条解锁
+        
+        // 2. 延迟 300 毫秒（等弹窗动画彻底消失、页面焦点和高度彻底稳固后）再去静默刷新数据
+        setTimeout(() => {
+          refreshTunnelList(false);
+        }, 300);
+        
       } else {
         toast.error(response.msg || (isEdit ? "更新失败" : "创建失败"));
       }
@@ -2155,10 +2160,11 @@ export default function TunnelPage() {
         backdrop="blur"
         classNames={{
           base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          body: "max-h-[70vh] overflow-y-auto",
         }}
         isOpen={modalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="xl"
         onOpenChange={setModalOpen}
       >
@@ -3078,7 +3084,7 @@ export default function TunnelPage() {
         }}
         isOpen={deleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="xl"
         onOpenChange={handleDeleteModalOpenChange}
       >

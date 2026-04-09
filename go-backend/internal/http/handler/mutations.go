@@ -1,4 +1,4 @@
-package handler
+﻿package handler
 
 import (
 	"context"
@@ -520,9 +520,9 @@ func (h *Handler) nodeInstallDomestic(w http.ResponseWriter, r *http.Request) {
 		globalURL = "https://ghfast.top"
 	}
 
-	// 生成安装命令，传递 GLOBAL_DOWNLOAD_URL 环境变量
-	cmd := fmt.Sprintf(`GLOBAL_DOWNLOAD_URL="%s" curl -L %s/install-auto.sh | bash -s -- -a %s -s %s`,
-		globalURL, domesticURL, processServerAddress(panelAddr), secret)
+	// 生成安装命令（不包含 GLOBAL_DOWNLOAD_URL 前缀）
+	cmd := fmt.Sprintf(`curl -L %s/install-auto.sh | bash -s -- -a %s -s %s`,
+		domesticURL, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 

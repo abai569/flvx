@@ -365,9 +365,38 @@ EOF
 
   echo "🔄 检查服务状态..."
   if systemctl is-active --quiet ${SERVICE_NAME}; then
-    echo "✅ 安装完成，${SERVICE_NAME} 服务已启动并设置为开机启动。"
-    echo "📁 配置目录: $INSTALL_DIR"
-    echo "🔧 服务状态: $(systemctl is-active ${SERVICE_NAME})"
+    echo "✅ 服务已启动"
+    
+    # 等待节点从面板获取 node_id（轮询检查，最多等待 30 秒）
+    echo "⏳ 等待节点初始化..."
+    for i in $(seq 1 10); do
+      if [ -f "$INSTALL_DIR/config.json" ]; then
+        node_id=$(grep -o '"node_id":[0-9]*' "$INSTALL_DIR/config.json" | grep -o '[0-9]*' || echo "0")
+        if [ "$node_id" -gt 0 ] 2>/dev/null; then
+          echo "✅ 节点已初始化 (node_id: $node_id)"
+          break
+        fi
+      fi
+      sleep 3
+    done
+    
+    # 重启服务以初始化流量基线
+    echo "🔄 重启服务以初始化流量统计..."
+    if systemctl restart ${SERVICE_NAME} 2>/dev/null; then
+      sleep 2
+      if systemctl is-active --quiet ${SERVICE_NAME}; then
+        echo "✅ 安装完成，${SERVICE_NAME} 服务已重启，节点流量已归零。"
+      else
+        echo "⚠️ 服务重启后未运行，请手动启动：systemctl start ${SERVICE_NAME}"
+        echo "💡 提示：启动后请手动重置流量以确保统计准确。"
+      fi
+    else
+      echo "⚠️ 服务重启失败，请手动重启：systemctl restart ${SERVICE_NAME}"
+      echo "💡 提示：重启后请手动重置流量以确保统计准确。"
+    fi
+    
+    echo "📁 配置目录：$INSTALL_DIR"
+    echo "🔧 服务状态：$(systemctl is-active ${SERVICE_NAME})"
   else
     echo "❌ ${SERVICE_NAME} 服务启动失败，请执行以下命令查看状态："
     echo "systemctl status ${SERVICE_NAME} --no-pager"
