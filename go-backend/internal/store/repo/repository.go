@@ -1276,8 +1276,10 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 		if c.ConnectIP.Valid {
 			nodeObj["connectIp"] = c.ConnectIP.String
 		}
-		nodeObj["connectIpType"] = ""; if c.ConnectIPType.Valid {
+		if c.ConnectIPType.Valid {
 			nodeObj["connectIpType"] = c.ConnectIPType.String
+		} else {
+			nodeObj["connectIpType"] = ""
 		}
 		if c.Port.Valid && c.Port.Int64 > 0 {
 			nodeObj["port"] = c.Port.Int64
@@ -3915,5 +3917,3 @@ func (r *Repository) PruneServiceMonitorResults(olderThanMs int64) error {
 	}
 	return r.db.Where("timestamp < ?", olderThanMs).Delete(&model.ServiceMonitorResult{}).Error
 }
-
-

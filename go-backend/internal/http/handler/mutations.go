@@ -3815,11 +3815,17 @@ func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, con
 			}
 		}
 	default:
+		// 优先 LAN（内网 IP）
+		if host := pickNodeAddressLan(toNode); host != "" {
+			return host, nil
+		}
+		// 其次 IPv4
 		if fromV4 && toV4 {
 			if host := pickNodeAddressV4(toNode); host != "" {
 				return host, nil
 			}
 		}
+		// 最后 IPv6
 		if fromV6 && toV6 {
 			if host := pickNodeAddressV6(toNode); host != "" {
 				return host, nil
@@ -4931,5 +4937,3 @@ func (h *Handler) tunnelListTunnelOrder(w http.ResponseWriter, r *http.Request) 
 	}
 	response.WriteJSON(w, response.OKEmpty())
 }
-
-

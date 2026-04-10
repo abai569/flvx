@@ -380,20 +380,6 @@ EOF
       sleep 3
     done
     
-    # 重启服务以初始化流量基线
-    echo "🔄 重启服务以初始化流量统计..."
-    if systemctl restart ${SERVICE_NAME} 2>/dev/null; then
-      sleep 2
-      if systemctl is-active --quiet ${SERVICE_NAME}; then
-        echo "✅ 安装完成，${SERVICE_NAME} 服务已重启，节点流量已归零。"
-      else
-        echo "⚠️ 服务重启后未运行，请手动启动：systemctl start ${SERVICE_NAME}"
-        echo "💡 提示：启动后请手动重置流量以确保统计准确。"
-      fi
-    else
-      echo "⚠️ 服务重启失败，请手动重启：systemctl restart ${SERVICE_NAME}"
-      echo "💡 提示：重启后请手动重置流量以确保统计准确。"
-    fi
     
     echo "📁 配置目录：$INSTALL_DIR"
     echo "🔧 服务状态：$(systemctl is-active ${SERVICE_NAME})"
