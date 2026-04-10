@@ -984,11 +984,16 @@ export default function ConfigPage() {
                   selectedKeys={[exportMode]}
                   size="sm"
                   variant="bordered"
-                  onChange={(e) => setExportMode(e.target.value)}
+                  onSelectionChange={(keys) => {
+                    const key = Array.from(keys)[0] as string;
+                    if (key === "core" || key === "full") {
+                      setExportMode(key);
+                    }
+                  }}
                   classNames={{ trigger: "min-w-[150px]" }}
                 >
-                  <SelectItem key="core" value="core">快速导出（核心数据）</SelectItem>
-                  <SelectItem key="full" value="full">完整导出（所有数据）</SelectItem>
+                  <SelectItem key="core">快速导出（核心数据）</SelectItem>
+                  <SelectItem key="full">完整导出（所有数据）</SelectItem>
                 </Select>
                 <span className="text-xs text-gray-500">
                   {exportMode === 'core' ? '仅用户/节点/隧道/规则' : '包含所有表和配置'}
