@@ -1444,7 +1444,7 @@ func (h *Handler) backupImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	autoBackup, err := h.repo.ExportAll()
+	autoBackup, err := h.repo.ExportAll("full")
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入前自动备份失败：%v", err)))
 		return
