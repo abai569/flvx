@@ -326,13 +326,13 @@ wait_for_backend_healthy() {
 }
 
 # 删除脚本自身
-delete_self() {
-  echo ""
-  echo "🗑️ 操作已完成，正在清理脚本文件..."
-  SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
-  sleep 1
-  rm -f "$SCRIPT_PATH" && echo "✅ 脚本文件已删除" || echo "❌ 删除脚本文件失败"
-}
+# delete_self() {
+#   echo ""
+#   echo "🗑️ 操作已完成，正在清理脚本文件..."
+#   SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+#   sleep 1
+#   rm -f "$SCRIPT_PATH" && echo "✅ 脚本文件已删除" || echo "❌ 删除脚本文件失败"
+# }
 
 
 
@@ -439,13 +439,6 @@ EOF
 update_panel() {
   echo "🔄 开始更新面板..."
   
-  # 确保获取 SUDO 权限（防止在非 root 用户下无法在 /opt 建目录）
-  if [[ $EUID -ne 0 ]]; then
-    SUDO_CMD="sudo"
-  else
-    SUDO_CMD=""
-  fi
-
   # 切换到安装目录
   INSTALL_DIR="/opt/flux_panel"
   
@@ -609,6 +602,18 @@ migrate_to_postgres() {
 # 卸载功能
 uninstall_panel() {
   echo "🗑️ 开始卸载面板..."
+  
+  # 切换到安装目录
+  INSTALL_DIR="/opt/flux_panel"
+  
+  # 检测目录是否存在，不存在则先创建
+  if [[ ! -d "$INSTALL_DIR" ]]; then
+    echo "📁 升级目录不存在，正在创建：$INSTALL_DIR"
+    $SUDO_CMD mkdir -p "$INSTALL_DIR"
+  fi
+  
+  cd "$INSTALL_DIR"
+  
   check_docker
 
   if [[ ! -f "docker-compose.yml" ]]; then
@@ -643,27 +648,27 @@ main() {
     case $choice in
       1)
         install_panel
-        delete_self
+#        delete_self
         exit 0
         ;;
       2)
         update_panel
-        delete_self
+#        delete_self
         exit 0
         ;;
       3)
         uninstall_panel
-        delete_self
+#        delete_self
         exit 0
         ;;
       4)
         migrate_to_postgres
-        delete_self
+#        delete_self
         exit 0
         ;;
       5)
         echo "👋 退出脚本"
-        delete_self
+#        delete_self
         exit 0
         ;;
       *)
