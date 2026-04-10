@@ -4,7 +4,7 @@
 REPO="abai569/flvx"
 
 # 固定版本号（Release 构建时自动填充，留空则获取最新版）
-PINNED_VERSION="2.2.6-beta3"
+PINNED_VERSION="2.2.6-beta1"
 
 # 默认服务名
 SERVICE_NAME="flux_agent"
@@ -308,9 +308,26 @@ install_service() {
 
   [[ -f "$INSTALL_DIR/${SERVICE_NAME}" ]] && echo "🧹 删除旧文件 ${SERVICE_NAME}" && rm -f "$INSTALL_DIR/${SERVICE_NAME}"
 
-  # 显示下载源并下载
+  # 显示下载源并下载（带备用源回滚）
   show_download_source "$DOWNLOAD_URL"
-  wget -q "$DOWNLOAD_URL" -O "$INSTALL_DIR/${SERVICE_NAME}"
+  ARCH=$(get_architecture)
+  
+  # 构建备用源列表
+  DOWNLOAD_URLS=(
+    "$DOWNLOAD_URL"
+	"https://github.com/${REPO}/releases/latest/download/gost-${ARCH}"
+    "https://git-proxy.abai.eu.org/https://github.com/${REPO}/releases/latest/download/gost-${ARCH}"
+    "https://ghfast.top/https://github.com/${REPO}/releases/latest/download/gost-${ARCH}"
+  )
+  
+  # 循环尝试每个下载源
+  for url in "${DOWNLOAD_URLS[@]}"; do
+    wget -q "$url" -O "$INSTALL_DIR/${SERVICE_NAME}" 2>/dev/null && \
+    if [[ -f "$INSTALL_DIR/${SERVICE_NAME}" && -s "$INSTALL_DIR/${SERVICE_NAME}" ]]; then
+      break
+    fi
+  done
+  
   if [[ ! -f "$INSTALL_DIR/${SERVICE_NAME}" || ! -s "$INSTALL_DIR/${SERVICE_NAME}" ]]; then
     echo "❌ 下载失败，请检查网络或下载链接。"
     exit 1
@@ -383,8 +400,11 @@ EOF
     # 安装完成后重置流量
     echo "重置流量统计..."
     
-    # 从 config.json 读取 NODE_ID
-    NODE_ID=$(cat /etc/flux_agent/config.json 2>/dev/null | grep -o '"nodeId"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*')
+    # 从 config.json 读取 NODE_ID（支持 nodeId 和 node_id 两种格式）
+    NODE_ID=$(cat "$INSTALL_DIR/config.json" 2>/dev/null | grep -o '"node_id"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*')
+    if [[ -z "$NODE_ID" ]]; then
+      NODE_ID=$(cat "$INSTALL_DIR/config.json" 2>/dev/null | grep -o '"nodeId"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*')
+    fi
     
     if [[ -n "$NODE_ID" ]]; then
       # 自动检测是否 HTTPS
@@ -440,9 +460,25 @@ update_service() {
   
   check_and_install_tcpkill
   
-  # 显示下载源并下载
+  # 显示下载源并下载（带备用源回滚）
   show_download_source "$DOWNLOAD_URL"
-  wget -q "$DOWNLOAD_URL" -O "$INSTALL_DIR/${SERVICE_NAME}.new"
+  ARCH=$(get_architecture)
+  
+  # 构建备用源列表
+  DOWNLOAD_URLS=(
+    "$DOWNLOAD_URL"
+    "https://gh-proxy.com/https://github.com/${REPO}/releases/latest/download/gost-${ARCH}"
+    "https://ghfast.top/https://github.com/${REPO}/releases/latest/download/gost-${ARCH}"
+  )
+  
+  # 循环尝试每个下载源
+  for url in "${DOWNLOAD_URLS[@]}"; do
+    wget -q "$url" -O "$INSTALL_DIR/${SERVICE_NAME}.new" 2>/dev/null && \
+    if [[ -f "$INSTALL_DIR/${SERVICE_NAME}.new" && -s "$INSTALL_DIR/${SERVICE_NAME}.new" ]]; then
+      break
+    fi
+  done
+  
   if [[ ! -f "$INSTALL_DIR/${SERVICE_NAME}.new" || ! -s "$INSTALL_DIR/${SERVICE_NAME}.new" ]]; then
     echo "❌ 下载失败。"
     return 1
