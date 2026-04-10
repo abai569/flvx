@@ -84,6 +84,8 @@ export interface ForwardApiItem {
   inx?: number;
   maxConnections: number;
   currentConnections?: number;
+  trafficLimit?: number;
+  expiryTime?: number | null;
   [key: string]: unknown;
 }
 

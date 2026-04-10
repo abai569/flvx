@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -2011,7 +2011,9 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	if userName == "" {
 		userName = "user"
 	}
-	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), asInt(req["maxConnections"], 0))
+	trafficLimit := asInt64(req["trafficLimit"], 0)
+	expiryTime := asAnyToInt64Ptr(req["expiryTime"])
+	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), asInt(req["maxConnections"], 0), trafficLimit, expiryTime)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -2160,7 +2162,17 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	if _, ok := req["maxConnections"]; !ok {
 		maxConnections = forward.MaxConnections
 	}
-	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConnections); err != nil {
+	trafficLimit := asInt64(req["trafficLimit"], forward.TrafficLimit)
+	if _, ok := req["trafficLimit"]; !ok {
+		trafficLimit = forward.TrafficLimit
+	}
+	var newExpiryTime interface{}
+	if _, ok := req["expiryTime"]; ok {
+		newExpiryTime = asAnyToInt64Ptr(req["expiryTime"])
+	} else {
+		newExpiryTime = forward.ExpiryTime
+	}
+	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConnections, trafficLimit, newExpiryTime); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}

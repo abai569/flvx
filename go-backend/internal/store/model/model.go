@@ -45,6 +45,8 @@ type Forward struct {
 	Inx            int           `gorm:"not null;default:0"`
 	SpeedID        sql.NullInt64 `gorm:"column:speed_id"`
 	MaxConnections int           `gorm:"column:max_connections;not null;default:0"`
+	TrafficLimit   int64         `gorm:"column:traffic_limit;not null;default:0"`
+	ExpiryTime     sql.NullInt64 `gorm:"column:expiry_time"`
 }
 
 func (Forward) TableName() string { return "forward" }
@@ -572,6 +574,8 @@ type ForwardRecord struct {
 	Status         int
 	SpeedID        sql.NullInt64
 	MaxConnections int
+	TrafficLimit   int64
+	ExpiryTime     sql.NullInt64
 }
 
 // TunnelRecord is a minimal tunnel view used by control plane.

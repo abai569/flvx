@@ -119,6 +119,8 @@ interface Forward {
   speedId?: number | null;
   maxConnections?: number;
   currentConnections?: number;
+  trafficLimit?: number;
+  expiryTime?: number | null;
 }
 interface Tunnel {
   id: number;
@@ -153,6 +155,8 @@ interface ForwardForm {
   strategy: string;
   speedId: number | null;
   maxConnections: number;
+  trafficLimit: number;
+  expiryTime: number | null;
 }
 interface ForwardUserGroup {
   userId: number;
@@ -514,6 +518,8 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
     serviceRunning: forward.status === 1,
     maxConnections: forward.maxConnections ?? 0,
     currentConnections: forward.currentConnections ?? 0,
+    trafficLimit: forward.trafficLimit ?? 0,
+    expiryTime: forward.expiryTime ?? null,
   }));
 };
 const SortableTunnelGroupContainer = ({
@@ -1402,6 +1408,8 @@ export default function ForwardPage() {
     strategy: "fifo",
     speedId: null,
     maxConnections: 0,
+    trafficLimit: 0,
+    expiryTime: null,
   });
   const [inIpTouched, setInIpTouched] = useState(false);
   // 表单验证错误
@@ -2154,6 +2162,8 @@ export default function ForwardPage() {
       strategy: "fifo",
       speedId: null,
       maxConnections: 0,
+      trafficLimit: 0,
+      expiryTime: null,
     });
     setErrors({});
     setModalOpen(true);
@@ -2174,6 +2184,8 @@ export default function ForwardPage() {
       strategy: forward.strategy || "fifo",
       speedId: normalizeSpeedId(forward.speedId),
       maxConnections: forward.maxConnections ?? 0,
+      trafficLimit: forward.trafficLimit ?? 0,
+      expiryTime: forward.expiryTime ?? null,
     });
     setErrors({});
     setModalOpen(true);
@@ -2294,6 +2306,8 @@ export default function ForwardPage() {
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
           maxConnections: form.maxConnections,
+          trafficLimit: form.trafficLimit,
+          expiryTime: form.expiryTime,
         };
 
         res = await updateForward(updateData);
@@ -2307,6 +2321,8 @@ export default function ForwardPage() {
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
           maxConnections: form.maxConnections,
+          trafficLimit: form.trafficLimit,
+          expiryTime: form.expiryTime,
         };
 
         res = await createForward(createData);
@@ -5016,6 +5032,20 @@ export default function ForwardPage() {
                       setForm((prev) => ({ ...prev, maxConnections: val }))
                     }
                   />
+                  {/* 流量控制 */}
+                  <TrafficLimitField
+                    value={form.trafficLimit}
+                    onChange={(val) =>
+                      setForm((prev) => ({ ...prev, trafficLimit: val }))
+                    }
+                  />
+                  {/* 到期时间 */}
+                  <ExpiryTimeField
+                    value={form.expiryTime}
+                    onChange={(val) =>
+                      setForm((prev) => ({ ...prev, expiryTime: val }))
+                    }
+                  />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* 选择隧道 */}
                     <Select
@@ -6696,6 +6726,180 @@ function ConnectionLimitField({
         variant="bordered"
         onChange={handleChange}
       />
+    </div>
+  );
+}
+// ─── Traffic Limit Field (form input) ──────────────────────────────────────
+function TrafficLimitField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+}) {
+  const [showHelp, setShowHelp] = useState(false);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.trim();
+
+    if (raw === "") {
+      onChange(0);
+
+      return;
+    }
+    const num = parseFloat(raw);
+
+    if (isNaN(num) || num < 0) {
+      onChange(0);
+    } else if (num > 1000000) {
+      onChange(1000000);
+    } else {
+      onChange(num);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">流量控制</span>
+        <button
+          className="text-default-400 hover:text-default-600 transition-colors"
+          type="button"
+          onClick={() => setShowHelp(!showHelp)}
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
+          </svg>
+        </button>
+      </div>
+      {showHelp && (
+        <div className="text-xs text-default-600 space-y-1 bg-default-100 rounded-lg p-3">
+          <p className="font-medium text-foreground">流量控制说明</p>
+          <p>• 0 或留空表示不限制流量</p>
+          <p>• 设置后，规则累计流量达到上限时将被暂停</p>
+          <p>• 单位：GB（吉字节）</p>
+        </div>
+      )}
+      <Input
+        description="留空表示不限制，单位：GB"
+        placeholder="不限制"
+        type="number"
+        value={value > 0 ? value.toString() : ""}
+        variant="bordered"
+        onChange={handleChange}
+      />
+    </div>
+  );
+}
+// ─── Expiry Time Field (form input) ────────────────────────────────────────
+function ExpiryTimeField({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (val: number | null) => void;
+}) {
+  const [showHelp, setShowHelp] = useState(false);
+  const formatTimestampToDateTimeLocal = (
+    timestamp: number | null,
+  ): string => {
+    if (!timestamp) return "";
+
+    const date = new Date(timestamp);
+
+    return date.toISOString().slice(0, 16);
+  };
+  const parseDateTimeLocalToTimestamp = (dateTimeLocal: string): number => {
+    const date = new Date(dateTimeLocal);
+
+    return date.getTime();
+  };
+  const handleClear = () => {
+    onChange(null);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">到期时间</span>
+        <button
+          className="text-default-400 hover:text-default-600 transition-colors"
+          type="button"
+          onClick={() => setShowHelp(!showHelp)}
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
+          </svg>
+        </button>
+      </div>
+      {showHelp && (
+        <div className="text-xs text-default-600 space-y-1 bg-default-100 rounded-lg p-3">
+          <p className="font-medium text-foreground">到期时间说明</p>
+          <p>• 留空表示永不过期</p>
+          <p>• 到达设定时间后，规则将自动暂停</p>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Input
+          className="flex-1"
+          description="留空表示永不过期"
+          placeholder="请选择到期时间"
+          type="datetime-local"
+          value={formatTimestampToDateTimeLocal(value)}
+          variant="bordered"
+          onChange={(e) => {
+            const val = e.target.value;
+
+            if (val) {
+              onChange(parseDateTimeLocalToTimestamp(val));
+            } else {
+              onChange(null);
+            }
+          }}
+        />
+        {value !== null && (
+          <Button
+            aria-label="清除到期时间"
+            className="shrink-0"
+            size="md"
+            variant="flat"
+            onPress={handleClear}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M6 18L18 6M6 6l12 12"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
+            </svg>
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
