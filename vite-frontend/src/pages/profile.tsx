@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+
 import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import {
@@ -43,6 +44,7 @@ export default function ProfilePage() {
     newPassword: "",
     confirmPassword: "",
   });
+
   useEffect(() => {
     // 获取用户信息
     setUsername(getSessionName() || "Admin");
@@ -127,28 +129,35 @@ export default function ProfilePage() {
   const validatePasswordForm = (): boolean => {
     if (!passwordForm.newUsername.trim()) {
       toast.error("请输入新用户名");
+
       return false;
     }
     if (passwordForm.newUsername.length < 3) {
       toast.error("用户名长度至少3位");
+
       return false;
     }
     if (!passwordForm.currentPassword) {
       toast.error("请输入当前密码");
+
       return false;
     }
     if (!passwordForm.newPassword) {
       toast.error("请输入新密码");
+
       return false;
     }
     if (passwordForm.newPassword.length < 6) {
       toast.error("新密码长度不能少于6位");
+
       return false;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast.error("两次输入密码不一致");
+
       return false;
     }
+
     return true;
   };
   // 提交密码修改
@@ -157,6 +166,7 @@ export default function ProfilePage() {
     setPasswordLoading(true);
     try {
       const response = await updatePassword(passwordForm);
+
       if (response.code === 0) {
         toast.success("密码修改成功，请重新登录");
         onOpenChange();
@@ -179,6 +189,7 @@ export default function ProfilePage() {
       confirmPassword: "",
     });
   };
+
   return (
     <div className="px-3 lg:px-6 py-8 flex flex-col h-full">
       <div className="space-y-6 flex-1">

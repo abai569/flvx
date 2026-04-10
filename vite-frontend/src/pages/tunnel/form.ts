@@ -71,11 +71,12 @@ export const validateTunnelForm = (
       .filter(({ node }) => node.port !== undefined && node.port !== null)
       .filter(({ node }) => {
         const port = node.port as number;
+
         return !Number.isInteger(port) || port < 1 || port > 65535;
       });
 
     if (invalidPorts.length > 0) {
-      errors.outNodeId = `端口号必须在 1-65535 范围内（第 ${invalidPorts.map(p => p.idx + 1).join(', ')} 个出口节点端口无效）`;
+      errors.outNodeId = `端口号必须在 1-65535 范围内（第 ${invalidPorts.map((p) => p.idx + 1).join(", ")} 个出口节点端口无效）`;
     }
   }
 
@@ -88,11 +89,13 @@ export const validateTunnelForm = (
         .filter(({ node }) => node.port !== undefined && node.port !== null)
         .filter(({ node }) => {
           const port = node.port as number;
+
           return !Number.isInteger(port) || port < 1 || port > 65535;
         });
 
       if (invalidPorts.length > 0) {
-        errors[`chainNodes_${hopIdx}_port`] = `第${hopIdx + 1}跳：端口号必须在 1-65535 范围内`;
+        errors[`chainNodes_${hopIdx}_port`] =
+          `第${hopIdx + 1}跳：端口号必须在 1-65535 范围内`;
       }
     }
   }

@@ -72,10 +72,11 @@ export const ThemeSettings: React.FC = () => {
           {MODE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${mode === opt.value
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                mode === opt.value
                   ? "bg-primary text-white shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
-                }`}
+              }`}
               type="button"
               onClick={() => handleModeChange(opt.value)}
             >
@@ -119,10 +120,11 @@ export const ThemeSettings: React.FC = () => {
               return (
                 <button
                   key={theme.id}
-                  className={`relative rounded-xl text-left transition-all duration-200 border-2 overflow-hidden ${isActive
+                  className={`relative rounded-xl text-left transition-all duration-200 border-2 overflow-hidden ${
+                    isActive
                       ? "border-primary shadow-lg shadow-primary/15 scale-[1.01]"
                       : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-md"
-                    }`}
+                  }`}
                   type="button"
                   onClick={() => handleThemeSelect(theme.id)}
                 >

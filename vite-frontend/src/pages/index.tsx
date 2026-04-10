@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { motion } from "framer-motion";
+
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -33,6 +34,7 @@ export default function IndexPage() {
   // 验证表单
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginForm> = {};
+
     if (!form.username.trim()) {
       newErrors.username = "请输入用户名";
     }
@@ -42,6 +44,7 @@ export default function IndexPage() {
       newErrors.password = "密码长度至少6位";
     }
     setErrors(newErrors);
+
     return Object.keys(newErrors).length === 0;
   };
   // 处理输入变化
@@ -65,11 +68,13 @@ export default function IndexPage() {
         captchaId: finalCaptchaId,
       };
       const response = await login(loginData);
+
       if (response.code !== 0) {
         toast.error(response.msg || "登录失败");
         if (showCaptcha) {
           setForm((prev) => ({ ...prev, captchaId: "" }));
         }
+
         return;
       }
       // 检查是否需要强制修改密码
@@ -77,6 +82,7 @@ export default function IndexPage() {
         writeLoginSession(response.data);
         toast.success("检测到默认密码，即将跳转到修改密码页面");
         navigate("/change-password");
+
         return;
       }
       // 保存登录信息
@@ -96,9 +102,11 @@ export default function IndexPage() {
     try {
       // 先检查是否需要验证码
       const checkResponse = await checkCaptcha();
+
       if (checkResponse.code !== 0) {
         toast.error("检查验证码状态失败，请重试" + checkResponse.msg);
         setLoading(false);
+
         return;
       }
       // 根据返回值决定是否显示验证码
@@ -106,6 +114,7 @@ export default function IndexPage() {
         await performLogin();
       } else {
         const configResp = await getConfigByName("cloudflare_site_key");
+
         if (configResp.code === 0 && configResp.data && configResp.data.value) {
           setSiteKey(configResp.data.value);
           setShowCaptcha(true);
@@ -124,6 +133,7 @@ export default function IndexPage() {
       handleLogin();
     }
   };
+
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-4 sm:py-8 md:py-10 pb-20 min-h-[calc(100dvh-120px)] sm:min-h-[calc(100dvh-200px)]">

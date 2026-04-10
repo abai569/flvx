@@ -1399,8 +1399,7 @@ func (h *Handler) backupExport(w http.ResponseWriter, r *http.Request) {
 
 	var req backupExportRequest
 	if err := decodeJSON(r.Body, &req); err != nil {
-		response.WriteJSON(w, response.Err(500, "请求参数错误"))
-		return
+		req.Types = []string{}
 	}
 
 	var backup interface{}
@@ -1426,7 +1425,8 @@ func (h *Handler) backupExport(w http.ResponseWriter, r *http.Request) {
 }
 
 type backupImportRequest struct {
-	Types []string `json:"types"`
+	Types []string               `json:"types"`
+	Data  map[string]interface{} `json:"-"`
 	repo.BackupData
 }
 
@@ -1436,36 +1436,57 @@ func (h *Handler) backupImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req backupImportRequest
-	if err := decodeJSON(r.Body, &req); err != nil {
+	var rawJSON map[string]interface{}
+	if err := decodeJSON(r.Body, &rawJSON); err != nil {
 		response.WriteJSON(w, response.Err(500, "请求参数错误"))
-		return
-	}
-
-	if len(req.Types) == 0 {
-		response.WriteJSON(w, response.Err(500, "请选择要导入的数据类型"))
 		return
 	}
 
 	autoBackup, err := h.repo.ExportAll()
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入前自动备份失败: %v", err)))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入前自动备份失败：%v", err)))
 		return
 	}
 
-	if req.BackupData.Version == "" {
+	version, ok := rawJSON["version"].(string)
+	if !ok || version == "" {
 		response.WriteJSON(w, response.Err(500, "备份数据格式错误"))
 		return
 	}
 
-	result, err := h.repo.Import(&req.BackupData, req.Types)
+	typesToImport := []string{}
+	if typesVal, ok := rawJSON["types"]; ok {
+		if typesArr, ok := typesVal.([]interface{}); ok {
+			for _, t := range typesArr {
+				if s, ok := t.(string); ok {
+					typesToImport = append(typesToImport, s)
+				}
+			}
+		}
+	}
+
+	if len(typesToImport) == 0 {
+		for key := range rawJSON {
+			if key != "version" && key != "exported_at" && key != "types" {
+				typesToImport = append(typesToImport, key)
+			}
+		}
+	}
+
+	result, err := h.repo.ImportRaw(rawJSON, typesToImport)
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入失败: %v", err)))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入失败：%v", err)))
 		return
 	}
 
-	result.AutoBackup = autoBackup
-	response.WriteJSON(w, response.OK(result))
+	resultMap, ok := result.(map[string]interface{})
+	if !ok {
+		response.WriteJSON(w, response.Err(-2, "导入结果格式错误"))
+		return
+	}
+
+	resultMap["auto_backup"] = autoBackup
+	response.WriteJSON(w, response.OK(resultMap))
 }
 
 func (h *Handler) getAnnouncement(w http.ResponseWriter, r *http.Request) {

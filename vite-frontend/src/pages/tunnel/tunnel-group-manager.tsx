@@ -3,7 +3,7 @@ import type {
   TunnelGroupNewMutationPayload,
 } from "@/api/types";
 
-import {  useState, useEffect , useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { Edit, Trash2 } from "lucide-react";
 
@@ -17,7 +17,6 @@ import {
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Textarea } from "@/shadcn-bridge/heroui/input";
-
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import {
@@ -64,6 +63,7 @@ export function TunnelGroupManager({
         getTunnelGroupNewList(),
         getTunnelList(),
       ]);
+
       setGroups(res.data || []);
       setAllTunnels(tunnelRes.data || []);
     } catch (error) {
@@ -89,60 +89,82 @@ export function TunnelGroupManager({
     setEditingGroup(null);
   };
 
-  const handleSave = async (data: TunnelGroupNewMutationPayload, selectedTunnelIds: number[]) => {
+  const handleSave = async (
+    data: TunnelGroupNewMutationPayload,
+    selectedTunnelIds: number[],
+  ) => {
     try {
       let groupId: number | undefined;
+
       if (editingGroup) {
         await updateTunnelGroupNew({ ...data, id: editingGroup.id });
         groupId = editingGroup.id;
       } else {
         const res: any = await createTunnelGroupNew(data);
+
         groupId = res.data?.id;
       }
 
       if (groupId && groupId > 0) {
         // 🎯 1. 获取原本在此分组的隧道
-        const originalTunnels = editingGroup 
-          ? allTunnels.filter(t => t.tunnelGroupId === editingGroup.id).map(t => t.id)
+        const originalTunnels = editingGroup
+          ? allTunnels
+              .filter((t) => t.tunnelGroupId === editingGroup.id)
+              .map((t) => t.id)
           : [];
-        
+
         // 🎯 2. 对比找出被取消勾选的“倒霉蛋”
-        const toRemove = originalTunnels.filter(id => !selectedTunnelIds.includes(id));
+        const toRemove = originalTunnels.filter(
+          (id) => !selectedTunnelIds.includes(id),
+        );
 
         const promises: Promise<any>[] = [];
-        
+
         // 🎯 3. 批量绑定目前勾选的隧道
         if (selectedTunnelIds.length > 0) {
-          promises.push(assignTunnelToGroupNew({ groupId, tunnelIds: selectedTunnelIds }));
+          promises.push(
+            assignTunnelToGroupNew({ groupId, tunnelIds: selectedTunnelIds }),
+          );
         }
-        
+
         // 🎯 4. 对取消勾选的隧道，逐个单条强制解绑 (用 null 彻底清空，不留 0 的隐患)
         if (toRemove.length > 0) {
-          toRemove.forEach(id => {
-            const t = allTunnels.find(x => x.id === id);
+          toRemove.forEach((id) => {
+            const t = allTunnels.find((x) => x.id === id);
+
             if (t) {
-              promises.push(updateTunnel({
-                ...t,
-                // 顺手兼容一下后端的各种奇葩字段格式要求
-                in_node_id: Array.isArray(t.inNodeId) ? t.inNodeId : [],
-                out_node_id: Array.isArray(t.outNodeId) ? t.outNodeId : [],
-                chain_nodes: Array.isArray(t.chainNodes) ? t.chainNodes : [],
-                in_ip: t.inIp || "",
-                tunnelGroupId: null,
-                tunnel_group_id: null
-              }));
+              promises.push(
+                updateTunnel({
+                  ...t,
+                  // 顺手兼容一下后端的各种奇葩字段格式要求
+                  in_node_id: Array.isArray(t.inNodeId) ? t.inNodeId : [],
+                  out_node_id: Array.isArray(t.outNodeId) ? t.outNodeId : [],
+                  chain_nodes: Array.isArray(t.chainNodes) ? t.chainNodes : [],
+                  in_ip: t.inIp || "",
+                  tunnelGroupId: null,
+                  tunnel_group_id: null,
+                }),
+              );
             }
           });
         }
 
         if (promises.length > 0) {
           // 🎯 5. 捕获所有 Promise，防止单个接口挂掉导致大白屏
-          const results = await Promise.all(promises.map(p => p.catch(e => e)));
-          const failed = results.find(r => r instanceof Error || (r && r.code !== undefined && r.code !== 0));
-          
+          const results = await Promise.all(
+            promises.map((p) => p.catch((e) => e)),
+          );
+          const failed = results.find(
+            (r) =>
+              r instanceof Error || (r && r.code !== undefined && r.code !== 0),
+          );
+
           if (failed) {
             console.error("部分隧道操作失败:", failed);
-            toast.error(failed.msg || failed.message || "部分隧道解绑失败，请重试");
+            toast.error(
+              failed.msg || failed.message || "部分隧道解绑失败，请重试",
+            );
+
             return; // 有报错直接拦截，绝不骗你“保存成功”
           }
         }
@@ -153,7 +175,7 @@ export function TunnelGroupManager({
       await loadAllData();
       onGroupChange?.();
     } catch (error: any) {
-      console.error('保存操作崩溃:', error);
+      console.error("保存操作崩溃:", error);
       toast.error(error?.msg || error?.message || "保存失败，请检查网络");
     }
   };
@@ -178,23 +200,25 @@ export function TunnelGroupManager({
       color: "#a1a1aa", // 采用低调的灰色
       inx: 0,
     } as any;
-    
+
     // 把虚拟分组和真实分组拼在一起，统一按照 inx 从小到大排序
-    return [uncategorizedGroup, ...groups].sort((a, b) => (a.inx || 0) - (b.inx || 0));
+    return [uncategorizedGroup, ...groups].sort(
+      (a, b) => (a.inx || 0) - (b.inx || 0),
+    );
   }, [groups]);
 
   return (
     <>
-      <Modal 
+      <Modal
         backdrop="blur"
         classNames={{
           base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
         }}
-        isOpen={isOpen} 
+        isOpen={isOpen}
         placement="center"
-        size="2xl"
         scrollBehavior="inside"
-        onOpenChange={onOpenChange} 
+        size="2xl"
+        onOpenChange={onOpenChange}
       >
         <ModalContent>
           <ModalHeader>隧道分组管理</ModalHeader>
@@ -225,11 +249,23 @@ export function TunnelGroupManager({
                   }}
                 >
                   <TableHeader>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[220px] text-left">分组名</TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-center">排序</TableColumn>                    
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-center"> 隧道数</TableColumn>
-					          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">颜色</TableColumn>
-                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left"> 操作</TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[220px] text-left">
+                      分组名
+                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-center">
+                      排序
+                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-center">
+                      {" "}
+                      隧道数
+                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                      颜色
+                    </TableColumn>
+                    <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                      {" "}
+                      操作
+                    </TableColumn>
                   </TableHeader>
                   <TableBody emptyContent="暂无分组" items={displayGroups}>
                     {(group) => (
@@ -257,20 +293,27 @@ export function TunnelGroupManager({
                         <TableCell className="whitespace-nowrap">
                           <div className="flex items-center justify-center gap-2">
                             <div className="inline-flex items-center justify-center bg-blue-500/10 text-blue-600 px-2.5 py-0.5 rounded-md text-sm font-bold font-mono">
-							  {group.inx || 0}
-							</div>
+                              {group.inx || 0}
+                            </div>
                           </div>
                         </TableCell>
 
                         <TableCell className="whitespace-nowrap">
                           <div className="flex items-center justify-center gap-2">
                             <div className="inline-flex items-center justify-center bg-purple-500/10 text-purple-600 px-2.5 py-0.5 rounded-md text-sm font-bold font-mono">
-                              {group.id === -1 ? allTunnels.filter((t) => !t.tunnelGroupId || t.tunnelGroupId === 0).length : allTunnels.filter((t) => t.tunnelGroupId === group.id).length}
+                              {group.id === -1
+                                ? allTunnels.filter(
+                                    (t) =>
+                                      !t.tunnelGroupId || t.tunnelGroupId === 0,
+                                  ).length
+                                : allTunnels.filter(
+                                    (t) => t.tunnelGroupId === group.id,
+                                  ).length}
                             </div>
                           </div>
                         </TableCell>
-						
-						 <TableCell className="whitespace-nowrap">
+
+                        <TableCell className="whitespace-nowrap">
                           <div className="flex items-center justify-start items-center gap-2">
                             <div
                               className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
@@ -296,9 +339,9 @@ export function TunnelGroupManager({
                             <Button
                               isIconOnly
                               className="bg-danger-50 text-danger hover:bg-danger-100 w-8 h-8 min-w-8"
+                              isDisabled={group.id === -1}
                               size="sm"
                               variant="flat"
-                              isDisabled={group.id === -1}
                               onPress={() => handleDelete(group.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -318,7 +361,7 @@ export function TunnelGroupManager({
             </Button>
           </ModalFooter>
         </ModalContent>
-      </Modal >
+      </Modal>
 
       <GroupEditModal
         allTunnels={allTunnels}
@@ -336,7 +379,10 @@ interface GroupEditModalProps {
   onOpenChange: (open: boolean) => void;
   group: TunnelGroupNewApiItem | null;
   allTunnels: any[];
-  onSave: (data: TunnelGroupNewMutationPayload, selectedTunnelIds: number[]) => void;
+  onSave: (
+    data: TunnelGroupNewMutationPayload,
+    selectedTunnelIds: number[],
+  ) => void;
 }
 
 function GroupEditModal({
@@ -358,7 +404,15 @@ function GroupEditModal({
       setDescription(group.description || "");
       setColor(group.color || "#3b82f6");
       setInx(group.inx || 0);
-      const currentTunnels = group.id === -1 ? allTunnels.filter(t => !t.tunnelGroupId || t.tunnelGroupId === 0).map(t => t.id) : allTunnels.filter(t => t.tunnelGroupId === group.id).map(t => t.id);
+      const currentTunnels =
+        group.id === -1
+          ? allTunnels
+              .filter((t) => !t.tunnelGroupId || t.tunnelGroupId === 0)
+              .map((t) => t.id)
+          : allTunnels
+              .filter((t) => t.tunnelGroupId === group.id)
+              .map((t) => t.id);
+
       setSelectedTunnelIds(currentTunnels);
     } else if (isOpen) {
       setName("");
@@ -372,15 +426,22 @@ function GroupEditModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (group && group.id === -1) {
-      toast.success("「未分组」为系统默认状态仅供查看，请前往具体分组去分配隧道");
+      toast.success(
+        "「未分组」为系统默认状态仅供查看，请前往具体分组去分配隧道",
+      );
       onOpenChange(false);
+
       return;
     }
     if (!name.trim()) {
       toast.error("分组名称不能为空");
+
       return;
     }
-    onSave({ name, description, color, inx: Number(inx) || 0 }, selectedTunnelIds);
+    onSave(
+      { name, description, color, inx: Number(inx) || 0 },
+      selectedTunnelIds,
+    );
   };
 
   const presetColors = [
@@ -395,18 +456,21 @@ function GroupEditModal({
   ];
 
   return (
-    <Modal 
+    <Modal
       backdrop="blur"
       classNames={{
         base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
       }}
-      isOpen={isOpen} 
+      isOpen={isOpen}
       placement="center"
-      scrollBehavior="inside" 
-      onOpenChange={onOpenChange} 
+      scrollBehavior="inside"
+      onOpenChange={onOpenChange}
     >
       <ModalContent>
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 w-full min-h-0">
+        <form
+          className="flex flex-col flex-1 w-full min-h-0"
+          onSubmit={handleSubmit}
+        >
           <ModalHeader>{group ? "编辑分组" : "创建分组"}</ModalHeader>
           <ModalBody className="space-y-4">
             <div>
@@ -430,8 +494,8 @@ function GroupEditModal({
                   input: "!min-h-[20px]",
                 }}
                 placeholder="分组描述（可选）"
-                rows={1}
                 readOnly={group?.id === -1}
+                rows={1}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -441,22 +505,32 @@ function GroupEditModal({
               <label className="block text-sm font-medium mb-1">分配隧道</label>
               <Select
                 placeholder="选择要加入此分组的隧道"
+                selectedKeys={new Set(selectedTunnelIds.map(String))}
                 selectionMode="multiple"
                 variant="bordered"
-                selectedKeys={new Set(selectedTunnelIds.map(String))}
                 onSelectionChange={(keys: any) => {
                   if (keys === "all") {
-                    setSelectedTunnelIds(allTunnels.map(t => t.id));
+                    setSelectedTunnelIds(allTunnels.map((t) => t.id));
                   } else {
                     setSelectedTunnelIds(Array.from(keys).map(Number));
                   }
                 }}
               >
-                {(group?.id === -1 ? allTunnels.filter(t => !t.tunnelGroupId || t.tunnelGroupId === 0) : allTunnels).map((tunnel: any) => (
-                  <SelectItem key={tunnel.id.toString()} textValue={tunnel.name}>
+                {(group?.id === -1
+                  ? allTunnels.filter(
+                      (t) => !t.tunnelGroupId || t.tunnelGroupId === 0,
+                    )
+                  : allTunnels
+                ).map((tunnel: any) => (
+                  <SelectItem
+                    key={tunnel.id.toString()}
+                    textValue={tunnel.name}
+                  >
                     <div className="flex flex-col">
                       <span className="text-sm">{tunnel.name}</span>
-                      <span className="text-xs text-default-400">{tunnel.inIp || "未知入口 IP"}</span>
+                      <span className="text-xs text-default-400">
+                        {tunnel.inIp || "未知入口 IP"}
+                      </span>
                     </div>
                   </SelectItem>
                 ))}
@@ -469,8 +543,9 @@ function GroupEditModal({
                 {presetColors.map((c) => (
                   <button
                     key={c}
-                    className={`w-8 h-8 rounded border-2 ${color === c ? "border-gray-900" : "border-transparent"
-                      }`}
+                    className={`w-8 h-8 rounded border-2 ${
+                      color === c ? "border-gray-900" : "border-transparent"
+                    }`}
                     style={{ backgroundColor: c }}
                     type="button"
                     onClick={() => setColor(c)}
@@ -496,10 +571,16 @@ function GroupEditModal({
               <label className="block text-sm font-medium mb-1">排序</label>
               <Input
                 placeholder="数字越小越靠前"
-                type="number"
                 readOnly={group?.id === -1}
+                type="number"
                 value={String(inx) === "" ? "" : String(inx)}
-                onChange={(e) => setInx(e.target.value === "" ? "" as any : parseInt(e.target.value))}
+                onChange={(e) =>
+                  setInx(
+                    e.target.value === ""
+                      ? ("" as any)
+                      : parseInt(e.target.value),
+                  )
+                }
               />
             </div>
           </ModalBody>

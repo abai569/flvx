@@ -35,6 +35,7 @@ export function NodeGroupCollapsible({
 
   const handleToggle = () => {
     const newExpanded = !isExpanded;
+
     setIsExpanded(newExpanded);
     onToggleCollapsed?.();
   };
@@ -54,20 +55,18 @@ export function NodeGroupCollapsible({
           ) : (
             <ChevronRight className="w-5 h-5 text-gray-500" />
           )}
-          
+
           <div
             className="w-3 h-3 rounded-full"
             style={{ backgroundColor: groupColor }}
           />
-          
-          <div className="font-semibold text-lg">
-            {groupName}
-          </div>
-          
+
+          <div className="font-semibold text-lg">{groupName}</div>
+
           <Chip
+            className="bg-gray-100 dark:bg-gray-800"
             size="sm"
             variant="flat"
-            className="bg-gray-100 dark:bg-gray-800"
           >
             {count}
           </Chip>
@@ -77,23 +76,23 @@ export function NodeGroupCollapsible({
               {tags.slice(0, 3).map((tag) => (
                 <Chip
                   key={tag.id}
+                  className="border"
                   size="sm"
-                  variant="flat"
                   style={{
                     backgroundColor: `${tag.color}20`,
                     color: tag.color,
                     borderColor: tag.color,
                   }}
-                  className="border"
+                  variant="flat"
                 >
                   {tag.name}
                 </Chip>
               ))}
               {tags.length > 3 && (
                 <Chip
+                  className="bg-gray-100 dark:bg-gray-800"
                   size="sm"
                   variant="flat"
-                  className="bg-gray-100 dark:bg-gray-800"
                 >
                   +{tags.length - 3}
                 </Chip>
@@ -109,7 +108,7 @@ export function NodeGroupCollapsible({
             <div className="text-center py-8 text-gray-500">
               此分组下暂无节点
             </div>
-          ) : typeof children === 'function' ? (
+          ) : typeof children === "function" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
               {nodes.map((node) => (
                 <div

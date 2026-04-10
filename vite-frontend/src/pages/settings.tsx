@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
@@ -28,6 +29,7 @@ interface PanelAddress {
   inx: boolean;
 }
 const FORWARD_COMPACT_MODE_CONFIG_KEY = "forward_compact_mode";
+
 export const SettingsPage = () => {
   const navigate = useNavigate();
   const [panelAddresses, setPanelAddresses] = useState<PanelAddress[]>([]);
@@ -52,6 +54,7 @@ export const SettingsPage = () => {
   const addPanelAddress = async () => {
     if (!newName.trim() || !newAddress.trim()) {
       toast.error("请输入名称和地址");
+
       return;
     }
     // 验证地址格式
@@ -59,6 +62,7 @@ export const SettingsPage = () => {
       toast.error(
         "地址格式不正确，请检查：\n• 必须是完整的URL格式\n• 必须以 http:// 或 https:// 开头\n• 支持域名、IPv4、IPv6 地址\n• 端口号范围：1-65535\n• 示例：http://192.168.1.100:3000",
       );
+
       return;
     }
     (window as any).setPanelAddresses = setPanelAddressesFunc;
@@ -80,6 +84,7 @@ export const SettingsPage = () => {
     reinitializeBaseURL();
     toast.success("删除成功");
   };
+
   // 页面加载时获取数据
   useEffect(() => {
     loadPanelAddresses();
@@ -92,6 +97,7 @@ export const SettingsPage = () => {
         res.code === 0 &&
         typeof res.data?.value === "string" &&
         res.data.value === "true";
+
       setForwardCompactMode(enabled);
     } catch {
       setForwardCompactMode(false);
@@ -102,6 +108,7 @@ export const SettingsPage = () => {
       return;
     }
     const previous = forwardCompactMode;
+
     setForwardCompactMode(enabled);
     setForwardCompactModeSaving(true);
     try {
@@ -109,6 +116,7 @@ export const SettingsPage = () => {
         FORWARD_COMPACT_MODE_CONFIG_KEY,
         enabled ? "true" : "false",
       );
+
       if (response.code === 0) {
         toast.success(`规则页面精简模式已${enabled ? "开启" : "关闭"}`);
         window.dispatchEvent(
@@ -134,6 +142,7 @@ export const SettingsPage = () => {
       `更新通道已切换为${channel === "stable" ? "稳定版" : "开发版"}`,
     );
   };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* 顶部导航 */}
@@ -170,6 +179,7 @@ export const SettingsPage = () => {
                   onSelectionChange={(keys) => {
                     const selected =
                       (Array.from(keys)[0] as UpdateReleaseChannel) || "stable";
+
                     handleUpdateChannelChange(selected);
                   }}
                 >

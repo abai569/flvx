@@ -103,15 +103,27 @@ export const getNodeInstallCommand = (
 export const getNodeInstallCommandDomestic = (
   id: number,
   channel?: ReleaseChannel,
-) => Network.post<string>("/node/install-domestic", { id, channel: channel || "" });
+) =>
+  Network.post<string>("/node/install-domestic", {
+    id,
+    channel: channel || "",
+  });
 export const getNodeInstallCommandOverseas = (
   id: number,
   channel?: ReleaseChannel,
-) => Network.post<string>("/node/install-overseas", { id, channel: channel || "" });
+) =>
+  Network.post<string>("/node/install-overseas", {
+    id,
+    channel: channel || "",
+  });
 export const getNodeInstallCommandAlternative = (
   id: number,
   channel?: ReleaseChannel,
-) => Network.post<string>("/node/install-alternative", { id, channel: channel || "" });
+) =>
+  Network.post<string>("/node/install-alternative", {
+    id,
+    channel: channel || "",
+  });
 export const getNodeInstallCommandOffline = (id: number) =>
   Network.post<OfflineDeployPayload>("/node/install-offline", { id });
 export const updateNodeOrder = (data: {
@@ -302,7 +314,10 @@ export const batchDeleteTunnels = (ids: number[]) =>
 export const batchDeleteNodes = (ids: number[]) =>
   Network.post<BatchOperationResult>("/node/batch-delete", { ids });
 export const batchResetNodeTraffic = (nodeIds: number[], reason?: string) =>
-  Network.post<BatchOperationResult>("/node/batch-reset-traffic", { nodeIds, reason });
+  Network.post<BatchOperationResult>("/node/batch-reset-traffic", {
+    nodeIds,
+    reason,
+  });
 export const batchRedeployForwards = (ids: number[]) =>
   Network.post<BatchOperationResult>("/forward/batch-redeploy", { ids });
 export const batchRedeployTunnels = (ids: number[]) =>
@@ -597,8 +612,7 @@ export const deleteTunnelGroupNew = (id: number) =>
 export const assignTunnelToGroupNew = (data: {
   groupId: number;
   tunnelIds: number[];
-}) =>
-  Network.post("/tunnel-group-new/assign", data);
+}) => Network.post("/tunnel-group-new/assign", data);
 
 // ─── Node Group & Tag Management ─────────────────────────────────────
 

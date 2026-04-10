@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
@@ -26,6 +27,7 @@ export default function ChangePasswordPage() {
   const navigate = useNavigate();
   const validateForm = (): boolean => {
     const newErrors: Partial<PasswordForm> = {};
+
     if (!form.newUsername.trim()) {
       newErrors.newUsername = "请输入新用户名";
     } else if (form.newUsername.length < 3) {
@@ -49,6 +51,7 @@ export default function ChangePasswordPage() {
       newErrors.confirmPassword = "两次输入密码不一致";
     }
     setErrors(newErrors);
+
     return Object.keys(newErrors).length === 0;
   };
   const handleInputChange = (field: keyof PasswordForm, value: string) => {
@@ -62,6 +65,7 @@ export default function ChangePasswordPage() {
     setLoading(true);
     try {
       const response = await updatePassword(form);
+
       if (response.code === 0) {
         toast.success(response.msg || "账号密码修改成功");
         // 使用 toast 确认对话框的替代方案
@@ -89,6 +93,7 @@ export default function ChangePasswordPage() {
       handleSubmit();
     }
   };
+
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10 min-h-[calc(100dvh-200px)]">

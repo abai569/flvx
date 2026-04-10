@@ -312,8 +312,8 @@ export const EyeIcon = ({
     <circle
       cx="12"
       cy="12"
-      r="3"
       fill="none"
+      r="3"
       stroke="currentColor"
       strokeWidth="2"
     />

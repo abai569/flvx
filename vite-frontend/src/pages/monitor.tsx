@@ -1,7 +1,9 @@
 import type { MonitorNodeApiItem } from "@/api/types";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Server, ArrowRightLeft } from "lucide-react";
+
 import { AnimatedPage } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
@@ -25,17 +27,21 @@ export default function MonitorPage() {
   const [tunnelRefreshTrigger, setTunnelRefreshTrigger] = useState(0);
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
+
     if (!silent) setNodesLoading(true);
     try {
       const response = await getMonitorNodes();
+
       if (response.code === 0 && Array.isArray(response.data)) {
         setNodesError(null);
         setNodes(response.data);
+
         return;
       }
       if (response.code === 403) {
         setNodes([]);
         setNodesError(response.msg || "暂无监控权限，请联系管理员授权");
+
         return;
       }
       if (!silent) toast.error(response.msg || "加载节点失败");
@@ -45,6 +51,7 @@ export default function MonitorPage() {
       if (!silent) setNodesLoading(false);
     }
   }, []);
+
   useEffect(() => {
     void loadNodes();
   }, [loadNodes]);
@@ -52,6 +59,7 @@ export default function MonitorPage() {
     const timer = window.setInterval(() => {
       void loadNodes({ silent: true });
     }, 30_000);
+
     return () => window.clearInterval(timer);
   }, [loadNodes]);
   const nodeMap = useMemo(() => {
@@ -63,8 +71,10 @@ export default function MonitorPage() {
         connectionStatus: n.status === 1 ? "online" : "offline",
         version: n.version,
       }));
+
     return new Map<number, MonitorNode>(list.map((n) => [n.id, n]));
   }, [nodes]);
+
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="mb-4 space-y-3">

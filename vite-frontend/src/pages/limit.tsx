@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
+
 import {
   AnimatedPage,
   StaggerList,
@@ -33,6 +34,7 @@ import {
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 const LIMIT_VIEW_MODE_KEY = "limit_view_mode";
+
 interface SpeedLimitRule {
   id: number;
   name: string;
@@ -58,6 +60,7 @@ export default function LimitPage() {
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {
     const stored = localStorage.getItem(LIMIT_VIEW_MODE_KEY);
+
     return stored === "list" || stored === "card" ? stored : "card";
   });
   // 列表模式选中行
@@ -65,6 +68,7 @@ export default function LimitPage() {
   const filteredRules = useMemo(() => {
     if (!searchKeyword.trim()) return rules;
     const lowerKeyword = searchKeyword.toLowerCase();
+
     return rules.filter(
       (r) => r.name && r.name.toLowerCase().includes(lowerKeyword),
     );
@@ -84,6 +88,7 @@ export default function LimitPage() {
   });
   // 表单验证错误
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
   useEffect(() => {
     loadData();
   }, []);
@@ -92,6 +97,7 @@ export default function LimitPage() {
     setLoading(true);
     try {
       const rulesRes = await getSpeedLimitList();
+
       if (rulesRes.code === 0) {
         setRules(rulesRes.data || []);
       } else {
@@ -111,6 +117,7 @@ export default function LimitPage() {
   // 表单验证
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
+
     if (!form.name.trim()) {
       newErrors.name = "请输入规则名称";
     } else if (form.name.length < 2 || form.name.length > 50) {
@@ -120,6 +127,7 @@ export default function LimitPage() {
       newErrors.speed = "请输入有效的速度限制（≥1 Mbps）";
     }
     setErrors(newErrors);
+
     return Object.keys(newErrors).length === 0;
   };
   // 新增规则
@@ -156,6 +164,7 @@ export default function LimitPage() {
     setDeleteLoading(true);
     try {
       const res = await deleteSpeedLimit(ruleToDelete.id);
+
       if (res.code === 0) {
         toast.success("删除成功");
         setDeleteModalOpen(false);
@@ -181,6 +190,7 @@ export default function LimitPage() {
         speed: form.speed,
         status: form.status,
       };
+
       if (isEdit) {
         res = await updateSpeedLimit(payload);
       } else {
@@ -189,6 +199,7 @@ export default function LimitPage() {
           speed: payload.speed,
           status: payload.status,
         };
+
         res = await createSpeedLimit(createData);
       }
       if (res.code === 0) {
@@ -204,9 +215,11 @@ export default function LimitPage() {
       setSubmitLoading(false);
     }
   };
+
   if (loading) {
     return <PageLoadingState message="正在加载..." />;
   }
+
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="flex flex-row items-center justify-between mb-6 gap-3">
@@ -223,6 +236,7 @@ export default function LimitPage() {
                 const searchInput = document.querySelector(
                   'input[placeholder*="搜索"]',
                 );
+
                 if (searchInput) (searchInput as HTMLElement).focus();
               }, 150);
             }}
@@ -298,10 +312,16 @@ export default function LimitPage() {
                       </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">{rule.speed}M</div>
+                      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
+                        {rule.speed}M
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${rule.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{rule.status === 1 ? "运行" : "异常"}</div>
+                      <div
+                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${rule.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
+                      >
+                        {rule.status === 1 ? "运行" : "异常"}
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <span className="text-sm text-default-600">
@@ -320,11 +340,11 @@ export default function LimitPage() {
                           color="primary"
                           size="sm"
                           variant="flat"
-                          onPress={() => handleEdit(rule)}
-                          onTouchStart={(e) => {
+                          onPointerDown={(e) => {
                             e.stopPropagation();
                           }}
-                          onPointerDown={(e) => {
+                          onPress={() => handleEdit(rule)}
+                          onTouchStart={(e) => {
                             e.stopPropagation();
                           }}
                         >
@@ -335,11 +355,11 @@ export default function LimitPage() {
                           color="danger"
                           size="sm"
                           variant="flat"
-                          onPress={() => handleDelete(rule)}
-                          onTouchStart={(e) => {
+                          onPointerDown={(e) => {
                             e.stopPropagation();
                           }}
-                          onPointerDown={(e) => {
+                          onPress={() => handleDelete(rule)}
+                          onTouchStart={(e) => {
                             e.stopPropagation();
                           }}
                         >
@@ -364,7 +384,11 @@ export default function LimitPage() {
                           {rule.name}
                         </h3>
                       </div>
-                      <div className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${rule.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}>{rule.status === 1 ? "运行" : "异常"}</div>
+                      <div
+                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${rule.status === 1 ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
+                      >
+                        {rule.status === 1 ? "运行" : "异常"}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
@@ -373,7 +397,9 @@ export default function LimitPage() {
                         <span className="text-small text-default-600">
                           速度限制
                         </span>
-                        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">{rule.speed}M</div>
+                        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
+                          {rule.speed}M
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4">
@@ -392,11 +418,11 @@ export default function LimitPage() {
                           </svg>
                         }
                         variant="flat"
-                        onPress={() => handleEdit(rule)}
-                        onTouchStart={(e) => {
+                        onPointerDown={(e) => {
                           e.stopPropagation();
                         }}
-                        onPointerDown={(e) => {
+                        onPress={() => handleEdit(rule)}
+                        onTouchStart={(e) => {
                           e.stopPropagation();
                         }}
                       >
@@ -426,11 +452,11 @@ export default function LimitPage() {
                           </svg>
                         }
                         variant="flat"
-                        onPress={() => handleDelete(rule)}
-                        onTouchStart={(e) => {
+                        onPointerDown={(e) => {
                           e.stopPropagation();
                         }}
-                        onPointerDown={(e) => {
+                        onPress={() => handleDelete(rule)}
+                        onTouchStart={(e) => {
                           e.stopPropagation();
                         }}
                       >

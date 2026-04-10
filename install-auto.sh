@@ -5,6 +5,87 @@
 
 set -e
 
+# 检查并安装必要的下载工具
+install_download_tools() {
+  local need_install=0
+  
+  if ! command -v curl &> /dev/null; then
+    echo "⚠️  未检测到 curl"
+    need_install=1
+  fi
+  
+  if ! command -v wget &> /dev/null; then
+    echo "⚠️  未检测到 wget"
+    need_install=1
+  fi
+  
+  if [ $need_install -eq 0 ]; then
+    return 0
+  fi
+  
+  echo "🔧 正在安装缺失的下载工具..."
+  
+  OS_TYPE=$(uname -s)
+  
+  if [[ "$OS_TYPE" == "Darwin" ]]; then
+    if command -v brew &> /dev/null; then
+      brew install curl wget
+    else
+      echo "❌ 未检测到 Homebrew，请手动安装 curl 和 wget"
+      exit 1
+    fi
+    return 0
+  fi
+  
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO=$ID
+  elif [ -f /etc/redhat-release ]; then
+    DISTRO="rhel"
+  elif [ -f /etc/debian_version ]; then
+    DISTRO="debian"
+  else
+    DISTRO="unknown"
+  fi
+  
+  case $DISTRO in
+    ubuntu|debian|kali)
+      apt update
+      apt install -y curl wget
+      ;;
+    centos|rhel|fedora|almalinux|rocky)
+      if command -v dnf &> /dev/null; then
+        dnf install -y curl wget
+      elif command -v yum &> /dev/null; then
+        yum install -y curl wget
+      fi
+      ;;
+    alpine)
+      apk add --no-cache curl wget
+      ;;
+    arch|manjaro|endeavouros)
+      pacman -S --noconfirm curl wget
+      ;;
+    opensuse*|sles)
+      zypper install -y curl wget
+      ;;
+    void)
+      xbps-install -Sy curl wget
+      ;;
+    gentoo)
+      emerge --ask=n net-misc/curl net-misc/wget
+      ;;
+    *)
+      echo "⚠️  未知发行版，请手动安装 curl 和 wget"
+      exit 1
+      ;;
+  esac
+  
+  echo "✅ 下载工具安装完成"
+}
+
+install_download_tools
+
 # 接收所有参数（包括 -a, -s, -n 等）
 AUTO_ARGS="$@"
 

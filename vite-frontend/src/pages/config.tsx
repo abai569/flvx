@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 // 👇 加上这一行，引入动画组件
 import { AnimatePresence, motion } from "framer-motion";
+
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -11,14 +12,6 @@ import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Divider } from "@/shadcn-bridge/heroui/divider";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
-import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
-import {
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-} from "@/shadcn-bridge/heroui/modal";
 import {
   updateConfigs,
   exportBackup,
@@ -57,6 +50,7 @@ const SaveIcon = ({ className }: { className?: string }) => (
     <polyline points="7,3 7,8 15,8" />
   </svg>
 );
+
 interface ConfigItem {
   key: string;
   label: string;
@@ -68,6 +62,7 @@ interface ConfigItem {
   dependsValue?: string; // 依赖的配置项值
 }
 const BRAND_PREVIEW_KEYS = ["app_logo", "app_favicon"] as const;
+
 type BrandPreviewKey = (typeof BRAND_PREVIEW_KEYS)[number];
 const isBrandPreviewKey = (key: string): key is BrandPreviewKey =>
   BRAND_PREVIEW_KEYS.includes(key as BrandPreviewKey);
@@ -151,19 +146,6 @@ const CONFIG_ITEMS: ConfigItem[] = [
     dependsValue: "true",
   },
 ];
-const BACKUP_TYPE_OPTIONS = [
-  { value: "users", label: "用户" },
-  { value: "nodes", label: "节点" },
-  { value: "tunnels", label: "隧道" },
-  { value: "forwards", label: "规则" },
-  { value: "userTunnels", label: "用户隧道权限" },
-  { value: "speedLimits", label: "限速规则" },
-  { value: "tunnelGroups", label: "隧道分组" },
-  { value: "userGroups", label: "用户分组" },
-  { value: "permissions", label: "分组权限" },
-  { value: "configs", label: "系统配置" },
-] as const;
-const BACKUP_TYPE_VALUES = BACKUP_TYPE_OPTIONS.map((option) => option.value);
 // 初始化时从缓存读取配置，避免闪烁
 const getInitialConfigs = (): Record<string, string> => {
   if (typeof window === "undefined") return {};
@@ -181,16 +163,20 @@ const getInitialConfigs = (): Record<string, string> => {
     "app_favicon",
   ];
   const initialConfigs: Record<string, string> = {};
+
   try {
     configKeys.forEach((key) => {
       const cachedValue = localStorage.getItem("vite_config_" + key);
+
       if (cachedValue) {
         initialConfigs[key] = cachedValue;
       }
     });
-  } catch { }
+  } catch {}
+
   return initialConfigs;
 };
+
 export default function ConfigPage() {
   const navigate = useNavigate();
   const initialConfigs = getInitialConfigs();
@@ -203,12 +189,8 @@ export default function ConfigPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalConfigs, setOriginalConfigs] =
     useState<Record<string, string>>(initialConfigs);
-  const [exportTypes, setExportTypes] = useState<string[]>([]);
-  const [importTypes, setImportTypes] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [exportSelectorOpen, setExportSelectorOpen] = useState(false);
-  const [importSelectorOpen, setImportSelectorOpen] = useState(false);
   const [importFileName, setImportFileName] = useState("");
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
@@ -228,11 +210,13 @@ export default function ConfigPage() {
   const [brandUploading, setBrandUploading] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
+
   // 权限检查
   useEffect(() => {
     if (!isAdmin()) {
       toast.error("权限不足，只有管理员可以访问此页面");
       navigate("/dashboard", { replace: true });
+
       return;
     }
   }, [navigate]);
@@ -240,6 +224,7 @@ export default function ConfigPage() {
   const loadConfigs = async (currentConfigs?: Record<string, string>) => {
     const configsToCompare = currentConfigs || configs;
     const hasInitialData = Object.keys(configsToCompare).length > 0;
+
     // 如果已有缓存数据，不显示loading，静默更新
     if (!hasInitialData) {
       setLoading(true);
@@ -249,6 +234,7 @@ export default function ConfigPage() {
       // 只有在数据有变化时才更新
       const hasDataChanged =
         JSON.stringify(configData) !== JSON.stringify(configsToCompare);
+
       if (hasDataChanged) {
         setConfigs(configData);
         setOriginalConfigs({ ...configData });
@@ -264,17 +250,20 @@ export default function ConfigPage() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       loadConfigs(initialConfigs);
       loadAnnouncement();
     }, 100);
+
     return () => clearTimeout(timer);
   }, []);
   const loadAnnouncement = async () => {
     setAnnouncementLoading(true);
     try {
       const res = await getAnnouncement();
+
       if (res.code === 0 && res.data) {
         setAnnouncement(res.data);
       }
@@ -287,6 +276,7 @@ export default function ConfigPage() {
     setAnnouncementSaving(true);
     try {
       const res = await updateAnnouncement(announcement);
+
       if (res.code === 0) {
         toast.success("公告保存成功");
       } else {
@@ -307,6 +297,7 @@ export default function ConfigPage() {
   };
   const handleConfigChange = (key: string, value: string) => {
     const newConfigs = { ...configs, [key]: value };
+
     setConfigs(newConfigs);
     if (isBrandPreviewKey(key)) {
       setPreviewLoadFailed((prev) => ({ ...prev, [key]: false }));
@@ -318,6 +309,7 @@ export default function ConfigPage() {
       Object.keys(originalConfigs).some(
         (k) => originalConfigs[k] !== newConfigs[k],
       );
+
     setHasChanges(hasChangesNow);
   };
   // 保存配置
@@ -327,15 +319,19 @@ export default function ConfigPage() {
       const changedKeys = Object.keys(configs).filter(
         (key) => configs[key] !== originalConfigs[key],
       );
+
       if (changedKeys.length === 0) {
         setHasChanges(false);
+
         return;
       }
       const changedPayload: Record<string, string> = {};
+
       changedKeys.forEach((key) => {
         changedPayload[key] = configs[key] || "";
       });
       const response = await updateConfigs(changedPayload);
+
       if (response.code === 0) {
         toast.success("配置保存成功");
         Object.entries(configs).forEach(([key, value]) => {
@@ -370,6 +366,7 @@ export default function ConfigPage() {
     if (!item.dependsOn || !item.dependsValue) {
       return true;
     }
+
     return configs[item.dependsOn] === item.dependsValue;
   };
   const getBrandInputRef = (key: BrandPreviewKey) => {
@@ -390,6 +387,7 @@ export default function ConfigPage() {
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
+
     if (!file) {
       return;
     }
@@ -399,11 +397,13 @@ export default function ConfigPage() {
         file,
         toBrandAssetKind(key),
       );
+
       handleConfigChange(key, pngDataURL);
       toast.success(key === "app_logo" ? "Logo 上传成功" : "Favicon 上传成功");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "图片处理失败，请重试";
+
       toast.error(message);
     } finally {
       setBrandUploading((prev) => ({ ...prev, [key]: false }));
@@ -415,6 +415,7 @@ export default function ConfigPage() {
     const appNamePreview = (configs.app_name || "").trim() || "应用名称";
     const failed = previewLoadFailed[key] === true;
     const showImage = previewUrl.length > 0 && !failed;
+
     return (
       <div className="mt-3 rounded-lg border border-default-200 dark:border-default-100/30 bg-default-50/60 dark:bg-default-100/10 p-3">
         <p className="text-xs text-default-500">实时预览</p>
@@ -488,12 +489,14 @@ export default function ConfigPage() {
     const value = (configs[key] || "").trim();
     const uploading = brandUploading[key] === true;
     const isLogo = key === "app_logo";
+
     return (
       <div
-        className={`rounded-lg border p-3 ${isChanged
-          ? "border-warning-300"
-          : "border-default-200 dark:border-default-100/30"
-          }`}
+        className={`rounded-lg border p-3 ${
+          isChanged
+            ? "border-warning-300"
+            : "border-default-200 dark:border-default-100/30"
+        }`}
       >
         <input
           ref={getBrandInputRef(key)}
@@ -545,6 +548,7 @@ export default function ConfigPage() {
   const renderConfigItem = (item: ConfigItem) => {
     const isChanged =
       hasChanges && configs[item.key] !== originalConfigs[item.key];
+
     switch (item.type) {
       case "input":
         if (isBrandPreviewKey(item.key)) {
@@ -553,8 +557,10 @@ export default function ConfigPage() {
         if (item.key === "github_proxy_urls") {
           const rawValue = configs[item.key] || "";
           let displayValue = "";
+
           try {
             const urls = JSON.parse(rawValue);
+
             if (Array.isArray(urls)) {
               displayValue = urls.join("\n");
             } else {
@@ -563,6 +569,7 @@ export default function ConfigPage() {
           } catch {
             displayValue = rawValue;
           }
+
           return (
             <Textarea
               classNames={{
@@ -581,11 +588,13 @@ export default function ConfigPage() {
                   .split("\n")
                   .map((l) => l.trim())
                   .filter((l) => l.length > 0);
+
                 handleConfigChange(item.key, JSON.stringify(lines));
               }}
             />
           );
         }
+
         return (
           <Input
             classNames={{
@@ -633,6 +642,7 @@ export default function ConfigPage() {
             variant="bordered"
             onSelectionChange={(keys) => {
               const selectedKey = Array.from(keys)[0] as string;
+
               if (selectedKey) {
                 handleConfigChange(item.key, selectedKey);
               }
@@ -649,52 +659,33 @@ export default function ConfigPage() {
         return null;
     }
   };
-  const handleExport = async () => {
-    if (exportTypes.length === 0) {
-      toast.error("请至少选择一种数据类型");
-      return;
-    }
+  const handleExportAll = async () => {
     setExporting(true);
     try {
-      await exportBackup(exportTypes);
+      await exportBackup([]);
       toast.success("导出成功");
-      setExportSelectorOpen(false);
     } catch {
       toast.error("导出失败，请重试");
     } finally {
       setExporting(false);
     }
   };
-  const triggerImportFilePicker = () => {
-    if (importTypes.length === 0) {
-      toast.error("请先选择要导入的数据类型");
-      return;
-    }
-    setImportSelectorOpen(false);
-    requestAnimationFrame(() => backupFileInputRef.current?.click());
-  };
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+
     if (!file) return;
-    if (importTypes.length === 0) {
-      toast.error("请先选择要导入的数据类型");
-      return;
-    }
     setImportFileName(file.name);
     setImporting(true);
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      const response = await importBackup({
-        types: importTypes,
-        ...data,
-      });
+      const response = await importBackup(data);
+
       if (response.code === 0) {
-        toast.success(`导入成功: ${JSON.stringify(response.data)}`);
-        setImportTypes([]);
+        toast.success(`导入成功：${JSON.stringify(response.data)}`);
         setImportFileName("");
       } else {
-        toast.error("导入失败: " + response.msg);
+        toast.error("导入失败：" + response.msg);
       }
     } catch {
       toast.error("导入失败，请检查文件格式");
@@ -705,90 +696,7 @@ export default function ConfigPage() {
       }
     }
   };
-  const toggleTypeSelection = (
-    type: string,
-    setTypes: React.Dispatch<React.SetStateAction<string[]>>,
-  ) => {
-    setTypes((prev) =>
-      prev.includes(type)
-        ? prev.filter((item) => item !== type)
-        : [...prev, type],
-    );
-  };
-  const isAllTypesSelected = (types: string[]) =>
-    BACKUP_TYPE_VALUES.every((type) => types.includes(type));
-  const renderTypeSelection = (
-    label: string,
-    selectedTypes: string[],
-    setTypes: React.Dispatch<React.SetStateAction<string[]>>,
-  ) => {
-    const allSelected = isAllTypesSelected(selectedTypes);
-    return (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {/* 🎯 这里把原先单调的 label 包起来，加上选中的数量 */}
-          <div className="flex flex-row items-baseline gap-3">
-            <span className="text-sm font-medium text-default-700 dark:text-default-300">
-              {label}
-            </span>
-            <span className="text-xs text-default-500 font-medium">
-              当前已选 {selectedTypes.length} / {BACKUP_TYPE_VALUES.length}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="flat"
-              onPress={() =>
-                setTypes(allSelected ? [] : [...BACKUP_TYPE_VALUES])
-              }
-            >
-              {allSelected ? "取消全选" : "全选"}
-            </Button>
-            <Button size="sm" variant="light" onPress={() => setTypes([])}>
-              清空
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {BACKUP_TYPE_OPTIONS.map((option) => {
-            const isSelected = selectedTypes.includes(option.value);
-            return (
-              <button
-                key={option.value}
-                aria-pressed={isSelected}
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${isSelected
-                  ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
-                  : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
-                  }`}
-                type="button"
-                onClick={() => toggleTypeSelection(option.value, setTypes)}
-              >
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    classNames={{
-                      base: "pointer-events-none",
-                    }}
-                    color="primary"
-                    isSelected={isSelected}
-                    size="md"
-                  />
-                  <span
-                    className={`font-medium ${isSelected
-                      ? "text-default-900 dark:text-default-100"
-                      : "text-default-700 dark:text-default-500"
-                      }`}
-                  >
-                    {option.label}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -796,6 +704,7 @@ export default function ConfigPage() {
       </div>
     );
   }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* 页面标题 
@@ -841,10 +750,17 @@ export default function ConfigPage() {
               shouldShowItem,
             );
             const isLastItem = remainingItems.length === 0;
+
             return (
               <div key={item.key}>
                 {/* 🎯 如果是开关(switch)，使用 justify-between 左右排列；如果是其他，使用 space-y-3 上下排列 */}
-                <div className={item.type === "switch" ? "flex justify-between items-center gap-4" : "space-y-3"}>
+                <div
+                  className={
+                    item.type === "switch"
+                      ? "flex justify-between items-center gap-4"
+                      : "space-y-3"
+                  }
+                >
                   {/* 左侧：标题和描述 */}
                   <div className="flex flex-col gap-1">
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -858,7 +774,9 @@ export default function ConfigPage() {
                   </div>
                   {/* 右侧/下方：配置组件 */}
                   {/* flex-shrink-0 防止开关被长文本挤变形 */}
-                  <div className={item.type === "switch" ? "flex-shrink-0" : ""}>
+                  <div
+                    className={item.type === "switch" ? "flex-shrink-0" : ""}
+                  >
                     {renderConfigItem(item)}
                   </div>
                 </div>
@@ -885,6 +803,7 @@ export default function ConfigPage() {
               onSelectionChange={(keys) => {
                 const selected =
                   (Array.from(keys)[0] as UpdateReleaseChannel) || "stable";
+
                 handleUpdateChannelChange(selected);
               }}
             >
@@ -903,11 +822,11 @@ export default function ConfigPage() {
           <AnimatePresence>
             {hasChanges && (
               <motion.div
-                initial={{ y: 100, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 100, opacity: 0 }}
-                transition={{ type: "spring", damping: 20, stiffness: 300 }}
                 className="sticky fixed bottom-8 z-50 pointer-events-none flex justify-end mt-6"
+                exit={{ y: 100, opacity: 0 }}
+                initial={{ y: 100, opacity: 0 }}
+                transition={{ type: "spring", damping: 20, stiffness: 300 }}
               >
                 {/* 内部容器添加 pointer-events-auto */}
                 <div className="pointer-events-auto flex items-center gap-3 bg-white dark:bg-default-900 rounded-full shadow-2xl border border-default-200 dark:border-default-700 px-5 py-3">
@@ -920,10 +839,10 @@ export default function ConfigPage() {
                       viewBox="0 0 24 24"
                     >
                       <path
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                       />
                     </svg>
                     <span className="text-sm font-medium whitespace-nowrap">
@@ -936,13 +855,25 @@ export default function ConfigPage() {
                   <Button
                     className="rounded-full font-medium text-white min-w-[100px]"
                     color="primary"
-                    size="sm"
                     isLoading={saving}
-                    startContent={!saving && (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
+                    size="sm"
+                    startContent={
+                      !saving && (
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            d="M5 13l4 4L19 7"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                      )
+                    }
                     onPress={handleSave}
                   >
                     {saving ? "保存中" : "保存"}
@@ -1025,14 +956,14 @@ export default function ConfigPage() {
       <div className="mt-6 shadow-md">
         <ThemeSettings />
       </div> */}
-      {/* 备份与恢复 */}
+      {/* 导出全部数据 */}
       <Card className="mt-6 shadow-md">
         <CardHeader className="pb-6">
           <div className="flex justify-between items-center w-full">
             <div>
-              <h2 className="text-xl font-semibold">数据备份与恢复</h2>
+              <h2 className="text-xl font-semibold">导出全部数据</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                导出或导入系统数据，支持选择特定数据类型
+                导出系统所有数据为 JSON 格式文件
               </p>
             </div>
           </div>
@@ -1044,17 +975,16 @@ export default function ConfigPage() {
             <div className="space-y-1.5">
               <h3 className="text-lg font-medium">导出数据</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                选择要导出的数据类型，导出为 JSON 格式文件
+                一键导出所有数据类型为 JSON 格式文件
               </p>
-              {/* 🎯 计数的 <p> 标签已经被干掉了 */}
             </div>
             <div className="flex-shrink-0">
               <Button
                 color="primary"
                 isLoading={exporting}
-                onPress={() => setExportSelectorOpen(true)}
+                onPress={handleExportAll}
               >
-                {exporting ? "导出中..." : "选择并导出"}
+                {exporting ? "导出中..." : "导出全部数据"}
               </Button>
             </div>
           </div>
@@ -1064,13 +994,10 @@ export default function ConfigPage() {
             <div className="space-y-1.5">
               <h3 className="text-lg font-medium">导入数据</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                选择要导入的数据类型，支持从备份文件恢复数据
+                从 JSON 备份文件恢复数据
               </p>
-              {/* 🎯 计数的 <p> 标签已经被干掉了 */}
               {importFileName && (
-                <p className="text-xs text-primary">
-                  已选择: {importFileName}
-                </p>
+                <p className="text-xs text-primary">已选择：{importFileName}</p>
               )}
             </div>
             <input
@@ -1085,76 +1012,14 @@ export default function ConfigPage() {
                 color="primary"
                 isLoading={importing}
                 variant="flat"
-                onPress={() => setImportSelectorOpen(true)}
+                onPress={() => backupFileInputRef.current?.click()}
               >
-                {importing ? "导入中..." : "选择并导入"}
+                {importing ? "导入中..." : "选择文件导入"}
               </Button>
             </div>
           </div>
         </CardBody>
       </Card>
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={exportSelectorOpen}
-        onOpenChange={setExportSelectorOpen}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>选择导出内容</ModalHeader>
-              <ModalBody>
-                {renderTypeSelection("导出内容", exportTypes, setExportTypes)}
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="primary"
-                  isLoading={exporting}
-                  onPress={handleExport}
-                >
-                  {exporting ? "导出中..." : "确认导出"}
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={importSelectorOpen}
-        onOpenChange={setImportSelectorOpen}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>选择导入内容</ModalHeader>
-              <ModalBody>
-                {renderTypeSelection("导入内容", importTypes, setImportTypes)}
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="primary"
-                  isDisabled={importTypes.length === 0}
-                  onPress={triggerImportFilePicker}
-                >
-                  下一步选择文件
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
     </div>
   );
 }

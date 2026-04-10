@@ -1,4 +1,4 @@
-﻿package repo
+package repo
 
 import (
 	"database/sql"
@@ -1910,70 +1910,116 @@ func (r *Repository) DeleteFederationTunnelBindingsByTunnel(tunnelID int64) erro
 
 // ─── Export Methods ──────────────────────────────────────────────────
 
-func (r *Repository) ExportAll() (*model.BackupData, error) {
-	backup := &model.BackupData{Version: "1.0", ExportedAt: unixMilliNow()}
+func (r *Repository) ExportAll() (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+	result["version"] = "2.0"
+	result["exported_at"] = unixMilliNow()
 
-	users, err := r.exportUsers()
+	tables, err := r.getAllTables()
 	if err != nil {
-		return nil, fmt.Errorf("export users failed: %w", err)
+		return nil, fmt.Errorf("get all tables failed: %w", err)
 	}
-	backup.Users = users
 
-	nodes, err := r.exportNodes()
+	for _, table := range tables {
+		data, err := r.exportTable(table)
+		if err != nil {
+			log.Printf("export table %s failed: %v", table, err)
+			continue
+		}
+		result[table] = data
+	}
+
+	return result, nil
+}
+
+func (r *Repository) getAllTables() ([]string, error) {
+	var tables []string
+
+	dialector := r.db.Dialector.Name()
+	if dialector == "sqlite" {
+		err := r.db.Raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").Scan(&tables).Error
+		if err != nil {
+			return nil, err
+		}
+	} else if dialector == "postgres" {
+		err := r.db.Raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename").Scan(&tables).Error
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := r.db.Raw("SHOW TABLES").Scan(&tables).Error
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	sort.Strings(tables)
+	return tables, nil
+}
+
+func (r *Repository) exportTable(tableName string) ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
+	err := r.db.Table(tableName).Find(&results).Error
 	if err != nil {
-		return nil, fmt.Errorf("export nodes failed: %w", err)
+		return nil, err
 	}
-	backup.Nodes = nodes
+	return results, nil
+}
 
-	tunnels, err := r.exportTunnels()
+func (r *Repository) ImportRaw(data map[string]interface{}, types []string) (interface{}, error) {
+	result := make(map[string]interface{})
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		now := unixMilliNow()
+
+		for _, tableName := range types {
+			if tableName == "version" || tableName == "exported_at" || tableName == "types" {
+				continue
+			}
+
+			tableData, ok := data[tableName].([]interface{})
+			if !ok || len(tableData) == 0 {
+				continue
+			}
+
+			count, err := r.importTable(tx, tableName, tableData, now)
+			if err != nil {
+				log.Printf("import table %s failed: %v", tableName, err)
+				continue
+			}
+			result[tableName] = count
+		}
+		return nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("export tunnels failed: %w", err)
+		return nil, err
 	}
-	backup.Tunnels = tunnels
 
-	forwards, err := r.exportForwards()
-	if err != nil {
-		return nil, fmt.Errorf("export forwards failed: %w", err)
+	return result, nil
+}
+
+func (r *Repository) importTable(tx *gorm.DB, tableName string, data []interface{}, now int64) (int, error) {
+	if len(data) == 0 {
+		return 0, nil
 	}
-	backup.Forwards = forwards
 
-	userTunnels, err := r.exportUserTunnels()
-	if err != nil {
-		return nil, fmt.Errorf("export user tunnels failed: %w", err)
+	count := 0
+	for _, item := range data {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		err := tx.Table(tableName).Create(itemMap).Error
+		if err != nil {
+			log.Printf("insert into %s failed: %v", tableName, err)
+			continue
+		}
+		count++
 	}
-	backup.UserTunnels = userTunnels
 
-	speedLimits, err := r.exportSpeedLimits()
-	if err != nil {
-		return nil, fmt.Errorf("export speed limits failed: %w", err)
-	}
-	backup.SpeedLimits = speedLimits
-
-	tunnelGroups, err := r.exportTunnelGroups()
-	if err != nil {
-		return nil, fmt.Errorf("export tunnel groups failed: %w", err)
-	}
-	backup.TunnelGroups = tunnelGroups
-
-	userGroups, err := r.exportUserGroups()
-	if err != nil {
-		return nil, fmt.Errorf("export user groups failed: %w", err)
-	}
-	backup.UserGroups = userGroups
-
-	permissions, err := r.exportPermissions()
-	if err != nil {
-		return nil, fmt.Errorf("export permissions failed: %w", err)
-	}
-	backup.Permissions = permissions
-
-	configs, err := r.ListConfigs()
-	if err != nil {
-		return nil, fmt.Errorf("export configs failed: %w", err)
-	}
-	backup.Configs = configs
-
-	return backup, nil
+	return count, nil
 }
 
 func (r *Repository) ExportPartial(types []string) (*model.BackupData, error) {

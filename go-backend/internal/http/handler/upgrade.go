@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -387,6 +388,10 @@ func (h *Handler) listReleases(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].PublishedAt > items[j].PublishedAt
+	})
+
 	response.WriteJSON(w, response.OK(items))
 }
 
@@ -415,7 +420,7 @@ func (h *Handler) consumeNodePendingUpgradeRedeploy(nodeID int64) bool {
 func (h *Handler) onNodeOnline(nodeID int64) {
 	// 只在 install.sh 中安装时重置流量
 	// 节点重启上线不重置流量
-	
+
 	if !h.consumeNodePendingUpgradeRedeploy(nodeID) {
 		return
 	}

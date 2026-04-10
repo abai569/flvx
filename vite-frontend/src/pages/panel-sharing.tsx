@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
+
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Tabs, Tab } from "@/shadcn-bridge/heroui/tabs";
@@ -118,6 +119,7 @@ export default function PanelSharingPage() {
     setLoading(true);
     try {
       const res = await getPeerShareList();
+
       if (res.code === 0) {
         setShares(
           Array.isArray(res.data) ? (res.data as unknown as PeerShare[]) : [],
@@ -132,10 +134,12 @@ export default function PanelSharingPage() {
   const loadNodes = useCallback(async () => {
     try {
       const res = await getNodeList();
+
       if (res.code === 0) {
         const localNodes: Node[] = (
           Array.isArray(res.data) ? (res.data as Node[]) : []
         ).filter((node: Node) => (node?.isRemote ?? 0) !== 1);
+
         setNodes(localNodes);
         setShareForm((prev) => {
           if (!prev.nodeId) {
@@ -144,6 +148,7 @@ export default function PanelSharingPage() {
           const hasSelectedNode = localNodes.some(
             (node: Node) => String(node.id) === prev.nodeId,
           );
+
           return hasSelectedNode ? prev : { ...prev, nodeId: "" };
         });
       }
@@ -155,6 +160,7 @@ export default function PanelSharingPage() {
     setRemoteUsageLoading(true);
     try {
       const res = await getPeerRemoteUsageList();
+
       if (res.code === 0) {
         setRemoteUsageNodes(
           Array.isArray(res.data)
@@ -168,10 +174,12 @@ export default function PanelSharingPage() {
       setRemoteUsageLoading(false);
     }
   }, []);
+
   useEffect(() => {
     if (selectedTab === "my-shares") {
       loadShares();
       loadNodes();
+
       return;
     }
     if (selectedTab === "remote-nodes") {
@@ -181,15 +189,19 @@ export default function PanelSharingPage() {
   const handleCreateShare = async () => {
     if (!shareForm.name || !shareForm.nodeId) {
       toast.error("请填写必要信息");
+
       return;
     }
     const nodeId = parseInt(shareForm.nodeId, 10);
+
     if (Number.isNaN(nodeId) || !nodes.some((node) => node.id === nodeId)) {
       toast.error("仅可选择本地节点");
+
       return;
     }
     if (shareForm.maxBandwidth < 0) {
       toast.error("流量上限不能为负数");
+
       return;
     }
     try {
@@ -205,6 +217,7 @@ export default function PanelSharingPage() {
         allowedDomains: shareForm.allowedDomains,
         allowedIps: shareForm.allowedIps,
       });
+
       if (res.code === 0) {
         toast.success("创建成功");
         setCreateShareOpen(false);
@@ -219,6 +232,7 @@ export default function PanelSharingPage() {
   const handleDeleteShare = async (id: number) => {
     try {
       const res = await deletePeerShare(id);
+
       if (res.code === 0) {
         toast.success("删除成功");
         loadShares();
@@ -232,6 +246,7 @@ export default function PanelSharingPage() {
   const handleResetShareFlow = async (id: number) => {
     try {
       const res = await resetPeerShareFlow(id);
+
       if (res.code === 0) {
         toast.success("共享流量已重置");
         loadShares();
@@ -261,10 +276,12 @@ export default function PanelSharingPage() {
   const handleEditShare = async () => {
     if (!editForm.name) {
       toast.error("名称不能为空");
+
       return;
     }
     if (editForm.maxBandwidth < 0) {
       toast.error("流量上限不能为负数");
+
       return;
     }
     try {
@@ -278,6 +295,7 @@ export default function PanelSharingPage() {
         allowedDomains: editForm.allowedDomains,
         allowedIps: editForm.allowedIps,
       });
+
       if (res.code === 0) {
         toast.success("编辑成功");
         setEditShareOpen(false);
@@ -292,11 +310,13 @@ export default function PanelSharingPage() {
   const handleImportNode = async () => {
     if (!importForm.remoteUrl || !importForm.token) {
       toast.error("请填写完整信息");
+
       return;
     }
     try {
       // Automatically add http/https if missing
       let url = importForm.remoteUrl.trim();
+
       if (!url.startsWith("http")) {
         url = "http://" + url;
       }
@@ -304,6 +324,7 @@ export default function PanelSharingPage() {
         remoteUrl: url,
         token: importForm.token.trim(),
       });
+
       if (res.code === 0) {
         toast.success("导入成功，请前往节点列表查看");
         setImportNodeOpen(false);
@@ -328,6 +349,7 @@ export default function PanelSharingPage() {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
     if (bytes < 1024 * 1024 * 1024)
       return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   };
   const formatChainType = (chainType: number, hopInx: number) => {
@@ -340,8 +362,10 @@ export default function PanelSharingPage() {
     if (chainType === 3) {
       return "出口节点";
     }
+
     return "未知链路";
   };
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* <div className="flex justify-between items-center">
