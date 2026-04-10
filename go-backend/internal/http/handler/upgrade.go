@@ -413,19 +413,9 @@ func (h *Handler) consumeNodePendingUpgradeRedeploy(nodeID int64) bool {
 }
 
 func (h *Handler) onNodeOnline(nodeID int64) {
-	// 节点上线时重置流量
-	h.sendNodeCommandWithTimeout(
-		nodeID,
-		"ResetTraffic",
-		map[string]interface{}{
-			"reason": "节点上线",
-			"nodeId": nodeID,
-		},
-		10*time.Second,
-		false,
-		false,
-	)
-
+	// 只在 install.sh 中安装时重置流量
+	// 节点重启上线不重置流量
+	
 	if !h.consumeNodePendingUpgradeRedeploy(nodeID) {
 		return
 	}
