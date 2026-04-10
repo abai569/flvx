@@ -1,4 +1,4 @@
-package repo
+﻿package repo
 
 import (
 	"database/sql"
@@ -1276,7 +1276,7 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 		if c.ConnectIP.Valid {
 			nodeObj["connectIp"] = c.ConnectIP.String
 		}
-		if c.ConnectIPType.Valid && c.ConnectIPType.String != "" {
+		nodeObj["connectIpType"] = ""; if c.ConnectIPType.Valid {
 			nodeObj["connectIpType"] = c.ConnectIPType.String
 		}
 		if c.Port.Valid && c.Port.Int64 > 0 {
@@ -3915,3 +3915,5 @@ func (r *Repository) PruneServiceMonitorResults(olderThanMs int64) error {
 	}
 	return r.db.Where("timestamp < ?", olderThanMs).Delete(&model.ServiceMonitorResult{}).Error
 }
+
+

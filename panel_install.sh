@@ -438,12 +438,23 @@ EOF
 # 更新功能
 update_panel() {
   echo "🔄 开始更新面板..."
+  
+  # 确保获取 SUDO 权限（防止在非 root 用户下无法在 /opt 建目录）
+  if [[ $EUID -ne 0 ]]; then
+    SUDO_CMD="sudo"
+  else
+    SUDO_CMD=""
+  fi
+
   # 切换到安装目录
   INSTALL_DIR="/opt/flux_panel"
+  
+  # 检测目录是否存在，不存在则先创建
   if [[ ! -d "$INSTALL_DIR" ]]; then
-    echo "❌ 安装目录不存在：$INSTALL_DIR"
-    return 1
+    echo "📁 升级目录不存在，正在创建：$INSTALL_DIR"
+    $SUDO_CMD mkdir -p "$INSTALL_DIR"
   fi
+  
   cd "$INSTALL_DIR"
   
   check_docker
