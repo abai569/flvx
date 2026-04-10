@@ -86,6 +86,9 @@ export interface ForwardApiItem {
   currentConnections?: number;
   trafficLimit?: number;
   expiryTime?: number | null;
+  speedLimitEnabled?: boolean;
+  uploadSpeed?: number;
+  downloadSpeed?: number;
   [key: string]: unknown;
 }
 

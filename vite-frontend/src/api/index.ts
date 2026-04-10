@@ -417,13 +417,13 @@ export interface BackupTypes {
   configs?: boolean;
 }
 
-export const exportBackup = async (types: string[] = []) => {
+export const exportBackup = async (types: string[] = [], mode: 'core' | 'full' = 'full') => {
   const token = window.localStorage.getItem("token");
   const baseURL = axios.defaults.baseURL || "/api/v1/";
 
   const response = await axios.post(
     `${baseURL}/backup/export`,
-    { types },
+    { types, mode },
     {
       headers: {
         Authorization: token,
@@ -439,7 +439,7 @@ export const exportBackup = async (types: string[] = []) => {
   link.href = url;
   const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
 
-  link.setAttribute("download", `backup_${timestamp}.json`);
+  link.setAttribute("download", `backup_${timestamp}_${mode}.json`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -447,7 +447,7 @@ export const exportBackup = async (types: string[] = []) => {
 };
 
 export const importBackup = (data: BackupImportPayload) =>
-  Network.post("/backup/import", data);
+  Network.post("/backup/import", data, { timeout: 5 * 60 * 1000 });
 
 export interface AnnouncementData {
   content: string;

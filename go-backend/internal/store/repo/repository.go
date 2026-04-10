@@ -939,29 +939,32 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 	}
 
 	type fwdRow struct {
-		ID             int64
-		UserID         int64
-		UserName       string
-		Name           string
-		TunnelID       int64
-		TunnelName     string
-		TrafficRatio   float64
-		RemoteAddr     string
-		Strategy       string
-		InFlow         int64
-		OutFlow        int64
-		CreatedTime    int64
-		Status         int
-		Inx            int
-		SpeedID        sql.NullInt64
-		MaxConnections int
-		TrafficLimit   int64
-		ExpiryTime     sql.NullInt64
+		ID                int64
+		UserID            int64
+		UserName          string
+		Name              string
+		TunnelID          int64
+		TunnelName        string
+		TrafficRatio      float64
+		RemoteAddr        string
+		Strategy          string
+		InFlow            int64
+		OutFlow           int64
+		CreatedTime       int64
+		Status            int
+		Inx               int
+		SpeedID           sql.NullInt64
+		MaxConnections    int
+		TrafficLimit      int64
+		ExpiryTime        sql.NullInt64
+		SpeedLimitEnabled bool
+		UploadSpeed       int
+		DownloadSpeed     int
 	}
 
 	var rows []fwdRow
 	err := r.db.Model(&model.Forward{}).
-		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id, COALESCE(forward.max_connections, 0) AS max_connections, COALESCE(forward.traffic_limit, 0) AS traffic_limit, forward.expiry_time").
+		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id, COALESCE(forward.max_connections, 0) AS max_connections, COALESCE(forward.traffic_limit, 0) AS traffic_limit, forward.expiry_time, COALESCE(forward.speed_limit_enabled, false) AS speed_limit_enabled, COALESCE(forward.upload_speed, 0) AS upload_speed, COALESCE(forward.download_speed, 0) AS download_speed").
 		Joins("LEFT JOIN tunnel ON tunnel.id = forward.tunnel_id").
 		Order("forward.inx ASC, forward.id ASC").
 		Find(&rows).Error
@@ -983,8 +986,11 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 			"remoteAddr": row.RemoteAddr, "strategy": row.Strategy,
 			"inFlow": row.InFlow, "outFlow": row.OutFlow,
 			"createdTime": row.CreatedTime, "status": row.Status, "inx": int64(row.Inx),
-			"maxConnections": row.MaxConnections,
-			"trafficLimit":   row.TrafficLimit,
+			"maxConnections":    row.MaxConnections,
+			"trafficLimit":      row.TrafficLimit,
+			"speedLimitEnabled": row.SpeedLimitEnabled,
+			"uploadSpeed":       row.UploadSpeed,
+			"downloadSpeed":     row.DownloadSpeed,
 		}
 		if row.SpeedID.Valid {
 			item["speedId"] = row.SpeedID.Int64
@@ -1918,14 +1924,66 @@ func (r *Repository) DeleteFederationTunnelBindingsByTunnel(tunnelID int64) erro
 
 // ─── Export Methods ──────────────────────────────────────────────────
 
-func (r *Repository) ExportAll() (map[string]interface{}, error) {
+var coreTables = []string{
+	// 核心业务数据
+	"user",
+	"node",
+	"tunnel",
+	"forward",
+	"forward_port",
+	"chain_tunnel",
+	"user_tunnel",
+
+	// 分组相关（新旧兼容）
+	"node_group",
+	"node_tag",
+	"node_tag_node",
+	"tunnel_group",
+	"tunnel_group_tunnel",
+	"tunnel_group_new",
+	"tunnel_group_tunnel_new",
+	"user_group",
+	"user_group_user",
+	"group_permission",
+	"group_permission_grant",
+	"monitor_permission",
+
+	// 设置和配置
+	"vite_config",
+	"announcement",
+	"schema_version",
+
+	// 流量统计
+	"statistics_flow",
+
+	// 监控数据
+	"node_metric",
+	"tunnel_metric",
+	"service_monitor",
+	"service_monitor_result",
+	"tunnel_quality",
+
+	// 其他重要数据
+	"speed_limit",
+	"user_quota",
+}
+
+func (r *Repository) ExportAll(mode string) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 	result["version"] = "2.0"
 	result["exported_at"] = unixMilliNow()
+	result["mode"] = mode
 
-	tables, err := r.getAllTables()
-	if err != nil {
-		return nil, fmt.Errorf("get all tables failed: %w", err)
+	var tables []string
+	var err error
+
+	if mode == "core" {
+		tables = coreTables
+	} else {
+		tables, err = r.getAllTables()
+		if err != nil {
+			return nil, fmt.Errorf("get all tables failed: %w", err)
+		}
 	}
 
 	for _, table := range tables {

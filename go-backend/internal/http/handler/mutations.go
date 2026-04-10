@@ -2013,7 +2013,10 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	trafficLimit := asInt64(req["trafficLimit"], 0)
 	expiryTime := asAnyToInt64Ptr(req["expiryTime"])
-	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), asInt(req["maxConnections"], 0), trafficLimit, expiryTime)
+	speedLimitEnabled := asBool(req["speedLimitEnabled"], false)
+	uploadSpeed := asInt(req["uploadSpeed"], 0)
+	downloadSpeed := asInt(req["downloadSpeed"], 0)
+	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), asInt(req["maxConnections"], 0), trafficLimit, expiryTime, speedLimitEnabled, uploadSpeed, downloadSpeed)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -2172,7 +2175,19 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	} else {
 		newExpiryTime = forward.ExpiryTime
 	}
-	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConnections, trafficLimit, newExpiryTime); err != nil {
+	speedLimitEnabled := asBool(req["speedLimitEnabled"], forward.SpeedLimitEnabled)
+	if _, ok := req["speedLimitEnabled"]; !ok {
+		speedLimitEnabled = forward.SpeedLimitEnabled
+	}
+	uploadSpeed := asInt(req["uploadSpeed"], forward.UploadSpeed)
+	if _, ok := req["uploadSpeed"]; !ok {
+		uploadSpeed = forward.UploadSpeed
+	}
+	downloadSpeed := asInt(req["downloadSpeed"], forward.DownloadSpeed)
+	if _, ok := req["downloadSpeed"]; !ok {
+		downloadSpeed = forward.DownloadSpeed
+	}
+	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConnections, trafficLimit, newExpiryTime, speedLimitEnabled, uploadSpeed, downloadSpeed); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}

@@ -121,6 +121,9 @@ interface Forward {
   currentConnections?: number;
   trafficLimit?: number;
   expiryTime?: number | null;
+  speedLimitEnabled?: boolean;
+  uploadSpeed?: number;
+  downloadSpeed?: number;
 }
 interface Tunnel {
   id: number;
@@ -157,6 +160,9 @@ interface ForwardForm {
   maxConnections: number;
   trafficLimit: number;
   expiryTime: number | null;
+  speedLimitEnabled: boolean;
+  uploadSpeed: number;
+  downloadSpeed: number;
 }
 interface ForwardUserGroup {
   userId: number;
@@ -520,6 +526,9 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
     currentConnections: forward.currentConnections ?? 0,
     trafficLimit: forward.trafficLimit ?? 0,
     expiryTime: forward.expiryTime ?? null,
+    speedLimitEnabled: forward.speedLimitEnabled ?? false,
+    uploadSpeed: forward.uploadSpeed ?? 0,
+    downloadSpeed: forward.downloadSpeed ?? 0,
   }));
 };
 const SortableTunnelGroupContainer = ({
@@ -1410,6 +1419,9 @@ export default function ForwardPage() {
     maxConnections: 0,
     trafficLimit: 0,
     expiryTime: null,
+    speedLimitEnabled: false,
+    uploadSpeed: 0,
+    downloadSpeed: 0,
   });
   const [inIpTouched, setInIpTouched] = useState(false);
   // 表单验证错误
@@ -1442,6 +1454,7 @@ export default function ForwardPage() {
     number | null
   >(null);
   const [speedLimitLoading, setSpeedLimitLoading] = useState(false);
+  const [advancedOptionsOpen, setAdvancedOptionsOpen] = useState(false);
   const parseNodeIPs = (node?: Node): string[] => {
     if (!node) {
       return [];
@@ -2091,7 +2104,7 @@ export default function ForwardPage() {
 
     return !speedLimitIds.has(speedId);
   };
-  const selectedSpeedId = normalizeSpeedId(form.speedId);
+  // const selectedSpeedId = normalizeSpeedId(form.speedId); // 已弃用
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
 
@@ -2164,6 +2177,9 @@ export default function ForwardPage() {
       maxConnections: 0,
       trafficLimit: 0,
       expiryTime: null,
+      speedLimitEnabled: false,
+      uploadSpeed: 0,
+      downloadSpeed: 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2186,6 +2202,9 @@ export default function ForwardPage() {
       maxConnections: forward.maxConnections ?? 0,
       trafficLimit: forward.trafficLimit ?? 0,
       expiryTime: forward.expiryTime ?? null,
+      speedLimitEnabled: forward.speedLimitEnabled ?? false,
+      uploadSpeed: forward.uploadSpeed ?? 0,
+      downloadSpeed: forward.downloadSpeed ?? 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2308,6 +2327,9 @@ export default function ForwardPage() {
           maxConnections: form.maxConnections,
           trafficLimit: form.trafficLimit,
           expiryTime: form.expiryTime,
+          speedLimitEnabled: form.speedLimitEnabled,
+          uploadSpeed: form.uploadSpeed,
+          downloadSpeed: form.downloadSpeed,
         };
 
         res = await updateForward(updateData);
@@ -2323,6 +2345,9 @@ export default function ForwardPage() {
           maxConnections: form.maxConnections,
           trafficLimit: form.trafficLimit,
           expiryTime: form.expiryTime,
+          speedLimitEnabled: form.speedLimitEnabled,
+          uploadSpeed: form.uploadSpeed,
+          downloadSpeed: form.downloadSpeed,
         };
 
         res = await createForward(createData);
@@ -4992,6 +5017,7 @@ export default function ForwardPage() {
                       setForm((prev) => ({ ...prev, name: e.target.value }))
                     }
                   />
+                  {/* 暂时保留旧限速选择 - 后续可删除
                   {isAdmin && (
                     <Select
                       label="规则限速"
@@ -5025,27 +5051,91 @@ export default function ForwardPage() {
                       ))}
                     </Select>
                   )}
-                  {/* 连接数限制 */}
-                  <ConnectionLimitField
-                    value={form.maxConnections}
-                    onChange={(val) =>
-                      setForm((prev) => ({ ...prev, maxConnections: val }))
-                    }
-                  />
-                  {/* 流量控制 */}
-                  <TrafficLimitField
-                    value={form.trafficLimit}
-                    onChange={(val) =>
-                      setForm((prev) => ({ ...prev, trafficLimit: val }))
-                    }
-                  />
-                  {/* 到期时间 */}
-                  <ExpiryTimeField
-                    value={form.expiryTime}
-                    onChange={(val) =>
-                      setForm((prev) => ({ ...prev, expiryTime: val }))
-                    }
-                  />
+                  */}
+                  {/* 高级功能折叠面板 */}
+                  <div className="border border-divider rounded-lg overflow-hidden">
+                    <button
+                      className="w-full flex items-center justify-between px-4 py-3 bg-default-100/50 hover:bg-default-100 transition-colors"
+                      type="button"
+                      onClick={() => setAdvancedOptionsOpen(!advancedOptionsOpen)}
+                    >
+                      <span className="text-sm font-semibold text-foreground">
+                        高级功能
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-default-400 transition-transform ${advancedOptionsOpen ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M19 9l-7 7-7-7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                        />
+                      </svg>
+                    </button>
+                    {advancedOptionsOpen && (
+                      <div className="p-4 space-y-4 bg-content1">
+                        {/* 限速配置 */}
+                        <SpeedLimitConfigField
+                          enabled={form.speedLimitEnabled}
+                          uploadSpeed={form.uploadSpeed}
+                          downloadSpeed={form.downloadSpeed}
+                          onEnabledChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              speedLimitEnabled: val,
+                            }))
+                          }
+                          onUploadSpeedChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              uploadSpeed: val,
+                            }))
+                          }
+                          onDownloadSpeedChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              downloadSpeed: val,
+                            }))
+                          }
+                        />
+                        {/* 连接数限制 & 流量控制 - 同一行 */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <ConnectionLimitField
+                            value={form.maxConnections}
+                            onChange={(val) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                maxConnections: val,
+                              }))
+                            }
+                          />
+                          <TrafficLimitField
+                            value={form.trafficLimit}
+                            onChange={(val) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                trafficLimit: val,
+                              }))
+                            }
+                          />
+                        </div>
+                        {/* 到期时间 */}
+                        <ExpiryTimeField
+                          value={form.expiryTime}
+                          onChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              expiryTime: val,
+                            }))
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* 选择隧道 */}
                     <Select
@@ -6665,7 +6755,6 @@ function ConnectionLimitField({
   value: number;
   onChange: (val: number) => void;
 }) {
-  const [showHelp, setShowHelp] = useState(false);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.trim();
 
@@ -6687,37 +6776,7 @@ function ConnectionLimitField({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">连接数限制</span>
-        <button
-          className="text-default-400 hover:text-default-600 transition-colors"
-          type="button"
-          onClick={() => setShowHelp(!showHelp)}
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-        </button>
-      </div>
-      {showHelp && (
-        <div className="text-xs text-default-600 space-y-1 bg-default-100 rounded-lg p-3">
-          <p className="font-medium text-foreground">连接数限制说明</p>
-          <p>
-            •
-            表示不限制，限制该转发规则同时建立的最大连接数，超过限制后，新连接将被拒绝
-          </p>
-        </div>
-      )}
+      <span className="text-sm font-medium text-foreground">连接数限制</span>
       <Input
         description="留空表示不限制"
         placeholder="不限制"
@@ -6729,6 +6788,102 @@ function ConnectionLimitField({
     </div>
   );
 }
+// ─── Speed Limit Config Field ──────────────────────────────────────────────
+function SpeedLimitConfigField({
+  enabled,
+  uploadSpeed,
+  downloadSpeed,
+  onEnabledChange,
+  onUploadSpeedChange,
+  onDownloadSpeedChange,
+}: {
+  enabled: boolean;
+  uploadSpeed: number;
+  downloadSpeed: number;
+  onEnabledChange: (val: boolean) => void;
+  onUploadSpeedChange: (val: number) => void;
+  onDownloadSpeedChange: (val: number) => void;
+}) {
+  const handleSync = () => {
+    onDownloadSpeedChange(uploadSpeed);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">限速配置</span>
+        <Switch
+          aria-label="启用限速"
+          isSelected={enabled}
+          size="sm"
+          onValueChange={onEnabledChange}
+        >
+          {enabled ? "启用" : "禁用"}
+        </Switch>
+      </div>
+      {enabled && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="sm:col-span-1">
+            <span className="text-xs text-default-600 block mb-1.5">
+              上行速率 (Mbps)
+            </span>
+            <Input
+              placeholder="0"
+              type="number"
+              value={uploadSpeed > 0 ? uploadSpeed.toString() : ""}
+              variant="bordered"
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+
+                onUploadSpeedChange(isNaN(val) || val < 0 ? 0 : val);
+              }}
+            />
+          </div>
+          <div className="sm:col-span-1 flex items-end justify-center">
+            <Button
+              aria-label="同步上下行速率"
+              className="mb-0.5"
+              size="sm"
+              variant="flat"
+              onPress={handleSync}
+              title="将上行速率值同步到下行"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+            </Button>
+          </div>
+          <div className="sm:col-span-1">
+            <span className="text-xs text-default-600 block mb-1.5">
+              下行速率 (Mbps)
+            </span>
+            <Input
+              placeholder="0"
+              type="number"
+              value={downloadSpeed > 0 ? downloadSpeed.toString() : ""}
+              variant="bordered"
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+
+                onDownloadSpeedChange(isNaN(val) || val < 0 ? 0 : val);
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 // ─── Traffic Limit Field (form input) ──────────────────────────────────────
 function TrafficLimitField({
   value,
@@ -6737,7 +6892,6 @@ function TrafficLimitField({
   value: number;
   onChange: (val: number) => void;
 }) {
-  const [showHelp, setShowHelp] = useState(false);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.trim();
 
@@ -6759,36 +6913,7 @@ function TrafficLimitField({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">流量控制</span>
-        <button
-          className="text-default-400 hover:text-default-600 transition-colors"
-          type="button"
-          onClick={() => setShowHelp(!showHelp)}
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-        </button>
-      </div>
-      {showHelp && (
-        <div className="text-xs text-default-600 space-y-1 bg-default-100 rounded-lg p-3">
-          <p className="font-medium text-foreground">流量控制说明</p>
-          <p>• 0 或留空表示不限制流量</p>
-          <p>• 设置后，规则累计流量达到上限时将被暂停</p>
-          <p>• 单位：GB（吉字节）</p>
-        </div>
-      )}
+      <span className="text-sm font-medium text-foreground">流量控制</span>
       <Input
         description="留空表示不限制，单位：GB"
         placeholder="不限制"
@@ -6808,98 +6933,40 @@ function ExpiryTimeField({
   value: number | null;
   onChange: (val: number | null) => void;
 }) {
-  const [showHelp, setShowHelp] = useState(false);
-  const formatTimestampToDateTimeLocal = (
-    timestamp: number | null,
-  ): string => {
-    if (!timestamp) return "";
+  const formatDateToInput = (timestamp: number | null): string => {
+    if (!timestamp || timestamp <= 0) return "";
 
-    const date = new Date(timestamp);
-
-    return date.toISOString().slice(0, 16);
+    return new Date(timestamp).toISOString().slice(0, 10);
   };
-  const parseDateTimeLocalToTimestamp = (dateTimeLocal: string): number => {
-    const date = new Date(dateTimeLocal);
+  const parseDateInputToTimestamp = (dateStr: string): number | null => {
+    if (!dateStr) return null;
 
-    return date.getTime();
-  };
-  const handleClear = () => {
-    onChange(null);
+    return new Date(dateStr).getTime();
   };
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-foreground">到期时间</span>
-        <button
-          className="text-default-400 hover:text-default-600 transition-colors"
-          type="button"
-          onClick={() => setShowHelp(!showHelp)}
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-        </button>
       </div>
-      {showHelp && (
-        <div className="text-xs text-default-600 space-y-1 bg-default-100 rounded-lg p-3">
-          <p className="font-medium text-foreground">到期时间说明</p>
-          <p>• 留空表示永不过期</p>
-          <p>• 到达设定时间后，规则将自动暂停</p>
-        </div>
-      )}
-      <div className="flex gap-2">
-        <Input
-          className="flex-1"
-          description="留空表示永不过期"
-          placeholder="请选择到期时间"
-          type="datetime-local"
-          value={formatTimestampToDateTimeLocal(value)}
-          variant="bordered"
-          onChange={(e) => {
-            const val = e.target.value;
+      <Input
+        description="留空表示永不过期"
+        label=""
+        max="9999-12-31"
+        placeholder="年 - 月 - 日"
+        type="date"
+        value={formatDateToInput(value)}
+        variant="bordered"
+        onChange={(e) => {
+          const val = e.target.value;
 
-            if (val) {
-              onChange(parseDateTimeLocalToTimestamp(val));
-            } else {
-              onChange(null);
-            }
-          }}
-        />
-        {value !== null && (
-          <Button
-            aria-label="清除到期时间"
-            className="shrink-0"
-            size="md"
-            variant="flat"
-            onPress={handleClear}
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M6 18L18 6M6 6l12 12"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-          </Button>
-        )}
-      </div>
+          if (val) {
+            onChange(parseDateInputToTimestamp(val));
+          } else {
+            onChange(null);
+          }
+        }}
+      />
     </div>
   );
 }

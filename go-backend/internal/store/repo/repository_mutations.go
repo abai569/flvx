@@ -785,22 +785,25 @@ func (r *Repository) GetMinForwardPort(forwardID int64) sql.NullInt64 {
 	return p
 }
 
-func (r *Repository) UpdateForward(id int64, name string, tunnelID int64, remoteAddr, strategy string, now int64, speedID interface{}, maxConnections int, trafficLimit int64, expiryTime interface{}) error {
+func (r *Repository) UpdateForward(id int64, name string, tunnelID int64, remoteAddr, strategy string, now int64, speedID interface{}, maxConnections int, trafficLimit int64, expiryTime interface{}, speedLimitEnabled bool, uploadSpeed int, downloadSpeed int) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
 	return r.db.Model(&model.Forward{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"name":            name,
-			"tunnel_id":       tunnelID,
-			"remote_addr":     remoteAddr,
-			"strategy":        strategy,
-			"speed_id":        nullInt64FromInterface(speedID),
-			"max_connections": maxConnections,
-			"traffic_limit":   trafficLimit,
-			"expiry_time":     nullInt64FromInterface(expiryTime),
-			"updated_time":    now,
+			"name":                name,
+			"tunnel_id":           tunnelID,
+			"remote_addr":         remoteAddr,
+			"strategy":            strategy,
+			"speed_id":            nullInt64FromInterface(speedID),
+			"max_connections":     maxConnections,
+			"traffic_limit":       trafficLimit,
+			"expiry_time":         nullInt64FromInterface(expiryTime),
+			"speed_limit_enabled": speedLimitEnabled,
+			"upload_speed":        uploadSpeed,
+			"download_speed":      downloadSpeed,
+			"updated_time":        now,
 		}).Error
 }
 
@@ -1350,33 +1353,37 @@ func (r *Repository) EnsureUserTunnelGrant(userID, tunnelID int64) (int64, bool,
 	return ut.ID, true, nil
 }
 
-func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, now int64, inx int, entryNodeIDs []int64, port int, inIp string, speedID interface{}, maxConnections int, trafficLimit int64, expiryTime interface{}) (int64, error) {
+func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, now int64, inx int, entryNodeIDs []int64, port int, inIp string, speedID interface{}, maxConnections int, trafficLimit int64, expiryTime interface{}, speedLimitEnabled bool, uploadSpeed int, downloadSpeed int) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("repository not initialized")
 	}
 	var forwardID int64
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		fwd := model.Forward{
-			UserID:         userID,
-			UserName:       userName,
-			Name:           name,
-			TunnelID:       tunnelID,
-			RemoteAddr:     remoteAddr,
-			Strategy:       strategy,
-			InFlow:         0,
-			OutFlow:        0,
-			CreatedTime:    now,
-			UpdatedTime:    now,
-			Status:         1,
-			Inx:            inx,
-			SpeedID:        nullInt64FromInterface(speedID),
-			MaxConnections: maxConnections,
-			TrafficLimit:   trafficLimit,
-			ExpiryTime:     nullInt64FromInterface(expiryTime),
+			UserID:            userID,
+			UserName:          userName,
+			Name:              name,
+			TunnelID:          tunnelID,
+			RemoteAddr:        remoteAddr,
+			Strategy:          strategy,
+			InFlow:            0,
+			OutFlow:           0,
+			CreatedTime:       now,
+			UpdatedTime:       now,
+			Status:            1,
+			Inx:               inx,
+			SpeedID:           nullInt64FromInterface(speedID),
+			MaxConnections:    maxConnections,
+			TrafficLimit:      trafficLimit,
+			ExpiryTime:        nullInt64FromInterface(expiryTime),
+			SpeedLimitEnabled: speedLimitEnabled,
+			UploadSpeed:       uploadSpeed,
+			DownloadSpeed:     downloadSpeed,
 		}
 		if err := tx.Create(&fwd).Error; err != nil {
 			return err
 		}
+		forwardID = fwd.ID
 		for _, nodeID := range entryNodeIDs {
 			fp := model.ForwardPort{
 				ForwardID: forwardID,

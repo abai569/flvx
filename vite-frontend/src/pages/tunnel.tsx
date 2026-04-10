@@ -852,7 +852,7 @@ export default function TunnelPage() {
 
       chainNodes[groupIndex] = currentGroup.map((node, idx) => ({
         ...node,
-        connectIpType: idx < types.length ? types[idx] : '',
+        connectIpType: idx < types.length ? types[idx] : (node.connectIpType || ''),
       }));
 
       return { ...prev, chainNodes };
@@ -881,12 +881,11 @@ export default function TunnelPage() {
   };
   const applyOutNodeConnectIpTypes = (value: string) => {
     const types = value.split(",").map((s) => s.trim());
-
     setForm((prev) => ({
       ...prev,
       outNodeId: (prev.outNodeId || []).map((node, idx) => ({
         ...node,
-        connectIpType: idx < types.length ? types[idx] : '',
+        connectIpType: idx < types.length ? types[idx] : (node.connectIpType || ''),
       })),
     }));
   };
@@ -1053,14 +1052,19 @@ export default function TunnelPage() {
             .filter((node) => node.nodeId !== -1)
             .map((n) => ({
               ...n,
-              connect_ip_type: n.connectIpType,
+              connectIpType: n.connectIpType || '',
+              connect_ip_type: n.connectIpType || '',
             })),
         )
         .filter((group) => group.length > 0); // 移除空组
       // 过滤掉出口节点中的占位节点
       const cleanedOutNodeId = (form.outNodeId || [])
         .filter((node) => node.nodeId !== -1)
-        .map((n) => ({ ...n, connect_ip_type: n.connectIpType }));
+        .map((n) => ({
+          ...n,
+          connectIpType: n.connectIpType || '',
+          connect_ip_type: n.connectIpType || '',
+        }));
       // 将换行符分隔的 IP 转换为逗号分隔
       let inIpString = form.inIp
         .split("\n")
@@ -1098,7 +1102,11 @@ export default function TunnelPage() {
         tunnelGroupId: form.tunnelGroupId,
         // 下划线命名，给更新接口看 (强制绑定)
         in_ip: inIpString,
-        in_node_id: form.inNodeId,
+        in_node_id: (form.inNodeId || []).map((n) => ({
+          ...n,
+          connectIpType: n.connectIpType || '',
+          connect_ip_type: n.connectIpType || '',
+        })),
         out_node_id: cleanedOutNodeId,
         chain_nodes: cleanedChainNodes,
         tunnel_group_id: form.tunnelGroupId,
@@ -3223,20 +3231,20 @@ export default function TunnelPage() {
                                     }
                                   />
                                   <Input
-                                    description="多节点可用逗号分隔，按选择节点顺序匹配，v4对应公网v4地址，v6对应公网v6地址，lan对应内网地址，留空自动匹配"
-                                    label="连接IP类型"
+                                    description="多节点可用逗号分隔，按选择节点顺序匹配，v4 对应公网 v4 地址，v6 对应公网 v6 地址，lan 对应内网地址，留空自动匹配"
+                                    label="连接 IP 类型"
                                     placeholder="例：lan,v4,v6"
                                     size="sm"
                                     type="text"
-                                    value={formatConnectIpTypesToDisplay(
-                                      groupNodes,
-                                    )}
+                                    value={focusedInputs[`chain_ipType_${groupIndex}`] ?? formatConnectIpTypesToDisplay(groupNodes)}
+                                    onFocus={() => setFocusedInputs(prev => ({ ...prev, [`chain_ipType_${groupIndex}`]: formatConnectIpTypesToDisplay(groupNodes) }))}
+                                    onBlur={(e) => {
+                                      setFocusedInputs(prev => { const next = { ...prev }; delete next[`chain_ipType_${groupIndex}`]; return next; });
+                                      applyConnectIpTypesToChainGroup(groupIndex, e.target.value);
+                                    }}
                                     variant="bordered"
                                     onChange={(e) =>
-                                      applyConnectIpTypesToChainGroup(
-                                        groupIndex,
-                                        e.target.value,
-                                      )
+                                      setFocusedInputs(prev => ({ ...prev, [`chain_ipType_${groupIndex}`]: e.target.value }))
                                     }
                                   />
                                 </div>

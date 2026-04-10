@@ -210,6 +210,7 @@ export default function ConfigPage() {
   const [brandUploading, setBrandUploading] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
+  const [exportMode, setExportMode] = useState<'core' | 'full'>('core');
 
   // 权限检查
   useEffect(() => {
@@ -662,7 +663,7 @@ export default function ConfigPage() {
   const handleExportAll = async () => {
     setExporting(true);
     try {
-      await exportBackup([]);
+      await exportBackup([], exportMode);
       toast.success("导出成功");
     } catch {
       toast.error("导出失败，请重试");
@@ -975,8 +976,24 @@ export default function ConfigPage() {
             <div className="space-y-1.5">
               <h3 className="text-lg font-medium">导出数据</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                一键导出所有数据类型为 JSON 格式文件
+                选择导出范围，一键导出为 JSON 格式文件
               </p>
+              <div className="flex items-center gap-2 mt-2">
+                <Select
+                  label=""
+                  selectedKeys={[exportMode]}
+                  size="sm"
+                  variant="bordered"
+                  onChange={(e) => setExportMode(e.target.value)}
+                  classNames={{ trigger: "min-w-[150px]" }}
+                >
+                  <SelectItem key="core" value="core">快速导出（核心数据）</SelectItem>
+                  <SelectItem key="full" value="full">完整导出（所有数据）</SelectItem>
+                </Select>
+                <span className="text-xs text-gray-500">
+                  {exportMode === 'core' ? '仅用户/节点/隧道/规则' : '包含所有表和配置'}
+                </span>
+              </div>
             </div>
             <div className="flex-shrink-0">
               <Button

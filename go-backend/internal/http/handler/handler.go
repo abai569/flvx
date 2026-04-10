@@ -1389,6 +1389,7 @@ func (h *Handler) verifyCloudflareTurnstile(token, secretKey string) bool {
 
 type backupExportRequest struct {
 	Types []string `json:"types"`
+	Mode  string   `json:"mode"` // "core" or "full"
 }
 
 func (h *Handler) backupExport(w http.ResponseWriter, r *http.Request) {
@@ -1400,13 +1401,14 @@ func (h *Handler) backupExport(w http.ResponseWriter, r *http.Request) {
 	var req backupExportRequest
 	if err := decodeJSON(r.Body, &req); err != nil {
 		req.Types = []string{}
+		req.Mode = "full"
 	}
 
 	var backup interface{}
 	var err error
 
 	if len(req.Types) == 0 {
-		backup, err = h.repo.ExportAll()
+		backup, err = h.repo.ExportAll(req.Mode)
 	} else {
 		backup, err = h.repo.ExportPartial(req.Types)
 	}
