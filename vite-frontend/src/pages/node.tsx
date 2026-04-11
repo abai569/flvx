@@ -72,7 +72,6 @@ import {
   upgradeNode,
   batchUpgradeNodes,
   getNodeReleases,
-  rollbackNode,
   getPeerRemoteUsageList,
   dismissNodeExpiryReminder,
   getNodeGroupList,
