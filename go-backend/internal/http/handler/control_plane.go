@@ -276,14 +276,6 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 	var dynamicLimiterName string
 	if forward.SpeedLimitEnabled && (forward.UploadSpeed > 0 || forward.DownloadSpeed > 0) {
 		dynamicLimiterName = fmt.Sprintf("forward_%d_speed", forward.ID)
-		// 创建动态限速器
-		if err := h.ensureForwardDynamicLimiter(forward, dynamicLimiterName); err != nil {
-			if !isNodeOfflineOrTimeoutError(err) {
-				return nil, fmt.Errorf("dynamic limiter creation failed: %w", err)
-			}
-			// Node offline, skip with warning
-			warnings = append(warnings, "节点不在线，限速器创建已跳过")
-		}
 	}
 
 	serviceBase := buildForwardServiceBaseWithResolvedUserTunnel(forward.ID, forward.UserID, userTunnelID)
@@ -1811,27 +1803,29 @@ func (h *Handler) ensureDynamicLimiterOnNode(nodeID int64, limiterName string, u
 		downloadMB := float64(downloadSpeed) / 8.0
 		limits = []string{fmt.Sprintf("$ %.1fMB", downloadMB)}
 	} else {
-		return nil // 都没设置
+		// 都没设置，删除限速器
+		_, _ = h.sendNodeCommand(nodeID, "DeleteLimiters", map[string]interface{}{
+			"limiter": limiterName,
+		}, false, true)
+		return nil
 	}
 
+	// 先尝试删除已存在的限速器（确保更新时配置被刷新）
+	_, _ = h.sendNodeCommand(nodeID, "DeleteLimiters", map[string]interface{}{
+		"limiter": limiterName,
+	}, false, true)
+
+	// 等待一小段时间让删除生效
+	time.Sleep(100 * time.Millisecond)
+
+	// 创建新的限速器
 	addPayload := map[string]interface{}{
 		"name":   limiterName,
 		"limits": limits,
 	}
 
-	// 尝试添加限速器
 	if _, err := h.sendNodeCommand(nodeID, "AddLimiters", addPayload, false, false); err != nil {
-		if !isAlreadyExistsMessage(err.Error()) {
-			return err
-		}
-		// 已存在，更新
-		updatePayload := map[string]interface{}{
-			"name":   limiterName,
-			"limits": limits,
-		}
-		if _, updateErr := h.sendNodeCommand(nodeID, "UpdateLimiters", updatePayload, false, false); updateErr != nil {
-			return updateErr
-		}
+		return err
 	}
 
 	return nil
