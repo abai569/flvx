@@ -1795,20 +1795,21 @@ func (h *Handler) ensureDynamicLimiterOnNode(nodeID int64, limiterName string, u
 	// 构建限速器配置
 	// gost traffic limiter 使用 MB/s 作为单位（通过 units.ParseBase2Bytes 解析）
 	// 前端输入是 Mbps，需要转换：MB/s = Mbps / 8
+	// 配置格式："$ <in> <out>"，其中 $ 是 ServiceLimitKey
 	var limits []string
 	if uploadSpeed > 0 && downloadSpeed > 0 {
 		// 上下行都设置
 		uploadMB := float64(uploadSpeed) / 8.0
 		downloadMB := float64(downloadSpeed) / 8.0
-		limits = []string{fmt.Sprintf("=%.1fMB %.1fMB", uploadMB, downloadMB)}
+		limits = []string{fmt.Sprintf("$ %.1fMB %.1fMB", uploadMB, downloadMB)}
 	} else if uploadSpeed > 0 {
 		// 只限制上行
 		uploadMB := float64(uploadSpeed) / 8.0
-		limits = []string{fmt.Sprintf("=%.1fMB", uploadMB)}
+		limits = []string{fmt.Sprintf("$ %.1fMB", uploadMB)}
 	} else if downloadSpeed > 0 {
 		// 只限制下行
 		downloadMB := float64(downloadSpeed) / 8.0
-		limits = []string{fmt.Sprintf("%.1fMB", downloadMB)}
+		limits = []string{fmt.Sprintf("$ %.1fMB", downloadMB)}
 	} else {
 		return nil // 都没设置
 	}
