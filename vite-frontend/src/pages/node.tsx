@@ -383,8 +383,6 @@ export default function NodePage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [rollbackModalOpen, setRollbackModalOpen] = useState(false);
-  const [nodeToRollback, setNodeToRollback] = useState<Node | null>(null);
   const [nodeToDelete, setNodeToDelete] = useState<Node | null>(null);
   const [protocolDisabled, setProtocolDisabled] = useState(false);
   const [protocolDisabledReason, setProtocolDisabledReason] = useState("");
@@ -412,7 +410,6 @@ export default function NodePage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
-  const [, setBatchRollbackModalOpen] = useState(false);
   const [viewMode, setViewMode] = useLocalStorageState<NodeViewMode>(
     "node-view-mode",
     "grid",
@@ -1436,69 +1433,6 @@ export default function NodePage() {
       setBatchResetTrafficLoading(false);
     }
   };
-  const handleRollbackNode = (node: Node) => {
-    setNodeToRollback(node);
-    setRollbackModalOpen(true);
-  };
-  const confirmRollback = async () => {
-    if (!nodeToRollback) return;
-    const node = nodeToRollback;
-
-    setRollbackModalOpen(false);
-    setUpgradeProgress((prev) => ({
-      ...prev,
-      [node.id]: { stage: "rollback", percent: 0, message: "准备回退..." },
-    }));
-    setNodeList((prev) =>
-      prev.map((n) => (n.id === node.id ? { ...n, rollbackLoading: true } : n)),
-    );
-    try {
-      const res = await rollbackNode(node.id);
-
-      if (res.code === 0) {
-        toast.success(`节点 ${node.name} 回退命令已发送，节点将自动重启`);
-        window.__pendingNodeRefresh = window.__pendingNodeRefresh || new Set();
-        window.__pendingNodeRefresh.add(node.id);
-      } else {
-        toast.error(res.msg || "回退失败");
-        setUpgradeProgress((prev) => {
-          const next = { ...prev };
-
-          delete next[node.id];
-
-          return next;
-        });
-      }
-    } catch {
-      toast.error("网络错误，请重试");
-      setUpgradeProgress((prev) => {
-        const next = { ...prev };
-
-        delete next[node.id];
-
-        return next;
-      });
-    } finally {
-      if (window.__pendingNodeRefresh?.has(node.id)) {
-        setTimeout(
-          () =>
-            setNodeList((prev) =>
-              prev.map((n) =>
-                n.id === node.id ? { ...n, rollbackLoading: false } : n,
-              ),
-            ),
-          15000,
-        );
-      } else {
-        setNodeList((prev) =>
-          prev.map((n) =>
-            n.id === node.id ? { ...n, rollbackLoading: false } : n,
-          ),
-        );
-      }
-      setNodeToRollback(null);
-    }
-  };
   const handleSubmit = async () => {
     if (!validateForm()) return;
     setSubmitLoading(true);
@@ -1668,6 +1602,7 @@ export default function NodePage() {
   };
   const deselectAll = () => {
     setSelectedIds(new Set());
+    setSelectMode(false);
   };
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -2544,15 +2479,6 @@ export default function NodePage() {
                   更新
                 </Button>
                 <Button
-                  color="secondary"
-                  isDisabled={selectedIds.size === 0 || !canBatchUpgrade}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchRollbackModalOpen(true)}
-                >
-                  回退
-                </Button>
-                <Button
                   color="primary"
                   isDisabled={selectedIds.size === 0}
                   size="sm"
@@ -2813,7 +2739,6 @@ export default function NodePage() {
                                 }
                                 handleDelete={handleDelete}
                                 handleEdit={handleEdit}
-                                handleRollbackNode={handleRollbackNode}
                                 nodeGroups={nodeGroups}
                                 openInstallSelector={openInstallSelector}
                                 openUpgradeModal={openUpgradeModal}
@@ -2876,7 +2801,6 @@ export default function NodePage() {
                   }
                   handleDelete={handleDelete}
                   handleEdit={handleEdit}
-                  handleRollbackNode={handleRollbackNode}
                   nodeGroups={nodeGroups}
                   openInstallSelector={openInstallSelector}
                   openUpgradeModal={openUpgradeModal}
@@ -3331,46 +3255,6 @@ export default function NodePage() {
               {submitLoading ? "提交中..." : "确定"}
             </Button>
           </ModalFooter>
-        </ModalContent>
-      </Modal>
-      {/* 回退确认模态框 */}
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={rollbackModalOpen}
-        placement="center"
-        scrollBehavior="outside"
-        size="md"
-        onOpenChange={setRollbackModalOpen}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                <h2 className="text-xl font-bold">确认回退</h2>
-              </ModalHeader>
-              <ModalBody>
-                <p>
-                  确定要将节点{" "}
-                  <strong>&quot;{nodeToRollback?.name}&quot;</strong>{" "}
-                  回退到上一个版本吗？
-                </p>
-                <p className="text-small text-default-500">
-                  节点将执行版本回退并自动重启，期间会导致节点短暂离线。
-                </p>
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button color="secondary" onPress={confirmRollback}>
-                  确认回退
-                </Button>
-              </ModalFooter>
-            </>
-          )}
         </ModalContent>
       </Modal>
       {/* 删除确认模态框 */}

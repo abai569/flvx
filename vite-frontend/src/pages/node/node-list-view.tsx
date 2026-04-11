@@ -80,7 +80,6 @@ interface NodeListViewProps {
   copyToClipboard: (text: string, label: string) => void;
   openInstallSelector: (node: Node) => void;
   openUpgradeModal: (type: "single" | "batch", nodeId?: number) => void;
-  handleRollbackNode: (node: Node) => void;
   handleEdit: (node: Node) => void;
   handleDelete: (node: Node) => void;
   formatTraffic: (bytes: number) => string;
