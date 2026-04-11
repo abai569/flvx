@@ -1962,6 +1962,16 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("转发名称和目标地址不能为空"))
 		return
 	}
+
+	// ✅ 新增：验证到期时间
+	if expiryTimeVal, ok := req["expiryTime"]; ok && expiryTimeVal != nil {
+		expiryTime := asInt64(expiryTimeVal, 0)
+		now := time.Now().UnixMilli()
+		if expiryTime > 0 && expiryTime <= now {
+			response.WriteJSON(w, response.ErrDefault("到期时间不能早于或等于当前时间"))
+			return
+		}
+	}
 	if roleID != 0 {
 		if speedIDVal, ok := req["speedId"]; ok && speedIDVal != nil {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法设置限速规则"))
@@ -2269,6 +2279,10 @@ func (h *Handler) forwardDelete(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
+
+	// ✅ 删除动态限速器
+	h.deleteForwardDynamicLimiter(forward)
+
 	if err := h.deleteForwardByID(id); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return

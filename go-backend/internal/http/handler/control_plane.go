@@ -272,6 +272,20 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 		speed = utSpeed
 	}
 
+	// ✅ 新增：检查新的上下行限速（优先级高于旧的 SpeedID）
+	var dynamicLimiterName string
+	if forward.SpeedLimitEnabled && (forward.UploadSpeed > 0 || forward.DownloadSpeed > 0) {
+		dynamicLimiterName = fmt.Sprintf("forward_%d_speed", forward.ID)
+		// 创建动态限速器
+		if err := h.ensureForwardDynamicLimiter(forward, dynamicLimiterName); err != nil {
+			if !isNodeOfflineOrTimeoutError(err) {
+				return nil, fmt.Errorf("dynamic limiter creation failed: %w", err)
+			}
+			// Node offline, skip with warning
+			warnings = append(warnings, "节点不在线，限速器创建已跳过")
+		}
+	}
+
 	serviceBase := buildForwardServiceBaseWithResolvedUserTunnel(forward.ID, forward.UserID, userTunnelID)
 	tunnelTLSProtocol, err := h.isTunnelSelectedTLSProtocol(forward.TunnelID)
 	if err != nil {
@@ -279,9 +293,23 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 	}
 
 	for _, fp := range ports {
-		if limiterID != nil && speed != nil {
+		// ✅ 应用动态限速器
+		if dynamicLimiterName != "" {
+			if err := h.ensureDynamicLimiterOnNode(fp.NodeID, dynamicLimiterName, forward.UploadSpeed, forward.DownloadSpeed); err != nil {
+				if isNodeOfflineOrTimeoutError(err) {
+					node, _ := h.getNodeRecord(fp.NodeID)
+					nodeName := fmt.Sprintf("%d", fp.NodeID)
+					if node != nil && strings.TrimSpace(node.Name) != "" {
+						nodeName = strings.TrimSpace(node.Name)
+					}
+					warnings = append(warnings, fmt.Sprintf("节点 %s 不在线，已跳过下发", nodeName))
+				} else {
+					return nil, err
+				}
+			}
+		} else if limiterID != nil && speed != nil {
+			// 旧的限速逻辑
 			if err := h.ensureLimiterOnNode(fp.NodeID, *limiterID, *speed); err != nil {
-				// If the limiter push fails because the node is offline, skip it with a warning
 				if isNodeOfflineOrTimeoutError(err) {
 					node, _ := h.getNodeRecord(fp.NodeID)
 					nodeName := fmt.Sprintf("%d", fp.NodeID)
@@ -1579,6 +1607,12 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		strategy = "fifo"
 	}
 
+	// ✅ 动态限速器名称
+	var dynamicLimiterName string
+	if forward.SpeedLimitEnabled && (forward.UploadSpeed > 0 || forward.DownloadSpeed > 0) {
+		dynamicLimiterName = fmt.Sprintf("forward_%d_speed", forward.ID)
+	}
+
 	for _, protocol := range protocols {
 		listenerAddr := node.TCPListenAddr
 		if protocol == "udp" {
@@ -1634,7 +1668,10 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		if len(meta) > 0 {
 			service["metadata"] = meta
 		}
-		if limiterID != nil && *limiterID > 0 {
+		// ✅ 应用限速器（优先使用动态限速器）
+		if dynamicLimiterName != "" {
+			service["limiter"] = dynamicLimiterName
+		} else if limiterID != nil && *limiterID > 0 {
 			service["limiter"] = strconv.FormatInt(*limiterID, 10)
 		}
 		services = append(services, service)
@@ -1730,10 +1767,86 @@ func asBool(v interface{}, def bool) bool {
 
 func (h *Handler) ensureLimiterOnNode(nodeID int64, limiterID int64, speed int) error {
 	if err := h.upsertLimiterOnNode(nodeID, limiterID, speed); err != nil {
-		return fmt.Errorf("限速规则下发失败: %w", err)
+		return fmt.Errorf("限速规则下发失败：%w", err)
 	}
 
 	return nil
+}
+
+// ✅ 新增：确保 Forward 动态限速器存在（所有入口节点）
+func (h *Handler) ensureForwardDynamicLimiter(forward *forwardRecord, limiterName string) error {
+	ports, err := h.listForwardPorts(forward.ID)
+	if err != nil {
+		return err
+	}
+
+	for _, fp := range ports {
+		if err := h.ensureDynamicLimiterOnNode(fp.NodeID, limiterName, forward.UploadSpeed, forward.DownloadSpeed); err != nil {
+			if !isNodeOfflineOrTimeoutError(err) {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ✅ 新增：在节点上创建/更新动态限速器
+func (h *Handler) ensureDynamicLimiterOnNode(nodeID int64, limiterName string, uploadSpeed, downloadSpeed int) error {
+	// 构建限速器配置（上下行独立）
+	uploadRate := float64(uploadSpeed) / 8.0 // Mbps -> MB/s
+	downloadRate := float64(downloadSpeed) / 8.0
+
+	var limits []string
+	if uploadSpeed > 0 && downloadSpeed > 0 {
+		// 上下行都设置
+		limits = []string{fmt.Sprintf("=%.1fMB %.1fMB", uploadRate, downloadRate)}
+	} else if uploadSpeed > 0 {
+		// 只限制上行
+		limits = []string{fmt.Sprintf("=%.1fMB", uploadRate)}
+	} else if downloadSpeed > 0 {
+		// 只限制下行
+		limits = []string{fmt.Sprintf("%.1fMB", downloadRate)}
+	} else {
+		return nil // 都没设置
+	}
+
+	addPayload := map[string]interface{}{
+		"name":   limiterName,
+		"limits": limits,
+	}
+
+	// 尝试添加限速器
+	if _, err := h.sendNodeCommand(nodeID, "AddLimiters", addPayload, false, false); err != nil {
+		if !isAlreadyExistsMessage(err.Error()) {
+			return err
+		}
+		// 已存在，更新
+		updatePayload := map[string]interface{}{
+			"name":   limiterName,
+			"limits": limits,
+		}
+		if _, updateErr := h.sendNodeCommand(nodeID, "UpdateLimiters", updatePayload, false, false); updateErr != nil {
+			return updateErr
+		}
+	}
+
+	return nil
+}
+
+// ✅ 新增：删除 Forward 动态限速器
+func (h *Handler) deleteForwardDynamicLimiter(forward *forwardRecord) {
+	limiterName := fmt.Sprintf("forward_%d_speed", forward.ID)
+	ports, _ := h.listForwardPorts(forward.ID)
+
+	for _, fp := range ports {
+		node, err := h.getNodeRecord(fp.NodeID)
+		if err != nil {
+			continue
+		}
+		_, _ = h.sendNodeCommand(node.ID, "DeleteLimiters", map[string]interface{}{
+			"limiter": limiterName,
+		}, false, true)
+	}
 }
 
 func buildLimiterAddPayload(limiterID int64, speed int) (string, map[string]interface{}) {

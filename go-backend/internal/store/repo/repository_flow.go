@@ -18,6 +18,29 @@ func (r *Repository) UpdateForwardStatus(forwardID int64, status int, now int64)
 	}).Error
 }
 
+func (r *Repository) GetForwardFlow(forwardID int64) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("repository not initialized")
+	}
+	var forward model.Forward
+	err := r.db.Select("in_flow, out_flow").Where("id = ?", forwardID).First(&forward).Error
+	if err != nil {
+		return 0, err
+	}
+	return forward.InFlow + forward.OutFlow, nil
+}
+
+// ✅ 新增：查询已过期的活跃 Forward 规则
+func (r *Repository) ListExpiredActiveForwards(nowMs int64) ([]model.Forward, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var forwards []model.Forward
+	err := r.db.Where("status = 1 AND expiry_time IS NOT NULL AND expiry_time > 0 AND expiry_time <= ?", nowMs).
+		Find(&forwards).Error
+	return forwards, err
+}
+
 func (r *Repository) ListActiveForwardsByUser(userID int64) ([]model.ForwardRecord, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
@@ -127,16 +150,23 @@ func (r *Repository) GetForwardRecord(forwardID int64) (*model.ForwardRecord, er
 		return nil, err
 	}
 	fr := model.ForwardRecord{
-		ID:             f.ID,
-		UserID:         f.UserID,
-		UserName:       f.UserName,
-		Name:           f.Name,
-		TunnelID:       f.TunnelID,
-		RemoteAddr:     f.RemoteAddr,
-		Strategy:       f.Strategy,
-		Status:         f.Status,
-		SpeedID:        f.SpeedID,
-		MaxConnections: f.MaxConnections,
+		ID:                f.ID,
+		UserID:            f.UserID,
+		UserName:          f.UserName,
+		Name:              f.Name,
+		TunnelID:          f.TunnelID,
+		RemoteAddr:        f.RemoteAddr,
+		Strategy:          f.Strategy,
+		Status:            f.Status,
+		SpeedID:           f.SpeedID,
+		MaxConnections:    f.MaxConnections,
+		TrafficLimit:      f.TrafficLimit,
+		ExpiryTime:        f.ExpiryTime,
+		SpeedLimitEnabled: f.SpeedLimitEnabled,
+		UploadSpeed:       f.UploadSpeed,
+		DownloadSpeed:     f.DownloadSpeed,
+		InFlow:            f.InFlow,
+		OutFlow:           f.OutFlow,
 	}
 	if strings.TrimSpace(fr.Strategy) == "" {
 		fr.Strategy = "fifo"

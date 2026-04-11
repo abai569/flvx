@@ -1953,19 +1953,10 @@ var coreTables = []string{
 	"announcement",
 	"schema_version",
 
-	// 流量统计
-	"statistics_flow",
-
-	// 监控数据
-	"node_metric",
-	"tunnel_metric",
-	"service_monitor",
-	"service_monitor_result",
-	"tunnel_quality",
-
 	// 其他重要数据
 	"speed_limit",
 	"user_quota",
+	"service_monitor",
 }
 
 func (r *Repository) ExportAll(mode string) (map[string]interface{}, error) {

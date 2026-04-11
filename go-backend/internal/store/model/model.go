@@ -582,6 +582,8 @@ type ForwardRecord struct {
 	SpeedLimitEnabled bool
 	UploadSpeed       int
 	DownloadSpeed     int
+	InFlow            int64
+	OutFlow           int64
 }
 
 // TunnelRecord is a minimal tunnel view used by control plane.
