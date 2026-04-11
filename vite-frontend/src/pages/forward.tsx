@@ -5052,90 +5052,6 @@ export default function ForwardPage() {
                     </Select>
                   )}
                   */}
-                  {/* 高级功能折叠面板 */}
-                  <div className="border border-divider rounded-lg overflow-hidden">
-                    <button
-                      className="w-full flex items-center justify-between px-4 py-3 bg-default-100/50 hover:bg-default-100 transition-colors"
-                      type="button"
-                      onClick={() => setAdvancedOptionsOpen(!advancedOptionsOpen)}
-                    >
-                      <span className="text-sm font-semibold text-foreground">
-                        高级功能
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-default-400 transition-transform ${advancedOptionsOpen ? "rotate-180" : ""}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          d="M19 9l-7 7-7-7"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                    </button>
-                    {advancedOptionsOpen && (
-                      <div className="p-4 space-y-4 bg-content1">
-                        {/* 限速配置 */}
-                        <SpeedLimitConfigField
-                          enabled={form.speedLimitEnabled}
-                          uploadSpeed={form.uploadSpeed}
-                          downloadSpeed={form.downloadSpeed}
-                          onEnabledChange={(val) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              speedLimitEnabled: val,
-                            }))
-                          }
-                          onUploadSpeedChange={(val) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              uploadSpeed: val,
-                            }))
-                          }
-                          onDownloadSpeedChange={(val) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              downloadSpeed: val,
-                            }))
-                          }
-                        />
-                        {/* 连接数限制 & 流量控制 - 同一行 */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <ConnectionLimitField
-                            value={form.maxConnections}
-                            onChange={(val) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                maxConnections: val,
-                              }))
-                            }
-                          />
-                          <TrafficLimitField
-                            value={form.trafficLimit}
-                            onChange={(val) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                trafficLimit: val,
-                              }))
-                            }
-                          />
-                        </div>
-                        {/* 到期时间 */}
-                        <ExpiryTimeField
-                          value={form.expiryTime}
-                          onChange={(val) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              expiryTime: val,
-                            }))
-                          }
-                        />
-                      </div>
-                    )}
-                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* 选择隧道 */}
                     <Select
@@ -5294,9 +5210,93 @@ export default function ForwardPage() {
                       <SelectItem key="fifo">主备模式 - 自上而下</SelectItem>
                       <SelectItem key="round">轮询模式 - 依次轮换</SelectItem>
                       <SelectItem key="rand">随机模式 - 随机选择</SelectItem>
-                      <SelectItem key="hash">哈希模式 - IP哈希</SelectItem>
+                      <SelectItem key="hash">哈希模式 - IP 哈希</SelectItem>
                     </Select>
                   )}
+                  {/* 高级功能折叠面板 - 移到最底部 */}
+                  <div className="border border-divider rounded-lg overflow-hidden mt-4">
+                    <button
+                      className="w-full flex items-center justify-between px-4 py-3 bg-default-100/50 hover:bg-default-100 transition-colors"
+                      type="button"
+                      onClick={() => setAdvancedOptionsOpen(!advancedOptionsOpen)}
+                    >
+                      <span className="text-sm font-semibold text-foreground">
+                        高级功能
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-default-400 transition-transform ${advancedOptionsOpen ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M19 9l-7 7-7-7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                        />
+                      </svg>
+                    </button>
+                    {advancedOptionsOpen && (
+                      <div className="p-4 space-y-4 bg-content1">
+                        {/* 限速配置 */}
+                        <SpeedLimitConfigField
+                          enabled={form.speedLimitEnabled}
+                          uploadSpeed={form.uploadSpeed}
+                          downloadSpeed={form.downloadSpeed}
+                          onEnabledChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              speedLimitEnabled: val,
+                            }))
+                          }
+                          onUploadSpeedChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              uploadSpeed: val,
+                            }))
+                          }
+                          onDownloadSpeedChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              downloadSpeed: val,
+                            }))
+                          }
+                        />
+                        {/* 连接数限制 & 流量控制 - 同一行 */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <ConnectionLimitField
+                            value={form.maxConnections}
+                            onChange={(val) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                maxConnections: val,
+                              }))
+                            }
+                          />
+                          <TrafficLimitField
+                            value={form.trafficLimit}
+                            onChange={(val) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                trafficLimit: val,
+                              }))
+                            }
+                          />
+                        </div>
+                        {/* 到期时间 */}
+                        <ExpiryTimeField
+                          value={form.expiryTime}
+                          onChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              expiryTime: val,
+                            }))
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </ModalBody>
               <ModalFooter>

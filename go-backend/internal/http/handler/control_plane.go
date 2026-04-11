@@ -1792,20 +1792,23 @@ func (h *Handler) ensureForwardDynamicLimiter(forward *forwardRecord, limiterNam
 
 // ✅ 新增：在节点上创建/更新动态限速器
 func (h *Handler) ensureDynamicLimiterOnNode(nodeID int64, limiterName string, uploadSpeed, downloadSpeed int) error {
-	// 构建限速器配置（上下行独立）
-	uploadRate := float64(uploadSpeed) / 8.0 // Mbps -> MB/s
-	downloadRate := float64(downloadSpeed) / 8.0
-
+	// 构建限速器配置
+	// gost traffic limiter 使用 MB/s 作为单位（通过 units.ParseBase2Bytes 解析）
+	// 前端输入是 Mbps，需要转换：MB/s = Mbps / 8
 	var limits []string
 	if uploadSpeed > 0 && downloadSpeed > 0 {
 		// 上下行都设置
-		limits = []string{fmt.Sprintf("=%.1fMB %.1fMB", uploadRate, downloadRate)}
+		uploadMB := float64(uploadSpeed) / 8.0
+		downloadMB := float64(downloadSpeed) / 8.0
+		limits = []string{fmt.Sprintf("=%.1fMB %.1fMB", uploadMB, downloadMB)}
 	} else if uploadSpeed > 0 {
 		// 只限制上行
-		limits = []string{fmt.Sprintf("=%.1fMB", uploadRate)}
+		uploadMB := float64(uploadSpeed) / 8.0
+		limits = []string{fmt.Sprintf("=%.1fMB", uploadMB)}
 	} else if downloadSpeed > 0 {
 		// 只限制下行
-		limits = []string{fmt.Sprintf("%.1fMB", downloadRate)}
+		downloadMB := float64(downloadSpeed) / 8.0
+		limits = []string{fmt.Sprintf("%.1fMB", downloadMB)}
 	} else {
 		return nil // 都没设置
 	}
