@@ -419,31 +419,52 @@ export interface BackupTypes {
 
 export const exportBackup = async (types: string[] = [], mode: 'core' | 'full' = 'full') => {
   const token = window.localStorage.getItem("token");
-  const baseURL = axios.defaults.baseURL || "/api/v1/";
-
-  const response = await axios.post(
-    `${baseURL}/backup/export`,
-    { types, mode },
-    {
-      headers: {
-        Authorization: token,
-        "Content-Type": "application/json",
+  
+  try {
+    const response = await axios.post(
+      "backup/export",
+      { types, mode },
+      {
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        responseType: "blob",
       },
-      responseType: "blob",
-    },
-  );
+    );
 
-  const url = window.URL.createObjectURL(new Blob([response.data]));
-  const link = document.createElement("a");
+    // 检查响应是否为有效的 Blob
+    if (!response.data || !(response.data instanceof Blob)) {
+      throw new Error("无效的响应数据");
+    }
 
-  link.href = url;
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
 
-  link.setAttribute("download", `backup_${timestamp}_${mode}.json`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
+    link.href = url;
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
+
+    link.setAttribute("download", `backup_${timestamp}_${mode}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error: any) {
+    // 如果是错误响应，尝试读取错误信息
+    if (error.response?.data) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const errorData = JSON.parse(reader.result as string);
+          throw new Error(errorData.msg || "导出失败");
+        } catch {
+          throw new Error("导出失败，请检查后端日志");
+        }
+      };
+      reader.readAsText(error.response.data);
+    }
+    throw error;
+  }
 };
 
 export const importBackup = (data: BackupImportPayload) =>
