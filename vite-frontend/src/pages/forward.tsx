@@ -6849,7 +6849,7 @@ function SpeedLimitConfigField({
               title="将上行速率值同步到下行"
             >
               <svg
-                className="w-4 h-4"
+                className="w-4 h-4 rotate-[-90deg]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
