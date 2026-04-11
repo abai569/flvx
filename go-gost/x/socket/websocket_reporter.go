@@ -309,10 +309,15 @@ func (w *WebSocketReporter) connect() error {
 	}
 
 	var cfg LocalConfig
-	if b, err := os.ReadFile("/etc/flux_agent/config.json"); err == nil {
-		json.Unmarshal(b, &cfg)
-		if cfg.ServiceName != "" {
-			w.serviceName = cfg.ServiceName
+	// 先尝试从当前工作目录读取，再尝试默认路径
+	configPaths := []string{"config.json", "/etc/flux_agent/config.json"}
+	for _, path := range configPaths {
+		if b, err := os.ReadFile(path); err == nil {
+			json.Unmarshal(b, &cfg)
+			if cfg.ServiceName != "" {
+				w.serviceName = cfg.ServiceName
+			}
+			break
 		}
 	}
 
@@ -369,6 +374,14 @@ func (w *WebSocketReporter) connect() error {
 	return nil
 }
 
+// getConfigDir 根据 serviceName 获取配置目录
+func getConfigDir(serviceName string) string {
+	if serviceName != "" {
+		return "/etc/" + serviceName
+	}
+	return "/etc/flux_agent"
+}
+
 // fetchAndSaveNodeID 从面板获取节点 ID 并保存到 config.json，然后初始化基线管理器
 func (w *WebSocketReporter) fetchAndSaveNodeID() {
 	// 构建 HTTP API URL（使用 ws 地址转换为 http）
@@ -415,8 +428,9 @@ func (w *WebSocketReporter) fetchAndSaveNodeID() {
 	// 保存 node_id 到 config.json
 	w.nodeID = result.Data.ID
 
-	// 读取现有 config.json
-	configPath := "/etc/flux_agent/config.json"
+	// 根据 serviceName 获取配置目录
+	configDir := getConfigDir(w.serviceName)
+	configPath := configDir + "/config.json"
 	var config map[string]interface{}
 	if data, err := os.ReadFile(configPath); err == nil {
 		json.Unmarshal(data, &config)
@@ -437,7 +451,7 @@ func (w *WebSocketReporter) fetchAndSaveNodeID() {
 	fmt.Printf("✅ 获取并保存 node_id: %d\n", w.nodeID)
 
 	// 初始化基线管理器
-	baselinePath := "/etc/flux_agent/traffic_baseline.json"
+	baselinePath := configDir + "/traffic_baseline.json"
 	if _, err := traffic.InitBaselineManager(w.nodeID, baselinePath); err != nil {
 		fmt.Printf("⚠️ 初始化基线管理器失败：%v\n", err)
 	} else {
@@ -1365,7 +1379,8 @@ func (w *WebSocketReporter) handleResetTraffic(data interface{}) error {
 
 	// 如果基线管理器未初始化，使用传入的 nodeId 初始化
 	if bm == nil && req.NodeID > 0 {
-		baselinePath := "/etc/flux_agent/traffic_baseline.json"
+		configDir := getConfigDir(w.serviceName)
+		baselinePath := configDir + "/traffic_baseline.json"
 		if _, err := traffic.InitBaselineManager(req.NodeID, baselinePath); err != nil {
 			return fmt.Errorf("初始化基线管理器失败：%v", err)
 		}
@@ -1373,7 +1388,7 @@ func (w *WebSocketReporter) handleResetTraffic(data interface{}) error {
 
 		// 保存 node_id 到 config.json
 		w.nodeID = req.NodeID
-		configPath := "/etc/flux_agent/config.json"
+		configPath := configDir + "/config.json"
 		var config map[string]interface{}
 		if data, err := os.ReadFile(configPath); err == nil {
 			json.Unmarshal(data, &config)
@@ -1590,8 +1605,8 @@ func (w *WebSocketReporter) handleSetProtocol(data interface{}) error {
 	service.SetProtocolBlock(httpVal, tlsVal, socksVal)
 
 	// 同步写入本地 config.json
-	if err := updateLocalConfigJSON(httpVal, tlsVal, socksVal); err != nil {
-		return fmt.Errorf("写入config.json失败: %v", err)
+	if err := w.updateLocalConfigJSON(httpVal, tlsVal, socksVal); err != nil {
+		return fmt.Errorf("写入 config.json 失败：%v", err)
 	}
 	return nil
 }
@@ -1816,8 +1831,9 @@ func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
 }
 
 // updateLocalConfigJSON 将 http/tls/socks 写入工作目录下的 config.json
-func updateLocalConfigJSON(httpVal int, tlsVal int, socksVal int) error {
-	path := "/etc/flux_agent/config.json"
+func (w *WebSocketReporter) updateLocalConfigJSON(httpVal int, tlsVal int, socksVal int) error {
+	configDir := getConfigDir(w.serviceName)
+	path := configDir + "/config.json"
 
 	// 读取现有配置
 	type LocalConfig struct {
@@ -2058,6 +2074,20 @@ func getConnectionInfo() ConnectionInfo {
 // StartWebSocketReporterWithConfig 使用配置字段启动WebSocket报告器
 func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls int, socks int, version string, nodeID int64) *WebSocketReporter {
 
+	// 先读取 config.json 获取 service_name
+	type LocalConfig struct {
+		ServiceName string `json:"service_name"`
+	}
+	var cfg LocalConfig
+	configPaths := []string{"config.json", "/etc/flux_agent/config.json"}
+	for _, path := range configPaths {
+		if b, err := os.ReadFile(path); err == nil {
+			json.Unmarshal(b, &cfg)
+			break
+		}
+	}
+	configDir := getConfigDir(cfg.ServiceName)
+
 	// 构建初始 WebSocket URL
 	candidates := buildWebSocketCandidates(addr, secret, version, http, tls, socks, "")
 	fullURL := candidates[0]
@@ -2070,11 +2100,12 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 	reporter.secret = secret
 	reporter.version = version
 	reporter.nodeID = nodeID
+	reporter.serviceName = cfg.ServiceName
 
 	// 如果 config.json 中有 node_id，初始化基线管理器
 	if nodeID > 0 {
 		fmt.Printf("📋 检测到 node_id: %d，初始化基线管理器...\n", nodeID)
-		baselinePath := "/etc/flux_agent/traffic_baseline.json"
+		baselinePath := configDir + "/traffic_baseline.json"
 		if _, err := traffic.InitBaselineManager(nodeID, baselinePath); err != nil {
 			fmt.Printf("⚠️ 初始化基线管理器失败：%v\n", err)
 		} else {

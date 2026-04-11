@@ -2910,16 +2910,6 @@ export default function TunnelPage() {
                       </Select>
                     </div>
                   </div>
-                  {/* <Input
-                    description="逗号分隔对应各节点，留空则自动分配"
-                    label="连接IP类型"
-                    placeholder="例：v4,v6,lan,auto"
-                    size="sm"
-                    type="text"
-                    value={formatInNodeConnectIpTypes()}
-                    variant="bordered"
-                    onChange={(e) => applyInNodeConnectIpTypes(e.target.value)}
-                  /> */}
                   <div className="space-y-2">
                     <Textarea
                       classNames={{
@@ -3296,7 +3286,7 @@ export default function TunnelPage() {
                                 />
                                   <Input
                                     description="多节点可用逗号分隔，按选择节点顺序匹配，v4 对应公网 v4 地址，v6 对应公网 v6 地址，lan 对应内网地址，留空自动匹配"
-                                    label="连接 IP 类型"
+                                    label="连接IP类型"
                                     placeholder="例：lan,v4,v6"
                                     size="sm"
                                     type="text"

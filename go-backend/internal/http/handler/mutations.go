@@ -1,4 +1,4 @@
-package handler
+﻿package handler
 
 import (
 	"context"
@@ -3439,7 +3439,7 @@ func (h *Handler) applyFederationRuntime(state *tunnelCreateState, localDomain s
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, errors.New("节点不存在")
 				}
-				host, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference, target.ConnectIPType)
+				host, _, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference, target.ConnectIPType)
 				if hostErr != nil {
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, hostErr
@@ -3721,7 +3721,7 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		if targetNode == nil {
 			return nil, errors.New("节点不存在")
 		}
-		host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, target.ConnectIPType)
+		host, _, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, target.ConnectIPType)
 		if err != nil {
 			return nil, err
 		}
@@ -3799,9 +3799,9 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	return []map[string]interface{}{service}
 }
 
-func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, connectIpType string) (string, error) {
+func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, connectIpType string) (string, string, error) {
 	if fromNode == nil || toNode == nil {
-		return "", errors.New("节点不存在")
+		return "", "", errors.New("节点不存在")
 	}
 	fromV4 := nodeSupportsV4(fromNode)
 	fromV6 := nodeSupportsV6(fromNode)
@@ -3816,70 +3816,46 @@ func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, con
 	switch effectivePreference {
 	case "v6":
 		if fromV6 && toV6 {
-			if host := pickNodeAddressV6(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV6(toNode); host != "" { return host, "v6", nil }
 		}
 		if fromV4 && toV4 {
-			if host := pickNodeAddressV4(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV4(toNode); host != "" { return host, "v4", nil }
 		}
 	case "v4":
 		if fromV4 && toV4 {
-			if host := pickNodeAddressV4(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV4(toNode); host != "" { return host, "v4", nil }
 		}
 		if fromV6 && toV6 {
-			if host := pickNodeAddressV6(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV6(toNode); host != "" { return host, "v6", nil }
 		}
 	case "lan":
-		if host := pickNodeAddressLan(toNode); host != "" {
-			return host, nil
-		}
+		if host := pickNodeAddressLan(toNode); host != "" { return host, "lan", nil }
 		if fromV4 && toV4 {
-			if host := pickNodeAddressV4(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV4(toNode); host != "" { return host, "v4", nil }
 		}
 		if fromV6 && toV6 {
-			if host := pickNodeAddressV6(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV6(toNode); host != "" { return host, "v6", nil }
 		}
 	case "auto":
 		if fromV4 && toV4 {
-			if host := pickNodeAddressV4(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV4(toNode); host != "" { return host, "v4", nil }
 		}
 		if fromV6 && toV6 {
-			if host := pickNodeAddressV6(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV6(toNode); host != "" { return host, "v6", nil }
 		}
 	default:
 		// 优先 LAN（内网 IP）
-		if host := pickNodeAddressLan(toNode); host != "" {
-			return host, nil
-		}
+		if host := pickNodeAddressLan(toNode); host != "" { return host, "lan", nil }
 		// 其次 IPv4
 		if fromV4 && toV4 {
-			if host := pickNodeAddressV4(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV4(toNode); host != "" { return host, "v4", nil }
 		}
 		// 最后 IPv6
 		if fromV6 && toV6 {
-			if host := pickNodeAddressV6(toNode); host != "" {
-				return host, nil
-			}
+			if host := pickNodeAddressV6(toNode); host != "" { return host, "v6", nil }
 		}
 	}
-	return "", fmt.Errorf("节点链路不兼容：%s(v4=%t,v6=%t) -> %s(v4=%t,v6=%t)", nodeDisplayName(fromNode), fromV4, fromV6, nodeDisplayName(toNode), toV4, toV6)
+	return "", "", fmt.Errorf("节点链路不兼容：%s(v4=%t,v6=%t) -> %s(v4=%t,v6=%t)", nodeDisplayName(fromNode), fromV4, fromV6, nodeDisplayName(toNode), toV4, toV6)
 }
 
 func pickNodeAddressLan(node *nodeRecord) string {

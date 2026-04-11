@@ -1,4 +1,4 @@
-package handler
+﻿package handler
 
 import (
 	"context"
@@ -1340,7 +1340,7 @@ func resolveChainProbeTarget(fromNode, targetNode *nodeRecord, preferredPort int
 	if targetNode == nil {
 		return "", 0, errors.New("目标节点不存在")
 	}
-	host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, connectIpType)
+	host, _, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, connectIpType)
 	if err != nil {
 		host = strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]")
 	}

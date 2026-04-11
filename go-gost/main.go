@@ -121,8 +121,14 @@ func main() {
 	log := xlogger.NewLogger()
 	logger.SetDefault(log)
 
+	// 根据 service_name 确定配置目录
+	configDir := "/etc/flux_agent"
+	if config.ServiceName != "" {
+		configDir = "/etc/" + config.ServiceName
+	}
+
 	// 启动时检查基线文件是否存在，不存在则创建初始基线
-	baselinePath := "/etc/flux_agent/traffic_baseline.json"
+	baselinePath := configDir + "/traffic_baseline.json"
 	if _, err := os.Stat(baselinePath); os.IsNotExist(err) {
 		fmt.Printf("📝 检测到基线文件不存在，创建初始基线...\n")
 		// 使用 config.NodeID（可能为 0，表示未关联面板）

@@ -1,4 +1,4 @@
-package handler
+﻿package handler
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ func TestSelectTunnelDialHost_ConnectIpPriority(t *testing.T) {
 	to := dualStackNode("to", "10.0.0.2", "2001:db8::2")
 
 	// Empty connectIpType should fallback to default (v4 preference)
-	host, err := selectTunnelDialHost(from, to, "", "")
+	host, _, err := selectTunnelDialHost(from, to, "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -21,7 +21,7 @@ func TestSelectTunnelDialHost_ConnectIpPriority(t *testing.T) {
 		t.Fatalf("empty connectIpType should fallback to v4 preference, got %q", host)
 	}
 	// connectIpType v6 should select IPv6 address
-	host, err = selectTunnelDialHost(from, to, "", "v6")
+	host, _, err = selectTunnelDialHost(from, to, "", "v6")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -268,15 +268,15 @@ func v6OnlyNode(name, v6 string) *nodeRecord {
 }
 
 func TestSelectTunnelDialHost_NilNodes(t *testing.T) {
-	_, err := selectTunnelDialHost(nil, nil, "", "")
+	_, _, err := selectTunnelDialHost(nil, nil, "", "")
 	if err == nil {
 		t.Fatal("expected error for nil nodes")
 	}
-	_, err = selectTunnelDialHost(dualStackNode("a", "1.1.1.1", "::1"), nil, "", "")
+	_, _, err = selectTunnelDialHost(dualStackNode("a", "1.1.1.1", "::1"), nil, "", "")
 	if err == nil {
 		t.Fatal("expected error for nil toNode")
 	}
-	_, err = selectTunnelDialHost(nil, dualStackNode("b", "1.1.1.1", "::1"), "", "")
+	_, _, err = selectTunnelDialHost(nil, dualStackNode("b", "1.1.1.1", "::1"), "", "")
 	if err == nil {
 		t.Fatal("expected error for nil fromNode")
 	}
@@ -285,7 +285,7 @@ func TestSelectTunnelDialHost_NilNodes(t *testing.T) {
 func TestSelectTunnelDialHost_DualStack_DefaultPreference(t *testing.T) {
 	from := dualStackNode("from", "10.0.0.1", "2001:db8::1")
 	to := dualStackNode("to", "10.0.0.2", "2001:db8::2")
-	host, err := selectTunnelDialHost(from, to, "", "")
+	host, _, err := selectTunnelDialHost(from, to, "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestSelectTunnelDialHost_DualStack_DefaultPreference(t *testing.T) {
 func TestSelectTunnelDialHost_DualStack_PreferV4(t *testing.T) {
 	from := dualStackNode("from", "10.0.0.1", "2001:db8::1")
 	to := dualStackNode("to", "10.0.0.2", "2001:db8::2")
-	host, err := selectTunnelDialHost(from, to, "v4", "")
+	host, _, err := selectTunnelDialHost(from, to, "v4", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestSelectTunnelDialHost_DualStack_PreferV4(t *testing.T) {
 func TestSelectTunnelDialHost_DualStack_PreferV6(t *testing.T) {
 	from := dualStackNode("from", "10.0.0.1", "2001:db8::1")
 	to := dualStackNode("to", "10.0.0.2", "2001:db8::2")
-	host, err := selectTunnelDialHost(from, to, "v6", "")
+	host, _, err := selectTunnelDialHost(from, to, "v6", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestSelectTunnelDialHost_V4Only_PreferV6Fallback(t *testing.T) {
 	from := v4OnlyNode("from", "10.0.0.1")
 	to := v4OnlyNode("to", "10.0.0.2")
 	// User prefers v6, but both nodes are v4-only — should fallback to v4
-	host, err := selectTunnelDialHost(from, to, "v6", "")
+	host, _, err := selectTunnelDialHost(from, to, "v6", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestSelectTunnelDialHost_V6Only_PreferV4Fallback(t *testing.T) {
 	from := v6OnlyNode("from", "2001:db8::1")
 	to := v6OnlyNode("to", "2001:db8::2")
 	// User prefers v4, but both nodes are v6-only — should fallback to v6
-	host, err := selectTunnelDialHost(from, to, "v4", "")
+	host, _, err := selectTunnelDialHost(from, to, "v4", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -348,7 +348,7 @@ func TestSelectTunnelDialHost_V6Only_PreferV4Fallback(t *testing.T) {
 func TestSelectTunnelDialHost_Incompatible(t *testing.T) {
 	from := v4OnlyNode("from", "10.0.0.1")
 	to := v6OnlyNode("to", "2001:db8::2")
-	_, err := selectTunnelDialHost(from, to, "", "")
+	_, _, err := selectTunnelDialHost(from, to, "", "")
 	if err == nil {
 		t.Fatal("expected error for incompatible nodes (v4-only -> v6-only)")
 	}
@@ -357,7 +357,7 @@ func TestSelectTunnelDialHost_Incompatible(t *testing.T) {
 func TestSelectTunnelDialHost_Incompatible_Reverse(t *testing.T) {
 	from := v6OnlyNode("from", "2001:db8::1")
 	to := v4OnlyNode("to", "10.0.0.2")
-	_, err := selectTunnelDialHost(from, to, "", "")
+	_, _, err := selectTunnelDialHost(from, to, "", "")
 	if err == nil {
 		t.Fatal("expected error for incompatible nodes (v6-only -> v4-only)")
 	}
@@ -367,7 +367,7 @@ func TestSelectTunnelDialHost_WhitespacePreference(t *testing.T) {
 	from := dualStackNode("from", "10.0.0.1", "2001:db8::1")
 	to := dualStackNode("to", "10.0.0.2", "2001:db8::2")
 	// Whitespace should be trimmed, treated as "v6"
-	host, err := selectTunnelDialHost(from, to, "  v6  ", "")
+	host, _, err := selectTunnelDialHost(from, to, "  v6  ", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestSelectTunnelDialHost_MixedStack_FromDualToV4(t *testing.T) {
 	from := dualStackNode("from", "10.0.0.1", "2001:db8::1")
 	to := v4OnlyNode("to", "10.0.0.2")
 	// v6 preferred, but target only has v4 — should succeed with v4
-	host, err := selectTunnelDialHost(from, to, "v6", "")
+	host, _, err := selectTunnelDialHost(from, to, "v6", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -393,7 +393,7 @@ func TestSelectTunnelDialHost_MixedStack_FromDualToV6(t *testing.T) {
 	from := dualStackNode("from", "10.0.0.1", "2001:db8::1")
 	to := v6OnlyNode("to", "2001:db8::2")
 	// v4 preferred, but target only has v6 — should succeed with v6
-	host, err := selectTunnelDialHost(from, to, "v4", "")
+	host, _, err := selectTunnelDialHost(from, to, "v4", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -406,7 +406,7 @@ func TestSelectTunnelDialHost_MixedStack_FromV4ToDual(t *testing.T) {
 	from := v4OnlyNode("from", "10.0.0.1")
 	to := dualStackNode("to", "10.0.0.2", "2001:db8::2")
 	// v6 preferred, but from only has v4 — should use v4 (from can only reach v4 of target)
-	host, err := selectTunnelDialHost(from, to, "v6", "")
+	host, _, err := selectTunnelDialHost(from, to, "v6", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -419,7 +419,7 @@ func TestSelectTunnelDialHost_MixedStack_FromV6ToDual(t *testing.T) {
 	from := v6OnlyNode("from", "2001:db8::1")
 	to := dualStackNode("to", "10.0.0.2", "2001:db8::2")
 	// v4 preferred, but from only has v6 — should use v6
-	host, err := selectTunnelDialHost(from, to, "v4", "")
+	host, _, err := selectTunnelDialHost(from, to, "v4", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
