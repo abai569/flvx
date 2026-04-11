@@ -85,12 +85,13 @@ import {
 } from "@/api/error-message";
 interface ChainTunnel {
   nodeId: number;
-  protocol?: string; // 'tls' | 'wss' | 'tcp' | 'mtls' | 'mwss' | 'mtcp' - 转发链协议
+  protocol?: string; // 'tls' | 'wss' | 'tcp' | 'mtls' | 'mwss' | 'mtcp' - 转发链传输层协议
   strategy?: string; // 'fifo' | 'round' | 'rand' - 仅转发链需要
   chainType?: number; // 1: 入口，2: 转发链，3: 出口
   inx?: number; // 转发链序号
   port?: number; // 连接端口（留空自动分配）
   connectIpType?: string; // 向下连接 IP 类型："v4" | "v6" | "lan" | "auto" | ""
+  forwardProtocol?: string; // 'relay' | 'tunnel' - 转发应用层协议
 }
 interface Tunnel {
   id: number;
@@ -717,7 +718,7 @@ export default function TunnelPage() {
       .map((key) => Number.parseInt(String(key), 10))
       .filter((nodeId) => Number.isFinite(nodeId));
   };
-  // 更新某一跳的所有节点的协议
+  // 更新某一跳的所有节点的传输层协议
   const updateChainProtocol = (groupIndex: number, protocol: string) => {
     setForm((prev) => {
       const chainNodes = [...(prev.chainNodes || [])];
@@ -725,6 +726,22 @@ export default function TunnelPage() {
       chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
         ...node,
         protocol,
+      }));
+
+      return { ...prev, chainNodes };
+    });
+  };
+  // 更新某一跳的所有节点的转发应用层协议
+  const updateChainForwardProtocol = (
+    groupIndex: number,
+    forwardProtocol: string,
+  ) => {
+    setForm((prev) => {
+      const chainNodes = [...(prev.chainNodes || [])];
+
+      chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
+        ...node,
+        forwardProtocol,
       }));
 
       return { ...prev, chainNodes };
@@ -773,6 +790,12 @@ export default function TunnelPage() {
 
     if (ports.every((p) => p === "")) return "";
 
+    // 如果所有端口相同且只有一个唯一值，只显示一个（不加逗号）
+    const uniquePorts = ports.filter(p => p !== "").filter((p, i, arr) => arr.indexOf(p) === i);
+    if (uniquePorts.length === 1 && ports.filter(p => p !== "").length === nodes.length) {
+      return uniquePorts[0];
+    }
+
     return ports.join(",");
   };
   // 🎯 多端口支持：将端口应用到出口节点
@@ -801,6 +824,12 @@ export default function TunnelPage() {
     );
 
     if (ports.every((p) => p === "")) return "";
+
+    // 如果所有端口相同且只有一个唯一值，只显示一个（不加逗号）
+    const uniquePorts = ports.filter(p => p !== "").filter((p, i, arr) => arr.indexOf(p) === i);
+    if (uniquePorts.length === 1 && ports.filter(p => p !== "").length === chainGroup.length) {
+      return uniquePorts[0];
+    }
 
     return ports.join(",");
   };
@@ -2605,11 +2634,10 @@ export default function TunnelPage() {
         backdrop="blur"
         classNames={{
           base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-          body: "max-h-[70vh] overflow-y-auto",
         }}
         isOpen={modalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="xl"
         onOpenChange={setModalOpen}
       >
@@ -2974,6 +3002,10 @@ export default function TunnelPage() {
                               groupNodes.length > 0
                                 ? groupNodes[0].strategy || "round"
                                 : "round";
+                            const forwardProtocol =
+                              groupNodes.length > 0
+                                ? groupNodes[0].forwardProtocol || "tunnel"
+                                : "tunnel";
 
                             return (
                               <div
@@ -3008,8 +3040,8 @@ export default function TunnelPage() {
                                     </svg>
                                   </Button>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                                  {/* 节点选择 - 移动端100%，桌面端50% */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                                  {/* 节点选择 - 移动端 100%，桌面端 66% */}
                                   <div className="col-span-1 md:col-span-2">
                                     <Select
                                       classNames={{
@@ -3145,38 +3177,7 @@ export default function TunnelPage() {
                                       ))}
                                     </Select>
                                   </div>
-                                  {/* 协议选择 - 25% */}
-                                  <Select
-                                    classNames={{
-                                      label: "text-xs",
-                                      value: "text-sm",
-                                    }}
-                                    label="协议"
-                                    placeholder="选择协议"
-                                    selectedKeys={[protocol]}
-                                    size="sm"
-                                    variant="bordered"
-                                    onSelectionChange={(keys) => {
-                                      const selectedKey = Array.from(
-                                        keys,
-                                      )[0] as string;
-
-                                      if (selectedKey) {
-                                        updateChainProtocol(
-                                          groupIndex,
-                                          selectedKey,
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    <SelectItem key="tcp">TCP</SelectItem>
-                                    <SelectItem key="mtcp">MTCP</SelectItem>
-                                    <SelectItem key="tls">TLS</SelectItem>
-                                    <SelectItem key="mtls">MTLS</SelectItem>
-                                    <SelectItem key="wss">WSS</SelectItem>
-                                    <SelectItem key="mwss">MWSS</SelectItem>
-                                  </Select>
-                                  {/* 负载策略 - 25% */}
+                                  {/* 负载策略 - 33% */}
                                   <Select
                                     classNames={{
                                       label: "text-xs",
@@ -3205,31 +3206,94 @@ export default function TunnelPage() {
                                     <SelectItem key="rand">随机</SelectItem>
                                   </Select>
                                 </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {/* 传输层协议选择 - 50% */}
+                                  <Select
+                                    classNames={{
+                                      label: "text-xs",
+                                      value: "text-sm",
+                                    }}
+                                    description="不懂的就默认，不要选！"
+                                    label="传输层协议"
+                                    placeholder="选择传输层协议"
+                                    selectedKeys={[protocol]}
+                                    size="sm"
+                                    variant="bordered"
+                                    onSelectionChange={(keys) => {
+                                      const selectedKey = Array.from(
+                                        keys,
+                                      )[0] as string;
+
+                                      if (selectedKey) {
+                                        updateChainProtocol(
+                                          groupIndex,
+                                          selectedKey,
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <SelectItem key="tcp">TCP</SelectItem>
+                                    <SelectItem key="mtcp">MTCP</SelectItem>
+                                    <SelectItem key="tls">TLS</SelectItem>
+                                    <SelectItem key="mtls">MTLS</SelectItem>
+                                    <SelectItem key="wss">WSS</SelectItem>
+                                    <SelectItem key="mwss">MWSS</SelectItem>
+                                  </Select>
+                                  {/* 转发应用层 - 50% */}
+                                  <Select
+                                    classNames={{
+                                      label: "text-xs",
+                                      value: "text-sm",
+                                    }}
+                                    description="relay: 通用转发 (UDP 不稳定); tunnel: 长连接隧道 (推荐)"
+                                    label="应用层协议"
+                                    placeholder="选择应用层协议"
+                                    selectedKeys={[forwardProtocol]}
+                                    size="sm"
+                                    variant="bordered"
+                                    onSelectionChange={(keys) => {
+                                      const selectedKey = Array.from(
+                                        keys,
+                                      )[0] as string;
+
+                                      if (selectedKey) {
+                                        updateChainForwardProtocol(
+                                          groupIndex,
+                                          selectedKey,
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <SelectItem key="relay">Relay (通用转发)</SelectItem>
+                                    <SelectItem key="tunnel">Tunnel (长连接隧道)</SelectItem>
+                                  </Select>
+                                </div>
                                 {/* 连接 IP 和连接端口 - 转发链节点 */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                                  <Input
-                                    description="指定当前级被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
-                                    errorMessage={
-                                      errors[`chainNodes_${groupIndex}_port`]
-                                    }
-                                    isInvalid={
-                                      !!errors[`chainNodes_${groupIndex}_port`]
-                                    }
-                                    label="连接端口"
-                                    placeholder="例：11111,22222"
-                                    size="sm"
-                                    type="text"
-                                    value={formatChainPortsToDisplay(
-                                      groupNodes,
-                                    )}
-                                    variant="bordered"
-                                    onChange={(e) =>
-                                      applyPortsToChainGroup(
-                                        groupIndex,
-                                        e.target.value,
-                                      )
-                                    }
-                                  />
+                                <Input
+                                  description="指定当前级被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
+                                  errorMessage={
+                                    errors[`chainNodes_${groupIndex}_port`]
+                                  }
+                                  isInvalid={
+                                    !!errors[`chainNodes_${groupIndex}_port`]
+                                  }
+                                  label="连接端口"
+                                  placeholder="例：11111,22222"
+                                  size="sm"
+                                  type="text"
+                                  value={focusedInputs[`chain_port_${groupIndex}`] ?? formatChainPortsToDisplay(groupNodes)}
+                                  variant="bordered"
+                                  onBlur={() => {
+                                    const finalValue = focusedInputs[`chain_port_${groupIndex}`] ?? formatChainPortsToDisplay(groupNodes);
+                                    setFocusedInputs(prev => { const next = { ...prev }; delete next[`chain_port_${groupIndex}`]; return next; });
+                                    if (finalValue) applyPortsToChainGroup(groupIndex, finalValue);
+                                  }}
+                                  onChange={(e) => {
+                                    setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: e.target.value }));
+                                  }}
+                                  onFocus={() => setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: formatChainPortsToDisplay(groupNodes) }))}
+                                />
                                   <Input
                                     description="多节点可用逗号分隔，按选择节点顺序匹配，v4 对应公网 v4 地址，v6 对应公网 v6 地址，lan 对应内网地址，留空自动匹配"
                                     label="连接 IP 类型"
@@ -3319,8 +3383,9 @@ export default function TunnelPage() {
                       {(() => {
                         return (
                           <>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                              {/* 节点选择 - 移动端100%，桌面端50% */}
+                            {/* Row 1: Node selection + Load balancing strategy */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              {/* 节点选择 - 移动端 100%，桌面端 66% */}
                               <div className="col-span-1 md:col-span-2">
                                 <Select
                                   classNames={{
@@ -3376,6 +3441,8 @@ export default function TunnelPage() {
                                         currentOutNodes[0]?.protocol || "tcp";
                                       const strategy =
                                         currentOutNodes[0]?.strategy || "round";
+                                      const forwardProtocol =
+                                        currentOutNodes[0]?.forwardProtocol || "tunnel";
                                       const realNodes = currentOutNodes.filter(
                                         (ct) => ct.nodeId !== -1,
                                       );
@@ -3390,6 +3457,7 @@ export default function TunnelPage() {
                                             chainType: 3,
                                             protocol,
                                             strategy,
+                                            forwardProtocol,
                                           }),
                                         ),
                                       };
@@ -3448,80 +3516,7 @@ export default function TunnelPage() {
                                   ))}
                                 </Select>
                               </div>
-                              {/* 协议选择 - 25% */}
-                              <Select
-                                classNames={{
-                                  label: "text-xs",
-                                  value: "text-sm",
-                                }}
-                                errorMessage={errors.protocol}
-                                isInvalid={!!errors.protocol}
-                                label="协议"
-                                placeholder="选择协议"
-                                selectedKeys={[
-                                  (() => {
-                                    if (
-                                      !form.outNodeId ||
-                                      form.outNodeId.length === 0
-                                    )
-                                      return "tcp";
-
-                                    return form.outNodeId[0].protocol || "tcp";
-                                  })(),
-                                ]}
-                                variant="bordered"
-                                onSelectionChange={(keys) => {
-                                  const selectedKey = Array.from(
-                                    keys,
-                                  )[0] as string;
-
-                                  if (selectedKey) {
-                                    setForm((prev) => {
-                                      const currentOutNodes =
-                                        prev.outNodeId || [];
-                                      const currentStrategy =
-                                        currentOutNodes.length > 0
-                                          ? currentOutNodes[0].strategy ||
-                                            "round"
-                                          : "round";
-
-                                      if (currentOutNodes.length === 0) {
-                                        // 如果还没有出口节点，创建一个占位节点保存设置
-                                        return {
-                                          ...prev,
-                                          outNodeId: [
-                                            {
-                                              nodeId: -1,
-                                              chainType: 3,
-                                              protocol: selectedKey,
-                                              strategy: currentStrategy,
-                                            },
-                                          ],
-                                        };
-                                      }
-
-                                      // 更新所有出口节点的协议
-                                      return {
-                                        ...prev,
-                                        outNodeId: currentOutNodes.map(
-                                          (ct) => ({
-                                            ...ct,
-                                            protocol: selectedKey,
-                                          }),
-                                        ),
-                                      };
-                                    });
-                                  }
-                                }}
-                              >
-                                <SelectItem key="tcp">TCP</SelectItem>
-                                <SelectItem key="mtcp">MTCP</SelectItem>
-                                <SelectItem key="tls">TLS</SelectItem>
-                                <SelectItem key="mtls">MTLS</SelectItem>
-                                <SelectItem key="wss">WSS</SelectItem>
-                                <SelectItem key="mwss">MWSS</SelectItem>
-                              </Select>
-                              {/* 负载策略 - 25% */}
+                              {/* 负载策略 - 33% */}
                               <Select
                                 classNames={{
                                   label: "text-xs",
@@ -3556,6 +3551,10 @@ export default function TunnelPage() {
                                         currentOutNodes.length > 0
                                           ? currentOutNodes[0].protocol || "tcp"
                                           : "tcp";
+                                      const currentForwardProtocol =
+                                        currentOutNodes.length > 0
+                                          ? currentOutNodes[0].forwardProtocol || "tunnel"
+                                          : "tunnel";
 
                                       if (currentOutNodes.length === 0) {
                                         return {
@@ -3566,6 +3565,7 @@ export default function TunnelPage() {
                                               chainType: 3,
                                               protocol: currentProtocol,
                                               strategy: selectedKey,
+                                              forwardProtocol: currentForwardProtocol,
                                             },
                                           ],
                                         };
@@ -3589,22 +3589,176 @@ export default function TunnelPage() {
                                 <SelectItem key="rand">随机</SelectItem>
                               </Select>
                             </div>
-                            {/* 连接端口和连接IP类型 - 出口节点 */}
+                            {/* Row 2: Protocol + Forward Protocol */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                              {/* 传输层协议选择 - 50% */}
+                              <Select
+                                classNames={{
+                                  label: "text-xs",
+                                  value: "text-sm",
+                                }}
+                                errorMessage={errors.protocol}
+                                isInvalid={!!errors.protocol}
+                                description="不懂的就默认，不要选！"
+                                label="传输层协议"
+                                placeholder="选择传输层协议"
+                                selectedKeys={[
+                                  (() => {
+                                    if (
+                                      !form.outNodeId ||
+                                      form.outNodeId.length === 0
+                                    )
+                                      return "tcp";
+
+                                    return form.outNodeId[0].protocol || "tcp";
+                                  })(),
+                                ]}
+                                variant="bordered"
+                                onSelectionChange={(keys) => {
+                                  const selectedKey = Array.from(
+                                    keys,
+                                  )[0] as string;
+
+                                  if (selectedKey) {
+                                    setForm((prev) => {
+                                      const currentOutNodes =
+                                        prev.outNodeId || [];
+                                      const currentStrategy =
+                                        currentOutNodes.length > 0
+                                          ? currentOutNodes[0].strategy ||
+                                            "round"
+                                          : "round";
+                                      const currentForwardProtocol =
+                                        currentOutNodes.length > 0
+                                          ? currentOutNodes[0].forwardProtocol || "tunnel"
+                                          : "tunnel";
+
+                                      if (currentOutNodes.length === 0) {
+                                        // 如果还没有出口节点，创建一个占位节点保存设置
+                                        return {
+                                          ...prev,
+                                          outNodeId: [
+                                            {
+                                              nodeId: -1,
+                                              chainType: 3,
+                                              protocol: selectedKey,
+                                              strategy: currentStrategy,
+                                              forwardProtocol: currentForwardProtocol,
+                                            },
+                                          ],
+                                        };
+                                      }
+
+                                      // 更新所有出口节点的传输层协议
+                                      return {
+                                        ...prev,
+                                        outNodeId: currentOutNodes.map(
+                                          (ct) => ({
+                                            ...ct,
+                                            protocol: selectedKey,
+                                          }),
+                                        ),
+                                      };
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectItem key="tcp">TCP</SelectItem>
+                                <SelectItem key="mtcp">MTCP</SelectItem>
+                                <SelectItem key="tls">TLS</SelectItem>
+                                <SelectItem key="mtls">MTLS</SelectItem>
+                                <SelectItem key="wss">WSS</SelectItem>
+                                <SelectItem key="mwss">MWSS</SelectItem>
+                              </Select>
+                              {/* 应用层协议 - 50% */}
+                              <Select
+                                classNames={{
+                                  label: "text-xs",
+                                  value: "text-sm",
+                                }}
+                                description="relay: 通用转发 (UDP 不稳定); tunnel: 长连接隧道 (推荐)"
+                                label="应用层协议"
+                                placeholder="选择应用层协议"
+                                selectedKeys={[
+                                  (() => {
+                                    if (
+                                      !form.outNodeId ||
+                                      form.outNodeId.length === 0
+                                    )
+                                      return "tunnel";
+
+                                    return form.outNodeId[0].forwardProtocol || "tunnel";
+                                  })(),
+                                ]}
+                                variant="bordered"
+                                onSelectionChange={(keys) => {
+                                  const selectedKey = Array.from(
+                                    keys,
+                                  )[0] as string;
+
+                                  if (selectedKey) {
+                                    setForm((prev) => {
+                                      const currentOutNodes =
+                                        prev.outNodeId || [];
+                                      const currentProtocol =
+                                        currentOutNodes.length > 0
+                                          ? currentOutNodes[0].protocol || "tcp"
+                                          : "tcp";
+                                      const currentStrategy =
+                                        currentOutNodes.length > 0
+                                          ? currentOutNodes[0].strategy || "round"
+                                          : "round";
+
+                                      if (currentOutNodes.length === 0) {
+                                        return {
+                                          ...prev,
+                                          outNodeId: [
+                                            {
+                                              nodeId: -1,
+                                              chainType: 3,
+                                              protocol: currentProtocol,
+                                              strategy: currentStrategy,
+                                              forwardProtocol: selectedKey,
+                                            },
+                                          ],
+                                        };
+                                      }
+
+                                      return {
+                                        ...prev,
+                                        outNodeId: currentOutNodes.map(
+                                          (ct) => ({
+                                            ...ct,
+                                            forwardProtocol: selectedKey,
+                                          }),
+                                        ),
+                                      };
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectItem key="relay">Relay (通用转发)</SelectItem>
+                                <SelectItem key="tunnel">Tunnel (长连接隧道)</SelectItem>
+                              </Select>
+                            </div>
+                            {/* 连接端口和连接 IP 类型 - 出口节点 */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                               <Input
                                 description="指定出口节点被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
                                 label="连接端口"
-                                placeholder="例：11111,22222"
+                                placeholder="例：33333,55555"
                                 size="sm"
                                 variant="bordered"
-                                onBlur={() => setFocusedInputs(prev => { const next = { ...prev }; delete next[`out_port`]; return next; })}
+                                onBlur={() => {
+                                  const finalValue = focusedInputs[`out_port`] ?? formatOutNodePortsToDisplay();
+                                  setFocusedInputs(prev => { const next = { ...prev }; delete next[`out_port`]; return next; });
+                                  if (finalValue) applyPortsToOutNodes(finalValue);
+                                }}
                                 onChange={(e) => {
                                   setFocusedInputs(prev => ({ ...prev, [`out_port`]: e.target.value }));
-                                  applyPortsToOutNodes(e.target.value);
                                 }}
                                 onFocus={() => setFocusedInputs(prev => ({ ...prev, [`out_port`]: formatOutNodePortsToDisplay() }))}
                                 type="text"
-                                // 👇 替换这部分
                                 value={focusedInputs[`out_port`] ?? formatOutNodePortsToDisplay()}
                               />
                               <Input

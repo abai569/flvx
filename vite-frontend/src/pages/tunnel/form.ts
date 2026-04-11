@@ -31,6 +31,7 @@ export const createTunnelFormDefaults = () => {
     status: 1,
     tunnelGroupId: null as number | null,
     remark: "",
+    forwardProtocol: "tunnel" as string, // 默认使用 tunnel 协议
   };
 };
 
