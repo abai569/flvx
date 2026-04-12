@@ -1119,7 +1119,7 @@ export default function NodePage() {
   };
   const handleCopyOverseasInstallCommand = async (node: Node) => {
     try {
-      const res = await getNodeInstallCommandOverseas(node.id);
+      const res = await getNodeInstallCommandOverseas(node.id, "stable");
 
       if (res.code === 0 && res.data) {
         setInstallServiceName("flux_agent");

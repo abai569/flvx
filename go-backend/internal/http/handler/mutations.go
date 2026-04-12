@@ -2060,9 +2060,8 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	trafficLimit := asInt64(req["trafficLimit"], 0)
 	expiryTime := asAnyToInt64Ptr(req["expiryTime"])
 	speedLimitEnabled := asBool(req["speedLimitEnabled"], false)
-	uploadSpeed := asInt(req["uploadSpeed"], 0)
-	downloadSpeed := asInt(req["downloadSpeed"], 0)
-	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), asInt(req["maxConnections"], 0), trafficLimit, expiryTime, speedLimitEnabled, uploadSpeed, downloadSpeed)
+	speedLimit := asInt(req["speedLimit"], 0)
+	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), asInt(req["maxConnections"], 0), trafficLimit, expiryTime, speedLimitEnabled, speedLimit)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -2225,15 +2224,11 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	if _, ok := req["speedLimitEnabled"]; !ok {
 		speedLimitEnabled = forward.SpeedLimitEnabled
 	}
-	uploadSpeed := asInt(req["uploadSpeed"], forward.UploadSpeed)
-	if _, ok := req["uploadSpeed"]; !ok {
-		uploadSpeed = forward.UploadSpeed
+	speedLimit := asInt(req["speedLimit"], forward.SpeedLimit)
+	if _, ok := req["speedLimit"]; !ok {
+		speedLimit = forward.SpeedLimit
 	}
-	downloadSpeed := asInt(req["downloadSpeed"], forward.DownloadSpeed)
-	if _, ok := req["downloadSpeed"]; !ok {
-		downloadSpeed = forward.DownloadSpeed
-	}
-	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConnections, trafficLimit, newExpiryTime, speedLimitEnabled, uploadSpeed, downloadSpeed); err != nil {
+	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConnections, trafficLimit, newExpiryTime, speedLimitEnabled, speedLimit); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}

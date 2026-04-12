@@ -173,10 +173,10 @@ const SortableListRowItem = ({
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
-          ...transform,
-          x: 0,
-          y: Math.round(transform.y),
-        })
+        ...transform,
+        x: 0,
+        y: Math.round(transform.y),
+      })
       : undefined,
     transition: isDragging ? undefined : transition || undefined,
     opacity: isDragging ? 0.9 : 1,
@@ -206,10 +206,10 @@ const SortableItem = ({
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
-          ...transform,
-          x: Math.round(transform.x),
-          y: Math.round(transform.y),
-        })
+        ...transform,
+        x: Math.round(transform.x),
+        y: Math.round(transform.y),
+      })
       : undefined,
     transition: isDragging ? undefined : transition || undefined,
     opacity: isDragging ? 0.5 : 1,
@@ -444,7 +444,7 @@ export default function TunnelPage() {
       if (nodesRes.code === 0) {
         setNodes(nodesRes.data || []);
       }
-    } catch {}
+    } catch { }
   }, []);
   // 加载隧道分组
   const loadTunnelGroupsNew = useCallback(async () => {
@@ -565,9 +565,9 @@ export default function TunnelPage() {
       trafficRatio: tunnel.trafficRatio,
       inIp: tunnel.inIp
         ? tunnel.inIp
-            .split(",")
-            .map((ip: string) => ip.trim())
-            .join("\n")
+          .split(",")
+          .map((ip: string) => ip.trim())
+          .join("\n")
         : "",
       ipPreference: tunnel.ipPreference || "",
       status: tunnel.status,
@@ -1135,19 +1135,19 @@ export default function TunnelPage() {
             prev.map((t) =>
               t.id === form.id
                 ? {
-                    ...t,
-                    name: form.name,
-                    type: form.type,
-                    inNodeId: form.inNodeId,
-                    outNodeId: cleanedOutNodeId,
-                    chainNodes: cleanedChainNodes,
-                    flow: form.flow,
-                    trafficRatio: form.trafficRatio,
-                    inIp: inIpString,
-                    ipPreference: form.ipPreference,
-                    tunnelGroupId: form.tunnelGroupId,
-                    remark: form.remark,
-                  }
+                  ...t,
+                  name: form.name,
+                  type: form.type,
+                  inNodeId: form.inNodeId,
+                  outNodeId: cleanedOutNodeId,
+                  chainNodes: cleanedChainNodes,
+                  flow: form.flow,
+                  trafficRatio: form.trafficRatio,
+                  inIp: inIpString,
+                  ipPreference: form.ipPreference,
+                  tunnelGroupId: form.tunnelGroupId,
+                  remark: form.remark,
+                }
                 : t,
             ),
           );
@@ -1194,12 +1194,12 @@ export default function TunnelPage() {
           onStart: (payload) => {
             const startTunnelName =
               typeof payload.tunnelName === "string" &&
-              payload.tunnelName.trim() !== ""
+                payload.tunnelName.trim() !== ""
                 ? payload.tunnelName
                 : tunnel.name;
             const startTunnelType =
               typeof payload.tunnelType === "string" &&
-              payload.tunnelType.trim() !== ""
+                payload.tunnelType.trim() !== ""
                 ? payload.tunnelType
                 : tunnel.type === 1
                   ? "端口转发"
@@ -1860,7 +1860,7 @@ export default function TunnelPage() {
         </div>
         <div className="flex items-center gap-2">
           {(viewMode === "list" && selectedTunnelIds.size > 0) ||
-          (viewMode === "card" && selectedIds.size > 0) ? (
+            (viewMode === "card" && selectedIds.size > 0) ? (
             <>
               <span className="text-sm text-danger-400 shrink-0">
                 已选{" "}
@@ -2037,10 +2037,10 @@ export default function TunnelPage() {
                             filterGroupId === null
                               ? []
                               : [
-                                  filterGroupId === -1
-                                    ? "-1"
-                                    : String(filterGroupId),
-                                ]
+                                filterGroupId === -1
+                                  ? "-1"
+                                  : String(filterGroupId),
+                              ]
                           }
                           size="sm"
                           variant="flat"
@@ -2170,7 +2170,7 @@ export default function TunnelPage() {
                               </td>
                               <td className="py-3 px-4 align-middle">
                                 {tunnel.tunnelGroupId &&
-                                tunnel.tunnelGroupId > 0 ? (
+                                  tunnel.tunnelGroupId > 0 ? (
                                   (() => {
                                     const group = tunnelGroupsNew.find(
                                       (g) => g.id === tunnel.tunnelGroupId,
@@ -2351,24 +2351,24 @@ export default function TunnelPage() {
                                   {typeDisplay.text}
                                 </div>
                                 {tunnel.tunnelGroupId &&
-                                tunnel.tunnelGroupId > 0
+                                  tunnel.tunnelGroupId > 0
                                   ? (() => {
-                                      const group = tunnelGroupsNew.find(
-                                        (g) => g.id === tunnel.tunnelGroupId,
-                                      );
+                                    const group = tunnelGroupsNew.find(
+                                      (g) => g.id === tunnel.tunnelGroupId,
+                                    );
 
-                                      return group ? (
-                                        <div
-                                          className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium"
-                                          style={{
-                                            backgroundColor: `${group.color}1A`,
-                                            color: group.color,
-                                          }}
-                                        >
-                                          {group.name}
-                                        </div>
-                                      ) : null;
-                                    })()
+                                    return group ? (
+                                      <div
+                                        className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium"
+                                        style={{
+                                          backgroundColor: `${group.color}1A`,
+                                          color: group.color,
+                                        }}
+                                      >
+                                        {group.name}
+                                      </div>
+                                    ) : null;
+                                  })()
                                   : null}
                               </div>
                             </div>
@@ -2774,25 +2774,25 @@ export default function TunnelPage() {
                         disabledKeys={
                           isEdit
                             ? (() => {
-                                console.log(
-                                  "编辑模式，disabledKeys 应该为空数组:",
-                                  [],
-                                );
+                              console.log(
+                                "编辑模式，disabledKeys 应该为空数组:",
+                                [],
+                              );
 
-                                return [];
-                              })()
+                              return [];
+                            })()
                             : [
-                                // 新建时禁用离线节点
-                                ...nodes
-                                  .filter((node) => node.status !== 1)
-                                  .map((node) => node.id.toString()),
-                                ...(form.outNodeId || []).map((ct) =>
-                                  ct.nodeId.toString(),
-                                ),
-                                ...getSelectedChainNodeIds().map((id) =>
-                                  id.toString(),
-                                ),
-                              ]
+                              // 新建时禁用离线节点
+                              ...nodes
+                                .filter((node) => node.status !== 1)
+                                .map((node) => node.id.toString()),
+                              ...(form.outNodeId || []).map((ct) =>
+                                ct.nodeId.toString(),
+                              ),
+                              ...getSelectedChainNodeIds().map((id) =>
+                                id.toString(),
+                              ),
+                            ]
                         }
                         dropdownPlacement="top"
                         errorMessage={errors.inNodeId}
@@ -2881,10 +2881,10 @@ export default function TunnelPage() {
                                 {getSelectedChainNodeIds().includes(
                                   node.id,
                                 ) && (
-                                  <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
-                                    已选为转发链
-                                  </div>
-                                )}
+                                    <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                                      已选为转发链
+                                    </div>
+                                  )}
                               </div>
                             </div>
                           </SelectItem>
@@ -3009,8 +3009,8 @@ export default function TunnelPage() {
                                   </Button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-                                  {/* 节点选择 - 移动端 100%，桌面端 66% */}
-                                  <div className="col-span-1 md:col-span-2">
+                                  {/* 节点选择 - 移动端 100%，桌面端 100% */}
+                                  <div className="col-span-1 md:col-span-3">
                                     <Select
                                       classNames={{
                                         base: "w-full",
@@ -3020,48 +3020,48 @@ export default function TunnelPage() {
                                       disabledKeys={
                                         isEdit
                                           ? [
-                                              ...form.inNodeId.map((ct) =>
-                                                ct.nodeId.toString(),
-                                              ),
-                                              ...(form.outNodeId || []).map(
-                                                (ct) => ct.nodeId.toString(),
-                                              ),
-                                              ...(form.chainNodes || [])
-                                                .flatMap((group, idx) =>
-                                                  idx !== groupIndex
-                                                    ? group.map(
-                                                        (ct) => ct.nodeId,
-                                                      )
-                                                    : [],
-                                                )
-                                                .filter((id) => id !== -1)
-                                                .map((id) => id.toString()),
-                                            ]
+                                            ...form.inNodeId.map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            ...(form.outNodeId || []).map(
+                                              (ct) => ct.nodeId.toString(),
+                                            ),
+                                            ...(form.chainNodes || [])
+                                              .flatMap((group, idx) =>
+                                                idx !== groupIndex
+                                                  ? group.map(
+                                                    (ct) => ct.nodeId,
+                                                  )
+                                                  : [],
+                                              )
+                                              .filter((id) => id !== -1)
+                                              .map((id) => id.toString()),
+                                          ]
                                           : [
-                                              ...nodes
-                                                .filter(
-                                                  (node) => node.status !== 1,
-                                                )
-                                                .map((node) =>
-                                                  node.id.toString(),
-                                                ),
-                                              ...form.inNodeId.map((ct) =>
-                                                ct.nodeId.toString(),
+                                            ...nodes
+                                              .filter(
+                                                (node) => node.status !== 1,
+                                              )
+                                              .map((node) =>
+                                                node.id.toString(),
                                               ),
-                                              ...(form.outNodeId || []).map(
-                                                (ct) => ct.nodeId.toString(),
-                                              ),
-                                              ...(form.chainNodes || [])
-                                                .flatMap((group, idx) =>
-                                                  idx !== groupIndex
-                                                    ? group.map(
-                                                        (ct) => ct.nodeId,
-                                                      )
-                                                    : [],
-                                                )
-                                                .filter((id) => id !== -1)
-                                                .map((id) => id.toString()),
-                                            ]
+                                            ...form.inNodeId.map((ct) =>
+                                              ct.nodeId.toString(),
+                                            ),
+                                            ...(form.outNodeId || []).map(
+                                              (ct) => ct.nodeId.toString(),
+                                            ),
+                                            ...(form.chainNodes || [])
+                                              .flatMap((group, idx) =>
+                                                idx !== groupIndex
+                                                  ? group.map(
+                                                    (ct) => ct.nodeId,
+                                                  )
+                                                  : [],
+                                              )
+                                              .filter((id) => id !== -1)
+                                              .map((id) => id.toString()),
+                                          ]
                                       }
                                       dropdownPlacement="top"
                                       label={`节点选择${groupNodes.filter((ct) => ct.nodeId !== -1).length > 0 ? ` (已选 ${groupNodes.filter((ct) => ct.nodeId !== -1).length} 个)` : ""}`}
@@ -3114,10 +3114,10 @@ export default function TunnelPage() {
                                               {form.inNodeId.some(
                                                 (ct) => ct.nodeId === node.id,
                                               ) && (
-                                                <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">
-                                                  已选为入口
-                                                </div>
-                                              )}
+                                                  <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">
+                                                    已选为入口
+                                                  </div>
+                                                )}
                                               {form.outNodeId &&
                                                 form.outNodeId.some(
                                                   (ct) => ct.nodeId === node.id,
@@ -3135,44 +3135,17 @@ export default function TunnelPage() {
                                                       ct.nodeId !== -1,
                                                   ),
                                               ) && (
-                                                <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
-                                                  已选为其他跳
-                                                </div>
-                                              )}
+                                                  <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                                                    已选为其他跳
+                                                  </div>
+                                                )}
                                             </div>
                                           </div>
                                         </SelectItem>
                                       ))}
                                     </Select>
                                   </div>
-                                  {/* 负载策略 - 33% */}
-                                  <Select
-                                    classNames={{
-                                      label: "text-xs",
-                                      value: "text-sm",
-                                    }}
-                                    label="负载策略"
-                                    placeholder="选择策略"
-                                    selectedKeys={[strategy]}
-                                    size="sm"
-                                    variant="bordered"
-                                    onSelectionChange={(keys) => {
-                                      const selectedKey = Array.from(
-                                        keys,
-                                      )[0] as string;
 
-                                      if (selectedKey) {
-                                        updateChainStrategy(
-                                          groupIndex,
-                                          selectedKey,
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    <SelectItem key="fifo">主备</SelectItem>
-                                    <SelectItem key="round">轮询</SelectItem>
-                                    <SelectItem key="rand">随机</SelectItem>
-                                  </Select>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                                   {/* 传输层协议选择 - 50% */}
@@ -3207,33 +3180,61 @@ export default function TunnelPage() {
                                     <SelectItem key="wss">WSS</SelectItem>
                                     <SelectItem key="mwss">MWSS</SelectItem>
                                   </Select>
+                                  {/* 负载策略 - 50% */}
+                                  <Select
+                                    classNames={{
+                                      label: "text-xs",
+                                      value: "text-sm",
+                                    }}
+                                    label="负载策略"
+                                    placeholder="选择策略"
+                                    selectedKeys={[strategy]}
+                                    size="sm"
+                                    variant="bordered"
+                                    onSelectionChange={(keys) => {
+                                      const selectedKey = Array.from(
+                                        keys,
+                                      )[0] as string;
+
+                                      if (selectedKey) {
+                                        updateChainStrategy(
+                                          groupIndex,
+                                          selectedKey,
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <SelectItem key="fifo">主备</SelectItem>
+                                    <SelectItem key="round">轮询</SelectItem>
+                                    <SelectItem key="rand">随机</SelectItem>
+                                  </Select>
                                 </div>
                                 {/* 连接 IP 和连接端口 - 转发链节点 */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                                <Input
-                                  description="指定当前级被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
-                                  errorMessage={
-                                    errors[`chainNodes_${groupIndex}_port`]
-                                  }
-                                  isInvalid={
-                                    !!errors[`chainNodes_${groupIndex}_port`]
-                                  }
-                                  label="连接端口"
-                                  placeholder="例：11111,22222"
-                                  size="sm"
-                                  type="text"
-                                  value={focusedInputs[`chain_port_${groupIndex}`] ?? formatChainPortsToDisplay(groupNodes)}
-                                  variant="bordered"
-                                  onBlur={() => {
-                                    const finalValue = focusedInputs[`chain_port_${groupIndex}`] ?? formatChainPortsToDisplay(groupNodes);
-                                    setFocusedInputs(prev => { const next = { ...prev }; delete next[`chain_port_${groupIndex}`]; return next; });
-                                    if (finalValue) applyPortsToChainGroup(groupIndex, finalValue);
-                                  }}
-                                  onChange={(e) => {
-                                    setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: e.target.value }));
-                                  }}
-                                  onFocus={() => setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: formatChainPortsToDisplay(groupNodes) }))}
-                                />
+                                  <Input
+                                    description="指定当前级被上一级连接的端口，多节点可用逗号分隔，按选择节点顺序匹配，留空按节点端口范围自动分配"
+                                    errorMessage={
+                                      errors[`chainNodes_${groupIndex}_port`]
+                                    }
+                                    isInvalid={
+                                      !!errors[`chainNodes_${groupIndex}_port`]
+                                    }
+                                    label="连接端口"
+                                    placeholder="例：11111,22222"
+                                    size="sm"
+                                    type="text"
+                                    value={focusedInputs[`chain_port_${groupIndex}`] ?? formatChainPortsToDisplay(groupNodes)}
+                                    variant="bordered"
+                                    onBlur={() => {
+                                      const finalValue = focusedInputs[`chain_port_${groupIndex}`] ?? formatChainPortsToDisplay(groupNodes);
+                                      setFocusedInputs(prev => { const next = { ...prev }; delete next[`chain_port_${groupIndex}`]; return next; });
+                                      if (finalValue) applyPortsToChainGroup(groupIndex, finalValue);
+                                    }}
+                                    onChange={(e) => {
+                                      setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: e.target.value }));
+                                    }}
+                                    onFocus={() => setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: formatChainPortsToDisplay(groupNodes) }))}
+                                  />
                                   <Input
                                     description="多节点可用逗号分隔，按选择节点顺序匹配，v4 对应公网 v4 地址，v6 对应公网 v6 地址，lan 对应内网地址，留空自动匹配"
                                     label="连接IP类型"
@@ -3325,8 +3326,8 @@ export default function TunnelPage() {
                           <>
                             {/* Row 1: Node selection + Load balancing strategy */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                              {/* 节点选择 - 移动端 100%，桌面端 66% */}
-                              <div className="col-span-1 md:col-span-2">
+                              {/* 节点选择 - 移动端 100%，桌面端 100% */}
+                              <div className="col-span-1 md:col-span-3">
                                 <Select
                                   classNames={{
                                     base: "w-full",
@@ -3336,26 +3337,26 @@ export default function TunnelPage() {
                                   disabledKeys={
                                     isEdit
                                       ? [
-                                          // 编辑时【不禁用】离线节点，仅排除入口和转发链冲突节点
-                                          ...form.inNodeId.map((ct) =>
-                                            ct.nodeId.toString(),
-                                          ),
-                                          ...getSelectedChainNodeIds().map(
-                                            (id) => id.toString(),
-                                          ),
-                                        ]
+                                        // 编辑时【不禁用】离线节点，仅排除入口和转发链冲突节点
+                                        ...form.inNodeId.map((ct) =>
+                                          ct.nodeId.toString(),
+                                        ),
+                                        ...getSelectedChainNodeIds().map(
+                                          (id) => id.toString(),
+                                        ),
+                                      ]
                                       : [
-                                          // 新建时【禁用】离线节点，并排除冲突节点
-                                          ...nodes
-                                            .filter((node) => node.status !== 1)
-                                            .map((node) => node.id.toString()),
-                                          ...form.inNodeId.map((ct) =>
-                                            ct.nodeId.toString(),
-                                          ),
-                                          ...getSelectedChainNodeIds().map(
-                                            (id) => id.toString(),
-                                          ),
-                                        ]
+                                        // 新建时【禁用】离线节点，并排除冲突节点
+                                        ...nodes
+                                          .filter((node) => node.status !== 1)
+                                          .map((node) => node.id.toString()),
+                                        ...form.inNodeId.map((ct) =>
+                                          ct.nodeId.toString(),
+                                        ),
+                                        ...getSelectedChainNodeIds().map(
+                                          (id) => id.toString(),
+                                        ),
+                                      ]
                                   }
                                   dropdownPlacement="top"
                                   errorMessage={errors.outNodeId}
@@ -3365,8 +3366,8 @@ export default function TunnelPage() {
                                   selectedKeys={
                                     form.outNodeId
                                       ? form.outNodeId
-                                          .filter((ct) => ct.nodeId !== -1)
-                                          .map((ct) => ct.nodeId.toString())
+                                        .filter((ct) => ct.nodeId !== -1)
+                                        .map((ct) => ct.nodeId.toString())
                                       : []
                                   }
                                   selectionMode="multiple"
@@ -3436,24 +3437,102 @@ export default function TunnelPage() {
                                           {form.inNodeId.some(
                                             (ct) => ct.nodeId === node.id,
                                           ) && (
-                                            <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">
-                                              已选为入口
-                                            </div>
-                                          )}
+                                              <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-warning-500/10 text-warning-600 dark:text-warning-400">
+                                                已选为入口
+                                              </div>
+                                            )}
                                           {getSelectedChainNodeIds().includes(
                                             node.id,
                                           ) && (
-                                            <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
-                                              已选为转发链
-                                            </div>
-                                          )}
+                                              <div className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                                                已选为转发链
+                                              </div>
+                                            )}
                                         </div>
                                       </div>
                                     </SelectItem>
                                   ))}
                                 </Select>
                               </div>
-                              {/* 负载策略 - 33% */}
+
+                            </div>
+                            {/* Row 2: Protocol + Forward Protocol */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                              {/* 传输层协议选择 - 50% */}
+                              <Select
+                                classNames={{
+                                  label: "text-xs",
+                                  value: "text-sm",
+                                }}
+                                errorMessage={errors.protocol}
+                                isInvalid={!!errors.protocol}
+                                description="不懂的就默认，不要选！"
+                                label="传输层协议"
+                                placeholder="选择传输层协议"
+                                selectedKeys={[
+                                  (() => {
+                                    if (
+                                      !form.outNodeId ||
+                                      form.outNodeId.length === 0
+                                    )
+                                      return "tcp";
+
+                                    return form.outNodeId[0].protocol || "tcp";
+                                  })(),
+                                ]}
+                                variant="bordered"
+                                onSelectionChange={(keys) => {
+                                  const selectedKey = Array.from(
+                                    keys,
+                                  )[0] as string;
+
+                                  if (selectedKey) {
+                                    setForm((prev) => {
+                                      const currentOutNodes =
+                                        prev.outNodeId || [];
+                                      const currentStrategy =
+                                        currentOutNodes.length > 0
+                                          ? currentOutNodes[0].strategy ||
+                                          "round"
+                                          : "round";
+
+                                      if (currentOutNodes.length === 0) {
+                                        // 如果还没有出口节点，创建一个占位节点保存设置
+                                        return {
+                                          ...prev,
+                                          outNodeId: [
+                                            {
+                                              nodeId: -1,
+                                              chainType: 3,
+                                              protocol: selectedKey,
+                                              strategy: currentStrategy,
+                                            },
+                                          ],
+                                        };
+                                      }
+
+                                      // 更新所有出口节点的传输层协议
+                                      return {
+                                        ...prev,
+                                        outNodeId: currentOutNodes.map(
+                                          (ct) => ({
+                                            ...ct,
+                                            protocol: selectedKey,
+                                          }),
+                                        ),
+                                      };
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectItem key="tcp">TCP</SelectItem>
+                                <SelectItem key="mtcp">MTCP</SelectItem>
+                                <SelectItem key="tls">TLS</SelectItem>
+                                <SelectItem key="mtls">MTLS</SelectItem>
+                                <SelectItem key="wss">WSS</SelectItem>
+                                <SelectItem key="mwss">MWSS</SelectItem>
+                              </Select>
+                              {/* 负载策略 - 50% */}
                               <Select
                                 classNames={{
                                   label: "text-xs",
@@ -3519,83 +3598,6 @@ export default function TunnelPage() {
                                 <SelectItem key="fifo">主备</SelectItem>
                                 <SelectItem key="round">轮询</SelectItem>
                                 <SelectItem key="rand">随机</SelectItem>
-                              </Select>
-                            </div>
-                            {/* Row 2: Protocol + Forward Protocol */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                              {/* 传输层协议选择 - 50% */}
-                              <Select
-                                classNames={{
-                                  label: "text-xs",
-                                  value: "text-sm",
-                                }}
-                                errorMessage={errors.protocol}
-                                isInvalid={!!errors.protocol}
-                                description="不懂的就默认，不要选！"
-                                label="传输层协议"
-                                placeholder="选择传输层协议"
-                                selectedKeys={[
-                                  (() => {
-                                    if (
-                                      !form.outNodeId ||
-                                      form.outNodeId.length === 0
-                                    )
-                                      return "tcp";
-
-                                    return form.outNodeId[0].protocol || "tcp";
-                                  })(),
-                                ]}
-                                variant="bordered"
-                                onSelectionChange={(keys) => {
-                                  const selectedKey = Array.from(
-                                    keys,
-                                  )[0] as string;
-
-                                  if (selectedKey) {
-                                    setForm((prev) => {
-                                      const currentOutNodes =
-                                        prev.outNodeId || [];
-                                      const currentStrategy =
-                                        currentOutNodes.length > 0
-                                          ? currentOutNodes[0].strategy ||
-                                            "round"
-                                          : "round";
-
-                                      if (currentOutNodes.length === 0) {
-                                        // 如果还没有出口节点，创建一个占位节点保存设置
-                                        return {
-                                          ...prev,
-                                          outNodeId: [
-                                            {
-                                              nodeId: -1,
-                                              chainType: 3,
-                                              protocol: selectedKey,
-                                              strategy: currentStrategy,
-                                            },
-                                          ],
-                                        };
-                                      }
-
-                                      // 更新所有出口节点的传输层协议
-                                      return {
-                                        ...prev,
-                                        outNodeId: currentOutNodes.map(
-                                          (ct) => ({
-                                            ...ct,
-                                            protocol: selectedKey,
-                                          }),
-                                        ),
-                                      };
-                                    });
-                                  }
-                                }}
-                              >
-                                <SelectItem key="tcp">TCP</SelectItem>
-                                <SelectItem key="mtcp">MTCP</SelectItem>
-                                <SelectItem key="tls">TLS</SelectItem>
-                                <SelectItem key="mtls">MTLS</SelectItem>
-                                <SelectItem key="wss">WSS</SelectItem>
-                                <SelectItem key="mwss">MWSS</SelectItem>
                               </Select>
                             </div>
                             {/* 连接端口和连接 IP 类型 - 出口节点 */}
@@ -3737,7 +3739,7 @@ export default function TunnelPage() {
                           )}
                         </div>
                         {deletePreviewForwardCount >
-                        (tunnelDeletePreview?.sampleForwards?.length ?? 0) ? (
+                          (tunnelDeletePreview?.sampleForwards?.length ?? 0) ? (
                           <p className="text-xs text-default-500">
                             还有{" "}
                             {deletePreviewForwardCount -
@@ -3931,10 +3933,10 @@ export default function TunnelPage() {
                       <div className="text-center p-3 bg-success-50 dark:bg-success-900/20 rounded-lg border border-success-200 dark:border-success-700">
                         <div className="text-2xl font-bold text-success-600 dark:text-success-400">
                           {diagnosisProgress.completed > 0 ||
-                          diagnosisProgress.total > 0
+                            diagnosisProgress.total > 0
                             ? diagnosisProgress.success
                             : diagnosisResult.results.filter((r) => r.success)
-                                .length}
+                              .length}
                         </div>
                         <div className="text-xs text-success-600 dark:text-success-400/80 mt-1">
                           成功
@@ -3943,10 +3945,10 @@ export default function TunnelPage() {
                       <div className="text-center p-3 bg-danger-50 dark:bg-danger-900/20 rounded-lg border border-danger-200 dark:border-danger-700">
                         <div className="text-2xl font-bold text-danger-600 dark:text-danger-400">
                           {diagnosisProgress.completed > 0 ||
-                          diagnosisProgress.total > 0
+                            diagnosisProgress.total > 0
                             ? diagnosisProgress.failed
                             : diagnosisResult.results.filter((r) => !r.success)
-                                .length}
+                              .length}
                         </div>
                         <div className="text-xs text-danger-600 dark:text-danger-400/80 mt-1">
                           失败
@@ -4029,13 +4031,12 @@ export default function TunnelPage() {
                                     return (
                                       <tr
                                         key={index}
-                                        className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${
-                                          isDiagnosing
+                                        className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${isDiagnosing
                                             ? "bg-warning-50 dark:bg-warning-900/20"
                                             : isSuccess
                                               ? "bg-white dark:bg-gray-800"
                                               : "bg-danger-50 dark:bg-danger-900/30"
-                                        }`}
+                                          }`}
                                       >
                                         <td className="px-3 py-2">
                                           <div className="flex items-center gap-2">
@@ -4043,11 +4044,10 @@ export default function TunnelPage() {
                                               <Spinner size="sm" />
                                             ) : (
                                               <span
-                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                                                  isSuccess
+                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${isSuccess
                                                     ? "bg-success text-white"
                                                     : "bg-danger text-white"
-                                                }`}
+                                                  }`}
                                               >
                                                 {isSuccess ? "✓" : "✗"}
                                               </span>
@@ -4088,11 +4088,10 @@ export default function TunnelPage() {
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess ? (
                                             <span
-                                              className={`font-semibold ${
-                                                (result.packetLoss || 0) > 0
+                                              className={`font-semibold ${(result.packetLoss || 0) > 0
                                                   ? "text-warning"
                                                   : "text-success"
-                                              }`}
+                                                }`}
                                             >
                                               {result.packetLoss?.toFixed(1)}%
                                             </span>
@@ -4200,24 +4199,22 @@ export default function TunnelPage() {
                                 return (
                                   <div
                                     key={index}
-                                    className={`border rounded-lg p-3 ${
-                                      isDiagnosing
+                                    className={`border rounded-lg p-3 ${isDiagnosing
                                         ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
                                         : isSuccess
                                           ? "border-divider bg-white dark:bg-gray-800"
                                           : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
-                                    }`}
+                                      }`}
                                   >
                                     <div className="flex items-start gap-2 mb-2">
                                       {isDiagnosing ? (
                                         <Spinner size="sm" />
                                       ) : (
                                         <span
-                                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
-                                            isSuccess
+                                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${isSuccess
                                               ? "bg-success text-white"
                                               : "bg-danger text-white"
-                                          }`}
+                                            }`}
                                         >
                                           {isSuccess ? "✓" : "✗"}
                                         </span>
@@ -4252,11 +4249,10 @@ export default function TunnelPage() {
                                         </div>
                                         <div className="text-center">
                                           <div
-                                            className={`text-lg font-bold ${
-                                              (result.packetLoss || 0) > 0
+                                            className={`text-lg font-bold ${(result.packetLoss || 0) > 0
                                                 ? "text-warning"
                                                 : "text-success"
-                                            }`}
+                                              }`}
                                           >
                                             {result.packetLoss?.toFixed(1)}%
                                           </div>
@@ -4282,11 +4278,10 @@ export default function TunnelPage() {
                                     ) : (
                                       <div className="mt-2 pt-2 border-t border-divider">
                                         <div
-                                          className={`text-xs ${
-                                            isDiagnosing
+                                          className={`text-xs ${isDiagnosing
                                               ? "text-warning"
                                               : "text-danger"
-                                          }`}
+                                            }`}
                                         >
                                           {isDiagnosing
                                             ? result.message || "诊断中..."
@@ -4331,26 +4326,26 @@ export default function TunnelPage() {
                     {diagnosisResult.results.some(
                       (r) => r.success === false && !r.diagnosing,
                     ) && (
-                      <div className="space-y-2 hidden md:block">
-                        <h4 className="text-sm font-semibold text-danger">
-                          失败详情
-                        </h4>
-                        <div className="space-y-2">
-                          {diagnosisResult.results
-                            .filter((r) => r.success === false && !r.diagnosing)
-                            .map((result, index) => (
-                              <Alert
-                                key={index}
-                                className="text-xs"
-                                color="danger"
-                                description={result.message || "连接失败"}
-                                title={result.description}
-                                variant="flat"
-                              />
-                            ))}
+                        <div className="space-y-2 hidden md:block">
+                          <h4 className="text-sm font-semibold text-danger">
+                            失败详情
+                          </h4>
+                          <div className="space-y-2">
+                            {diagnosisResult.results
+                              .filter((r) => r.success === false && !r.diagnosing)
+                              .map((result, index) => (
+                                <Alert
+                                  key={index}
+                                  className="text-xs"
+                                  color="danger"
+                                  description={result.message || "连接失败"}
+                                  title={result.description}
+                                  variant="flat"
+                                />
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 ) : (
                   <div className="text-center py-16">
@@ -4467,7 +4462,7 @@ export default function TunnelPage() {
                                 </div>
                               ))}
                               {item.forwardCount >
-                              item.sampleForwards.length ? (
+                                item.sampleForwards.length ? (
                                 <p className="text-[11px] text-default-500">
                                   还有{" "}
                                   {item.forwardCount -
@@ -4515,7 +4510,7 @@ export default function TunnelPage() {
                       />
                     ) : null}
                     {batchDeleteAction === "replace" &&
-                    !batchDeleteReplaceUnavailable ? (
+                      !batchDeleteReplaceUnavailable ? (
                       <div className="space-y-2">
                         <Select
                           label="目标隧道"

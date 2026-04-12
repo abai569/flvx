@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -272,9 +272,9 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 		speed = utSpeed
 	}
 
-	// ✅ 新增：检查新的上下行限速（优先级高于旧的 SpeedID）
+	// ✅ 动态限速器名称
 	var dynamicLimiterName string
-	if forward.SpeedLimitEnabled && (forward.UploadSpeed > 0 || forward.DownloadSpeed > 0) {
+	if forward.SpeedLimitEnabled && forward.SpeedLimit > 0 {
 		dynamicLimiterName = fmt.Sprintf("forward_%d_speed", forward.ID)
 	}
 
@@ -287,7 +287,7 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 	for _, fp := range ports {
 		// ✅ 应用动态限速器
 		if dynamicLimiterName != "" {
-			if err := h.ensureDynamicLimiterOnNode(fp.NodeID, dynamicLimiterName, forward.UploadSpeed, forward.DownloadSpeed); err != nil {
+			if err := h.ensureDynamicLimiterOnNode(fp.NodeID, dynamicLimiterName, forward.SpeedLimit); err != nil {
 				if isNodeOfflineOrTimeoutError(err) {
 					node, _ := h.getNodeRecord(fp.NodeID)
 					nodeName := fmt.Sprintf("%d", fp.NodeID)
@@ -1601,7 +1601,7 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 
 	// ✅ 动态限速器名称
 	var dynamicLimiterName string
-	if forward.SpeedLimitEnabled && (forward.UploadSpeed > 0 || forward.DownloadSpeed > 0) {
+	if forward.SpeedLimitEnabled && forward.SpeedLimit > 0 {
 		dynamicLimiterName = fmt.Sprintf("forward_%d_speed", forward.ID)
 	}
 
@@ -1773,7 +1773,7 @@ func (h *Handler) ensureForwardDynamicLimiter(forward *forwardRecord, limiterNam
 	}
 
 	for _, fp := range ports {
-		if err := h.ensureDynamicLimiterOnNode(fp.NodeID, limiterName, forward.UploadSpeed, forward.DownloadSpeed); err != nil {
+		if err := h.ensureDynamicLimiterOnNode(fp.NodeID, limiterName, forward.SpeedLimit); err != nil {
 			if !isNodeOfflineOrTimeoutError(err) {
 				return err
 			}
@@ -1783,27 +1783,18 @@ func (h *Handler) ensureForwardDynamicLimiter(forward *forwardRecord, limiterNam
 }
 
 // ✅ 新增：在节点上创建/更新动态限速器
-func (h *Handler) ensureDynamicLimiterOnNode(nodeID int64, limiterName string, uploadSpeed, downloadSpeed int) error {
+func (h *Handler) ensureDynamicLimiterOnNode(nodeID int64, limiterName string, speedLimit int) error {
 	// 构建限速器配置
 	// gost traffic limiter 使用 MB/s 作为单位（通过 units.ParseBase2Bytes 解析）
 	// 前端输入是 Mbps，需要转换：MB/s = Mbps / 8
 	// 配置格式："$ <in> <out>"，其中 $ 是 ServiceLimitKey
 	var limits []string
-	if uploadSpeed > 0 && downloadSpeed > 0 {
-		// 上下行都设置
-		uploadMB := float64(uploadSpeed) / 8.0
-		downloadMB := float64(downloadSpeed) / 8.0
-		limits = []string{fmt.Sprintf("$ %.1fMB %.1fMB", uploadMB, downloadMB)}
-	} else if uploadSpeed > 0 {
-		// 只限制上行
-		uploadMB := float64(uploadSpeed) / 8.0
-		limits = []string{fmt.Sprintf("$ %.1fMB", uploadMB)}
-	} else if downloadSpeed > 0 {
-		// 只限制下行
-		downloadMB := float64(downloadSpeed) / 8.0
-		limits = []string{fmt.Sprintf("$ %.1fMB", downloadMB)}
+	if speedLimit > 0 {
+		// 上下行使用相同的限速值
+		speedMB := float64(speedLimit) / 8.0
+		limits = []string{fmt.Sprintf("$ %.1fMB %.1fMB", speedMB, speedMB)}
 	} else {
-		// 都没设置，删除限速器
+		// 没设置限速，删除限速器
 		_, _ = h.sendNodeCommand(nodeID, "DeleteLimiters", map[string]interface{}{
 			"limiter": limiterName,
 		}, false, true)

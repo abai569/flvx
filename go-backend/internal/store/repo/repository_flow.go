@@ -163,8 +163,7 @@ func (r *Repository) GetForwardRecord(forwardID int64) (*model.ForwardRecord, er
 		TrafficLimit:      f.TrafficLimit,
 		ExpiryTime:        f.ExpiryTime,
 		SpeedLimitEnabled: f.SpeedLimitEnabled,
-		UploadSpeed:       f.UploadSpeed,
-		DownloadSpeed:     f.DownloadSpeed,
+		SpeedLimit:        f.SpeedLimit,
 		InFlow:            f.InFlow,
 		OutFlow:           f.OutFlow,
 	}

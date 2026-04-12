@@ -87,8 +87,7 @@ export interface ForwardApiItem {
   trafficLimit?: number;
   expiryTime?: number | null;
   speedLimitEnabled?: boolean;
-  uploadSpeed?: number;
-  downloadSpeed?: number;
+  speedLimit?: number;
   [key: string]: unknown;
 }
 
@@ -138,8 +137,7 @@ export interface SpeedLimitApiItem {
   status: number;
   createdTime: string;
   updatedTime: string;
-  uploadSpeed?: number;
-  downloadSpeed?: number;
+  speedLimit?: number;
   [key: string]: unknown;
 }
 

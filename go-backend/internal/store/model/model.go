@@ -48,6 +48,7 @@ type Forward struct {
 	TrafficLimit      int64         `gorm:"column:traffic_limit;not null;default:0"`
 	ExpiryTime        sql.NullInt64 `gorm:"column:expiry_time"`
 	SpeedLimitEnabled bool          `gorm:"column:speed_limit_enabled;not null;default:false"`
+	SpeedLimit        int           `gorm:"column:speed_limit;not null;default:0"`
 	UploadSpeed       int           `gorm:"column:upload_speed;not null;default:0"`
 	DownloadSpeed     int           `gorm:"column:download_speed;not null;default:0"`
 }
@@ -580,6 +581,7 @@ type ForwardRecord struct {
 	TrafficLimit      int64
 	ExpiryTime        sql.NullInt64
 	SpeedLimitEnabled bool
+	SpeedLimit        int
 	UploadSpeed       int
 	DownloadSpeed     int
 	InFlow            int64

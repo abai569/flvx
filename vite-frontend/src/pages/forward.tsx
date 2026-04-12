@@ -122,8 +122,7 @@ interface Forward {
   trafficLimit?: number;
   expiryTime?: number | null;
   speedLimitEnabled?: boolean;
-  uploadSpeed?: number;
-  downloadSpeed?: number;
+  speedLimit?: number;
 }
 interface Tunnel {
   id: number;
@@ -161,8 +160,7 @@ interface ForwardForm {
   trafficLimit: number;
   expiryTime: number | null;
   speedLimitEnabled: boolean;
-  uploadSpeed: number;
-  downloadSpeed: number;
+  speedLimit: number;
 }
 interface ForwardUserGroup {
   userId: number;
@@ -527,8 +525,7 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
     trafficLimit: forward.trafficLimit ?? 0,
     expiryTime: forward.expiryTime ?? null,
     speedLimitEnabled: forward.speedLimitEnabled ?? false,
-    uploadSpeed: forward.uploadSpeed ?? 0,
-    downloadSpeed: forward.downloadSpeed ?? 0,
+    speedLimit: forward.speedLimit ?? 0,
   }));
 };
 const SortableTunnelGroupContainer = ({
@@ -566,10 +563,10 @@ const SortableTunnelGroupContainer = ({
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
-          ...transform,
-          x: Math.round(transform.x),
-          y: Math.round(transform.y),
-        })
+        ...transform,
+        x: Math.round(transform.x),
+        y: Math.round(transform.y),
+      })
       : undefined,
     transition: isDragging ? undefined : transition || undefined,
     opacity: isDragging ? 0.55 : 1,
@@ -648,10 +645,10 @@ const SortableForwardCard = ({ forward, renderCard }: any) => {
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
-          ...transform,
-          x: Math.round(transform.x),
-          y: Math.round(transform.y),
-        })
+        ...transform,
+        x: Math.round(transform.x),
+        y: Math.round(transform.y),
+      })
       : undefined,
     transition: isDragging ? undefined : transition || undefined,
     opacity: isDragging ? 0.5 : 1,
@@ -704,19 +701,19 @@ const SortableTableRow = ({
     rawInIp === "默认 IP"
       ? rawInIp
       : rawInIp
-          .split(",")
-          .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
-          .join(",");
+        .split(",")
+        .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
+        .join(",");
   const inAddrWithPorts =
     rawInIp === "默认 IP"
       ? `默认 IP:${forward.inPort}`
       : rawInIp
-          .split(",")
-          .map(
-            (ip: string) =>
-              `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
-          )
-          .join(",");
+        .split(",")
+        .map(
+          (ip: string) =>
+            `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
+        )
+        .join(",");
   const remoteAddrOnly = (forward.remoteAddr.split(",")[0] || "").replace(
     /:\d+$/,
     "",
@@ -1014,19 +1011,19 @@ const SortableCompactTableRow = ({
     rawInIp === "默认IP"
       ? rawInIp
       : rawInIp
-          .split(",")
-          .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
-          .join(",");
+        .split(",")
+        .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
+        .join(",");
   const inAddrWithPorts =
     rawInIp === "默认IP"
       ? `默认IP:${forward.inPort}`
       : rawInIp
-          .split(",")
-          .map(
-            (ip: string) =>
-              `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
-          )
-          .join(",");
+        .split(",")
+        .map(
+          (ip: string) =>
+            `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
+        )
+        .join(",");
   const remoteAddrOnly = (forward.remoteAddr.split(",")[0] || "").replace(
     /:\d+$/,
     "",
@@ -1324,7 +1321,7 @@ export default function ForwardPage() {
   const activeFilterCount =
     (searchParams.name ? 1 : 0) +
     (searchParams.userId !== "all" &&
-    searchParams.userId !== (tokenUserId ? tokenUserId.toString() : "all")
+      searchParams.userId !== (tokenUserId ? tokenUserId.toString() : "all")
       ? 1
       : 0) +
     (searchParams.tunnelId !== "all" ? 1 : 0) +
@@ -1420,8 +1417,7 @@ export default function ForwardPage() {
     trafficLimit: 0,
     expiryTime: null,
     speedLimitEnabled: false,
-    uploadSpeed: 0,
-    downloadSpeed: 0,
+    speedLimit: 0,
   });
   const [inIpTouched, setInIpTouched] = useState(false);
   // 表单验证错误
@@ -1435,7 +1431,11 @@ export default function ForwardPage() {
   const [batchTargetTunnelId, setBatchTargetTunnelId] = useState<number | null>(
     null,
   );
-  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchRedeployLoading, setBatchRedeployLoading] = useState(false);
+  const [batchPauseLoading, setBatchPauseLoading] = useState(false);
+  const [batchResumeLoading, setBatchResumeLoading] = useState(false);
+  const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
+  const [batchChangeTunnelLoading, setBatchChangeTunnelLoading] = useState(false);
   const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
     active: false,
     label: "",
@@ -1557,7 +1557,7 @@ export default function ForwardPage() {
         buildForwardGroupOrderLocalKey(tokenUserId),
         JSON.stringify(nextOrderMap),
       );
-    } catch {}
+    } catch { }
   };
   const persistGroupCollapsedToLocal = (
     nextCollapsedMap: ForwardGroupCollapsedMap,
@@ -1570,7 +1570,7 @@ export default function ForwardPage() {
         buildForwardGroupCollapsedLocalKey(tokenUserId),
         JSON.stringify(nextCollapsedMap),
       );
-    } catch {}
+    } catch { }
   };
   const persistGroupOrderToGlobal = async (
     nextOrderMap: ForwardGroupOrderMap,
@@ -1701,7 +1701,7 @@ export default function ForwardPage() {
               JSON.stringify(globalCollapsedBucket),
             );
           }
-        } catch {}
+        } catch { }
       }
       if (cancelled) {
         return;
@@ -1938,7 +1938,7 @@ export default function ForwardPage() {
     setViewMode(newMode);
     try {
       localStorage.setItem("forward-view-mode", newMode);
-    } catch {}
+    } catch { }
   };
   // 切换精简模式
   const handleCompactModeToggle = async (checked: boolean) => {
@@ -2178,8 +2178,7 @@ export default function ForwardPage() {
       trafficLimit: 0,
       expiryTime: null,
       speedLimitEnabled: false,
-      uploadSpeed: 0,
-      downloadSpeed: 0,
+      speedLimit: 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2203,8 +2202,7 @@ export default function ForwardPage() {
       trafficLimit: forward.trafficLimit ?? 0,
       expiryTime: forward.expiryTime ?? null,
       speedLimitEnabled: forward.speedLimitEnabled ?? false,
-      uploadSpeed: forward.uploadSpeed ?? 0,
-      downloadSpeed: forward.downloadSpeed ?? 0,
+      speedLimit: forward.speedLimit ?? 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2328,8 +2326,7 @@ export default function ForwardPage() {
           trafficLimit: form.trafficLimit,
           expiryTime: form.expiryTime,
           speedLimitEnabled: form.speedLimitEnabled,
-          uploadSpeed: form.uploadSpeed,
-          downloadSpeed: form.downloadSpeed,
+          speedLimit: form.speedLimit,
         };
 
         res = await updateForward(updateData);
@@ -2346,8 +2343,7 @@ export default function ForwardPage() {
           trafficLimit: form.trafficLimit,
           expiryTime: form.expiryTime,
           speedLimitEnabled: form.speedLimitEnabled,
-          uploadSpeed: form.uploadSpeed,
-          downloadSpeed: form.downloadSpeed,
+          speedLimit: form.speedLimit,
         };
 
         res = await createForward(createData);
@@ -2355,10 +2351,10 @@ export default function ForwardPage() {
       if (res.code === 0) {
         const warningItems = Array.isArray((res as any).data?.warnings)
           ? (res as any).data.warnings
-              .map((item: unknown) =>
-                typeof item === "string" ? item.trim() : "",
-              )
-              .filter((item: string) => item)
+            .map((item: unknown) =>
+              typeof item === "string" ? item.trim() : "",
+            )
+            .filter((item: string) => item)
           : [];
 
         warningItems.forEach((warning: string) => {
@@ -2464,7 +2460,7 @@ export default function ForwardPage() {
           onStart: (payload) => {
             const startForwardName =
               typeof payload.forwardName === "string" &&
-              payload.forwardName.trim() !== ""
+                payload.forwardName.trim() !== ""
                 ? payload.forwardName
                 : forward.name;
             const startTotal = Number(payload.total);
@@ -3133,7 +3129,7 @@ export default function ForwardPage() {
   };
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
-    setBatchLoading(true);
+    setBatchDeleteLoading(true);
     setBatchProgress({
       active: true,
       label: `正在删除 ${selectedIds.size} 项规则...`,
@@ -3162,21 +3158,21 @@ export default function ForwardPage() {
       }
     } finally {
       setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      setBatchDeleteLoading(false);
     }
   };
-  const handleBatchToggleService = async (enable: boolean) => {
+  const handleBatchPause = async () => {
     if (selectedIds.size === 0) return;
-    setBatchLoading(true);
+    setBatchPauseLoading(true);
     setBatchProgress({
       active: true,
-      label: `正在${enable ? "启用" : "停用"} ${selectedIds.size} 项规则...`,
+      label: `正在停用 ${selectedIds.size} 项规则...`,
       percent: 30,
     });
     try {
       const outcome = await executeForwardBatchToggleService(
         Array.from(selectedIds),
-        enable,
+        false,
       );
 
       if (outcome.toastVariant === "success") {
@@ -3196,12 +3192,46 @@ export default function ForwardPage() {
       }
     } finally {
       setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      setBatchPauseLoading(false);
+    }
+  };
+  const handleBatchResume = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchResumeLoading(true);
+    setBatchProgress({
+      active: true,
+      label: `正在启用 ${selectedIds.size} 项规则...`,
+      percent: 30,
+    });
+    try {
+      const outcome = await executeForwardBatchToggleService(
+        Array.from(selectedIds),
+        true,
+      );
+
+      if (outcome.toastVariant === "success") {
+        toast.success(outcome.toastMessage);
+      } else {
+        toast.error(outcome.toastMessage);
+      }
+      if (outcome.shouldRefresh) {
+        setBatchProgress({
+          active: true,
+          label: outcome.progressLabel || "正在刷新规则列表...",
+          percent: outcome.progressPercent ?? 75,
+        });
+        setSelectedIds(new Set());
+        setSelectMode(false);
+        await refreshForwardList(false);
+      }
+    } finally {
+      setBatchProgress({ active: false, label: "", percent: 0 });
+      setBatchResumeLoading(false);
     }
   };
   const handleBatchRedeploy = async () => {
     if (selectedIds.size === 0) return;
-    setBatchLoading(true);
+    setBatchRedeployLoading(true);
     setBatchProgress({
       active: true,
       label: `正在重新下发 ${selectedIds.size} 项规则...`,
@@ -3229,12 +3259,12 @@ export default function ForwardPage() {
       }
     } finally {
       setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      setBatchRedeployLoading(false);
     }
   };
   const handleBatchChangeTunnel = async () => {
     if (selectedIds.size === 0 || !batchTargetTunnelId) return;
-    setBatchLoading(true);
+    setBatchChangeTunnelLoading(true);
     setBatchProgress({
       active: true,
       label: `正在为 ${selectedIds.size} 项规则切换隧道...`,
@@ -3269,7 +3299,7 @@ export default function ForwardPage() {
       }
     } finally {
       setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      setBatchChangeTunnelLoading(false);
     }
   };
   // 设置单条规则限速
@@ -3568,7 +3598,7 @@ export default function ForwardPage() {
       }
       if (
         normalizeTunnelTrafficRatio(existingTunnelGroup.tunnelTrafficRatio) ===
-          1 &&
+        1 &&
         normalizeTunnelTrafficRatio(forward.tunnelTrafficRatio) !== 1
       ) {
         existingTunnelGroup.tunnelTrafficRatio = normalizeTunnelTrafficRatio(
@@ -3736,19 +3766,19 @@ export default function ForwardPage() {
       rawInIp === "默认IP"
         ? rawInIp
         : rawInIp
-            .split(",")
-            .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
-            .join(",");
+          .split(",")
+          .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
+          .join(",");
     const inAddrWithPorts =
       rawInIp === "默认IP"
         ? `默认IP:${forward.inPort}`
         : rawInIp
-            .split(",")
-            .map(
-              (ip: string) =>
-                `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
-            )
-            .join(",");
+          .split(",")
+          .map(
+            (ip: string) =>
+              `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
+          )
+          .join(",");
     const statusDisplay = getStatusDisplay(forward.status);
     const strategyDisplay = getStrategyDisplay(forward.strategy);
 
@@ -3918,7 +3948,7 @@ export default function ForwardPage() {
                   onClick={() =>
                     copyToClipboard(
                       forward.remoteAddr.split(",")[0].match(/:(\d+)$/)?.[1] ||
-                        "",
+                      "",
                       "落地端口",
                     )
                   }
@@ -4048,27 +4078,27 @@ export default function ForwardPage() {
                 <Button
                   color="danger"
                   isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
+                  isLoading={batchPauseLoading}
                   size="sm"
                   variant="flat"
-                  onPress={() => handleBatchToggleService(false)}
+                  onPress={handleBatchPause}
                 >
                   停用
                 </Button>
                 <Button
                   color="success"
                   isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
+                  isLoading={batchResumeLoading}
                   size="sm"
                   variant="flat"
-                  onPress={() => handleBatchToggleService(true)}
+                  onPress={handleBatchResume}
                 >
                   启用
                 </Button>
                 <Button
                   color="primary"
                   isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
+                  isLoading={batchRedeployLoading}
                   size="sm"
                   variant="flat"
                   onPress={handleBatchRedeploy}
@@ -4078,6 +4108,7 @@ export default function ForwardPage() {
                 <Button
                   color="success"
                   isDisabled={selectedIds.size === 0}
+                  isLoading={batchChangeTunnelLoading}
                   size="sm"
                   variant="flat"
                   onPress={() => setBatchChangeTunnelModalOpen(true)}
@@ -4087,6 +4118,7 @@ export default function ForwardPage() {
                 <Button
                   color="danger"
                   isDisabled={selectedIds.size === 0}
+                  isLoading={batchDeleteLoading}
                   size="sm"
                   variant="flat"
                   onPress={() => setBatchDeleteModalOpen(true)}
@@ -4359,7 +4391,7 @@ export default function ForwardPage() {
                             placeholder="隧道名称"
                             selectedKeys={
                               searchParams.tunnelId &&
-                              searchParams.tunnelId !== "all"
+                                searchParams.tunnelId !== "all"
                                 ? [searchParams.tunnelId]
                                 : []
                             }
@@ -4488,7 +4520,7 @@ export default function ForwardPage() {
               collisionDetection={pointerWithin}
               sensors={sensors}
               onDragEnd={handleDragEnd}
-              onDragStart={() => {}}
+              onDragStart={() => { }}
             >
               <SortableContext
                 items={sortableForwardIds}
@@ -4573,10 +4605,10 @@ export default function ForwardPage() {
                             .filter((id) => id > 0);
                           const collapsed =
                             sanitizedCollapsedTunnelGroups[
-                              buildTunnelGroupCollapseKey(
-                                group.userId,
-                                tunnel.tunnelKey,
-                              )
+                            buildTunnelGroupCollapseKey(
+                              group.userId,
+                              tunnel.tunnelKey,
+                            )
                             ] === true;
 
                           return (
@@ -4908,10 +4940,10 @@ export default function ForwardPage() {
                           .filter((id) => id > 0);
                         const collapsed =
                           sanitizedCollapsedTunnelGroups[
-                            buildTunnelGroupCollapseKey(
-                              group.userId,
-                              tunnel.tunnelKey,
-                            )
+                          buildTunnelGroupCollapseKey(
+                            group.userId,
+                            tunnel.tunnelKey,
+                          )
                           ] === true;
 
                         return (
@@ -4999,13 +5031,14 @@ export default function ForwardPage() {
                 <p className="text-small text-default-500">
                   {
                     isEdit
-                      ? "修改现有规则配置的信息"
-                      : "" /* "创建新的规则配置" */
+                      ? "修改现有规则配置"
+                      : "创建新的规则配置"
                   }
                 </p>
               </ModalHeader>
               <ModalBody>
                 <div className="space-y-4 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                   <Input
                     errorMessage={errors.name}
                     isInvalid={!!errors.name}
@@ -5016,6 +5049,29 @@ export default function ForwardPage() {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, name: e.target.value }))
                     }
+                  />
+                  {/* 入口端口 */}
+                  <Input
+                    description={
+                      currentTunnelPortRange
+                        ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
+                        : "指定入口端口，留空则从节点可用端口中自动分配"
+                    }
+                    errorMessage={errors.inPort}
+                    isInvalid={!!errors.inPort}
+                    label="入口端口"
+                    placeholder="留空则自动分配可用端口"
+                    type="number"
+                    value={form.inPort !== null ? form.inPort.toString() : ""}
+                    variant="bordered"
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      setForm((prev) => ({
+                        ...prev,
+                        inPort: value ? parseInt(value) : null,
+                      }));
+                    }}
                   />
                   {/* 暂时保留旧限速选择 - 后续可删除
                   {isAdmin && (
@@ -5052,7 +5108,8 @@ export default function ForwardPage() {
                     </Select>
                   )}
                   */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                     {/* 选择隧道 */}
                     <Select
                       description={
@@ -5114,105 +5171,84 @@ export default function ForwardPage() {
                         );
                       })}
                     </Select>
-                    {/* 入口端口 */}
-                    <Input
-                      description={
-                        currentTunnelPortRange
-                          ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
-                          : "指定入口端口，留空则从节点可用端口中自动分配"
-                      }
-                      errorMessage={errors.inPort}
-                      isInvalid={!!errors.inPort}
-                      label="入口端口"
-                      placeholder="留空则自动分配可用端口"
-                      type="number"
-                      value={form.inPort !== null ? form.inPort.toString() : ""}
-                      variant="bordered"
-                      onChange={(e) => {
-                        const value = e.target.value;
-
-                        setForm((prev) => ({
-                          ...prev,
-                          inPort: value ? parseInt(value) : null,
-                        }));
-                      }}
-                    />
-                  </div>
-                  {/* 监听ip */}
-                  <Select
-                    description={
-                      isCurrentTunnelMultiEntrance
-                        ? "多入口隧道不支持自定义监听IP，使用各节点默认IP"
-                        : "从入口节点IP中选择，留空使用默认"
-                    }
-                    isDisabled={
-                      !form.tunnelId ||
-                      currentTunnelIpOptions.length === 0 ||
-                      isCurrentTunnelMultiEntrance
-                    }
-                    label="监听IP"
-                    placeholder={
-                      isCurrentTunnelMultiEntrance
-                        ? "多入口隧道使用节点默认IP"
-                        : form.tunnelId
-                          ? currentTunnelIpOptions.length > 0
-                            ? "选择入口监听IP"
-                            : "当前隧道入口节点暂无可选IP"
-                          : "请先选择隧道"
-                    }
-                    selectedKeys={[form.inIp || "__default__"]}
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as string;
-
-                      setInIpTouched(true);
-                      setForm((prev) => ({
-                        ...prev,
-                        inIp: selectedKey === "__default__" ? "" : selectedKey,
-                      }));
-                    }}
-                  >
-                    <SelectItem key="__default__">默认入口IP</SelectItem>
-                    {currentTunnelIpOptions.map((ip) => (
-                      <SelectItem key={ip}>{ip}</SelectItem>
-                    ))}
-                  </Select>
-                  <Textarea
-                    description="格式: IP:端口 或 域名:端口，支持多个地址（每行一个）"
-                    errorMessage={errors.remoteAddr}
-                    isInvalid={!!errors.remoteAddr}
-                    label="落地地址"
-                    maxRows={6}
-                    minRows={3}
-                    placeholder="请输入落地地址，多个地址用换行分隔，例如:&#10;8.8.8.8:10000&#10;[2001:db8::10]:10086&#10;test.example.com:10010"
-                    value={form.remoteAddr}
-                    variant="bordered"
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        remoteAddr: e.target.value,
-                      }))
-                    }
-                  />
-                  {getAddressCount(form.remoteAddr) > 1 && (
+                    {/* 监听ip */}
                     <Select
-                      description="多个目标地址的负载均衡策略"
-                      label="负载策略"
-                      placeholder="请选择负载均衡策略"
-                      selectedKeys={[form.strategy]}
+                      description={
+                        isCurrentTunnelMultiEntrance
+                          ? "多入口隧道不支持自定义监听IP，使用各节点默认IP"
+                          : "从入口节点IP中选择，留空使用默认"
+                      }
+                      isDisabled={
+                        !form.tunnelId ||
+                        currentTunnelIpOptions.length === 0 ||
+                        isCurrentTunnelMultiEntrance
+                      }
+                      label="监听IP"
+                      placeholder={
+                        isCurrentTunnelMultiEntrance
+                          ? "多入口隧道使用节点默认IP"
+                          : form.tunnelId
+                            ? currentTunnelIpOptions.length > 0
+                              ? "选择入口监听IP"
+                              : "当前隧道入口节点暂无可选IP"
+                            : "请先选择隧道"
+                      }
+                      selectedKeys={[form.inIp || "__default__"]}
                       variant="bordered"
                       onSelectionChange={(keys) => {
                         const selectedKey = Array.from(keys)[0] as string;
 
-                        setForm((prev) => ({ ...prev, strategy: selectedKey }));
+                        setInIpTouched(true);
+                        setForm((prev) => ({
+                          ...prev,
+                          inIp: selectedKey === "__default__" ? "" : selectedKey,
+                        }));
                       }}
                     >
-                      <SelectItem key="fifo">主备模式 - 自上而下</SelectItem>
-                      <SelectItem key="round">轮询模式 - 依次轮换</SelectItem>
-                      <SelectItem key="rand">随机模式 - 随机选择</SelectItem>
-                      <SelectItem key="hash">哈希模式 - IP 哈希</SelectItem>
+                      <SelectItem key="__default__">默认入口IP</SelectItem>
+                      {currentTunnelIpOptions.map((ip) => (
+                        <SelectItem key={ip}>{ip}</SelectItem>
+                      ))}
                     </Select>
-                  )}
+                  </div>
+                  <div className="space-y-4 pb-4">
+                    <Textarea
+                      description="格式: IP:端口 或 域名:端口，支持多个地址（每行一个）"
+                      errorMessage={errors.remoteAddr}
+                      isInvalid={!!errors.remoteAddr}
+                      label="落地地址"
+                      maxRows={6}
+                      minRows={3}
+                      placeholder="请输入落地地址，多个地址用换行分隔，例如:&#10;8.8.8.8:10000&#10;[2001:db8::10]:10086&#10;test.example.com:10010"
+                      value={form.remoteAddr}
+                      variant="bordered"
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          remoteAddr: e.target.value,
+                        }))
+                      }
+                    />
+                    {getAddressCount(form.remoteAddr) > 1 && (
+                      <Select
+                        description="多个目标地址的负载均衡策略"
+                        label="负载策略"
+                        placeholder="请选择负载均衡策略"
+                        selectedKeys={[form.strategy]}
+                        variant="bordered"
+                        onSelectionChange={(keys) => {
+                          const selectedKey = Array.from(keys)[0] as string;
+
+                          setForm((prev) => ({ ...prev, strategy: selectedKey }));
+                        }}
+                      >
+                        <SelectItem key="fifo">主备模式 - 自上而下</SelectItem>
+                        <SelectItem key="round">轮询模式 - 依次轮换</SelectItem>
+                        <SelectItem key="rand">随机模式 - 随机选择</SelectItem>
+                        <SelectItem key="hash">哈希模式 - IP 哈希</SelectItem>
+                      </Select>
+                    )}
+                  </div>
                   {/* 高级功能折叠面板 - 移到最底部 */}
                   <div className="border border-divider rounded-lg overflow-hidden mt-4">
                     <button
@@ -5242,29 +5278,22 @@ export default function ForwardPage() {
                         {/* 限速配置 */}
                         <SpeedLimitConfigField
                           enabled={form.speedLimitEnabled}
-                          uploadSpeed={form.uploadSpeed}
-                          downloadSpeed={form.downloadSpeed}
+                          speedLimit={form.speedLimit}
                           onEnabledChange={(val) =>
                             setForm((prev) => ({
                               ...prev,
                               speedLimitEnabled: val,
                             }))
                           }
-                          onUploadSpeedChange={(val) =>
+                          onSpeedLimitChange={(val) =>
                             setForm((prev) => ({
                               ...prev,
-                              uploadSpeed: val,
-                            }))
-                          }
-                          onDownloadSpeedChange={(val) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              downloadSpeed: val,
+                              speedLimit: val,
                             }))
                           }
                         />
                         {/* 连接数限制 & 流量控制 - 同一行 */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
                           <ConnectionLimitField
                             value={form.maxConnections}
                             onChange={(val) =>
@@ -5283,7 +5312,7 @@ export default function ForwardPage() {
                               }))
                             }
                           />
-                        </div>
+
                         {/* 到期时间 */}
                         <ExpiryTimeField
                           value={form.expiryTime}
@@ -5294,6 +5323,7 @@ export default function ForwardPage() {
                             }))
                           }
                         />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -5308,7 +5338,7 @@ export default function ForwardPage() {
                   isLoading={submitLoading}
                   onPress={handleSubmit}
                 >
-                  {isEdit ? "保存修改" : "创建规则"}
+                  {isEdit ? "更新规则" : "创建规则"}
                 </Button>
               </ModalFooter>
             </>
@@ -5706,11 +5736,10 @@ export default function ForwardPage() {
                     {importResults.map((result, index) => (
                       <div
                         key={index}
-                        className={`p-2 rounded border ${
-                          result.success
-                            ? "bg-success-50 dark:bg-success-100/10 border-success-200 dark:border-success-300/20"
-                            : "bg-danger-50 dark:bg-danger-100/10 border-danger-200 dark:border-danger-300/20"
-                        }`}
+                        className={`p-2 rounded border ${result.success
+                          ? "bg-success-50 dark:bg-success-100/10 border-success-200 dark:border-success-300/20"
+                          : "bg-danger-50 dark:bg-danger-100/10 border-danger-200 dark:border-danger-300/20"
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           {result.success ? (
@@ -5743,11 +5772,10 @@ export default function ForwardPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
                               <span
-                                className={`text-xs font-medium ${
-                                  result.success
-                                    ? "text-success-700 dark:text-success-300"
-                                    : "text-danger-700 dark:text-danger-300"
-                                }`}
+                                className={`text-xs font-medium ${result.success
+                                  ? "text-success-700 dark:text-success-300"
+                                  : "text-danger-700 dark:text-danger-300"
+                                  }`}
                               >
                                 {result.success ? "成功" : "失败"}
                               </span>
@@ -5759,11 +5787,10 @@ export default function ForwardPage() {
                               </code>
                             </div>
                             <div
-                              className={`text-xs ${
-                                result.success
-                                  ? "text-success-600 dark:text-success-400"
-                                  : "text-danger-600 dark:text-danger-400"
-                              }`}
+                              className={`text-xs ${result.success
+                                ? "text-success-600 dark:text-success-400"
+                                : "text-danger-600 dark:text-danger-400"
+                                }`}
                             >
                               {result.message}
                             </div>
@@ -5868,10 +5895,10 @@ export default function ForwardPage() {
                       <div className="text-center p-3 bg-success-50 dark:bg-success-900/20 rounded-lg border border-success-200 dark:border-success-700">
                         <div className="text-2xl font-bold text-success-600 dark:text-success-400">
                           {diagnosisProgress.completed > 0 ||
-                          diagnosisProgress.total > 0
+                            diagnosisProgress.total > 0
                             ? diagnosisProgress.success
                             : diagnosisResult.results.filter((r) => r.success)
-                                .length}
+                              .length}
                         </div>
                         <div className="text-xs text-success-600 dark:text-success-400/80 mt-1">
                           成功
@@ -5880,10 +5907,10 @@ export default function ForwardPage() {
                       <div className="text-center p-3 bg-danger-50 dark:bg-danger-900/20 rounded-lg border border-danger-200 dark:border-danger-700">
                         <div className="text-2xl font-bold text-danger-600 dark:text-danger-400">
                           {diagnosisProgress.completed > 0 ||
-                          diagnosisProgress.total > 0
+                            diagnosisProgress.total > 0
                             ? diagnosisProgress.failed
                             : diagnosisResult.results.filter((r) => !r.success)
-                                .length}
+                              .length}
                         </div>
                         <div className="text-xs text-danger-600 dark:text-danger-400/80 mt-1">
                           失败
@@ -5967,13 +5994,12 @@ export default function ForwardPage() {
                                     return (
                                       <tr
                                         key={index}
-                                        className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${
-                                          isDiagnosing
-                                            ? "bg-warning-50 dark:bg-warning-900/20"
-                                            : isSuccess
-                                              ? "bg-white dark:bg-gray-800"
-                                              : "bg-danger-50 dark:bg-danger-900/30"
-                                        }`}
+                                        className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${isDiagnosing
+                                          ? "bg-warning-50 dark:bg-warning-900/20"
+                                          : isSuccess
+                                            ? "bg-white dark:bg-gray-800"
+                                            : "bg-danger-50 dark:bg-danger-900/30"
+                                          }`}
                                       >
                                         <td className="px-3 py-2">
                                           <div className="flex items-center gap-2">
@@ -5981,11 +6007,10 @@ export default function ForwardPage() {
                                               <Spinner size="sm" />
                                             ) : (
                                               <span
-                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                                                  isSuccess
-                                                    ? "bg-success text-white"
-                                                    : "bg-danger text-white"
-                                                }`}
+                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${isSuccess
+                                                  ? "bg-success text-white"
+                                                  : "bg-danger text-white"
+                                                  }`}
                                               >
                                                 {isSuccess ? "✓" : "✗"}
                                               </span>
@@ -6026,11 +6051,10 @@ export default function ForwardPage() {
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess ? (
                                             <span
-                                              className={`font-semibold ${
-                                                (result.packetLoss || 0) > 0
-                                                  ? "text-warning"
-                                                  : "text-success"
-                                              }`}
+                                              className={`font-semibold ${(result.packetLoss || 0) > 0
+                                                ? "text-warning"
+                                                : "text-success"
+                                                }`}
                                             >
                                               {result.packetLoss?.toFixed(1)}%
                                             </span>
@@ -6139,24 +6163,22 @@ export default function ForwardPage() {
                                 return (
                                   <div
                                     key={index}
-                                    className={`border rounded-lg p-3 ${
-                                      isDiagnosing
-                                        ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
-                                        : isSuccess
-                                          ? "border-divider bg-white dark:bg-gray-800"
-                                          : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
-                                    }`}
+                                    className={`border rounded-lg p-3 ${isDiagnosing
+                                      ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
+                                      : isSuccess
+                                        ? "border-divider bg-white dark:bg-gray-800"
+                                        : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
+                                      }`}
                                   >
                                     <div className="flex items-start gap-2 mb-2">
                                       {isDiagnosing ? (
                                         <Spinner size="sm" />
                                       ) : (
                                         <span
-                                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
-                                            isSuccess
-                                              ? "bg-success text-white"
-                                              : "bg-danger text-white"
-                                          }`}
+                                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${isSuccess
+                                            ? "bg-success text-white"
+                                            : "bg-danger text-white"
+                                            }`}
                                         >
                                           {isSuccess ? "✓" : "✗"}
                                         </span>
@@ -6191,11 +6213,10 @@ export default function ForwardPage() {
                                         </div>
                                         <div className="text-center">
                                           <div
-                                            className={`text-lg font-bold ${
-                                              (result.packetLoss || 0) > 0
-                                                ? "text-warning"
-                                                : "text-success"
-                                            }`}
+                                            className={`text-lg font-bold ${(result.packetLoss || 0) > 0
+                                              ? "text-warning"
+                                              : "text-success"
+                                              }`}
                                           >
                                             {result.packetLoss?.toFixed(1)}%
                                           </div>
@@ -6221,11 +6242,10 @@ export default function ForwardPage() {
                                     ) : (
                                       <div className="mt-2 pt-2 border-t border-divider">
                                         <div
-                                          className={`text-xs ${
-                                            isDiagnosing
-                                              ? "text-warning"
-                                              : "text-danger"
-                                          }`}
+                                          className={`text-xs ${isDiagnosing
+                                            ? "text-warning"
+                                            : "text-danger"
+                                            }`}
                                         >
                                           {isDiagnosing
                                             ? result.message || "诊断中..."
@@ -6270,26 +6290,26 @@ export default function ForwardPage() {
                     {diagnosisResult.results.some(
                       (r) => r.success === false && !r.diagnosing,
                     ) && (
-                      <div className="space-y-2 hidden md:block">
-                        <h4 className="text-sm font-semibold text-danger">
-                          失败详情
-                        </h4>
-                        <div className="space-y-2">
-                          {diagnosisResult.results
-                            .filter((r) => r.success === false && !r.diagnosing)
-                            .map((result, index) => (
-                              <Alert
-                                key={index}
-                                className="text-xs"
-                                color="danger"
-                                description={result.message || "连接失败"}
-                                title={result.description}
-                                variant="flat"
-                              />
-                            ))}
+                        <div className="space-y-2 hidden md:block">
+                          <h4 className="text-sm font-semibold text-danger">
+                            失败详情
+                          </h4>
+                          <div className="space-y-2">
+                            {diagnosisResult.results
+                              .filter((r) => r.success === false && !r.diagnosing)
+                              .map((result, index) => (
+                                <Alert
+                                  key={index}
+                                  className="text-xs"
+                                  color="danger"
+                                  description={result.message || "连接失败"}
+                                  title={result.description}
+                                  variant="flat"
+                                />
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 ) : (
                   <div className="text-center py-16">
@@ -6356,7 +6376,7 @@ export default function ForwardPage() {
                 </Button>
                 <Button
                   color="danger"
-                  isLoading={batchLoading}
+                  isLoading={batchDeleteLoading}
                   onPress={handleBatchDelete}
                 >
                   确认删除
@@ -6422,7 +6442,7 @@ export default function ForwardPage() {
                 <Button
                   color="primary"
                   isDisabled={!batchTargetTunnelId}
-                  isLoading={batchLoading}
+                  isLoading={batchChangeTunnelLoading}
                   onPress={handleBatchChangeTunnel}
                 >
                   确认换隧道
@@ -6791,23 +6811,15 @@ function ConnectionLimitField({
 // ─── Speed Limit Config Field ──────────────────────────────────────────────
 function SpeedLimitConfigField({
   enabled,
-  uploadSpeed,
-  downloadSpeed,
+  speedLimit,
   onEnabledChange,
-  onUploadSpeedChange,
-  onDownloadSpeedChange,
+  onSpeedLimitChange,
 }: {
   enabled: boolean;
-  uploadSpeed: number;
-  downloadSpeed: number;
+  speedLimit: number;
   onEnabledChange: (val: boolean) => void;
-  onUploadSpeedChange: (val: number) => void;
-  onDownloadSpeedChange: (val: number) => void;
+  onSpeedLimitChange: (val: number) => void;
 }) {
-  const handleSync = () => {
-    onDownloadSpeedChange(uploadSpeed);
-  };
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -6822,63 +6834,21 @@ function SpeedLimitConfigField({
         </Switch>
       </div>
       {enabled && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="sm:col-span-1">
-            <span className="text-xs text-default-600 block mb-1.5">
-              上行速率 (Mbps)
-            </span>
-            <Input
-              placeholder="0"
-              type="number"
-              value={uploadSpeed > 0 ? uploadSpeed.toString() : ""}
-              variant="bordered"
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
+        <div>
+          <span className="text-xs text-default-600 block mb-1.5">
+            速率限制 (Mbps)
+          </span>
+          <Input
+            placeholder="0"
+            type="number"
+            value={speedLimit > 0 ? speedLimit.toString() : ""}
+            variant="bordered"
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
 
-                onUploadSpeedChange(isNaN(val) || val < 0 ? 0 : val);
-              }}
-            />
-          </div>
-          <div className="sm:col-span-1 flex items-end justify-center">
-            <Button
-              aria-label="同步上下行速率"
-              className="mb-0.5"
-              size="sm"
-              variant="flat"
-              onPress={handleSync}
-              title="将上行速率值同步到下行"
-            >
-              <svg
-                className="w-4 h-4 rotate-[-90deg]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
-            </Button>
-          </div>
-          <div className="sm:col-span-1">
-            <span className="text-xs text-default-600 block mb-1.5">
-              下行速率 (Mbps)
-            </span>
-            <Input
-              placeholder="0"
-              type="number"
-              value={downloadSpeed > 0 ? downloadSpeed.toString() : ""}
-              variant="bordered"
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-
-                onDownloadSpeedChange(isNaN(val) || val < 0 ? 0 : val);
-              }}
-            />
-          </div>
+              onSpeedLimitChange(isNaN(val) || val < 0 ? 0 : val);
+            }}
+          />
         </div>
       )}
     </div>
