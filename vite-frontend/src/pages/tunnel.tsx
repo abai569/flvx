@@ -85,13 +85,12 @@ import {
 } from "@/api/error-message";
 interface ChainTunnel {
   nodeId: number;
-  protocol?: string; // 'tls' | 'wss' | 'tcp' | 'mtls' | 'mwss' | 'mtcp' - 转发链传输层协议
-  strategy?: string; // 'fifo' | 'round' | 'rand' - 仅转发链需要
-  chainType?: number; // 1: 入口，2: 转发链，3: 出口
-  inx?: number; // 转发链序号
-  port?: number; // 连接端口（留空自动分配）
-  connectIpType?: string; // 向下连接 IP 类型："v4" | "v6" | "lan" | "auto" | ""
-  forwardProtocol?: string; // 'relay' | 'tunnel' - 转发应用层协议
+  protocol?: string;
+  strategy?: string;
+  chainType?: number;
+  inx?: number;
+  port?: number;
+  connectIpType?: string;
 }
 interface Tunnel {
   id: number;
@@ -111,7 +110,6 @@ interface Tunnel {
   createdTime: string;
   tunnelGroupId?: number | null;
   remark?: string;
-  forwardProtocol?: string;
 }
 interface Node {
   id: number;
@@ -138,7 +136,6 @@ interface TunnelForm {
   status: number;
   tunnelGroupId: number | null;
   remark: string;
-  forwardProtocol?: string;
 }
 interface BatchProgressState {
   active: boolean;
@@ -576,7 +573,6 @@ export default function TunnelPage() {
       status: tunnel.status,
       tunnelGroupId: tunnel.tunnelGroupId ?? null,
       remark: tunnel.remark || "",
-      forwardProtocol: tunnel.forwardProtocol || "relay",
     });
     setErrors({});
     setModalOpen(true);
@@ -704,7 +700,6 @@ export default function TunnelPage() {
       type,
       outNodeId: type === 1 ? [] : prev.outNodeId,
       chainNodes: type === 1 ? [] : prev.chainNodes,
-      forwardProtocol: "relay",
     }));
   };
   // 删除转发链中的某一跳（删除整个分组）
@@ -729,22 +724,6 @@ export default function TunnelPage() {
       chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
         ...node,
         protocol,
-      }));
-
-      return { ...prev, chainNodes };
-    });
-  };
-  // 更新某一跳的所有节点的转发应用层协议
-  const updateChainForwardProtocol = (
-    groupIndex: number,
-    forwardProtocol: string,
-  ) => {
-    setForm((prev) => {
-      const chainNodes = [...(prev.chainNodes || [])];
-
-      chainNodes[groupIndex] = (chainNodes[groupIndex] || []).map((node) => ({
-        ...node,
-        forwardProtocol,
       }));
 
       return { ...prev, chainNodes };
@@ -2995,10 +2974,6 @@ export default function TunnelPage() {
                               groupNodes.length > 0
                                 ? groupNodes[0].strategy || "round"
                                 : "round";
-                            const forwardProtocol =
-                              groupNodes.length > 0
-                                ? groupNodes[0].forwardProtocol || "relay"
-                                : "relay";
 
                             return (
                               <div
@@ -3199,7 +3174,7 @@ export default function TunnelPage() {
                                     <SelectItem key="rand">随机</SelectItem>
                                   </Select>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                                   {/* 传输层协议选择 - 50% */}
                                   <Select
                                     classNames={{
@@ -3231,34 +3206,6 @@ export default function TunnelPage() {
                                     <SelectItem key="mtls">MTLS</SelectItem>
                                     <SelectItem key="wss">WSS</SelectItem>
                                     <SelectItem key="mwss">MWSS</SelectItem>
-                                  </Select>
-                                  {/* 转发应用层 - 50% */}
-                                  <Select
-                                    classNames={{
-                                      label: "text-xs",
-                                      value: "text-sm",
-                                    }}
-                                    description="relay: 通用转发 (UDP 不稳定); tunnel: 长连接隧道 (推荐)"
-                                    label="应用层协议"
-                                    placeholder="选择应用层协议"
-                                    selectedKeys={[forwardProtocol]}
-                                    size="sm"
-                                    variant="bordered"
-                                    onSelectionChange={(keys) => {
-                                      const selectedKey = Array.from(
-                                        keys,
-                                      )[0] as string;
-
-                                      if (selectedKey) {
-                                        updateChainForwardProtocol(
-                                          groupIndex,
-                                          selectedKey,
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    <SelectItem key="relay">Relay (通用转发)</SelectItem>
-                                    <SelectItem key="tunnel">Tunnel (长连接隧道)</SelectItem>
                                   </Select>
                                 </div>
                                 {/* 连接 IP 和连接端口 - 转发链节点 */}
@@ -3434,8 +3381,6 @@ export default function TunnelPage() {
                                         currentOutNodes[0]?.protocol || "tcp";
                                       const strategy =
                                         currentOutNodes[0]?.strategy || "round";
-                                      const forwardProtocol =
-                                        currentOutNodes[0]?.forwardProtocol || "tunnel";
                                       const realNodes = currentOutNodes.filter(
                                         (ct) => ct.nodeId !== -1,
                                       );
@@ -3450,7 +3395,6 @@ export default function TunnelPage() {
                                             chainType: 3,
                                             protocol,
                                             strategy,
-                                            forwardProtocol,
                                           }),
                                         ),
                                       };
@@ -3544,10 +3488,6 @@ export default function TunnelPage() {
                                         currentOutNodes.length > 0
                                           ? currentOutNodes[0].protocol || "tcp"
                                           : "tcp";
-                                      const currentForwardProtocol =
-                                        currentOutNodes.length > 0
-                                          ? currentOutNodes[0].forwardProtocol || "tunnel"
-                                          : "tunnel";
 
                                       if (currentOutNodes.length === 0) {
                                         return {
@@ -3558,7 +3498,6 @@ export default function TunnelPage() {
                                               chainType: 3,
                                               protocol: currentProtocol,
                                               strategy: selectedKey,
-                                              forwardProtocol: currentForwardProtocol,
                                             },
                                           ],
                                         };
@@ -3621,10 +3560,6 @@ export default function TunnelPage() {
                                           ? currentOutNodes[0].strategy ||
                                             "round"
                                           : "round";
-                                      const currentForwardProtocol =
-                                        currentOutNodes.length > 0
-                                          ? currentOutNodes[0].forwardProtocol || "tunnel"
-                                          : "tunnel";
 
                                       if (currentOutNodes.length === 0) {
                                         // 如果还没有出口节点，创建一个占位节点保存设置
@@ -3636,7 +3571,6 @@ export default function TunnelPage() {
                                               chainType: 3,
                                               protocol: selectedKey,
                                               strategy: currentStrategy,
-                                              forwardProtocol: currentForwardProtocol,
                                             },
                                           ],
                                         };
@@ -3662,76 +3596,6 @@ export default function TunnelPage() {
                                 <SelectItem key="mtls">MTLS</SelectItem>
                                 <SelectItem key="wss">WSS</SelectItem>
                                 <SelectItem key="mwss">MWSS</SelectItem>
-                              </Select>
-                              {/* 应用层协议 - 50% */}
-                              <Select
-                                classNames={{
-                                  label: "text-xs",
-                                  value: "text-sm",
-                                }}
-                                description="relay: 通用转发 (UDP 不稳定); tunnel: 长连接隧道 (推荐)"
-                                label="应用层协议"
-                                placeholder="选择应用层协议"
-                                selectedKeys={[
-                                  (() => {
-                                    if (
-                                      !form.outNodeId ||
-                                      form.outNodeId.length === 0
-                                    )
-                                      return "relay";
-
-                                    return form.outNodeId[0].forwardProtocol || "relay";
-                                  })(),
-                                ]}
-                                variant="bordered"
-                                onSelectionChange={(keys) => {
-                                  const selectedKey = Array.from(
-                                    keys,
-                                  )[0] as string;
-
-                                  if (selectedKey) {
-                                    setForm((prev) => {
-                                      const currentOutNodes =
-                                        prev.outNodeId || [];
-                                      const currentProtocol =
-                                        currentOutNodes.length > 0
-                                          ? currentOutNodes[0].protocol || "tcp"
-                                          : "tcp";
-                                      const currentStrategy =
-                                        currentOutNodes.length > 0
-                                          ? currentOutNodes[0].strategy || "round"
-                                          : "round";
-
-                                      if (currentOutNodes.length === 0) {
-                                        return {
-                                          ...prev,
-                                          outNodeId: [
-                                            {
-                                              nodeId: -1,
-                                              chainType: 3,
-                                              protocol: currentProtocol,
-                                              strategy: currentStrategy,
-                                              forwardProtocol: selectedKey,
-                                            },
-                                          ],
-                                        };
-                                      }
-
-                                      return {
-                                        ...prev,
-                                        outNodeId: currentOutNodes.map(
-                                          (ct) => ({
-                                            ...ct,
-                                            forwardProtocol: selectedKey,
-                                          }),
-                                        ),
-                                      };
-                                    });
-                                  }
-                                }}
-                              >
-                                <SelectItem key="relay">Relay (通用转发)</SelectItem>
-                                <SelectItem key="tunnel">Tunnel (长连接隧道)</SelectItem>
                               </Select>
                             </div>
                             {/* 连接端口和连接 IP 类型 - 出口节点 */}

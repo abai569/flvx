@@ -3043,14 +3043,13 @@ func (h *Handler) syncPermissionsByTunnelGroup(tunnelGroupID int64) error {
 }
 
 type tunnelRuntimeNode struct {
-	NodeID          int64
-	Protocol        string
-	Strategy        string
-	Inx             int
-	ChainType       int
-	Port            int
-	ConnectIPType   string
-	ForwardProtocol string // 转发协议："relay" | "tunnel"
+	NodeID        int64
+	Protocol      string
+	Strategy      string
+	Inx           int
+	ChainType     int
+	Port          int
+	ConnectIPType string
 }
 
 type tunnelCreateState struct {
@@ -3081,12 +3080,11 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 		}
 		nodeIDs = append(nodeIDs, nodeID)
 		state.InNodes = append(state.InNodes, tunnelRuntimeNode{
-			NodeID:          nodeID,
-			Protocol:        defaultString(asString(item["protocol"]), "tls"),
-			Strategy:        defaultString(asString(item["strategy"]), "round"),
-			ChainType:       1,
-			ConnectIPType:   asString(item["connectIpType"]),
-			ForwardProtocol: asString(item["forwardProtocol"]), // ✅ 新增：转发协议
+			NodeID:        nodeID,
+			Protocol:      defaultString(asString(item["protocol"]), "tls"),
+			Strategy:      defaultString(asString(item["strategy"]), "round"),
+			ChainType:     1,
+			ConnectIPType: asString(item["connectIpType"]),
 		})
 	}
 	if len(state.InNodes) == 0 {
@@ -3125,13 +3123,12 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 				}
 			}
 			state.OutNodes = append(state.OutNodes, tunnelRuntimeNode{
-				NodeID:          nodeID,
-				Protocol:        defaultString(asString(item["protocol"]), "tls"),
-				Strategy:        defaultString(asString(item["strategy"]), "round"),
-				ChainType:       3,
-				Port:            port,
-				ConnectIPType:   asString(item["connectIpType"]),
-				ForwardProtocol: asString(item["forwardProtocol"]), // ✅ 新增：转发协议
+				NodeID:        nodeID,
+				Protocol:      defaultString(asString(item["protocol"]), "tls"),
+				Strategy:      defaultString(asString(item["strategy"]), "round"),
+				ChainType:     3,
+				Port:          port,
+				ConnectIPType: asString(item["connectIpType"]),
 			})
 		}
 		if len(state.OutNodes) == 0 {
@@ -3165,14 +3162,13 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 					}
 				}
 				hop = append(hop, tunnelRuntimeNode{
-					NodeID:          nodeID,
-					Protocol:        defaultString(asString(item["protocol"]), "tls"),
-					Strategy:        defaultString(asString(item["strategy"]), "round"),
-					Inx:             hopIdx + 1,
-					ChainType:       2,
-					Port:            port,
-					ConnectIPType:   asString(item["connectIpType"]),
-					ForwardProtocol: asString(item["forwardProtocol"]), // ✅ 新增：转发协议
+					NodeID:        nodeID,
+					Protocol:      defaultString(asString(item["protocol"]), "tls"),
+					Strategy:      defaultString(asString(item["strategy"]), "round"),
+					Inx:           hopIdx + 1,
+					ChainType:     2,
+					Port:          port,
+					ConnectIPType: asString(item["connectIpType"]),
 				})
 			}
 			if len(hop) > 0 {
@@ -3807,10 +3803,8 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 		return nil
 	}
 	protocol := defaultString(chainNode.Protocol, "tls")
-	// ✅ 支持动态转发协议选择：默认 "tunnel"（新隧道推荐）
-	forwardProtocol := defaultString(chainNode.ForwardProtocol, "tunnel")
 	handlerCfg := map[string]interface{}{
-		"type": forwardProtocol,
+		"type": "relay",
 	}
 	if isTLSTunnelProtocol(protocol) {
 		handlerCfg["metadata"] = map[string]interface{}{"nodelay": true}
