@@ -137,7 +137,8 @@ export interface SpeedLimitApiItem {
   status: number;
   createdTime: string;
   updatedTime: string;
-  speedLimit?: number;
+  uploadSpeed?: number;
+  downloadSpeed?: number;
   [key: string]: unknown;
 }
 
