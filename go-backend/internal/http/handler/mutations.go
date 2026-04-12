@@ -3757,11 +3757,13 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 			return nil, errors.New("节点端口不能为空")
 		}
 		protocol := defaultString(target.Protocol, "tls")
+		// ✅ 修复 1: 为所有 Relay Connector 启用 noDelay 模式（不限于 TLS）
 		connector := map[string]interface{}{
 			"type": "relay",
-		}
-		if isTLSTunnelProtocol(protocol) {
-			connector["metadata"] = map[string]interface{}{"nodelay": true}
+			"metadata": map[string]interface{}{
+				"nodelay": true,
+				"udpTTL":  "5s", // ✅ 修复 2: 添加 UDP TTL 默认配置
+			},
 		}
 		nodeItems = append(nodeItems, map[string]interface{}{
 			"name":      fmt.Sprintf("node_%d", idx+1),
@@ -3798,11 +3800,14 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 		return nil
 	}
 	protocol := defaultString(chainNode.Protocol, "tls")
+	// ✅ 修复 1: 为所有 Relay Handler 启用 noDelay 模式（不限于 TLS）
+	// 确保连接错误立即暴露，故障转移机制正常工作
 	handlerCfg := map[string]interface{}{
 		"type": "relay",
-	}
-	if isTLSTunnelProtocol(protocol) {
-		handlerCfg["metadata"] = map[string]interface{}{"nodelay": true}
+		"metadata": map[string]interface{}{
+			"nodelay": true,
+			"udpTTL":  "5s", // ✅ 修复 2: 添加 UDP TTL 默认配置
+		},
 	}
 	if nextHopCandidateCount > 1 {
 		handlerCfg["retries"] = nextHopCandidateCount - 1
