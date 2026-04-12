@@ -530,6 +530,15 @@ func (r *Repository) CreateChainTunnelTx(tx *gorm.DB, tunnelID int64, chainType 
 	return tx.Create(&ct).Error
 }
 
+func (r *Repository) UpdateChainTunnelConnectIpTypeTx(tx *gorm.DB, tunnelID int64, chainType string, nodeID int64, connectIpType string) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	return tx.Model(&model.ChainTunnel{}).
+		Where("tunnel_id = ? AND chain_type = ? AND node_id = ?", tunnelID, chainType, nodeID).
+		Update("connect_ip_type", connectIpType).Error
+}
+
 func (r *Repository) IsRemoteNodeTx(tx *gorm.DB, nodeID int64) (bool, error) {
 	if tx == nil {
 		return false, errors.New("database unavailable")

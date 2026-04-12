@@ -97,20 +97,21 @@ interface Tunnel {
   id: number;
   inx?: number;
   name: string;
-  type: number; // 1: 端口转发，2: 隧道转发
-  inNodeId: ChainTunnel[]; // 入口节点列表
-  outNodeId?: ChainTunnel[]; // 出口节点列表
-  chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组
+  type: number;
+  inNodeId: ChainTunnel[];
+  outNodeId?: ChainTunnel[];
+  chainNodes?: ChainTunnel[][];
   inIp: string;
   outIp?: string;
   protocol?: string;
-  flow: number; // 1: 单向，2: 双向
+  flow: number;
   trafficRatio: number;
   ipPreference?: string;
   status: number;
   createdTime: string;
   tunnelGroupId?: number | null;
   remark?: string;
+  forwardProtocol?: string;
 }
 interface Node {
   id: number;
@@ -129,14 +130,15 @@ interface TunnelForm {
   type: number;
   inNodeId: ChainTunnel[];
   outNodeId?: ChainTunnel[];
-  chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组，外层是跳数，内层是该跳的节点
+  chainNodes?: ChainTunnel[][];
   flow: number;
   trafficRatio: number;
-  inIp: string; // 入口 IP
+  inIp: string;
   ipPreference: string;
   status: number;
   tunnelGroupId: number | null;
   remark: string;
+  forwardProtocol?: string;
 }
 interface BatchProgressState {
   active: boolean;
@@ -555,7 +557,6 @@ export default function TunnelPage() {
   // 编辑隧道 - 只能修改部分字段
   const handleEdit = (tunnel: Tunnel) => {
     setIsEdit(true);
-    // 直接使用列表数据，保持所有节点勾选状态（包括离线节点）
     setForm({
       id: tunnel.id,
       name: tunnel.name,
@@ -575,6 +576,7 @@ export default function TunnelPage() {
       status: tunnel.status,
       tunnelGroupId: tunnel.tunnelGroupId ?? null,
       remark: tunnel.remark || "",
+      forwardProtocol: tunnel.forwardProtocol || "relay",
     });
     setErrors({});
     setModalOpen(true);
@@ -702,6 +704,7 @@ export default function TunnelPage() {
       type,
       outNodeId: type === 1 ? [] : prev.outNodeId,
       chainNodes: type === 1 ? [] : prev.chainNodes,
+      forwardProtocol: "relay",
     }));
   };
   // 删除转发链中的某一跳（删除整个分组）
@@ -2994,8 +2997,8 @@ export default function TunnelPage() {
                                 : "round";
                             const forwardProtocol =
                               groupNodes.length > 0
-                                ? groupNodes[0].forwardProtocol || "tunnel"
-                                : "tunnel";
+                                ? groupNodes[0].forwardProtocol || "relay"
+                                : "relay";
 
                             return (
                               <div
@@ -3675,9 +3678,9 @@ export default function TunnelPage() {
                                       !form.outNodeId ||
                                       form.outNodeId.length === 0
                                     )
-                                      return "tunnel";
+                                      return "relay";
 
-                                    return form.outNodeId[0].forwardProtocol || "tunnel";
+                                    return form.outNodeId[0].forwardProtocol || "relay";
                                   })(),
                                 ]}
                                 variant="bordered"

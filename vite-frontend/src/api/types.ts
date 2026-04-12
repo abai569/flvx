@@ -64,6 +64,7 @@ export interface TunnelApiItem {
   listId?: number | null;
   tunnelGroupId?: number | null;
   remark?: string;
+  forwardProtocol?: string;
   [key: string]: unknown;
 }
 

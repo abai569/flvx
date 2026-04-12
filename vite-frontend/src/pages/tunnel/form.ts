@@ -10,6 +10,7 @@ interface TunnelFormInput {
   outNodeId?: TunnelChainNode[];
   chainNodes?: TunnelChainNode[][];
   trafficRatio: number;
+  forwardProtocol?: string;
 }
 
 interface TunnelNodeInput {
@@ -20,7 +21,7 @@ interface TunnelNodeInput {
 export const createTunnelFormDefaults = () => {
   return {
     name: "",
-    type: 1,
+    type: 2,
     inNodeId: [],
     outNodeId: [],
     chainNodes: [],
@@ -31,7 +32,7 @@ export const createTunnelFormDefaults = () => {
     status: 1,
     tunnelGroupId: null as number | null,
     remark: "",
-    forwardProtocol: "tunnel" as string, // 默认使用 tunnel 协议
+    forwardProtocol: "relay" as string,
   };
 };
 
