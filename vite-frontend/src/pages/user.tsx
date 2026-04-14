@@ -429,22 +429,23 @@ export default function UserPage() {
   const handleViewModeToggle = useCallback((mode: "card" | "list") => {
     setViewMode(mode);
     localStorage.setItem(USER_VIEW_MODE_KEY, mode);
-    setBatchMode(false);
-    setSelectedUserIds(new Set());
-  }, []);
-  // 批量模式切换
-  const handleBatchModeToggle = useCallback(() => {
-    setBatchMode((prev) => !prev);
     setSelectedUserIds(new Set());
   }, []);
   // 全选/取消全选
   const handleSelectAll = useCallback((isSelected: boolean) => {
     if (isSelected) {
-      setSelectedUserIds(new Set(users.map((u) => u.id)));
+      const newSelected = new Set(users.map((u) => u.id));
+      setSelectedUserIds(newSelected);
+      if (newSelected.size > 0 && !batchMode) {
+        setBatchMode(true);
+      }
     } else {
       setSelectedUserIds(new Set());
+      if (batchMode) {
+        setBatchMode(false);
+      }
     }
-  }, [users]);
+  }, [users, batchMode]);
   // 单个选择/取消选择
   const toggleUserSelection = useCallback((userId: number) => {
     setSelectedUserIds((prev) => {
@@ -454,9 +455,15 @@ export default function UserPage() {
       } else {
         next.add(userId);
       }
+      if (next.size > 0 && !batchMode) {
+        setBatchMode(true);
+      }
+      if (next.size === 0 && batchMode) {
+        setBatchMode(false);
+      }
       return next;
     });
-  }, []);
+  }, [batchMode]);
   // 数据加载函数
   const loadUsers = useCallback(
     async (keywordOverride?: string) => {
@@ -1129,31 +1136,76 @@ export default function UserPage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          {/* 视图模式切换按钮 */}
-          <Button
-            color={viewMode === "card" ? "primary" : "warning"}
-            size="sm"
-            variant="flat"
-            onPress={() =>
-              handleViewModeToggle(viewMode === "card" ? "list" : "card")
-            }
-          >
-            {viewMode === "card" ? "列表" : "卡片"}
-          </Button>
-          {/* 批量模式按钮（仅列表视图） */}
-          {viewMode === "list" && (
-            <Button
-              color={batchMode ? "danger" : "default"}
-              size="sm"
-              variant="flat"
-              onPress={handleBatchModeToggle}
-            >
-              {batchMode ? "退出批量" : "批量模式"}
-            </Button>
+          {batchMode ? (
+            <>
+              <span className="text-sm text-danger-400 shrink-0">
+                已选 {selectedUserIds.size} 项
+              </span>
+              <Button
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={() => handleSelectAll(true)}
+              >
+                全选
+              </Button>
+              <Button
+                color="secondary"
+                size="sm"
+                variant="flat"
+                onPress={() => handleSelectAll(false)}
+              >
+                清空
+              </Button>
+              <Button
+                color="success"
+                size="sm"
+                variant="flat"
+                isDisabled={selectedUserIds.size === 0}
+                isLoading={batchOperationLoading.monitor}
+                onPress={handleBatchToggleMonitor}
+              >
+                监控
+              </Button>
+              <Button
+                color="warning"
+                size="sm"
+                variant="flat"
+                isDisabled={selectedUserIds.size === 0}
+                isLoading={batchOperationLoading.reset}
+                onPress={handleBatchResetFlow}
+              >
+                重置
+              </Button>
+              <Button
+                color="danger"
+                size="sm"
+                variant="flat"
+                isDisabled={selectedUserIds.size === 0}
+                isLoading={batchOperationLoading.delete}
+                onPress={handleBatchDelete}
+              >
+                删除
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* 视图模式切换按钮 */}
+              <Button
+                color={viewMode === "card" ? "primary" : "warning"}
+                size="sm"
+                variant="flat"
+                onPress={() =>
+                  handleViewModeToggle(viewMode === "card" ? "list" : "card")
+                }
+              >
+                {viewMode === "card" ? "列表" : "卡片"}
+              </Button>
+              <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
+                新增
+              </Button>
+            </>
           )}
-          <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
-            新增
-          </Button>
         </div>
       </div>
       {/* 用户列表 */}
@@ -1172,62 +1224,6 @@ export default function UserPage() {
         </Card>
       ) : viewMode === "list" ? (
         <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
-          {/* 批量操作工具栏 */}
-          {batchMode && (
-            <Card className="m-3 bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800">
-              <CardBody className="py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      isSelected={
-                        selectedUserIds.size === users.length && users.length > 0
-                      }
-                      onChange={(e) =>
-                        handleSelectAll((e.target as HTMLInputElement).checked)
-                      }
-                    >
-                      全选
-                    </Checkbox>
-                    <span className="text-sm text-primary-600 dark:text-primary-400 font-medium">
-                      已选 {selectedUserIds.size} 个用户
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      color="success"
-                      size="sm"
-                      variant="flat"
-                      isDisabled={selectedUserIds.size === 0}
-                      isLoading={batchOperationLoading.monitor}
-                      onPress={handleBatchToggleMonitor}
-                    >
-                      监控
-                    </Button>
-                    <Button
-                      color="warning"
-                      size="sm"
-                      variant="flat"
-                      isDisabled={selectedUserIds.size === 0}
-                      isLoading={batchOperationLoading.reset}
-                      onPress={handleBatchResetFlow}
-                    >
-                      重置
-                    </Button>
-                    <Button
-                      color="danger"
-                      size="sm"
-                      variant="flat"
-                      isDisabled={selectedUserIds.size === 0}
-                      isLoading={batchOperationLoading.delete}
-                      onPress={handleBatchDelete}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          )}
           <Table
             aria-label="用户列表"
             classNames={{
@@ -1238,7 +1234,12 @@ export default function UserPage() {
           >
             <TableHeader>
               <TableColumn className="whitespace-nowrap flex-shrink-0 w-[60px] text-left">
-                {batchMode ? "选择" : ""}
+                <Checkbox
+                  isSelected={
+                    users.length > 0 && selectedUserIds.size === users.length
+                  }
+                  onValueChange={(checked) => handleSelectAll(checked)}
+                />
               </TableColumn>
               <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
                 用户名
@@ -1279,11 +1280,9 @@ export default function UserPage() {
                 return (
                   <TableRow
                     key={user.id}
-                    className={`cursor-pointer transition-colors ${
-                      batchMode
-                        ? selectedUserIds.has(user.id)
-                          ? "bg-primary-50 dark:bg-primary-900/30"
-                          : "hover:bg-default-50/50"
+                    className={`cursor-default transition-colors ${
+                      selectedUserIds.has(user.id)
+                        ? "bg-primary-50 dark:bg-primary-900/30"
                         : selectedUserId === user.id
                           ? "bg-primary-50 dark:bg-primary-900/30"
                           : "hover:bg-default-50/50"
@@ -1298,12 +1297,10 @@ export default function UserPage() {
                       className="whitespace-nowrap"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {batchMode && (
-                        <Checkbox
-                          isSelected={selectedUserIds.has(user.id)}
-                          onChange={() => toggleUserSelection(user.id)}
-                        />
-                      )}
+                      <Checkbox
+                        isSelected={selectedUserIds.has(user.id)}
+                        onValueChange={() => toggleUserSelection(user.id)}
+                      />
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <div className="flex flex-col">
@@ -1485,21 +1482,36 @@ export default function UserPage() {
             return (
               <StaggerItem key={user.id}>
                 <div
-                  className={`shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full rounded-xl cursor-pointer ${
-                    batchMode && selectedUserIds.has(user.id)
+                  className={`shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full rounded-xl cursor-default ${
+                    selectedUserIds.has(user.id)
                       ? "bg-primary-50 dark:bg-primary-900/30 border-primary-300 dark:border-primary-700"
                       : ""
                   }`}
-                  onClick={() => {
-                    if (batchMode) {
-                      toggleUserSelection(user.id);
-                    }
-                  }}
+                  onClick={() => toggleUserSelection(user.id)}
                 >
                   <Card className="shadow-none border-0">
                     <CardHeader className="pb-2 md:pb-2">
-                      <div className="flex justify-between items-start w-full relative">
-                      <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            isSelected={selectedUserIds.has(user.id)}
+                            onValueChange={() => toggleUserSelection(user.id)}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <div
+                            className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${userStatus.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
+                          >
+                            {userStatus.text}
+                          </div>
+                          {user.disabledByQuota ? (
+                            <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-danger-500/10 text-danger-600 dark:text-danger-400">
+                              配额超额
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="min-w-0">
                         <h3 className="font-semibold text-foreground truncate text-sm">
                           {user.name || user.user}
                         </h3>
@@ -1507,31 +1519,7 @@ export default function UserPage() {
                           @{user.user}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5 ml-2">
-                        {batchMode && (
-                          <div
-                            className="absolute top-2 right-2"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Checkbox
-                              isSelected={selectedUserIds.has(user.id)}
-                              onChange={() => toggleUserSelection(user.id)}
-                            />
-                          </div>
-                        )}
-                        <div
-                          className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${userStatus.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
-                        >
-                          {userStatus.text}
-                        </div>
-                        {user.disabledByQuota ? (
-                          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-danger-500/10 text-danger-600 dark:text-danger-400">
-                            配额超额
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </CardHeader>
+                    </CardHeader>
                   <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -1617,91 +1605,82 @@ export default function UserPage() {
                         </div>
                       </div>
                     </div>
-                    {!batchMode && (
-                      <div className="space-y-1.5 mt-3">
-                        {/* 第一行：编辑和重置 */}
-                        <div className="flex gap-1.5">
-                          <Button
-                            className="flex-1 min-h-8"
-                            color="primary"
-                            size="sm"
-                            startContent={<EditIcon className="w-3 h-3" />}
-                            variant="flat"
-                            onPress={() => handleEdit(user)}
-                          >
-                            编辑
-                          </Button>
-                          <Button
-                            className="flex-1 min-h-8"
-                            color="warning"
-                            size="sm"
-                            startContent={
-                              <svg
-                                aria-hidden="true"
-                                className="w-3 h-3"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  clipRule="evenodd"
-                                  d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                                  fillRule="evenodd"
-                                />
-                              </svg>
-                            }
-                            variant="flat"
-                            onPress={() => handleResetFlow(user)}
-                          >
-                            重置
-                          </Button>
-                        </div>
-                        {/* 第二行：权限、监控和删除 */}
-                        <div className="flex gap-1.5">
-                          <Button
-                            className="flex-1 min-h-8"
-                            color="secondary"
-                            size="sm"
-                            startContent={<SettingsIcon className="w-3 h-3" />}
-                            variant="flat"
-                            onPress={() => handleManageTunnels(user)}
-                          >
-                            隧道
-                          </Button>
-                          <Button
-                            className="flex-1 min-h-8"
-                            color={
-                              monitorPermissionUserIds.has(user.id)
-                                ? "success"
-                                : "default"
-                            }
-                            size="sm"
-                            variant="flat"
-                            onPress={() => handleOpenMonitorModal(user)}
-                          >
-                            {monitorPermissionUserIds.has(user.id)
-                              ? "监控"
-                              : "监控"}
-                          </Button>
-                          <Button
-                            className="flex-1 min-h-8"
-                            color="danger"
-                            size="sm"
-                            startContent={<DeleteIcon className="w-3 h-3" />}
-                            variant="flat"
-                            onPress={() => handleDelete(user)}
-                          >
-                            删除
-                          </Button>
-                        </div>
+                    <div className="space-y-1.5 mt-3">
+                      {/* 第一行：编辑和重置 */}
+                      <div className="flex gap-1.5">
+                        <Button
+                          className="flex-1 min-h-8"
+                          color="primary"
+                          size="sm"
+                          startContent={<EditIcon className="w-3 h-3" />}
+                          variant="flat"
+                          onPress={() => handleEdit(user)}
+                        >
+                          编辑
+                        </Button>
+                        <Button
+                          className="flex-1 min-h-8"
+                          color="warning"
+                          size="sm"
+                          startContent={
+                            <svg
+                              aria-hidden="true"
+                              className="w-3 h-3"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                clipRule="evenodd"
+                                d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                fillRule="evenodd"
+                              />
+                            </svg>
+                          }
+                          variant="flat"
+                          onPress={() => handleResetFlow(user)}
+                        >
+                          重置
+                        </Button>
                       </div>
-                    )}
-                    {batchMode && (
-                      <div className="mt-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-center">
-                        <span className="text-xs text-primary-600 dark:text-primary-400">
-                          {selectedUserIds.has(user.id) ? "✓ 已选择" : "点击选择"}
-                        </span>
+                      {/* 第二行：权限、监控和删除 */}
+                      <div className="flex gap-1.5">
+                        <Button
+                          className="flex-1 min-h-8"
+                          color="secondary"
+                          size="sm"
+                          startContent={<SettingsIcon className="w-3 h-3" />}
+                          variant="flat"
+                          onPress={() => handleManageTunnels(user)}
+                        >
+                          隧道
+                        </Button>
+                        <Button
+                          className="flex-1 min-h-8"
+                          color={
+                            monitorPermissionUserIds.has(user.id)
+                              ? "success"
+                              : "default"
+                          }
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleOpenMonitorModal(user)}
+                        >
+                          {monitorPermissionUserIds.has(user.id)
+                            ? "监控"
+                            : "监控"}
+                        </Button>
+                        <Button
+                          className="flex-1 min-h-8"
+                          color="danger"
+                          size="sm"
+                          startContent={<DeleteIcon className="w-3 h-3" />}
+                          variant="flat"
+                          onPress={() => handleDelete(user)}
+                        >
+                          删除
+                        </Button>
                       </div>
-                    )}
+                    </div>
                   </CardBody>
                   </Card>
                 </div>

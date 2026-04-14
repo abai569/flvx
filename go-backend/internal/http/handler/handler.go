@@ -1741,9 +1741,11 @@ func (h *Handler) nodeInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"id":     node.ID,
-		"name":   node.Name,
-		"secret": secret,
+		"id":           node.ID,
+		"name":         node.Name,
+		"secret":       secret,
+		"renewalCycle": node.RenewalCycle.String,
+		"expiryTime":   node.ExpiryTime.Int64,
 	}))
 }
 

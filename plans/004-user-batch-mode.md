@@ -26,26 +26,26 @@
 - [x] **前端实现**
   - [x] 在 `api/index.ts` 添加 4 个 API 函数
   - [x] 在 `user.tsx` 添加批量模式状态
-    - [x] `batchMode` - 批量模式开关
+    - [x] `batchMode` - 批量模式开关（自动切换）
     - [x] `selectedUserIds` - 已选用户 ID 集合
     - [x] `batchOperationLoading` - 批量操作加载状态
-  - [x] 在 `user.tsx` 添加选择/全选逻辑
-  - [x] 在 `user.tsx` 添加批量操作工具栏（仅列表视图）
+  - [x] 在 `user.tsx` 添加选择/全选逻辑（自动进入/退出批量模式）
+  - [x] 在 `user.tsx` 添加批量操作工具栏（条件渲染）
   - [x] 在 `user.tsx` 添加批量操作处理函数
     - [x] `handleBatchToggleMonitor` - 批量切换监控
     - [x] `handleBatchResetFlow` - 批量重置流量
     - [x] `handleBatchDelete` - 批量删除
   - [x] 在 `user.tsx` 添加批量删除确认对话框
-  - [x] 在 `user.tsx` 添加行 checkbox 列（列表视图）
-  - [x] 在 `user.tsx` 添加卡片复选框（卡片视图）
+  - [x] 在 `user.tsx` 添加复选框（列表视图和卡片视图始终显示）
   - [x] 前端编译通过
 
 - [ ] **测试验证**
+  - [ ] 测试复选框始终显示
+  - [ ] 测试自动进入/退出批量模式
   - [ ] 测试批量选择/全选功能
   - [ ] 测试批量监控权限切换
   - [ ] 测试批量重置流量
   - [ ] 测试批量删除（含权限检查）
-  - [ ] 测试卡片模式下不显示批量功能
 
 ## 技术细节
 

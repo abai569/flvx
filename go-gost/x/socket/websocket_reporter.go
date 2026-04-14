@@ -411,7 +411,9 @@ func (w *WebSocketReporter) fetchAndSaveNodeID() {
 	var result struct {
 		Code int `json:"code"`
 		Data struct {
-			ID int64 `json:"id"`
+			ID           int64  `json:"id"`
+			RenewalCycle string `json:"renewalCycle"`
+			ExpiryTime   int64  `json:"expiryTime"`
 		} `json:"data"`
 	}
 
@@ -449,6 +451,15 @@ func (w *WebSocketReporter) fetchAndSaveNodeID() {
 	}
 
 	fmt.Printf("✅ 获取并保存 node_id: %d\n", w.nodeID)
+
+	// 更新基线管理器的 renewal_cycle
+	if bm := traffic.GetManager(); bm != nil && result.Data.RenewalCycle != "" {
+		if err := bm.UpdateRenewalCycle(result.Data.RenewalCycle); err != nil {
+			fmt.Printf("⚠️ 更新基线续费周期失败：%v\n", err)
+		} else {
+			fmt.Printf("✅ 基线续费周期已更新：%s\n", result.Data.RenewalCycle)
+		}
+	}
 
 	// 初始化基线管理器
 	baselinePath := configDir + "/traffic_baseline.json"
