@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import { parseDate } from "@internationalized/date";
 import {
@@ -15,7 +15,9 @@ import {
   arrayMove,
   rectSortingStrategy,
   sortableKeyboardCoordinates,
+  useSortable,
 } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import { SearchBar } from "@/components/search-bar";
 import {
@@ -426,12 +428,6 @@ export default function UserPage() {
     onClose: onBatchDeleteModalClose,
   } = useDisclosure();
   const [batchDeleteUserList, setBatchDeleteUserList] = useState<User[]>([]);
-  // 批量重置流量确认相关状态
-  const {
-    isOpen: isBatchResetModalOpen,
-    onOpen: onBatchResetModalOpen,
-    onClose: onBatchResetModalClose,
-  } = useDisclosure();
   // 其他数据
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [speedLimits, setSpeedLimits] = useState<SpeedLimit[]>([]);
@@ -475,37 +471,6 @@ export default function UserPage() {
     localStorage.setItem(USER_VIEW_MODE_KEY, mode);
     setSelectedUserIds(new Set());
   }, []);
-  // 拖拽排序处理
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent) => {
-      const { active, over } = event;
-
-      if (!over) return;
-
-      const oldIndex = sortableUserIds.findIndex((id) => id === active.id);
-      const newIndex = sortableUserIds.findIndex((id) => id === over.id);
-
-      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-
-      const newOrder = arrayMove(sortableUserIds, oldIndex, newIndex);
-      setSortableUserIds(newOrder);
-
-      // 保存到本地存储
-      setUserOrder(newOrder);
-
-      // 同步到后端
-      try {
-        await updateUserOrder(
-          newOrder.map((id, index) => ({ id, inx: index })),
-        );
-      } catch {
-        toast.error("保存排序失败");
-        // 失败时恢复原顺序
-        setSortableUserIds(sortableUserIds);
-      }
-    },
-    [sortableUserIds, setUserOrder],
-  );
   // 全选/取消全选
   const handleSelectAll = useCallback((isSelected: boolean) => {
     if (isSelected) {
@@ -558,19 +523,6 @@ export default function UserPage() {
 
           setUsers(nextUsers);
           setPagination((prev) => ({ ...prev, total: nextUsers.length }));
-
-          // 初始化拖拽排序 ID 列表
-          if (userOrder && userOrder.length > 0) {
-            const orderedIds = nextUsers
-              .map((u) => u.id)
-              .filter((id) => userOrder.includes(id));
-            const remainingIds = nextUsers
-              .map((u) => u.id)
-              .filter((id) => !userOrder.includes(id));
-            setSortableUserIds([...userOrder.filter(id => orderedIds.includes(id)), ...remainingIds]);
-          } else {
-            setSortableUserIds(nextUsers.map((u) => u.id));
-          }
         } else {
           toast.error(response.msg || "获取用户列表失败");
         }
@@ -582,6 +534,68 @@ export default function UserPage() {
     },
     [pagination.current, pagination.size],
   );
+  // 初始化 sortableUserIds
+  useEffect(() => {
+    if (users.length > 0) {
+      if (userOrder && userOrder.length > 0) {
+        const orderedIds = users
+          .map((u) => u.id)
+          .filter((id) => userOrder.includes(id));
+        const remainingIds = users
+          .map((u) => u.id)
+          .filter((id) => !userOrder.includes(id));
+        setSortableUserIds([...userOrder.filter(id => orderedIds.includes(id)), ...remainingIds]);
+      } else {
+        setSortableUserIds(users.map((u) => u.id));
+      }
+    }
+  }, [users, userOrder]);
+
+  // 排序后的用户列表（用于渲染）
+  const displayUsers = useMemo(() => {
+    if (!sortableUserIds || sortableUserIds.length === 0) {
+      return users;
+    }
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    return sortableUserIds
+      .map((id) => userMap.get(id))
+      .filter((u): u is User => u !== undefined);
+  }, [users, sortableUserIds]);
+
+  // 拖拽排序处理
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+
+      if (!over) return;
+
+      setSortableUserIds((prevOrder) => {
+        const oldIndex = prevOrder.findIndex((id) => id === active.id);
+        const newIndex = prevOrder.findIndex((id) => id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+          return prevOrder;
+        }
+
+        const newOrder = arrayMove(prevOrder, oldIndex, newIndex);
+
+        // 保存到本地存储
+        setUserOrder(newOrder);
+
+        // 同步到后端
+        updateUserOrder(
+          newOrder.map((id, index) => ({ id, inx: index })),
+        ).catch(() => {
+          toast.error("保存排序失败");
+          setSortableUserIds(prevOrder);
+        });
+
+        return newOrder;
+      });
+    },
+    [setUserOrder],
+  );
+
   const loadTunnels = useCallback(async () => {
     try {
       const response = await getTunnelList();
@@ -1061,98 +1075,54 @@ export default function UserPage() {
       setResetTunnelFlowLoading(false);
     }
   };
-  // 批量操作用户列表渲染（最多显示 5 个，其余折叠）
-  const renderBatchUserList = (
-    userIds: Set<number>,
-    maxDisplay = 5,
-    showFlowInfo = false,
-  ) => {
-    const userList = users.filter((u) => userIds.has(u.id));
-    const displayUsers = userList.slice(0, maxDisplay);
-    const remainingCount = userList.length - maxDisplay;
-
-    return (
-      <>
-        {displayUsers.map((user) => (
-          <div
-            key={user.id}
-            className="flex items-center justify-between p-2 bg-default-50 dark:bg-default-100/10 rounded-lg"
-          >
-            <div>
-              <span className="text-sm font-medium text-foreground">
-                {user.name || user.user}
-              </span>
-              <span className="text-xs text-default-500 ml-2">
-                @{user.user}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {showFlowInfo && (
-                <span className="text-xs text-default-500">
-                  已用：{formatFlow(calculateUserTotalUsedFlow(user))}
-                </span>
-              )}
-              <div
-                className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${
-                  user.status === 1
-                    ? "bg-success-500/10 text-success-600 dark:text-success-400"
-                    : "bg-danger-500/10 text-danger-600 dark:text-danger-400"
-                }`}
-              >
-                {user.status === 1 ? "正常" : "禁用"}
-              </div>
-            </div>
-          </div>
-        ))}
-        {remainingCount > 0 && (
-          <div className="p-2 text-sm text-default-500 italic">
-            ... 还有 {remainingCount} 个用户
-          </div>
-        )}
-      </>
-    );
-  };
   // 批量操作函数
-  const handleBatchMonitor = () => {
-    onMonitorModalOpen();
-  };
+  const handleBatchToggleMonitor = async () => {
+    const toEnable = Array.from(selectedUserIds).filter(
+      (id) => !monitorPermissionUserIds.has(id),
+    );
+    const toDisable = Array.from(selectedUserIds).filter((id) =>
+      monitorPermissionUserIds.has(id),
+    );
 
-  const handleConfirmBatchMonitor = async (enable: boolean) => {
-    const toEnable = enable
-      ? Array.from(selectedUserIds).filter((id) => !monitorPermissionUserIds.has(id))
-      : [];
-    const toDisable = !enable
-      ? Array.from(selectedUserIds).filter((id) => monitorPermissionUserIds.has(id))
-      : [];
-
-    setMonitorPermissionLoading(true);
+    setBatchOperationLoading((prev) => ({ ...prev, monitor: true }));
     try {
+      let successCount = 0;
+      let failCount = 0;
+
       if (toEnable.length > 0) {
-        await batchAssignMonitorPermission(toEnable);
+        const response = await batchAssignMonitorPermission(toEnable);
+        if (response.code === 0) {
+          successCount += (response.data as any)?.successCount || 0;
+          failCount += (response.data as any)?.failCount || 0;
+        }
       }
       if (toDisable.length > 0) {
-        await batchRemoveMonitorPermission(toDisable);
+        const response = await batchRemoveMonitorPermission(toDisable);
+        if (response.code === 0) {
+          successCount += (response.data as any)?.successCount || 0;
+          failCount += (response.data as any)?.failCount || 0;
+        }
       }
-      toast.success(
-        enable
-          ? `成功开启 ${toEnable.length} 个用户的监控权限`
-          : `成功关闭 ${toDisable.length} 个用户的监控权限`,
-      );
+
+      if (failCount === 0) {
+        toast.success(
+          `监控权限操作成功：开启 ${toEnable.length} 个，关闭 ${toDisable.length} 个`,
+        );
+      } else {
+        toast.success(
+          `监控权限操作完成：成功 ${successCount} 个，失败 ${failCount} 个`,
+        );
+      }
       await loadMonitorPermissions();
       setSelectedUserIds(new Set());
-      onMonitorModalClose();
     } catch {
-      toast.error(enable ? "开启失败" : "关闭失败");
+      toast.error("批量监控操作失败");
     } finally {
-      setMonitorPermissionLoading(false);
+      setBatchOperationLoading((prev) => ({ ...prev, monitor: false }));
     }
   };
 
-  const handleBatchResetFlow = () => {
-    onBatchResetModalOpen();
-  };
-
-  const handleConfirmBatchResetFlow = async () => {
+  const handleBatchResetFlow = async () => {
     setBatchOperationLoading((prev) => ({ ...prev, reset: true }));
     try {
       const response = await batchResetUserFlow(Array.from(selectedUserIds));
@@ -1161,7 +1131,6 @@ export default function UserPage() {
           (response.data as any)?.successCount || selectedUserIds.size;
         toast.success(`成功重置 ${successCount} 个用户流量`);
         await loadUsers();
-        onBatchResetModalClose();
         setSelectedUserIds(new Set());
       } else {
         toast.error(response.msg || "重置失败");
@@ -1242,6 +1211,60 @@ export default function UserPage() {
     return userTunnels.some((ut) => ut.tunnelId === tunnelId);
   };
 
+  // 可排序的表格行组件
+  const SortableTableRow = ({
+    user,
+    children,
+  }: {
+    user: User;
+    children: React.ReactNode;
+  }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+      useSortable({ id: user.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
+    return (
+      <TableRow
+        ref={setNodeRef}
+        style={style}
+        className={`cursor-default transition-colors ${
+          selectedUserIds.has(user.id)
+            ? "bg-primary-50 dark:bg-primary-900/30"
+            : selectedUserId === user.id
+              ? "bg-primary-50 dark:bg-primary-900/30"
+              : "hover:bg-default-50/50"
+        }`}
+        onClick={() => {
+          if (!batchMode) {
+            setSelectedUserId(user.id);
+          }
+        }}
+      >
+        {React.Children.map(children, (child) => {
+          if (React.isValidElement(child) && child.type === TableCell) {
+            const childAny = child as React.ReactElement<any>;
+            // 第二个 TableCell 是拖拽列，添加 listeners
+            if (childAny.props.children?.props?.title === "拖拽排序") {
+              return React.cloneElement(child, {
+                ...childAny.props,
+                children: React.cloneElement(childAny.props.children, {
+                  ...childAny.props.children.props,
+                  ...listeners,
+                  ...attributes,
+                }),
+              });
+            }
+          }
+          return child;
+        })}
+      </TableRow>
+    );
+  };
+
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
@@ -1296,7 +1319,7 @@ export default function UserPage() {
                 variant="flat"
                 isDisabled={selectedUserIds.size === 0}
                 isLoading={batchOperationLoading.monitor}
-                onPress={handleBatchMonitor}
+                onPress={handleBatchToggleMonitor}
               >
                 监控
               </Button>
@@ -1372,9 +1395,6 @@ export default function UserPage() {
               >
                 <TableHeader>
                   <TableColumn className="whitespace-nowrap flex-shrink-0 w-[60px] text-left">
-                    排序
-                  </TableColumn>
-                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[60px] text-left">
                     <Checkbox
                       isSelected={
                         users.length > 0 && selectedUserIds.size === users.length
@@ -1382,85 +1402,75 @@ export default function UserPage() {
                       onValueChange={(checked) => handleSelectAll(checked)}
                     />
                   </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
-                用户名
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                状态
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                监控权限
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                流量限制
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
-                已用流量
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
-                规则数
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                重置日期
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                过期时间
-              </TableColumn>
-              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[240px] text-left">
-                操作
-              </TableColumn>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => {
-                const userStatus = getUserStatus(user);
-                const expStatus = user.expTime
-                  ? getExpireStatus(user.expTime)
-                  : null;
-                const usedFlow = calculateUserTotalUsedFlow(user);
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[60px] text-left">
+                    排序
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                    用户名
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                    状态
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                    监控权限
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                    流量限制
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                    已用流量
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                    规则数
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                    重置日期
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                    过期时间
+                  </TableColumn>
+                  <TableColumn className="whitespace-nowrap flex-shrink-0 w-[240px] text-left">
+                    操作
+                  </TableColumn>
+                </TableHeader>
+                <TableBody>
+                  {displayUsers.map((user) => {
+                    const userStatus = getUserStatus(user);
+                    const expStatus = user.expTime
+                      ? getExpireStatus(user.expTime)
+                      : null;
+                    const usedFlow = calculateUserTotalUsedFlow(user);
 
-                return (
-                  <TableRow
-                    key={user.id}
-                    className={`cursor-default transition-colors ${
-                      selectedUserIds.has(user.id)
-                        ? "bg-primary-50 dark:bg-primary-900/30"
-                        : selectedUserId === user.id
-                          ? "bg-primary-50 dark:bg-primary-900/30"
-                          : "hover:bg-default-50/50"
-                    }`}
-                    onClick={() => {
-                      if (!batchMode) {
-                        setSelectedUserId(user.id);
-                      }
-                    }}
-                  >
-                    <TableCell
-                      className="whitespace-nowrap"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div
-                        className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors inline-flex"
-                        title="拖拽排序"
-                      >
-                        <svg
-                          aria-hidden="true"
-                          className="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
+                    return (
+                      <SortableTableRow key={user.id} user={user}>
+                        <TableCell
+                          className="whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
-                        </svg>
-                      </div>
-                    </TableCell>
-                    <TableCell
-                      className="whitespace-nowrap"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Checkbox
-                        isSelected={selectedUserIds.has(user.id)}
-                        onValueChange={() => toggleUserSelection(user.id)}
-                      />
-                    </TableCell>
+                          <Checkbox
+                            isSelected={selectedUserIds.has(user.id)}
+                            onValueChange={() => toggleUserSelection(user.id)}
+                          />
+                        </TableCell>
+                        <TableCell
+                          className="whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div
+                            className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors inline-flex"
+                            title="拖拽排序"
+                            style={{ touchAction: "none" }}
+                          >
+                            <svg
+                              aria-hidden="true"
+                              className="w-4 h-4"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+                            </svg>
+                          </div>
+                        </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="font-medium text-foreground truncate">
@@ -1616,7 +1626,7 @@ export default function UserPage() {
                         </Button>
                       </div>
                     </TableCell>
-                  </TableRow>
+                  </SortableTableRow>
                 );
               })}
             </TableBody>
@@ -2465,9 +2475,7 @@ export default function UserPage() {
       >
         <ModalContent>
           <ModalHeader>
-            {selectedUserIds.size > 0
-              ? `批量管理监控权限 (${selectedUserIds.size} 个用户)`
-              : `管理用户 ${monitorModalUser?.name || monitorModalUser?.user} 的监控权限`}
+            管理用户 {monitorModalUser?.user} 的监控权限
           </ModalHeader>
           <ModalBody>
             <div className="flex items-center justify-between gap-4 py-4">
@@ -2476,31 +2484,29 @@ export default function UserPage() {
                   允许访问监控功能
                 </div>
                 <div className="text-xs text-default-500 mt-1">
-                  {selectedUserIds.size > 0
-                    ? "授予后，这些用户可以访问监控页面并管理服务监控（TCP/ICMP）。"
-                    : "授予后，该用户可以访问监控页面并管理服务监控（TCP/ICMP）。"}
+                  授予后，该用户可以访问监控页面并管理服务监控（TCP/ICMP）。
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {monitorPermissionLoading ? <Spinner size="sm" /> : null}
+                {monitorPermissionLoading ||
+                monitorPermissionMutatingUserId === monitorModalUser?.id ? (
+                  <Spinner size="sm" />
+                ) : null}
                 <Switch
-                  isDisabled={monitorPermissionLoading}
-                  isSelected={
-                    selectedUserIds.size > 0
-                      ? Array.from(selectedUserIds).some(
-                          (id) => !monitorPermissionUserIds.has(id),
-                        )
-                      : monitorModalUser
-                        ? monitorPermissionUserIds.has(monitorModalUser.id)
-                        : false
+                  isDisabled={
+                    !monitorModalUser ||
+                    monitorPermissionLoading ||
+                    monitorPermissionMutatingUserId === monitorModalUser?.id
                   }
-                  onValueChange={(v) => {
-                    if (selectedUserIds.size > 0) {
-                      void handleConfirmBatchMonitor(v);
-                    } else if (monitorModalUser) {
-                      void setUserMonitorPermission(monitorModalUser.id, v);
-                    }
-                  }}
+                  isSelected={
+                    monitorModalUser
+                      ? monitorPermissionUserIds.has(monitorModalUser.id)
+                      : false
+                  }
+                  onValueChange={(v) =>
+                    monitorModalUser &&
+                    void setUserMonitorPermission(monitorModalUser.id, v)
+                  }
                 />
               </div>
             </div>
@@ -2936,11 +2942,30 @@ export default function UserPage() {
               确认要删除以下 {batchDeleteUserList.length} 个用户吗？此操作不可恢复。
             </p>
             <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-              {renderBatchUserList(
-                new Set(batchDeleteUserList.map((u) => u.id)),
-                5,
-                true,
-              )}
+              {batchDeleteUserList.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-2 bg-default-50 dark:bg-default-100/10 rounded-lg"
+                >
+                  <div>
+                    <span className="text-sm font-medium text-foreground">
+                      {user.name || user.user}
+                    </span>
+                    <span className="text-xs text-default-500 ml-2">
+                      @{user.user}
+                    </span>
+                  </div>
+                  <div
+                    className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${
+                      user.status === 1
+                        ? "bg-success-500/10 text-success-600 dark:text-success-400"
+                        : "bg-danger-500/10 text-danger-600 dark:text-danger-400"
+                    }`}
+                  >
+                    {user.status === 1 ? "正常" : "禁用"}
+                  </div>
+                </div>
+              ))}
             </div>
             <Alert
               className="mt-4"
@@ -2960,51 +2985,6 @@ export default function UserPage() {
               onPress={handleConfirmBatchDelete}
             >
               确认删除
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-      {/* 批量重置流量确认对话框 */}
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
-        }}
-        isOpen={isBatchResetModalOpen}
-        placement="center"
-        scrollBehavior="outside"
-        size="md"
-        onClose={onBatchResetModalClose}
-      >
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            批量重置流量
-          </ModalHeader>
-          <ModalBody>
-            <p className="text-sm text-default-600 mb-3">
-              确认要重置以下 {selectedUserIds.size} 个用户的流量吗？
-            </p>
-            <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-              {renderBatchUserList(selectedUserIds, 5, true)}
-            </div>
-            <Alert
-              className="mt-4"
-              color="warning"
-              description="重置后用户的已用流量将归零，此操作不可撤销"
-              title="警告"
-              variant="flat"
-            />
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={onBatchResetModalClose}>
-              取消
-            </Button>
-            <Button
-              color="warning"
-              isLoading={batchOperationLoading.reset}
-              onPress={handleConfirmBatchResetFlow}
-            >
-              确认重置
             </Button>
           </ModalFooter>
         </ModalContent>
