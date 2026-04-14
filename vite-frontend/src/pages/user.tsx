@@ -34,6 +34,7 @@ import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { DatePicker } from "@/shadcn-bridge/heroui/date-picker";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
+import { Alert } from "@/shadcn-bridge/heroui/alert";
 import {
   User,
   UserGroup,
@@ -60,6 +61,10 @@ import {
   assignMonitorPermission,
   removeMonitorPermission,
   getUserGroups,
+  batchAssignMonitorPermission,
+  batchRemoveMonitorPermission,
+  batchDeleteUsers,
+  batchResetUserFlow,
 } from "@/api";
 import {
   EditIcon,
@@ -366,6 +371,23 @@ export default function UserPage() {
   } = useDisclosure();
   const [tunnelToReset, setTunnelToReset] = useState<UserTunnel | null>(null);
   const [resetTunnelFlowLoading, setResetTunnelFlowLoading] = useState(false);
+  // 批量模式相关状态
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(
+    new Set(),
+  );
+  const [batchOperationLoading, setBatchOperationLoading] = useState({
+    delete: false,
+    reset: false,
+    monitor: false,
+  });
+  // 批量删除确认相关状态
+  const {
+    isOpen: isBatchDeleteModalOpen,
+    onOpen: onBatchDeleteModalOpen,
+    onClose: onBatchDeleteModalClose,
+  } = useDisclosure();
+  const [batchDeleteUserList, setBatchDeleteUserList] = useState<User[]>([]);
   // 其他数据
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [speedLimits, setSpeedLimits] = useState<SpeedLimit[]>([]);
@@ -407,6 +429,33 @@ export default function UserPage() {
   const handleViewModeToggle = useCallback((mode: "card" | "list") => {
     setViewMode(mode);
     localStorage.setItem(USER_VIEW_MODE_KEY, mode);
+    setBatchMode(false);
+    setSelectedUserIds(new Set());
+  }, []);
+  // 批量模式切换
+  const handleBatchModeToggle = useCallback(() => {
+    setBatchMode((prev) => !prev);
+    setSelectedUserIds(new Set());
+  }, []);
+  // 全选/取消全选
+  const handleSelectAll = useCallback((isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedUserIds(new Set(users.map((u) => u.id)));
+    } else {
+      setSelectedUserIds(new Set());
+    }
+  }, [users]);
+  // 单个选择/取消选择
+  const toggleUserSelection = useCallback((userId: number) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
   }, []);
   // 数据加载函数
   const loadUsers = useCallback(
@@ -892,7 +941,7 @@ export default function UserPage() {
     try {
       const response = await resetUserFlow({
         id: tunnelToReset.id,
-        type: 2, // 2表示重置隧道流量
+        type: 2, // 2 表示重置隧道流量
       });
 
       if (response.code === 0) {
@@ -915,6 +964,107 @@ export default function UserPage() {
       toast.error("重置失败");
     } finally {
       setResetTunnelFlowLoading(false);
+    }
+  };
+  // 批量操作函数
+  const handleBatchToggleMonitor = async () => {
+    const toEnable = Array.from(selectedUserIds).filter(
+      (id) => !monitorPermissionUserIds.has(id),
+    );
+    const toDisable = Array.from(selectedUserIds).filter((id) =>
+      monitorPermissionUserIds.has(id),
+    );
+
+    setBatchOperationLoading((prev) => ({ ...prev, monitor: true }));
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      if (toEnable.length > 0) {
+        const response = await batchAssignMonitorPermission(toEnable);
+        if (response.code === 0) {
+          successCount += (response.data as any)?.successCount || 0;
+          failCount += (response.data as any)?.failCount || 0;
+        }
+      }
+      if (toDisable.length > 0) {
+        const response = await batchRemoveMonitorPermission(toDisable);
+        if (response.code === 0) {
+          successCount += (response.data as any)?.successCount || 0;
+          failCount += (response.data as any)?.failCount || 0;
+        }
+      }
+
+      if (failCount === 0) {
+        toast.success(
+          `监控权限操作成功：开启 ${toEnable.length} 个，关闭 ${toDisable.length} 个`,
+        );
+      } else {
+        toast.success(
+          `监控权限操作完成：成功 ${successCount} 个，失败 ${failCount} 个`,
+        );
+      }
+      await loadMonitorPermissions();
+      setSelectedUserIds(new Set());
+    } catch {
+      toast.error("批量监控操作失败");
+    } finally {
+      setBatchOperationLoading((prev) => ({ ...prev, monitor: false }));
+    }
+  };
+
+  const handleBatchResetFlow = async () => {
+    setBatchOperationLoading((prev) => ({ ...prev, reset: true }));
+    try {
+      const response = await batchResetUserFlow(Array.from(selectedUserIds));
+      if (response.code === 0) {
+        const successCount =
+          (response.data as any)?.successCount || selectedUserIds.size;
+        toast.success(`成功重置 ${successCount} 个用户流量`);
+        await loadUsers();
+        setSelectedUserIds(new Set());
+      } else {
+        toast.error(response.msg || "重置失败");
+      }
+    } catch {
+      toast.error("重置失败");
+    } finally {
+      setBatchOperationLoading((prev) => ({ ...prev, reset: false }));
+    }
+  };
+
+  const handleBatchDelete = () => {
+    const usersToDelete = users.filter((u) => selectedUserIds.has(u.id));
+    setBatchDeleteUserList(usersToDelete);
+    onBatchDeleteModalOpen();
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    setBatchOperationLoading((prev) => ({ ...prev, delete: true }));
+    try {
+      const response = await batchDeleteUsers(Array.from(selectedUserIds));
+      if (response.code === 0) {
+        const successCount =
+          (response.data as any)?.successCount || selectedUserIds.size;
+        const failCount = (response.data as any)?.failCount || 0;
+
+        if (failCount === 0) {
+          toast.success(`成功删除 ${successCount} 个用户`);
+        } else {
+          toast.success(
+            `删除完成：成功 ${successCount} 个，失败 ${failCount} 个`,
+          );
+        }
+        await loadUsers();
+        onBatchDeleteModalClose();
+        setSelectedUserIds(new Set());
+      } else {
+        toast.error(response.msg || "删除失败");
+      }
+    } catch {
+      toast.error("删除失败");
+    } finally {
+      setBatchOperationLoading((prev) => ({ ...prev, delete: false }));
     }
   };
   const editAvailableSpeedLimits = speedLimits.filter(
@@ -990,6 +1140,17 @@ export default function UserPage() {
           >
             {viewMode === "card" ? "列表" : "卡片"}
           </Button>
+          {/* 批量模式按钮（仅列表视图） */}
+          {viewMode === "list" && (
+            <Button
+              color={batchMode ? "danger" : "default"}
+              size="sm"
+              variant="flat"
+              onPress={handleBatchModeToggle}
+            >
+              {batchMode ? "退出批量" : "批量模式"}
+            </Button>
+          )}
           <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
             新增
           </Button>
@@ -1011,6 +1172,62 @@ export default function UserPage() {
         </Card>
       ) : viewMode === "list" ? (
         <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
+          {/* 批量操作工具栏 */}
+          {batchMode && (
+            <Card className="m-3 bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800">
+              <CardBody className="py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      isSelected={
+                        selectedUserIds.size === users.length && users.length > 0
+                      }
+                      onChange={(e) =>
+                        handleSelectAll((e.target as HTMLInputElement).checked)
+                      }
+                    >
+                      全选
+                    </Checkbox>
+                    <span className="text-sm text-primary-600 dark:text-primary-400 font-medium">
+                      已选 {selectedUserIds.size} 个用户
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      color="success"
+                      size="sm"
+                      variant="flat"
+                      isDisabled={selectedUserIds.size === 0}
+                      isLoading={batchOperationLoading.monitor}
+                      onPress={handleBatchToggleMonitor}
+                    >
+                      监控
+                    </Button>
+                    <Button
+                      color="warning"
+                      size="sm"
+                      variant="flat"
+                      isDisabled={selectedUserIds.size === 0}
+                      isLoading={batchOperationLoading.reset}
+                      onPress={handleBatchResetFlow}
+                    >
+                      重置
+                    </Button>
+                    <Button
+                      color="danger"
+                      size="sm"
+                      variant="flat"
+                      isDisabled={selectedUserIds.size === 0}
+                      isLoading={batchOperationLoading.delete}
+                      onPress={handleBatchDelete}
+                    >
+                      删除
+                    </Button>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          )}
           <Table
             aria-label="用户列表"
             classNames={{
@@ -1020,6 +1237,9 @@ export default function UserPage() {
             }}
           >
             <TableHeader>
+              <TableColumn className="whitespace-nowrap flex-shrink-0 w-[60px] text-left">
+                {batchMode ? "选择" : ""}
+              </TableColumn>
               <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
                 用户名
               </TableColumn>
@@ -1059,9 +1279,32 @@ export default function UserPage() {
                 return (
                   <TableRow
                     key={user.id}
-                    className={`cursor-pointer transition-colors ${selectedUserId === user.id ? "bg-primary-50 dark:bg-primary-900/30" : "hover:bg-default-50/50"}`}
-                    onClick={() => setSelectedUserId(user.id)}
+                    className={`cursor-pointer transition-colors ${
+                      batchMode
+                        ? selectedUserIds.has(user.id)
+                          ? "bg-primary-50 dark:bg-primary-900/30"
+                          : "hover:bg-default-50/50"
+                        : selectedUserId === user.id
+                          ? "bg-primary-50 dark:bg-primary-900/30"
+                          : "hover:bg-default-50/50"
+                    }`}
+                    onClick={() => {
+                      if (!batchMode) {
+                        setSelectedUserId(user.id);
+                      }
+                    }}
                   >
+                    <TableCell
+                      className="whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {batchMode && (
+                        <Checkbox
+                          isSelected={selectedUserIds.has(user.id)}
+                          onChange={() => toggleUserSelection(user.id)}
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="font-medium text-foreground truncate">
@@ -1241,9 +1484,21 @@ export default function UserPage() {
 
             return (
               <StaggerItem key={user.id}>
-                <Card className="shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full">
-                  <CardHeader className="pb-2 md:pb-2">
-                    <div className="flex justify-between items-start w-full">
+                <div
+                  className={`shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full rounded-xl cursor-pointer ${
+                    batchMode && selectedUserIds.has(user.id)
+                      ? "bg-primary-50 dark:bg-primary-900/30 border-primary-300 dark:border-primary-700"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    if (batchMode) {
+                      toggleUserSelection(user.id);
+                    }
+                  }}
+                >
+                  <Card className="shadow-none border-0">
+                    <CardHeader className="pb-2 md:pb-2">
+                      <div className="flex justify-between items-start w-full relative">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-foreground truncate text-sm">
                           {user.name || user.user}
@@ -1253,6 +1508,17 @@ export default function UserPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 ml-2">
+                        {batchMode && (
+                          <div
+                            className="absolute top-2 right-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Checkbox
+                              isSelected={selectedUserIds.has(user.id)}
+                              onChange={() => toggleUserSelection(user.id)}
+                            />
+                          </div>
+                        )}
                         <div
                           className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${userStatus.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
                         >
@@ -1351,84 +1617,94 @@ export default function UserPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-1.5 mt-3">
-                      {/* 第一行：编辑和重置 */}
-                      <div className="flex gap-1.5">
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="primary"
-                          size="sm"
-                          startContent={<EditIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleEdit(user)}
-                        >
-                          编辑
-                        </Button>
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="warning"
-                          size="sm"
-                          startContent={
-                            <svg
-                              aria-hidden="true"
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                clipRule="evenodd"
-                                d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                                fillRule="evenodd"
-                              />
-                            </svg>
-                          }
-                          variant="flat"
-                          onPress={() => handleResetFlow(user)}
-                        >
-                          重置
-                        </Button>
+                    {!batchMode && (
+                      <div className="space-y-1.5 mt-3">
+                        {/* 第一行：编辑和重置 */}
+                        <div className="flex gap-1.5">
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="primary"
+                            size="sm"
+                            startContent={<EditIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={() => handleEdit(user)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="warning"
+                            size="sm"
+                            startContent={
+                              <svg
+                                aria-hidden="true"
+                                className="w-3 h-3"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  clipRule="evenodd"
+                                  d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                  fillRule="evenodd"
+                                />
+                              </svg>
+                            }
+                            variant="flat"
+                            onPress={() => handleResetFlow(user)}
+                          >
+                            重置
+                          </Button>
+                        </div>
+                        {/* 第二行：权限、监控和删除 */}
+                        <div className="flex gap-1.5">
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="secondary"
+                            size="sm"
+                            startContent={<SettingsIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={() => handleManageTunnels(user)}
+                          >
+                            隧道
+                          </Button>
+                          <Button
+                            className="flex-1 min-h-8"
+                            color={
+                              monitorPermissionUserIds.has(user.id)
+                                ? "success"
+                                : "default"
+                            }
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleOpenMonitorModal(user)}
+                          >
+                            {monitorPermissionUserIds.has(user.id)
+                              ? "监控"
+                              : "监控"}
+                          </Button>
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="danger"
+                            size="sm"
+                            startContent={<DeleteIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={() => handleDelete(user)}
+                          >
+                            删除
+                          </Button>
+                        </div>
                       </div>
-                      {/* 第二行：权限、监控和删除 */}
-                      <div className="flex gap-1.5">
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="secondary"
-                          size="sm"
-                          startContent={<SettingsIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleManageTunnels(user)}
-                        >
-                          隧道
-                        </Button>
-                        <Button
-                          className="flex-1 min-h-8"
-                          color={
-                            monitorPermissionUserIds.has(user.id)
-                              ? "success"
-                              : "default"
-                          }
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleOpenMonitorModal(user)}
-                        >
-                          {monitorPermissionUserIds.has(user.id)
-                            ? "监控"
-                            : "监控"}
-                        </Button>
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="danger"
-                          size="sm"
-                          startContent={<DeleteIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleDelete(user)}
-                        >
-                          删除
-                        </Button>
+                    )}
+                    {batchMode && (
+                      <div className="mt-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-center">
+                        <span className="text-xs text-primary-600 dark:text-primary-400">
+                          {selectedUserIds.has(user.id) ? "✓ 已选择" : "点击选择"}
+                        </span>
                       </div>
-                    </div>
+                    )}
                   </CardBody>
-                </Card>
+                  </Card>
+                </div>
               </StaggerItem>
             );
           })}
@@ -2491,6 +2767,74 @@ export default function UserPage() {
               onPress={handleConfirmResetTunnelFlow}
             >
               确认重置
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {/* 批量删除用户确认对话框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
+        isOpen={isBatchDeleteModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onClose={onBatchDeleteModalClose}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            批量删除用户
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-default-600 mb-3">
+              确认要删除以下 {batchDeleteUserList.length} 个用户吗？此操作不可恢复。
+            </p>
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+              {batchDeleteUserList.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-2 bg-default-50 dark:bg-default-100/10 rounded-lg"
+                >
+                  <div>
+                    <span className="text-sm font-medium text-foreground">
+                      {user.name || user.user}
+                    </span>
+                    <span className="text-xs text-default-500 ml-2">
+                      @{user.user}
+                    </span>
+                  </div>
+                  <div
+                    className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${
+                      user.status === 1
+                        ? "bg-success-500/10 text-success-600 dark:text-success-400"
+                        : "bg-danger-500/10 text-danger-600 dark:text-danger-400"
+                    }`}
+                  >
+                    {user.status === 1 ? "正常" : "禁用"}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Alert
+              className="mt-4"
+              color="danger"
+              description="删除后将同时删除该用户的所有隧道权限和相关配置"
+              title="警告"
+              variant="flat"
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={onBatchDeleteModalClose}>
+              取消
+            </Button>
+            <Button
+              color="danger"
+              isLoading={batchOperationLoading.delete}
+              onPress={handleConfirmBatchDelete}
+            >
+              确认删除
             </Button>
           </ModalFooter>
         </ModalContent>

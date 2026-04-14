@@ -581,6 +581,18 @@ export const assignMonitorPermission = (userId: number) =>
 export const removeMonitorPermission = (userId: number) =>
   Network.post("/monitor/permission/remove", { userId });
 
+export const batchAssignMonitorPermission = (userIds: number[]) =>
+  Network.post("/monitor/permission/batch-assign", { userIds });
+
+export const batchRemoveMonitorPermission = (userIds: number[]) =>
+  Network.post("/monitor/permission/batch-remove", { userIds });
+
+export const batchDeleteUsers = (ids: number[]) =>
+  Network.post("/user/batch-delete", { ids });
+
+export const batchResetUserFlow = (ids: number[]) =>
+  Network.post("/user/batch-reset", { ids });
+
 // ─── Tunnel List Grouping ────────────────────────────────────────────
 
 export const getTunnelListList = () =>

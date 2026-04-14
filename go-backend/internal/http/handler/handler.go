@@ -140,7 +140,9 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/user/create", h.userCreate)
 	mux.HandleFunc("/api/v1/user/update", h.userUpdate)
 	mux.HandleFunc("/api/v1/user/delete", h.userDelete)
+	mux.HandleFunc("/api/v1/user/batch-delete", h.userBatchDelete)
 	mux.HandleFunc("/api/v1/user/reset", h.userResetFlow)
+	mux.HandleFunc("/api/v1/user/batch-reset", h.userBatchResetFlow)
 	mux.HandleFunc("/api/v1/user/quota/reset", h.userQuotaReset)
 	mux.HandleFunc("/api/v1/user/groups", h.userGroups)
 	mux.HandleFunc("/api/v1/config/get", h.getConfigByName)
@@ -279,6 +281,8 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/monitor/permission/list", h.monitorPermissionList)
 	mux.HandleFunc("/api/v1/monitor/permission/assign", h.monitorPermissionAssign)
 	mux.HandleFunc("/api/v1/monitor/permission/remove", h.monitorPermissionRemove)
+	mux.HandleFunc("/api/v1/monitor/permission/batch-assign", h.monitorPermissionBatchAssign)
+	mux.HandleFunc("/api/v1/monitor/permission/batch-remove", h.monitorPermissionBatchRemove)
 
 	// Node group and tag management
 	mux.HandleFunc("/api/v1/node-group/list", h.nodeGroupHandler.list)

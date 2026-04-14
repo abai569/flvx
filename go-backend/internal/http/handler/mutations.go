@@ -290,6 +290,126 @@ func (h *Handler) userResetFlow(w http.ResponseWriter, r *http.Request) {
 	response.WriteJSON(w, response.OKEmpty())
 }
 
+func (h *Handler) userBatchDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.IDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	successCount := 0
+	failCount := 0
+
+	for _, id := range req.IDs {
+		roleID, err := h.repo.GetUserRoleID(id)
+		if err != nil || roleID == 0 {
+			failCount++
+			continue
+		}
+
+		if err := h.repo.DeleteUserCascade(id); err != nil {
+			failCount++
+		} else {
+			successCount++
+		}
+	}
+
+	response.WriteJSON(w, response.OK(map[string]int{
+		"successCount": successCount,
+		"failCount":    failCount,
+	}))
+}
+
+func (h *Handler) userBatchResetFlow(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.IDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	resetTime := time.Now().UnixMilli()
+	successCount := 0
+
+	for _, id := range req.IDs {
+		h.repo.ResetUserFlowByUser(id, resetTime)
+		successCount++
+	}
+
+	response.WriteJSON(w, response.OK(map[string]int{
+		"successCount": successCount,
+		"failCount":    0,
+	}))
+}
+
+func (h *Handler) monitorPermissionBatchAssign(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		UserIDs []int64 `json:"userIds"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.UserIDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	successCount := 0
+	for _, userID := range req.UserIDs {
+		if err := h.repo.InsertMonitorPermission(userID, now); err == nil {
+			successCount++
+		}
+	}
+
+	response.WriteJSON(w, response.OK(map[string]int{
+		"successCount": successCount,
+		"failCount":    len(req.UserIDs) - successCount,
+	}))
+}
+
+func (h *Handler) monitorPermissionBatchRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		UserIDs []int64 `json:"userIds"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.UserIDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	successCount := 0
+	for _, userID := range req.UserIDs {
+		if err := h.repo.DeleteMonitorPermission(userID); err == nil {
+			successCount++
+		}
+	}
+
+	response.WriteJSON(w, response.OK(map[string]int{
+		"successCount": successCount,
+		"failCount":    len(req.UserIDs) - successCount,
+	}))
+}
+
 func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
