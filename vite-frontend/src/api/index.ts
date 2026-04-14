@@ -593,6 +593,9 @@ export const batchDeleteUsers = (ids: number[]) =>
 export const batchResetUserFlow = (ids: number[]) =>
   Network.post("/user/batch-reset", { ids });
 
+export const updateUserOrder = (users: Array<{ id: number; inx: number }>) =>
+  Network.post("/user/update-order", { users });
+
 // ─── Tunnel List Grouping ────────────────────────────────────────────
 
 export const getTunnelListList = () =>

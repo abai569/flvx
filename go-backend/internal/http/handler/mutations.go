@@ -355,6 +355,27 @@ func (h *Handler) userBatchResetFlow(w http.ResponseWriter, r *http.Request) {
 	}))
 }
 
+func (h *Handler) userUpdateOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	var req struct {
+		Users []struct {
+			ID  int64 `json:"id"`
+			Inx int   `json:"inx"`
+		} `json:"users"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	for _, u := range req.Users {
+		h.repo.UpdateUserOrder(u.ID, u.Inx, time.Now().UnixMilli())
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
 func (h *Handler) monitorPermissionBatchAssign(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))

@@ -21,6 +21,7 @@ type User struct {
 	OutFlow       int64         `gorm:"column:out_flow;not null;default:0"`
 	FlowResetTime int64         `gorm:"column:flow_reset_time;not null"`
 	Num           int           `gorm:"not null"`
+	Inx           int           `gorm:"column:inx;default:0"` // 排序索引
 	CreatedTime   int64         `gorm:"column:created_time;not null"`
 	UpdatedTime   sql.NullInt64 `gorm:"column:updated_time"`
 	Status        int           `gorm:"not null"`

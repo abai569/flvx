@@ -388,6 +388,18 @@ func (r *Repository) UpdateNodeOrder(nodeID int64, inx int, now int64) {
 		}).Error
 }
 
+func (r *Repository) UpdateUserOrder(userID int64, inx int, now int64) {
+	if r == nil || r.db == nil {
+		return
+	}
+	_ = r.db.Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"inx":          inx,
+			"updated_time": sql.NullInt64{Int64: now, Valid: true},
+		}).Error
+}
+
 func (r *Repository) UpdateNodeExpiryReminderDismissed(nodeID int64, dismissed int) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")

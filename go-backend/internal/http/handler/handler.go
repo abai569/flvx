@@ -144,6 +144,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/user/reset", h.userResetFlow)
 	mux.HandleFunc("/api/v1/user/batch-reset", h.userBatchResetFlow)
 	mux.HandleFunc("/api/v1/user/quota/reset", h.userQuotaReset)
+	mux.HandleFunc("/api/v1/user/update-order", h.userUpdateOrder)
 	mux.HandleFunc("/api/v1/user/groups", h.userGroups)
 	mux.HandleFunc("/api/v1/config/get", h.getConfigByName)
 	mux.HandleFunc("/api/v1/config/list", h.getConfigs)
