@@ -78,8 +78,6 @@ import {
   assignMonitorPermission,
   removeMonitorPermission,
   getUserGroups,
-  batchAssignMonitorPermission,
-  batchRemoveMonitorPermission,
   batchDeleteUsers,
   batchResetUserFlow,
   updateUserOrder,
@@ -1076,51 +1074,6 @@ export default function UserPage() {
     }
   };
   // 批量操作函数
-  const handleBatchToggleMonitor = async () => {
-    const toEnable = Array.from(selectedUserIds).filter(
-      (id) => !monitorPermissionUserIds.has(id),
-    );
-    const toDisable = Array.from(selectedUserIds).filter((id) =>
-      monitorPermissionUserIds.has(id),
-    );
-
-    setBatchOperationLoading((prev) => ({ ...prev, monitor: true }));
-    try {
-      let successCount = 0;
-      let failCount = 0;
-
-      if (toEnable.length > 0) {
-        const response = await batchAssignMonitorPermission(toEnable);
-        if (response.code === 0) {
-          successCount += (response.data as any)?.successCount || 0;
-          failCount += (response.data as any)?.failCount || 0;
-        }
-      }
-      if (toDisable.length > 0) {
-        const response = await batchRemoveMonitorPermission(toDisable);
-        if (response.code === 0) {
-          successCount += (response.data as any)?.successCount || 0;
-          failCount += (response.data as any)?.failCount || 0;
-        }
-      }
-
-      if (failCount === 0) {
-        toast.success(
-          `监控权限操作成功：开启 ${toEnable.length} 个，关闭 ${toDisable.length} 个`,
-        );
-      } else {
-        toast.success(
-          `监控权限操作完成：成功 ${successCount} 个，失败 ${failCount} 个`,
-        );
-      }
-      await loadMonitorPermissions();
-      setSelectedUserIds(new Set());
-    } catch {
-      toast.error("批量监控操作失败");
-    } finally {
-      setBatchOperationLoading((prev) => ({ ...prev, monitor: false }));
-    }
-  };
 
   const handleBatchResetFlow = async () => {
     setBatchOperationLoading((prev) => ({ ...prev, reset: true }));
@@ -1268,11 +1221,11 @@ export default function UserPage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
-      <div className="flex flex-row items-center justify-between mb-6 gap-3">
-        <div className="flex-1 max-w-sm flex items-center gap-2">
+      <div className="flex flex-row items-center mb-6 gap-3">
+        <div className="flex items-center gap-2">
           <SearchBar
             isVisible={isSearchVisible}
-            placeholder="搜索用户名"
+            placeholder="用户名/备注"
             value={searchKeyword}
             onChange={setSearchKeyword}
             onClose={() => {
@@ -1294,9 +1247,7 @@ export default function UserPage() {
         <div className="flex items-center gap-2">
           {batchMode ? (
             <>
-              <span className="text-sm text-danger-400 shrink-0">
-                已选 {selectedUserIds.size} 项
-              </span>
+              
               <Button
                 color="primary"
                 size="sm"
@@ -1313,7 +1264,7 @@ export default function UserPage() {
               >
                 清空
               </Button>
-              <Button
+              {/* <Button
                 color="success"
                 size="sm"
                 variant="flat"
@@ -1322,7 +1273,7 @@ export default function UserPage() {
                 onPress={handleBatchToggleMonitor}
               >
                 监控
-              </Button>
+              </Button> */}
               <Button
                 color="warning"
                 size="sm"
@@ -1343,6 +1294,9 @@ export default function UserPage() {
               >
                 删除
               </Button>
+              <span className="text-sm text-danger-400 shrink-0">
+                已选 {selectedUserIds.size} 项
+              </span>
             </>
           ) : (
             <>

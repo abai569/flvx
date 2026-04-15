@@ -426,7 +426,8 @@ export function NodeListView({
   handleCopyAutoInstallCommand,
 }: NodeListViewProps) {
   const isAllSelected =
-    displayNodes.length > 0 && selectedIds.size === displayNodes.length;
+    displayNodes.length > 0 &&
+    displayNodes.every((node) => selectedIds.has(node.id));
 
   return (
     <Table

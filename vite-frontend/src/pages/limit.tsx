@@ -222,8 +222,8 @@ export default function LimitPage() {
 
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
-      <div className="flex flex-row items-center justify-between mb-6 gap-3">
-        <div className="flex-1 max-w-sm flex items-center gap-2">
+      <div className="flex flex-row items-center mb-6 gap-3">
+        <div className="flex items-center gap-2">
           <SearchBar
             isVisible={isSearchVisible}
             placeholder="搜索规则名称"

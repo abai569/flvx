@@ -1941,29 +1941,6 @@ export default function ForwardPage() {
     } catch { }
   };
   // 切换精简模式
-  const handleCompactModeToggle = async (checked: boolean) => {
-    try {
-      const res = await updateConfig(
-        FORWARD_COMPACT_MODE_CONFIG_KEY,
-        checked ? "true" : "false",
-      );
-
-      if (res.code === 0) {
-        setCompactMode(checked);
-        // 触发事件通知其他组件
-        window.dispatchEvent(
-          new CustomEvent(FORWARD_COMPACT_MODE_EVENT, {
-            detail: { enabled: checked },
-          }),
-        );
-        toast.success(checked ? "已启用精简模式" : "已关闭精简模式");
-      } else {
-        toast.error(res.msg || "切换失败");
-      }
-    } catch {
-      toast.error("切换失败，请重试");
-    }
-  };
   const applyForwardList = useCallback(
     async (items: Forward[]) => {
       const mergedForwards = await mergeFederationShareFlow(
@@ -4041,172 +4018,153 @@ export default function ForwardPage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
-      <div className="flex items-center justify-between mb-6 gap-3">
-        <div className="flex-1" />
-        <div className="min-h-9 min-w-0 max-w-full overflow-x-auto touch-pan-x">
-          <div className="flex min-h-9 w-max min-w-full items-center justify-end gap-2 whitespace-nowrap sm:gap-3 [&>*]:shrink-0">
-            {selectedIds.size > 0 ? (
-              <>
-                <span className="text-sm text-danger-400 shrink-0">
-                  已选 {selectedIds.size} 项
-                </span>
-                <Button
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={selectAll}
-                >
-                  全选
-                </Button>
-                <Button
-                  color="warning"
-                  size="sm"
-                  variant="flat"
-                  onPress={deselectAll}
-                >
-                  清空
-                </Button>
-                <Button
-                  color="secondary"
-                  isDisabled={selectedIds.size === 0}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchSpeedLimitModalOpen(true)}
-                >
-                  限速
-                </Button>
-                <Button
-                  color="danger"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchPauseLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleBatchPause}
-                >
-                  停用
-                </Button>
-                <Button
-                  color="success"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchResumeLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleBatchResume}
-                >
-                  启用
-                </Button>
-                <Button
-                  color="primary"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchRedeployLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleBatchRedeploy}
-                >
-                  下发
-                </Button>
-                <Button
-                  color="success"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchChangeTunnelLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchChangeTunnelModalOpen(true)}
-                >
-                  隧道
-                </Button>
-                <Button
-                  color="danger"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchDeleteLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchDeleteModalOpen(true)}
-                >
-                  删除
-                </Button>
-              </>
-            ) : (
-              <>
-                {/* 筛选按钮 */}
-                <Button
-                  className="whitespace-nowrap bg-red-100"
-                  color={activeFilterCount > 0 ? "secondary" : "danger"}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setIsSearchModalOpen(true)}
-                >
-                  筛选{activeFilterCount > 0 && `(${activeFilterCount})`}
-                </Button>
-                {activeFilterCount > 0 && (
-                  <Button
-                    color="warning"
-                    size="sm"
-                    variant="flat"
-                    onPress={() => {
-                      setSearchParams({
-                        name: "",
-                        userId: tokenUserId ? tokenUserId.toString() : "all",
-                        tunnelId: "all",
-                        speedLimitId: undefined,
-                        inPort: "",
-                        remoteAddr: "",
-                      });
-                    }}
-                  >
-                    重置
-                  </Button>
-                )}
-                {/* 显示模式切换按钮 */}
-                <Button
-                  color={viewMode === "grouped" ? "primary" : "warning"}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleViewModeChange}
-                >
-                  {viewMode === "grouped" ? "卡片" : "列表"}
-                </Button>
-                <Button
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={handleAdd}
-                >
-                  新增
-                </Button>
-                {/* 导入按钮 */}
+      <div className="flex items-center mb-6 gap-3">
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 ? (
+            <>
+              
+              <Button
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={selectAll}
+              >
+                全选
+              </Button>
+              <Button
+                color="warning"
+                size="sm"
+                variant="flat"
+                onPress={deselectAll}
+              >
+                清空
+              </Button>
+              <Button
+                color="secondary"
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchSpeedLimitModalOpen(true)}
+              >
+                限速
+              </Button>
+              <Button
+                color="danger"
+                isLoading={batchPauseLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleBatchPause}
+              >
+                停用
+              </Button>
+              <Button
+                color="success"
+                isLoading={batchResumeLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleBatchResume}
+              >
+                启用
+              </Button>
+              <Button
+                color="primary"
+                isLoading={batchRedeployLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleBatchRedeploy}
+              >
+                下发
+              </Button>
+              <Button
+                color="success"
+                isLoading={batchChangeTunnelLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchChangeTunnelModalOpen(true)}
+              >
+                隧道
+              </Button>
+              <Button
+                color="danger"
+                isLoading={batchDeleteLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchDeleteModalOpen(true)}
+              >
+                删除
+              </Button>
+              <span className="text-sm text-danger-400 shrink-0">
+                已选 {selectedIds.size} 项
+              </span>
+            </>
+          ) : (
+            <>
+              {/* 筛选按钮 */}
+              <Button
+                className="whitespace-nowrap bg-red-100"
+                color={activeFilterCount > 0 ? "secondary" : "danger"}
+                size="sm"
+                variant="flat"
+                onPress={() => setIsSearchModalOpen(true)}
+              >
+                筛选{activeFilterCount > 0 && `(${activeFilterCount})`}
+              </Button>
+              {activeFilterCount > 0 && (
                 <Button
                   color="warning"
                   size="sm"
                   variant="flat"
-                  onPress={handleImport}
+                  onPress={() => {
+                    setSearchParams({
+                      name: "",
+                      userId: tokenUserId ? tokenUserId.toString() : "all",
+                      tunnelId: "all",
+                      speedLimitId: undefined,
+                      inPort: "",
+                      remoteAddr: "",
+                    });
+                  }}
                 >
-                  导入
+                  重置
                 </Button>
-                {/* 导出按钮 */}
-                <Button
-                  color="success"
-                  isLoading={exportLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleExport}
-                >
-                  导出
-                </Button>
-                {/* 精简模式按钮 - 仅管理员可见 */}
-                {isAdmin && (
-                  <Button
-                    color={compactMode ? "secondary" : "success"}
-                    size="sm"
-                    variant="flat"
-                    onPress={() => handleCompactModeToggle(!compactMode)}
-                  >
-                    {compactMode ? "默认" : "精简"}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+              )}
+              {/* 显示模式切换按钮 */}
+              <Button
+                color={viewMode === "grouped" ? "primary" : "warning"}
+                size="sm"
+                variant="flat"
+                onPress={handleViewModeChange}
+              >
+                {viewMode === "grouped" ? "卡片" : "列表"}
+              </Button>
+              <Button
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={handleAdd}
+              >
+                新增
+              </Button>
+              {/* 导入按钮 */}
+              <Button
+                color="warning"
+                size="sm"
+                variant="flat"
+                onPress={handleImport}
+              >
+                导入
+              </Button>
+              {/* 导出按钮 */}
+              <Button
+                color="success"
+                isLoading={exportLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleExport}
+              >
+                导出
+              </Button>
+            </>
+          )}
         </div>
       </div>
       {batchProgress.active && (

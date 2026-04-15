@@ -2417,18 +2417,14 @@ export default function NodePage() {
             <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-black/10 dark:bg-white/20 px-1.5 py-0.5 rounded text-[11px] font-medium">{remoteNodes.length}</div>
           </Button>
         </div> */}
-        <div className="flex flex-row items-center justify-between gap-3 overflow-x-auto pb-1">
-          <div
-            className={`flex-1 max-w-sm flex items-center gap-2 shrink-0 ${
-              isSearchVisible ? "min-w-[200px]" : "min-w-0"
-            }`}
-          >
+        <div className="flex flex-row items-center gap-3 overflow-x-auto pb-1">
+          <div className="flex items-center gap-2">
             <SearchBar
               isVisible={isSearchVisible}
               placeholder={
                 activeTab === "remote"
-                  ? "搜索远程节点名称或IP"
-                  : "搜索本地节点名称或IP"
+                  ? "节点名称或 IP"
+                  : "节点名称或 IP"
               }
               value={currentSearchKeyword}
               onChange={setCurrentSearchKeyword}
@@ -2445,12 +2441,10 @@ export default function NodePage() {
               }}
             />
           </div>
-          <div className="flex h-8 items-center justify-end gap-2 whitespace-nowrap shrink-0">
+          <div className="flex h-8 items-center gap-2 whitespace-nowrap shrink-0">
             {selectMode ? (
               <>
-                <span className="text-sm text-danger-400 shrink-0">
-                  已选 {selectedIds.size} 项
-                </span>
+                
                 <Button
                   color="primary"
                   size="sm"
@@ -2495,6 +2489,9 @@ export default function NodePage() {
                 >
                   删除
                 </Button>
+                <span className="text-sm text-danger-400 shrink-0">
+                  已选 {selectedIds.size} 项
+                </span>
               </>
             ) : (
               <>

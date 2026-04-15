@@ -1838,11 +1838,11 @@ export default function TunnelPage() {
 
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
-      <div className="flex flex-row items-center justify-between mb-6 gap-3">
-        <div className="flex-1 max-w-sm flex items-center gap-2">
+      <div className="flex flex-row items-center mb-6 gap-3">
+        <div className="flex items-center gap-2">
           <SearchBar
             isVisible={isSearchVisible}
-            placeholder="搜索隧道名称或 IP"
+            placeholder="隧道名称或IP"
             value={searchKeyword}
             onChange={setSearchKeyword}
             onClose={() => setIsSearchVisible(false)}
@@ -1858,122 +1858,121 @@ export default function TunnelPage() {
             }}
           />
         </div>
-        <div className="flex items-center gap-2">
-          {(viewMode === "list" && selectedTunnelIds.size > 0) ||
-            (viewMode === "card" && selectedIds.size > 0) ? (
-            <>
-              <span className="text-sm text-danger-400 shrink-0">
-                已选{" "}
-                {viewMode === "list"
-                  ? selectedTunnelIds.size
-                  : selectedIds.size}{" "}
-                项
-              </span>
+        {(viewMode === "list" && selectedTunnelIds.size > 0) ||
+          (viewMode === "card" && selectedIds.size > 0) ? (
+          <>
+            
+            <Button
+              color="primary"
+              size="sm"
+              variant="flat"
+              onPress={viewMode === "list" ? selectAllTunnels : selectAll}
+            >
+              全选
+            </Button>
+            <Button
+              color="warning"
+              size="sm"
+              variant="flat"
+              onPress={viewMode === "list" ? deselectAllTunnels : deselectAll}
+            >
+              清空
+            </Button>
+            <Button
+              color="secondary"
+              isDisabled={
+                viewMode === "list"
+                  ? selectedTunnelIds.size === 0
+                  : selectedIds.size === 0
+              }
+              isLoading={batchLoading}
+              size="sm"
+              variant="flat"
+              onPress={handleBatchRedeploy}
+            >
+              下发
+            </Button>
+            <Button
+              color="danger"
+              isDisabled={
+                viewMode === "list"
+                  ? selectedTunnelIds.size === 0
+                  : selectedIds.size === 0
+              }
+              size="sm"
+              variant="flat"
+              onPress={handleOpenBatchDeleteModal}
+            >
+              删除
+            </Button>            
+            <span className="text-sm text-danger-400 shrink-0">
+              已选{" "}
+              {viewMode === "list"
+                ? selectedTunnelIds.size
+                : selectedIds.size}{" "}
+              项
+            </span>
+          </>
+        ) : (
+          <>
+            {/* 视图模式切换按钮 */}
+            <Button
+              className="whitespace-nowrap bg-red-100"
+              color={
+                tunnelFilterMode !== "all" || filterGroupId !== null
+                  ? "secondary"
+                  : "danger"
+              }
+              size="sm"
+              variant="flat"
+              onPress={() => setIsFilterModalOpen(true)}
+            >
+              筛选{" "}
+              {(tunnelFilterMode !== "all" || filterGroupId !== null) &&
+                "(1)"}
+            </Button>
+            {tunnelFilterMode !== "all" || filterGroupId !== null ? (
               <Button
-                color="primary"
+                color="warning"
                 size="sm"
                 variant="flat"
-                onPress={viewMode === "list" ? selectAllTunnels : selectAll}
+                onPress={() => {
+                  setFilterGroupId(null);
+                  setTunnelFilterMode("all");
+                  setIsFilterModalOpen(false);
+                }}
               >
-                全选
+                重置
               </Button>
-              <Button
-                color="secondary"
-                size="sm"
-                variant="flat"
-                onPress={viewMode === "list" ? deselectAllTunnels : deselectAll}
-              >
-                清空
-              </Button>
-              <Button
-                color="danger"
-                isDisabled={
-                  viewMode === "list"
-                    ? selectedTunnelIds.size === 0
-                    : selectedIds.size === 0
-                }
-                size="sm"
-                variant="flat"
-                onPress={handleOpenBatchDeleteModal}
-              >
-                删除
-              </Button>
-              <Button
-                color="primary"
-                isDisabled={
-                  viewMode === "list"
-                    ? selectedTunnelIds.size === 0
-                    : selectedIds.size === 0
-                }
-                isLoading={batchLoading}
-                size="sm"
-                variant="flat"
-                onPress={handleBatchRedeploy}
-              >
-                下发
-              </Button>
-            </>
-          ) : (
-            <>
-              {/* 视图模式切换按钮 */}
-              <Button
-                className="whitespace-nowrap bg-red-100"
-                color={
-                  tunnelFilterMode !== "all" || filterGroupId !== null
-                    ? "secondary"
-                    : "danger"
-                }
-                size="sm"
-                variant="flat"
-                onPress={() => setIsFilterModalOpen(true)}
-              >
-                筛选{" "}
-                {(tunnelFilterMode !== "all" || filterGroupId !== null) &&
-                  "(1)"}
-              </Button>
-              {tunnelFilterMode !== "all" || filterGroupId !== null ? (
-                <Button
-                  color="warning"
-                  size="sm"
-                  variant="flat"
-                  onPress={() => {
-                    setFilterGroupId(null);
-                    setTunnelFilterMode("all");
-                    setIsFilterModalOpen(false);
-                  }}
-                >
-                  重置
-                </Button>
-              ) : null}
-              <Button
-                color={viewMode === "card" ? "warning" : "primary"}
-                size="sm"
-                variant="flat"
-                onPress={() =>
-                  handleViewModeToggle(viewMode === "card" ? "list" : "card")
-                }
-              >
-                {viewMode === "card" ? "列表" : "卡片"}
-              </Button>
-              <Button
-                color="primary"
-                size="sm"
-                variant="flat"
-                onPress={handleAdd}
-              >
-                新增
-              </Button>
-              <Button
-                className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
-                size="sm"
-                variant="flat"
-                onPress={() => setGroupManagerOpen(true)}
-              >
-                分组
-              </Button>
-            </>
-          )}
-        </div>
+            ) : null}
+            <Button
+              color={viewMode === "card" ? "warning" : "primary"}
+              size="sm"
+              variant="flat"
+              onPress={() =>
+                handleViewModeToggle(viewMode === "card" ? "list" : "card")
+              }
+            >
+              {viewMode === "card" ? "列表" : "卡片"}
+            </Button>
+            <Button
+              color="primary"
+              size="sm"
+              variant="flat"
+              onPress={handleAdd}
+            >
+              新增
+            </Button>
+            <Button
+              className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
+              size="sm"
+              variant="flat"
+              onPress={() => setGroupManagerOpen(true)}
+            >
+              分组
+            </Button>
+          </>
+        )}
       </div>
       {batchProgress.active && (
         <div className="mb-4">
