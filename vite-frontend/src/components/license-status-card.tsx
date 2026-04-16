@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import { Card, CardBody } from '@/shadcn-bridge/heroui/card';
 import { Button } from '@/shadcn-bridge/heroui/button';
 import { Alert } from '@/shadcn-bridge/heroui/alert';
@@ -55,12 +54,12 @@ export function LicenseStatusCard() {
   return (
     <>
       {isExpiring && (
-        <Alert type="warning" className="mb-4">
+        <Alert color="warning" className="mb-4">
           授权即将过期，剩余 {daysRemaining} 天
         </Alert>
       )}
       {isExpired && (
-        <Alert type="danger" className="mb-4">
+        <Alert color="danger" className="mb-4">
           授权已过期，请立即续期
         </Alert>
       )}

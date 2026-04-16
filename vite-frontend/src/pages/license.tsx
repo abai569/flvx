@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
 import { AnimatedPage } from '@/components/animated-page';
 import { Card, CardBody, CardHeader } from '@/shadcn-bridge/heroui/card';
 import { Button } from '@/shadcn-bridge/heroui/button';
 import { Input } from '@/shadcn-bridge/heroui/input';
 import { Alert } from '@/shadcn-bridge/heroui/alert';
-import { Table } from '@/shadcn-bridge/heroui/table';
 import { licenseAPI, type LicenseStatus, type LicenseHistoryItem } from '@/api/license';
 
 export default function LicensePage() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [license, setLicense] = useState<LicenseStatus | null>(null);
   const [licenseKey, setLicenseKey] = useState('');
@@ -95,16 +92,6 @@ export default function LicensePage() {
     return new Date(timestamp * 1000).toLocaleString('zh-CN');
   };
 
-  const getActionLabel = (action: string) => {
-    const labels: Record<string, string> = {
-      activate: '激活',
-      renew: '续期',
-      deactivate: '停用',
-      expire: '过期',
-    };
-    return labels[action] || action;
-  };
-
   if (loading) {
     return <AnimatedPage>加载中...</AnimatedPage>;
   }
@@ -126,7 +113,7 @@ export default function LicensePage() {
           <CardBody className="space-y-3">
             {!license || !license.activated ? (
               <>
-                <Alert type="warning">
+                <Alert color="warning">
                   当前面板未激活，请先激活授权
                 </Alert>
                 <div className="pt-2">
@@ -199,12 +186,12 @@ export default function LicensePage() {
                 </div>
 
                 {isExpiring && (
-                  <Alert type="warning" className="mt-3">
+                  <Alert color="warning" className="mt-3">
                     授权即将过期，剩余 {daysRemaining} 天，请及时续期
                   </Alert>
                 )}
                 {isExpired && (
-                  <Alert type="danger" className="mt-3">
+                  <Alert color="danger" className="mt-3">
                     授权已过期，面板功能已受限，请立即续期
                   </Alert>
                 )}
@@ -222,26 +209,17 @@ export default function LicensePage() {
             {history.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-4">暂无记录</p>
             ) : (
-              <Table
-                columns={[
-                  { key: 'action', label: '操作' },
-                  { key: 'reason', label: '原因' },
-                  { key: 'created_time', label: '时间' },
-                ]}
-                rows={history}
-                renderCell={(item, key) => {
-                  switch (key) {
-                    case 'action':
-                      return getActionLabel(item.action);
-                    case 'reason':
-                      return item.reason || '-';
-                    case 'created_time':
-                      return formatDate(item.created_time);
-                    default:
-                      return item[key as keyof LicenseHistoryItem];
-                  }
-                }}
-              />
+              <div className="space-y-2">
+                {history.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center p-3 border border-default-200 dark:border-default-100 rounded-lg">
+                    <div>
+                      <p className="font-medium">{item.action}</p>
+                      <p className="text-sm text-gray-500">{item.reason || '-'}</p>
+                    </div>
+                    <p className="text-sm text-gray-500">{formatDate(item.created_time)}</p>
+                  </div>
+                ))}
+              </div>
             )}
           </CardBody>
         </Card>

@@ -5,7 +5,7 @@ export interface LicenseStatus {
   domain?: string;
   expired_at?: number;
   days_remaining?: number;
-  status: number; // 0=未激活 1=已激活 2=过期
+  status: number;
 }
 
 export interface LicenseHistoryItem {
@@ -19,24 +19,29 @@ export interface LicenseHistoryItem {
 }
 
 export const licenseAPI = {
-  getStatus: (): Promise<LicenseStatus> => {
-    return request.get('/api/v1/license/status');
+  getStatus: async (): Promise<LicenseStatus> => {
+    const response = await request.get('/api/v1/license/status');
+    return response.data as LicenseStatus;
   },
 
-  activate: (licenseKey: string): Promise<{ expired_at: number; days_remaining: number; domain: string }> => {
-    return request.post('/api/v1/license/activate', { license_key: licenseKey });
+  activate: async (licenseKey: string): Promise<{ expired_at: number; days_remaining: number; domain: string }> => {
+    const response = await request.post('/api/v1/license/activate', { license_key: licenseKey });
+    return response.data as { expired_at: number; days_remaining: number; domain: string };
   },
 
-  verify: (): Promise<{ message: string }> => {
-    return request.post('/api/v1/license/verify');
+  verify: async (): Promise<{ message: string }> => {
+    const response = await request.post('/api/v1/license/verify');
+    return response.data as { message: string };
   },
 
-  deactivate: (reason: string): Promise<{ message: string }> => {
-    return request.post('/api/v1/license/deactivate', { reason });
+  deactivate: async (reason: string): Promise<{ message: string }> => {
+    const response = await request.post('/api/v1/license/deactivate', { reason });
+    return response.data as { message: string };
   },
 
-  getHistory: (licenseId?: number): Promise<LicenseHistoryItem[]> => {
+  getHistory: async (licenseId?: number): Promise<LicenseHistoryItem[]> => {
     const params = licenseId ? { license_id: licenseId } : {};
-    return request.get('/api/v1/license/history', { params });
+    const response = await request.get('/api/v1/license/history', { params });
+    return response.data as LicenseHistoryItem[];
   },
 };

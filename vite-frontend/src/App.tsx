@@ -219,11 +219,5 @@ function App() {
     </Routes>
   );
 }
-        path="/panel-sharing"
-      />
-      <Route element={<SettingsPage />} path="/settings" />
-    </Routes>
-  );
-}
 
 export default App;
