@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -26,7 +27,14 @@ var (
 // LicenseCheck checks if the panel has a valid license
 func LicenseCheck(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip license check for public paths
 		if licenseCheckSkip[r.URL.Path] {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Skip license check in test environment
+		if os.Getenv("FLVX_SKIP_LICENSE_CHECK") == "true" {
 			next.ServeHTTP(w, r)
 			return
 		}
