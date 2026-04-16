@@ -12,6 +12,7 @@ import (
 
 	"go-backend/internal/app"
 	"go-backend/internal/config"
+	"go-backend/internal/http/middleware"
 )
 
 func main() {
@@ -25,6 +26,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create app: %v", err)
 	}
+
+	// Initialize license cache
+	go func() {
+		time.Sleep(2 * time.Second)
+		middleware.RefreshLicenseCache(a.Repo().DB())
+		log.Println("license cache initialized")
+
+		// Check license status every hour
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			middleware.RefreshLicenseCache(a.Repo().DB())
+		}
+	}()
 
 	errCh := make(chan error, 1)
 	go func() {
