@@ -200,8 +200,6 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.NodeGroup{},
 		&model.NodeTag{},
 		&model.NodeTagNode{},
-		&model.License{},
-		&model.LicenseHistory{},
 	}
 
 	if db.Dialector.Name() != "sqlite" {

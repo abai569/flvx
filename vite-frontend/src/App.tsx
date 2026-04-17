@@ -15,7 +15,6 @@ import LimitPage from "@/pages/limit";
 import ConfigPage from "@/pages/config";
 import PanelSharingPage from "@/pages/panel-sharing";
 import { SettingsPage } from "@/pages/settings";
-import LicensePage from "@/pages/license";
 import AdminLayout from "@/layouts/admin";
 import H5Layout from "@/layouts/h5";
 import { isLoggedIn } from "@/utils/auth";
@@ -200,22 +199,7 @@ function App() {
         }
         path="/panel-sharing"
       />
-      <Route
-        element={
-          <ProtectedRoute>
-            <LicensePage />
-          </ProtectedRoute>
-        }
-        path="/license"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <SettingsPage />
-          </ProtectedRoute>
-        }
-        path="/settings"
-      />
+      <Route element={<SettingsPage />} path="/settings" />
     </Routes>
   );
 }

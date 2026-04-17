@@ -74,8 +74,3 @@ func (a *App) Shutdown(ctx context.Context) error {
 	}
 	return closeErr
 }
-
-// Repo returns the repository instance
-func (a *App) Repo() *repo.Repository {
-	return a.repo
-}
