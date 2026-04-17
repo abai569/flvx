@@ -4098,33 +4098,6 @@ export default function ForwardPage() {
             </>
           ) : (
             <>
-              <Button
-                color="warning"
-                size="sm"
-                variant="flat"
-                onPress={handleImport}
-              >
-                导入
-              </Button>
-              {/* 导出按钮 */}
-              <Button
-                color="success"
-                isLoading={exportLoading}
-                size="sm"
-                variant="flat"
-                onPress={handleExport}
-              >
-                导出
-              </Button>
-              {/* 显示模式切换按钮 */}
-              <Button
-                color={viewMode === "grouped" ? "primary" : "warning"}
-                size="sm"
-                variant="flat"
-                onPress={handleViewModeChange}
-              >
-                {viewMode === "grouped" ? "卡片" : "列表"}
-              </Button>            
               {/* 筛选按钮 */}
               <Button
                 className="whitespace-nowrap bg-red-100"
@@ -4153,7 +4126,16 @@ export default function ForwardPage() {
                 >
                   重置
                 </Button>
-              )}              
+              )}
+              {/* 显示模式切换按钮 */}
+              <Button
+                color={viewMode === "grouped" ? "primary" : "warning"}
+                size="sm"
+                variant="flat"
+                onPress={handleViewModeChange}
+              >
+                {viewMode === "grouped" ? "卡片" : "列表"}
+              </Button>
               <Button
                 color="primary"
                 size="sm"
@@ -4163,7 +4145,25 @@ export default function ForwardPage() {
                 新增
               </Button>
               {/* 导入按钮 */}
-              </>
+              <Button
+                color="warning"
+                size="sm"
+                variant="flat"
+                onPress={handleImport}
+              >
+                导入
+              </Button>
+              {/* 导出按钮 */}
+              <Button
+                color="success"
+                isLoading={exportLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleExport}
+              >
+                导出
+              </Button>
+            </>
           )}
         </div>
       </div>

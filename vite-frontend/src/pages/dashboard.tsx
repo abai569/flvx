@@ -14,7 +14,6 @@ import { PageEmptyState, PageLoadingState } from "@/components/page-state";
 import { AnnouncementBanner } from "@/pages/dashboard/components/announcement-banner";
 import { FlowChartCard } from "@/pages/dashboard/components/flow-chart-card";
 import { MetricCard } from "@/pages/dashboard/components/metric-card";
-import { LicenseStatusCard } from "@/components/license-status-card";
 import {
   formatNodeRenewalTime,
   getNodeRenewalCycleLabel,
@@ -572,7 +571,6 @@ export default function DashboardPage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-2 lg:py-4">
       {announcement && <AnnouncementBanner announcement={announcement} />}
-      <LicenseStatusCard />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6 lg:mb-8">
         {/* 1. 总流量 */}
         <div className="order-3 lg:order-1 flex flex-col [&>*]:flex-1">
