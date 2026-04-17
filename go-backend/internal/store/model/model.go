@@ -839,3 +839,35 @@ type NodeTagNode struct {
 }
 
 func (NodeTagNode) TableName() string { return "node_tag_node" }
+
+// ─── License System ──────────────────────────────────────────────────
+
+// License maps to the "license" table for panel authorization.
+type License struct {
+	ID           int64  `gorm:"primaryKey;autoIncrement"`
+	Domain       string `gorm:"type:varchar(255);uniqueIndex"`
+	LicenseKey   string `gorm:"type:text;not null"`
+	IssuedAt     int64  `gorm:"not null"`
+	ExpiredAt    int64  `gorm:"not null"`
+	Months       int    `gorm:"not null"`
+	ActivatedAt  sql.NullInt64
+	Status       int `gorm:"default:0"` // 0=未激活 1=已激活 2=过期
+	LastVerifyAt sql.NullInt64
+	CreatedTime  int64
+	UpdatedTime  sql.NullInt64
+}
+
+func (License) TableName() string { return "license" }
+
+// LicenseHistory maps to the "license_history" table for audit logging.
+type LicenseHistory struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement"`
+	LicenseID   int64  `gorm:"column:license_id;not null;index"`
+	Domain      string `gorm:"type:varchar(255)"`
+	Action      string `gorm:"type:varchar(20)"` // activate/renew/expire/deactivate
+	Reason      string `gorm:"type:text"`
+	OperatorID  int64  `gorm:"column:operator_id"` // 0=系统
+	CreatedTime int64
+}
+
+func (LicenseHistory) TableName() string { return "license_history" }
