@@ -16,11 +16,17 @@ var (
 	licenseCache     *license.ValidateResult
 	licenseCacheMu   sync.RWMutex
 	licenseCheckSkip = map[string]bool{
-		"/api/v1/login":            true,
+		// 认证相关
+		"/api/v1/login":   true,
+		"/api/v1/captcha": true,
+		// License 相关
 		"/api/v1/license/activate": true,
 		"/api/v1/license/status":   true,
 		"/api/v1/license/verify":   true,
 		"/api/v1/license/history":  true,
+		// 系统信息
+		"/api/v1/system":       true,
+		"/api/v1/announcement": true,
 	}
 )
 

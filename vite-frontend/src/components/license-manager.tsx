@@ -149,20 +149,6 @@ export function LicenseManageModal({ isOpen, onClose }: LicenseManageModalProps)
     }
   };
 
-  const handleDeactivate = async () => {
-    if (!confirm('确定要停用当前授权吗？')) {
-      return;
-    }
-
-    try {
-      await licenseAPI.deactivate('用户主动停用');
-      toast.success('已停用授权');
-      await loadLicenseStatus();
-    } catch (error: any) {
-      toast.error(error.message || '停用失败');
-    }
-  };
-
   const formatDate = (timestamp: number) => {
     return new Date(timestamp * 1000).toLocaleString('zh-CN');
   };
@@ -242,19 +228,11 @@ export function LicenseManageModal({ isOpen, onClose }: LicenseManageModalProps)
                     验证授权
                   </Button>
                   <Button
-                    variant="light"
-                    color="danger"
-                    onPress={handleDeactivate}
-                    className="flex-1"
-                  >
-                    停用
-                  </Button>
-                  <Button
                     color="primary"
                     onPress={() => window.open('https://license.yourdomain.com', '_blank')}
                     className="flex-1"
                   >
-                    续期
+                    购买/续期
                   </Button>
                 </div>
 
