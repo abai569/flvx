@@ -1,0 +1,54 @@
+# Build directories
+**/dist/
+**/build/
+**/.vite/
+
+# Dependencies
+**/node_modules/
+
+# Go workspace
+go.work
+go.work.sum
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test data
+**/test.db
+**/*.db.backup
+
+# Private keys and secrets
+**/private_key.pem
+**/private.pem
+**/secret.key
+**/*.pem
+**/config/private_key.pem
+
+# License Server (private deployment)
+license-server/
+scripts/license-gen/
+
+# Docker volumes
+data/
+config/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
