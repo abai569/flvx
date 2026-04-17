@@ -128,10 +128,17 @@ export function LicenseManageModal({ isOpen, onClose }: LicenseManageModalProps)
 
     setActivating(true);
     try {
-      await licenseAPI.activate(licenseKey.trim());
-      toast.success('激活成功');
-      setLicenseKey('');
-      await loadLicenseStatus();
+      const result = await licenseAPI.activate(licenseKey.trim());
+      // 检查返回结果
+      if (result.code === 0) {
+        toast.success('激活成功');
+        setLicenseKey('');
+        await loadLicenseStatus();
+        // 关闭弹窗
+        onClose();
+      } else {
+        toast.error(result.msg || '激活失败');
+      }
     } catch (error: any) {
       toast.error(error.message || '激活失败');
     } finally {
