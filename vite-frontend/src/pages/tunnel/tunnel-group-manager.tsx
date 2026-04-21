@@ -171,9 +171,10 @@ export function TunnelGroupManager({
       }
 
       toast.success("保存成功");
-      handleCloseModal();
-      await loadAllData();
+      // 立即通知父组件刷新隧道列表（在关闭对话框之前）
       onGroupChange?.();
+      await loadAllData();
+      handleCloseModal();
     } catch (error: any) {
       console.error("保存操作崩溃:", error);
       toast.error(error?.msg || error?.message || "保存失败，请检查网络");
@@ -185,8 +186,9 @@ export function TunnelGroupManager({
     try {
       await deleteTunnelGroupNew(id);
       toast.success("删除成功");
-      await loadAllData();
+      // 立即通知父组件刷新隧道列表（在关闭对话框之前）
       onGroupChange?.();
+      await loadAllData();
     } catch (error) {
       toast.error("删除失败");
     }

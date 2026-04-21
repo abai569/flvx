@@ -1640,25 +1640,6 @@ export default function NodePage() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-  const nodeExpiryStats = useMemo(() => {
-    return nodeList.reduce(
-      (acc, node) => {
-        if (node.isRemote === 1) {
-          return acc;
-        }
-        const meta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
-
-        if (meta.state === "expired") acc.expired += 1;
-        if (meta.state === "expiringSoon") acc.expiringSoon += 1;
-        if (getNodeReminderEnabled(node)) {
-          acc.withExpiry += 1;
-        }
-
-        return acc;
-      },
-      { expired: 0, expiringSoon: 0, withExpiry: 0 },
-    );
-  }, [nodeList]);
   const sortedNodes = useMemo((): Node[] => {
     if (!nodeList || nodeList.length === 0) return [];
     const sortedByDb = [...nodeList].sort((a, b) => {
@@ -1773,6 +1754,22 @@ export default function NodePage() {
     () => (activeTab === "remote" ? filteredRemoteNodes : filteredLocalNodes),
     [activeTab, filteredLocalNodes, filteredRemoteNodes],
   );
+  const nodeExpiryStats = useMemo(() => {
+    return displayNodes.reduce(
+      (acc, node) => {
+        const meta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
+
+        if (meta.state === "expired") acc.expired += 1;
+        if (meta.state === "expiringSoon") acc.expiringSoon += 1;
+        if (getNodeReminderEnabled(node)) {
+          acc.withExpiry += 1;
+        }
+
+        return acc;
+      },
+      { expired: 0, expiringSoon: 0, withExpiry: 0 },
+    );
+  }, [displayNodes]);
   const canBatchUpgrade = activeTab === "local";
   const canUseExpiryFilter = activeTab === "local";
   const hasKeywordSearch = currentSearchKeyword.trim().length > 0;
@@ -2373,18 +2370,42 @@ export default function NodePage() {
               </Button>
             </div>
           </div>
-          {/* 备注 */}
-          {node.remark?.trim() && (
+          {/* 备注和到期提醒 */}
+          {(node.remark?.trim() || hasExpiryInfo) && (
             <div className="mt-2 pt-2 border-t border-divider">
-              <div className="flex items-center text-xs text-default-500">
-                <span className="font-medium text-red-500 flex-shrink-0">
-                  备注：
-                </span>
-                {/* 加上 title 属性，这样虽然截断了，但鼠标悬浮依然可以查看完整内容 */}
-                <span className="truncate ml-1" title={node.remark.trim()}>
-                  {node.remark.trim()}
-                </span>
-              </div>
+              {node.remark?.trim() && (
+                <div className="flex items-center text-xs text-default-500 mb-1.5">
+                  <span className="font-medium text-red-500 flex-shrink-0">
+                    备注：
+                  </span>
+                  <span className="truncate ml-1" title={node.remark.trim()}>
+                    {node.remark.trim()}
+                  </span>
+                </div>
+              )}
+              {hasExpiryInfo && (
+                <div className="flex items-center text-xs">
+                  <span className="font-medium text-default-600 flex-shrink-0 mr-1.5">
+                    到期提醒：
+                  </span>
+                  <span className="truncate text-default-700" title={formatNodeRenewalTime(expiryMeta.nextDueTime)}>
+                    {formatNodeRenewalTime(expiryMeta.nextDueTime)}
+                  </span>
+                  <span
+                    className={`flex-shrink-0 ml-1.5 text-[10px] h-4.5 px-1.5 rounded font-medium ${
+                      expiryMeta.tone === "danger"
+                        ? "bg-danger-500/10 text-danger-600 dark:text-danger-400"
+                        : expiryMeta.tone === "warning"
+                        ? "bg-warning-500/10 text-warning-600 dark:text-warning-400"
+                        : expiryMeta.tone === "success"
+                        ? "bg-success-500/10 text-success-600 dark:text-success-400"
+                        : "bg-default-500/10 text-default-500"
+                    }`}
+                  >
+                    {expiryMeta.label}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </CardBody>
@@ -2478,7 +2499,7 @@ export default function NodePage() {
                   variant="flat"
                   onPress={() => setBatchResetTrafficModalOpen(true)}
                 >
-                  重置
+                  归零
                 </Button>
                 <Button
                   color="danger"
@@ -2495,8 +2516,54 @@ export default function NodePage() {
               </>
             ) : (
               <>
+                {/* 卡片视图切换按钮 */}
+                <Button
+                  color={
+                    viewMode === "grid"
+                      ? "primary"
+                      : viewMode === "list"
+                        ? "warning"
+                        : "secondary"
+                  }
+                  size="sm"
+                  variant="flat"
+                  onPress={() => {
+                    // 当前是分组 (grouped) -> 切换到列表 (list)
+                    // 当前是列表 (list) -> 切换到卡片 (grid)
+                    // 当前是卡片 (grid) -> 切换到分组 (grouped)
+                    if (viewMode === "grouped") setViewMode("list");
+                    else if (viewMode === "list") setViewMode("grid");
+                    else setViewMode("grouped");
+                  }}
+                >
+                  {/* 按钮显示的是"下一个要切换到的视图"的名称 */}
+                  {viewMode === "grouped"
+                    ? "列表"
+                    : viewMode === "list"
+                      ? "卡片"
+                      : "默认"}
+                </Button>
+                {/* 分组管理按钮 */}
+                <Button
+                  className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setGroupManagerOpen(true)}
+                >
+                  分组
+                </Button>
+                {/* 新增按钮 */}
+                <Button
+                  color="primary"
+                  size="sm"
+                  variant="flat"
+                  onPress={handleAdd}
+                >
+                  新增
+                </Button>
+                {/* 筛选按钮 */}
                 <div className="flex items-center gap-2">
-                  <Button
+                  {/* <Button
                     className="whitespace-nowrap bg-red-100"
                     color={
                       (canUseExpiryFilter && nodeFilterMode !== "all") ||
@@ -2518,7 +2585,7 @@ export default function NodePage() {
                     {((canUseExpiryFilter && nodeFilterMode !== "all") ||
                       filterGroupId !== null) &&
                       `(${[canUseExpiryFilter && nodeFilterMode !== "all", filterGroupId !== null].filter(Boolean).length})`}
-                  </Button>
+                  </Button> */}
                   {((canUseExpiryFilter && nodeFilterMode !== "all") ||
                     filterGroupId !== null) && (
                     <Button
@@ -2533,49 +2600,7 @@ export default function NodePage() {
                       重置
                     </Button>
                   )}
-                </div>
-                <Button
-                  color={
-                    viewMode === "grid"
-                      ? "warning"
-                      : viewMode === "list"
-                        ? "primary"
-                        : "secondary"
-                  }
-                  size="sm"
-                  variant="flat"
-                  onPress={() => {
-                    // 当前是分组(grouped) -> 切换到列表(list)
-                    // 当前是列表(list) -> 切换到卡片(grid)
-                    // 当前是卡片(grid) -> 切换到分组(grouped)
-                    if (viewMode === "grouped") setViewMode("list");
-                    else if (viewMode === "list") setViewMode("grid");
-                    else setViewMode("grouped");
-                  }}
-                >
-                  {/* 按钮显示的是"下一个要切换到的视图"的名称 */}
-                  {viewMode === "grouped"
-                    ? "列表"
-                    : viewMode === "list"
-                      ? "卡片"
-                      : "默认"}
-                </Button>
-                <Button
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={handleAdd}
-                >
-                  新增
-                </Button>
-                <Button
-                  className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setGroupManagerOpen(true)}
-                >
-                  分组
-                </Button>
+                </div>                
               </>
             )}
           </div>
@@ -2734,13 +2759,17 @@ export default function NodePage() {
                                   handleCopyOverseasInstallCommand
                                 }
                                 handleDelete={handleDelete}
+                                handleDismissExpiryReminder={handleDismissExpiryReminder}
                                 handleEdit={handleEdit}
+                                nodeExpiryStats={nodeExpiryStats}
+                                nodeFilterMode={nodeFilterMode}
                                 nodeGroups={nodeGroups}
                                 openInstallSelector={openInstallSelector}
                                 openUpgradeModal={openUpgradeModal}
                                 realtimeNodeMetrics={realtimeNodeMetrics}
                                 selectedIds={selectedIds}
                                 setFilterGroupId={setFilterGroupId}
+                                setNodeFilterMode={setNodeFilterMode}
                                 toggleSelect={toggleSelect}
                                 toggleSelectAll={(isSelected: boolean) => {
                                   if (isSelected) {
@@ -2796,13 +2825,17 @@ export default function NodePage() {
                     handleCopyOverseasInstallCommand
                   }
                   handleDelete={handleDelete}
+                  handleDismissExpiryReminder={handleDismissExpiryReminder}
                   handleEdit={handleEdit}
+                  nodeExpiryStats={nodeExpiryStats}
+                  nodeFilterMode={nodeFilterMode}
                   nodeGroups={nodeGroups}
                   openInstallSelector={openInstallSelector}
                   openUpgradeModal={openUpgradeModal}
                   realtimeNodeMetrics={realtimeNodeMetrics}
                   selectedIds={selectedIds}
                   setFilterGroupId={setFilterGroupId}
+                  setNodeFilterMode={setNodeFilterMode}
                   toggleSelect={toggleSelect}
                   toggleSelectAll={handleSelectAllToggle}
                   upgradeProgress={upgradeProgress}
@@ -3683,55 +3716,6 @@ export default function NodePage() {
               </ModalHeader>
               <ModalBody>
                 <div className="flex flex-col gap-4 py-2">
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-medium">按分组筛选</p>
-                    <Select
-                      aria-label="按分组筛选"
-                      className="w-full"
-                      selectedKeys={
-                        filterGroupId !== null
-                          ? [String(filterGroupId)]
-                          : ["all"]
-                      }
-                      variant="bordered"
-                      onSelectionChange={(keys) => {
-                        const selected = Array.from(keys)[0] as string;
-
-                        setFilterGroupId(
-                          selected === "all"
-                            ? null
-                            : selected === "ungrouped"
-                              ? -1
-                              : parseInt(selected),
-                        );
-                      }}
-                    >
-                      <SelectItem key="all">全部分组</SelectItem>
-                      <SelectItem key="ungrouped">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-gray-300" />
-                          <span>未分组</span>
-                        </div>
-                      </SelectItem>
-                      {nodeGroups.map((group) => (
-                        <SelectItem
-                          key={group.id.toString()}
-                          textValue={group.name}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: group.color }}
-                            />
-                            <span>{group.name}</span>
-                            <span className="text-default-400 text-xs ml-auto">
-                              {group.nodeCount}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  </div>
                   <div className="flex flex-col gap-2">
                     <p className="text-sm font-medium">按到期状态筛选</p>
                     <Select

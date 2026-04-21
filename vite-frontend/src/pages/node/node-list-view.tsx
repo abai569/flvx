@@ -3,8 +3,10 @@ import type { NodeSystemInfo } from "./system-info";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useState } from "react";
 
 import { getConnectionStatusMeta } from "./display";
+import { getNodeRenewalSnapshot, formatNodeRenewalTime } from "./renewal";
 
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -86,10 +88,15 @@ interface NodeListViewProps {
   nodeGroups: any[];
   filterGroupId: number | null;
   setFilterGroupId: (id: number | null) => void;
+  handleDismissExpiryReminder?: (nodeId: number) => void;
   // 新增三种对接方式的处理函数
   handleCopyOverseasInstallCommand?: (node: Node) => void;
   handleCopyOfflineInstallCommand?: (node: Node) => void;
   handleCopyAutoInstallCommand?: (node: Node) => void;
+  // 到期筛选相关
+  nodeFilterMode?: any;
+  setNodeFilterMode?: (mode: any) => void;
+  nodeExpiryStats?: any;
 }
 function SortableTableRow({
   node,
@@ -103,10 +110,12 @@ function SortableTableRow({
   handleDelete,
   formatTraffic,
   nodeGroups,
+  handleDismissExpiryReminder,
   handleCopyOverseasInstallCommand,
   handleCopyOfflineInstallCommand,
   handleCopyAutoInstallCommand,
 }: any) {
+  const [expiryPopoverOpen, setExpiryPopoverOpen] = useState(false);
   const {
     setNodeRef,
     transform,
@@ -125,6 +134,41 @@ function SortableTableRow({
     : "";
   const isRemoteNode = node.isRemote === 1;
   const connectionStatusMeta = getConnectionStatusMeta(node.connectionStatus);
+  const expiryMeta = getNodeRenewalSnapshot(node.expiryTime, node.renewalCycle, 7);
+  const hasExpiryInfo = Boolean(
+    node.expiryTime &&
+      node.expiryTime > 0 &&
+      node.renewalCycle &&
+      (node.expiryReminderDismissed !== 1 ||
+        (node.expiryReminderDismissedUntil &&
+          node.expiryReminderDismissedUntil * 1000 < Date.now())),
+  );
+  const getExpiryChipProps = () => {
+    if (expiryMeta.state === "expired") {
+      return {
+        color: "danger" as const,
+        className: "bg-danger-500/10 text-danger-600 dark:text-danger-400",
+        label: expiryMeta.label,
+      };
+    }
+    if (expiryMeta.state === "dueSoon") {
+      return {
+        color: "warning" as const,
+        className: "bg-warning-500/10 text-warning-600 dark:text-warning-400",
+        label: expiryMeta.label,
+      };
+    }
+    if (expiryMeta.state === "scheduled") {
+      return {
+        color: "success" as const,
+        className: "bg-success-500/10 text-success-600 dark:text-success-400",
+        label: expiryMeta.label,
+      };
+    }
+
+    return null;
+  };
+  const expiryChipProps = hasExpiryInfo ? getExpiryChipProps() : null;
 
   return (
     <TableRow
@@ -333,6 +377,75 @@ function SortableTableRow({
         )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        {hasExpiryInfo && expiryChipProps ? (
+          <div className="relative">
+            <button
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all ${expiryChipProps.className} ${expiryPopoverOpen ? "border-default-400 shadow-sm" : "border-transparent hover:border-default-300"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpiryPopoverOpen(!expiryPopoverOpen);
+              }}
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+              <span className="text-xs font-medium">{expiryChipProps.label}</span>
+            </button>
+            {expiryPopoverOpen && (
+              <div
+                className="absolute right-0 top-full mt-1.5 z-50 w-64 rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.nativeEvent.stopImmediatePropagation();
+                }}
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-medium text-default-500">
+                      到期提醒
+                    </div>
+                    <button
+                      className="text-[10px] text-default-400 hover:text-default-600 transition-colors"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.nativeEvent.stopImmediatePropagation();
+                        handleDismissExpiryReminder?.(node.id);
+                        setExpiryPopoverOpen(false);
+                      }}
+                    >
+                      关闭提醒
+                    </button>
+                  </div>
+                  <div className="rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700">
+                    {formatNodeRenewalTime(expiryMeta.nextDueTime)}{" "}
+                    <span
+                      className={`text-[10px] h-5 px-1.5 ml-1 inline-flex items-center justify-center rounded font-medium ${expiryChipProps.className}`}
+                    >
+                      {expiryChipProps.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <span className="text-sm text-default-400">-</span>
+        )}
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex justify-start gap-1">
           {!isRemoteNode && (
             <>
@@ -421,9 +534,13 @@ export function NodeListView({
   nodeGroups,
   filterGroupId,
   setFilterGroupId,
+  handleDismissExpiryReminder,
   handleCopyOverseasInstallCommand,
   handleCopyOfflineInstallCommand,
   handleCopyAutoInstallCommand,
+  nodeFilterMode,
+  setNodeFilterMode,
+  nodeExpiryStats,
 }: NodeListViewProps) {
   const isAllSelected =
     displayNodes.length > 0 &&
@@ -533,6 +650,40 @@ export function NodeListView({
         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
           备注
         </TableColumn>
+        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+          <Select
+            aria-label="按到期状态筛选"
+            className="w-full min-w-[160px]"
+            classNames={{
+              trigger:
+                "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors",
+              value:
+                "text-sm text-default-600 font-semibold uppercase tracking-wider p-0",
+              selectorIcon: "text-default-400 w-3.5 h-3.5 static m-0",
+              innerWrapper: "w-fit flex-none",
+              placeholder:
+                "text-sm text-default-600 font-semibold uppercase tracking-wider",
+            }}
+            placeholder="到期提醒"
+            selectedKeys={nodeFilterMode ? [nodeFilterMode] : []}
+            size="sm"
+            variant="flat"
+            onSelectionChange={(keys) => {
+              const selected = Array.from(keys)[0] as string | undefined;
+              setNodeFilterMode?.(selected || "all");
+            }}
+          >
+            <SelectItem key="expiringSoon">
+              7 天内续费 ({nodeExpiryStats?.expiringSoon || 0})
+            </SelectItem>
+            <SelectItem key="expired">
+              已逾期 ({nodeExpiryStats?.expired || 0})
+            </SelectItem>
+            <SelectItem key="withExpiry">
+              已启用续费提醒 ({nodeExpiryStats?.withExpiry || 0})
+            </SelectItem>
+          </Select>
+        </TableColumn>
         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[160px] text-left">
           操作
         </TableColumn>
@@ -553,6 +704,7 @@ export function NodeListView({
               handleDelete,
               formatTraffic,
               nodeGroups,
+              handleDismissExpiryReminder,
               handleCopyOverseasInstallCommand,
               handleCopyOfflineInstallCommand,
               handleCopyAutoInstallCommand,

@@ -346,20 +346,25 @@ export default function TunnelPage() {
 
     return stored === "list" || stored === "card" ? stored : "card";
   });
+  // 视图模式切换
+  const handleViewModeToggle = useCallback(() => {
+    const newMode = viewMode === "card" ? "list" : "card";
+    setViewMode(newMode);
+    localStorage.setItem(TUNNEL_VIEW_MODE_KEY, newMode);
+  }, [viewMode, setViewMode]);
   // 隧道分组状态
   const [tunnelGroupsNew, setTunnelGroupsNew] = useState<
     TunnelGroupNewApiItem[]
   >([]);
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
   // 筛选状态
-  const [tunnelFilterMode, setTunnelFilterMode] = useLocalStorageState<
+  const [tunnelFilterMode] = useLocalStorageState<
     "all" | "enabled" | "disabled"
   >("tunnel-filter-mode", "all");
   const [filterGroupId, setFilterGroupId] = useLocalStorageState<number | null>(
     "tunnel-filter-group-id",
     null,
   );
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   // 列表模式选中行
   const [selectedTunnelIds, setSelectedTunnelIds] = useState<Set<number>>(
     new Set(),
@@ -1610,11 +1615,6 @@ export default function TunnelPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-  // 视图模式切换
-  const handleViewModeToggle = useCallback((mode: "card" | "list") => {
-    setViewMode(mode);
-    localStorage.setItem(TUNNEL_VIEW_MODE_KEY, mode);
-  }, []);
   // 根据排序顺序获取隧道列表
   const sortedTunnels = useMemo((): Tunnel[] => {
     if (!tunnels || tunnels.length === 0) return [];
@@ -1917,52 +1917,14 @@ export default function TunnelPage() {
           <>
             {/* 视图模式切换按钮 */}
             <Button
-              className="whitespace-nowrap bg-red-100"
-              color={
-                tunnelFilterMode !== "all" || filterGroupId !== null
-                  ? "secondary"
-                  : "danger"
-              }
+              color={viewMode === "card" ? "primary" : "warning"}
               size="sm"
               variant="flat"
-              onPress={() => setIsFilterModalOpen(true)}
-            >
-              筛选{" "}
-              {(tunnelFilterMode !== "all" || filterGroupId !== null) &&
-                "(1)"}
-            </Button>
-            {tunnelFilterMode !== "all" || filterGroupId !== null ? (
-              <Button
-                color="warning"
-                size="sm"
-                variant="flat"
-                onPress={() => {
-                  setFilterGroupId(null);
-                  setTunnelFilterMode("all");
-                  setIsFilterModalOpen(false);
-                }}
-              >
-                重置
-              </Button>
-            ) : null}
-            <Button
-              color={viewMode === "card" ? "warning" : "primary"}
-              size="sm"
-              variant="flat"
-              onPress={() =>
-                handleViewModeToggle(viewMode === "card" ? "list" : "card")
-              }
+              onPress={() => handleViewModeToggle()}
             >
               {viewMode === "card" ? "列表" : "卡片"}
             </Button>
-            <Button
-              color="primary"
-              size="sm"
-              variant="flat"
-              onPress={handleAdd}
-            >
-              新增
-            </Button>
+            {/* 分组管理按钮 */}
             <Button
               className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
               size="sm"
@@ -1971,6 +1933,27 @@ export default function TunnelPage() {
             >
               分组
             </Button>
+            {/* 新增按钮 */}
+            <Button
+              color="primary"
+              size="sm"
+              variant="flat"
+              onPress={handleAdd}
+            >
+              新增
+            </Button>
+            {filterGroupId !== null && (
+              <Button
+                color="warning"
+                size="sm"
+                variant="flat"
+                onPress={() => {
+                  setFilterGroupId(null);
+                }}
+              >
+                重置
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -4575,102 +4558,12 @@ export default function TunnelPage() {
       {/* 分组管理组件 */}
       <TunnelGroupManager
         isOpen={groupManagerOpen}
-        onGroupChange={loadTunnelGroupsNew}
+        onGroupChange={() => {
+          // 分组变化时，同时刷新分组和隧道列表
+          refreshTunnelList(false);
+        }}
         onOpenChange={setGroupManagerOpen}
       />
-      {/* 筛选 Modal */}
-      <Modal
-        isOpen={isFilterModalOpen}
-        size="sm"
-        onOpenChange={setIsFilterModalOpen}
-      >
-        <ModalContent>
-          <ModalHeader>筛选条件</ModalHeader>
-          <ModalBody>
-            <div className="flex flex-col gap-4 py-2">
-              {/* 按分组筛选 */}
-              <div className="flex flex-col gap-2">
-                <p className="text-sm font-medium">按分组筛选</p>
-                <Select
-                  aria-label="按分组筛选"
-                  className="w-full"
-                  selectedKeys={
-                    filterGroupId !== null ? [String(filterGroupId)] : ["all"]
-                  }
-                  variant="bordered"
-                  onSelectionChange={(keys) => {
-                    const selected = Array.from(keys)[0] as string;
-
-                    if (selected === "all") {
-                      setFilterGroupId(null);
-                    } else if (selected === "-1") {
-                      setFilterGroupId(-1); // -1 表示未分组
-                    } else {
-                      setFilterGroupId(parseInt(selected));
-                    }
-                  }}
-                >
-                  <SelectItem key="all" textValue="全部分组">
-                    全部分组
-                  </SelectItem>
-                  <SelectItem key="-1" textValue="未分组">
-                    未分组
-                  </SelectItem>
-                  {tunnelGroupsNew.map((group) => (
-                    <SelectItem key={String(group.id)} textValue={group.name}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: group.color }}
-                        />
-                        <span>{group.name}</span>
-                        <span className="text-default-400 text-xs ml-auto">
-                          {group.tunnelCount}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </Select>
-              </div>
-              {/* 按状态筛选 */}
-              <div className="flex flex-col gap-2">
-                <p className="text-sm font-medium">按状态筛选</p>
-                <Select
-                  aria-label="按状态筛选"
-                  className="w-full"
-                  selectedKeys={[tunnelFilterMode]}
-                  variant="bordered"
-                  onSelectionChange={(keys) => {
-                    const selected = Array.from(keys)[0] as
-                      | "all"
-                      | "enabled"
-                      | "disabled";
-
-                    setTunnelFilterMode(selected);
-                  }}
-                >
-                  <SelectItem key="all">全部</SelectItem>
-                  <SelectItem key="enabled">正常</SelectItem>
-                  <SelectItem key="disabled">停用</SelectItem>
-                </Select>
-              </div>
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              color="primary"
-              variant="flat"
-              onPress={() => {
-                setFilterGroupId(null);
-                setTunnelFilterMode("all");
-                setIsFilterModalOpen(false);
-              }}
-            >
-              重置
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
       <BatchActionResultModal
         failures={batchResultModal.failures}
         isOpen={batchResultModal.open}

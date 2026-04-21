@@ -23,6 +23,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import { AnimatedPage } from "@/components/animated-page";
+import { SearchBar } from "@/components/search-bar";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -671,8 +672,6 @@ const SortableTableRow = ({
   handleEdit,
   handleDelete,
   handleDiagnose,
-  handleSetSpeedLimit,
-  getSpeedLimitName,
   formatFlow,
   isAdmin,
 }: any) => {
@@ -763,14 +762,6 @@ const SortableTableRow = ({
           {forward.name}
         </span>
       </TableCell>
-      {isAdmin && (
-        <TableCell className={rowBg}>
-          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
-            {" "}
-            {getSpeedLimitName(forward.speedId ?? null)}
-          </div>
-        </TableCell>
-      )}
       <TableCell className={rowBg}>
         <div className="flex items-center gap-1.5 overflow-hidden">
           <svg
@@ -924,30 +915,6 @@ const SortableTableRow = ({
               />
             </svg>
           </Button>
-          {isAdmin && (
-            <Button
-              isIconOnly
-              className="flex-shrink-0 min-w-[32px]"
-              color="secondary"
-              size="sm"
-              title="限速"
-              variant="flat"
-              onPress={() => handleSetSpeedLimit(forward)}
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="m12 14 4-4" />
-                <path d="M3.34 19a10 10 0 1 1 17.32 0" />
-              </svg>
-            </Button>
-          )}
           <Button
             isIconOnly
             className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
@@ -981,8 +948,6 @@ const SortableCompactTableRow = ({
   handleEdit,
   handleDelete,
   handleDiagnose,
-  handleSetSpeedLimit,
-  getSpeedLimitName,
   formatFlow,
   isAdmin,
 }: any) => {
@@ -1073,13 +1038,6 @@ const SortableCompactTableRow = ({
           {forward.name}
         </span>
       </TableCell>
-      {isAdmin && (
-        <TableCell className={rowBg}>
-          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
-            {getSpeedLimitName(forward.speedId ?? null)}
-          </div>
-        </TableCell>
-      )}
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex items-center">
           <span className="font-medium text-black text-sm">
@@ -1244,30 +1202,6 @@ const SortableCompactTableRow = ({
               />
             </svg>
           </Button>
-          {isAdmin && (
-            <Button
-              isIconOnly
-              className="flex-shrink-0 min-w-[32px]"
-              color="secondary"
-              size="sm"
-              title="限速"
-              variant="flat"
-              onPress={() => handleSetSpeedLimit(forward)}
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="m12 14 4-4" />
-                <path d="M3.34 19a10 10 0 1 1 17.32 0" />
-              </svg>
-            </Button>
-          )}
           <Button
             isIconOnly
             className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
@@ -1318,6 +1252,9 @@ export default function ForwardPage() {
     },
   );
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  // 工具栏搜索框状态
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState("");
   const activeFilterCount =
     (searchParams.name ? 1 : 0) +
     (searchParams.userId !== "all" &&
@@ -1445,15 +1382,6 @@ export default function ForwardPage() {
   const [collapsedTunnelGroups, setCollapsedTunnelGroups] =
     useState<ForwardGroupCollapsedMap>({});
   const [groupPreferenceHydrated, setGroupPreferenceHydrated] = useState(false);
-  // 限速相关状态
-  const [batchSpeedLimitModalOpen, setBatchSpeedLimitModalOpen] =
-    useState(false);
-  const [forwardToSetSpeedLimit, setForwardToSetSpeedLimit] =
-    useState<Forward | null>(null);
-  const [selectedSpeedLimitId, setSelectedSpeedLimitId] = useState<
-    number | null
-  >(null);
-  const [speedLimitLoading, setSpeedLimitLoading] = useState(false);
   const [advancedOptionsOpen, setAdvancedOptionsOpen] = useState(false);
   const parseNodeIPs = (node?: Node): string[] => {
     if (!node) {
@@ -2587,16 +2515,6 @@ export default function ForwardPage() {
       setDiagnosisLoading(false);
     }
   };
-  // 获取限速规则名称
-  const getSpeedLimitName = useCallback(
-    (speedId: number | null): string => {
-      if (speedId === null) return "不限速";
-      const limit = speedLimits.find((s) => s.id === speedId);
-
-      return limit ? `${limit.speed}M` : "不限速";
-    },
-    [speedLimits],
-  );
   // 格式化流量
   const formatFlow = (value: number): string => {
     if (value === 0) return "0 B";
@@ -2836,7 +2754,7 @@ export default function ForwardPage() {
               {
                 line,
                 success: false,
-                message: "格式错误：需要至少包含目标地址和规则名称",
+                message: "格式错误：需要至少包含落地地址和规则名称",
               },
               ...prev,
             ]);
@@ -2849,7 +2767,7 @@ export default function ForwardPage() {
               {
                 line,
                 success: false,
-                message: "目标地址和规则名称不能为空",
+                message: "落地地址和规则名称不能为空",
               },
               ...prev,
             ]);
@@ -2867,7 +2785,7 @@ export default function ForwardPage() {
                 line,
                 success: false,
                 message:
-                  "目标地址格式错误，应为 地址:端口 格式，多个地址用逗号分隔",
+                  "落地地址格式错误，应为 地址:端口 格式，多个地址用逗号分隔",
               },
               ...prev,
             ]);
@@ -3279,76 +3197,6 @@ export default function ForwardPage() {
       setBatchChangeTunnelLoading(false);
     }
   };
-  // 设置单条规则限速
-  const handleSetSpeedLimit = (forward: Forward) => {
-    setForwardToSetSpeedLimit(forward);
-    setSelectedSpeedLimitId(forward.speedId ?? null);
-    // speedLimitModalOpen 已删除
-  };
-  // 确认设置单条规则限速
-  const confirmSetSpeedLimit = async () => {
-    if (!forwardToSetSpeedLimit) return;
-    setSpeedLimitLoading(true);
-    try {
-      const res = await updateForward({
-        id: forwardToSetSpeedLimit.id,
-        speedId: selectedSpeedLimitId,
-      });
-
-      if (res.code === 0) {
-        toast.success("限速设置成功");
-        await refreshForwardList(false);
-      } else {
-        toast.error(res.msg || "设置失败");
-      }
-    } catch {
-      toast.error("设置异常，请重试");
-    } finally {
-      setSpeedLimitLoading(false);
-      // speedLimitModalOpen 已删除
-      setForwardToSetSpeedLimit(null);
-    }
-  };
-  // 确认批量设置限速
-  const confirmBatchSetSpeedLimit = async () => {
-    setSpeedLimitLoading(true);
-    setBatchProgress({
-      active: true,
-      label: `正在为 ${selectedIds.size} 项规则设置限速...`,
-      percent: 30,
-    });
-    try {
-      const forwardIds = Array.from(selectedIds);
-      let successCount = 0;
-
-      for (let i = 0; i < forwardIds.length; i++) {
-        const id = forwardIds[i];
-        const res = await updateForward({
-          id,
-          speedId: selectedSpeedLimitId,
-        });
-
-        if (res.code === 0) {
-          successCount++;
-        }
-        setBatchProgress({
-          active: true,
-          label: `正在设置限速... ${i + 1}/${forwardIds.length}`,
-          percent: Math.round(((i + 1) / forwardIds.length) * 100),
-        });
-      }
-      toast.success(
-        `成功设置 ${successCount}/${forwardIds.length} 项规则的限速`,
-      );
-      await refreshForwardList(false);
-    } catch {
-      toast.error("批量设置失败");
-    } finally {
-      setSpeedLimitLoading(false);
-      setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchSpeedLimitModalOpen(false);
-    }
-  };
   // 传感器配置 - 使用默认配置避免错误
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -3409,6 +3257,29 @@ export default function ForwardPage() {
         (f) => f.name && f.name.toLowerCase().includes(lowerName),
       );
     }
+    // 工具栏搜索框过滤（支持搜索规则名称、入口端口、落地地址、落地端口）
+    if (searchKeyword.trim()) {
+      const lowerKeyword = searchKeyword.toLowerCase();
+      const keywordPort = parseInt(searchKeyword.trim());
+
+      filteredForwards = filteredForwards.filter((f) => {
+        // 规则名称模糊匹配
+        const nameMatch = f.name && f.name.toLowerCase().includes(lowerKeyword);
+        // 入口端口精确匹配
+        const inPortMatch = !isNaN(keywordPort) && f.inPort === keywordPort;
+        // 落地地址模糊匹配
+        const remoteAddrMatch = f.remoteAddr && f.remoteAddr.toLowerCase().includes(lowerKeyword);
+        // 落地端口精确匹配（从 remoteAddr 中提取端口）
+        const remotePortMatch = (() => {
+          if (isNaN(keywordPort) || !f.remoteAddr) return false;
+          // 从 remoteAddr 中提取最后一个端口号（支持多个地址的情况）
+          const remotePort = f.remoteAddr.split(",")[0].match(/:(\d+)$/)?.[1];
+          return remotePort && parseInt(remotePort) === keywordPort;
+        })();
+
+        return nameMatch || inPortMatch || remoteAddrMatch || remotePortMatch;
+      });
+    }
     if (searchParams.inPort.trim()) {
       const targetPort = parseInt(searchParams.inPort.trim());
 
@@ -3468,7 +3339,7 @@ export default function ForwardPage() {
     }
 
     return sortedByDb;
-  }, [forwards, forwardOrder, searchParams]);
+  }, [forwards, forwardOrder, searchParams, searchKeyword]);
   const availableGroupData = useMemo(
     () => buildAvailableGroupData(forwards),
     [forwards],
@@ -3808,12 +3679,6 @@ export default function ForwardPage() {
               >
                 {forward.name}
               </h3>
-              {isAdmin && (
-                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
-                  {" "}
-                  {getSpeedLimitName(forward.speedId ?? null)}
-                </div>
-              )}
             </div>
             <div className="text-xs text-foreground font-bold truncate flex items-center mt-0.5">
               <span className="truncate">
@@ -3986,16 +3851,6 @@ export default function ForwardPage() {
             >
               诊断
             </Button>
-            {isAdmin && (
-              <Button
-                className="flex-1 min-h-8 font-bold flex-shrink-0 bg-secondary/10 text-secondary hover:bg-secondary/20"
-                size="sm"
-                variant="flat"
-                onPress={() => handleSetSpeedLimit(forward)}
-              >
-                限速
-              </Button>
-            )}
             <Button
               className="flex-1 min-h-8 font-bold flex-shrink-0"
               color="danger"
@@ -4022,7 +3877,7 @@ export default function ForwardPage() {
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 ? (
             <>
-              
+
               <Button
                 color="primary"
                 size="sm"
@@ -4038,14 +3893,6 @@ export default function ForwardPage() {
                 onPress={deselectAll}
               >
                 清空
-              </Button>
-              <Button
-                color="secondary"
-                size="sm"
-                variant="flat"
-                onPress={() => setBatchSpeedLimitModalOpen(true)}
-              >
-                限速
               </Button>
               <Button
                 color="danger"
@@ -4098,8 +3945,27 @@ export default function ForwardPage() {
             </>
           ) : (
             <>
+              {/* 工具栏搜索框 */}
+              <SearchBar
+                isVisible={isSearchVisible}
+                placeholder="规则名称IP端口"
+                value={searchKeyword}
+                onChange={setSearchKeyword}
+                onClose={() => setIsSearchVisible(false)}
+                onOpen={() => setIsSearchVisible(true)}
+              />
+              {/* 显示模式切换按钮 */}
               <Button
-                color="warning"
+                color={viewMode === "grouped" ? "warning" : "primary"}
+                size="sm"
+                variant="flat"
+                onPress={handleViewModeChange}
+              >
+                {viewMode === "grouped" ? "卡片" : "列表"}
+              </Button>
+              {/* 导入按钮 */}
+              <Button
+                color="secondary"
                 size="sm"
                 variant="flat"
                 onPress={handleImport}
@@ -4116,17 +3982,16 @@ export default function ForwardPage() {
               >
                 导出
               </Button>
-              {/* 显示模式切换按钮 */}
               <Button
-                color={viewMode === "grouped" ? "primary" : "warning"}
+                color="primary"
                 size="sm"
                 variant="flat"
-                onPress={handleViewModeChange}
+                onPress={handleAdd}
               >
-                {viewMode === "grouped" ? "卡片" : "列表"}
-              </Button>            
+                新增
+              </Button>
               {/* 筛选按钮 */}
-              <Button
+              {/* <Button
                 className="whitespace-nowrap bg-red-100"
                 color={activeFilterCount > 0 ? "secondary" : "danger"}
                 size="sm"
@@ -4134,7 +3999,7 @@ export default function ForwardPage() {
                 onPress={() => setIsSearchModalOpen(true)}
               >
                 筛选{activeFilterCount > 0 && `(${activeFilterCount})`}
-              </Button>
+              </Button> */}
               {activeFilterCount > 0 && (
                 <Button
                   color="warning"
@@ -4154,16 +4019,7 @@ export default function ForwardPage() {
                   重置
                 </Button>
               )}              
-              <Button
-                color="primary"
-                size="sm"
-                variant="flat"
-                onPress={handleAdd}
-              >
-                新增
-              </Button>
-              {/* 导入按钮 */}
-              </>
+            </>
           )}
         </div>
       </div>
@@ -4188,12 +4044,12 @@ export default function ForwardPage() {
         viewMode === "grouped" ? (
           sortedForwards.length > 0 ? (
             <>
-              <div className="flex items-center justify-between px-1 mb-3">
+              <div className="flex items-center justify-start px-1 mb-3">
                 <span className="text-sm font-semibold text-foreground">
-                  全部规则
+                  全部规则 
                 </span>
                 <span className="text-xs text-default-600">
-                  {sortedForwards.length} 条规则
+                  _{sortedForwards.length}个
                 </span>
               </div>
               <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
@@ -4274,65 +4130,6 @@ export default function ForwardPage() {
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
                           规则名
                         </TableColumn>
-                        {/* {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>} */}
-                        {isAdmin && (
-                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                            <Select
-                              aria-label="按限速规则筛选"
-                              classNames={{
-                                trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
-                                value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
-                                selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
-                                innerWrapper: "w-fit flex-none",
-                                // 🎯 修复2：必须加上 placeholder 的样式！不然默认的 placeholder 会缩水变形
-                                placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
-                              }}
-                              variant="flat"
-                              onSelectionChange={(keys) => {
-                                const key = Array.from(keys)[0] as string | undefined;
-                                setSearchParams?.((prev: any) => ({
-                                  ...prev,
-                                  // 保持你后端的处理习惯，全选传 undefined，其它透传
-                                  speedLimitId: (!key || key === "all") ? undefined : (key === "unlimited" ? "unlimited" : Number(key)),
-                                }));
-                              }}
-                              placeholder="限速规则"
-                              // 🎯 修复3：逻辑对齐。当没有选、或者选了 "all" 时，传入空数组 []，从而触发上面的 placeholder 显示
-                              selectedKeys={!searchParams?.speedLimitId ? [] : [String(searchParams.speedLimitId)]}
-                              size="sm"
-                              // 🎯 修复1：加上 min-w 撑开基础宽度，防止挤压
-                              className="w-full min-w-[100px]"
-                            >
-                              <SelectItem key="all" textValue="全部规则">
-                                全部规则
-                              </SelectItem>
-                              <SelectItem key="unlimited" textValue="不限速">
-                                不限速
-                              </SelectItem>
-                              {(availableSpeedLimits || []).map(
-                                (speedLimit: any) => (
-                                  <SelectItem
-                                    key={speedLimit.id.toString()}
-                                    textValue={
-                                      speedLimit.name ||
-                                      `限速${speedLimit.speed}M`
-                                    }
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span>
-                                        {speedLimit.name ||
-                                          `限速${speedLimit.speed}`}
-                                      </span>
-                                      <span className="text-default-400 text-xs">
-                                        ({speedLimit.speed}M)
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ),
-                              )}
-                            </Select>
-                          </TableColumn>
-                        )}
                         {/* <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道倍率</TableColumn> */}
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
                           <Select
@@ -4431,13 +4228,11 @@ export default function ForwardPage() {
                             formatInAddress={formatInAddress}
                             formatRemoteAddress={formatRemoteAddress}
                             forward={forward}
-                            getSpeedLimitName={getSpeedLimitName}
                             getStrategyDisplay={getStrategyDisplay}
                             handleDelete={handleDelete}
                             handleDiagnose={handleDiagnose}
                             handleEdit={handleEdit}
                             handleServiceToggle={handleServiceToggle}
-                            handleSetSpeedLimit={handleSetSpeedLimit}
                             hasMultipleAddresses={hasMultipleAddresses}
                             isAdmin={isAdmin}
                             selectMode={selectMode}
@@ -4466,12 +4261,12 @@ export default function ForwardPage() {
           )
         ) : sortedForwards.length > 0 ? (
           <>
-            <div className="flex items-center justify-between px-1 mb-3">
+            <div className="flex items-center justify-start px-1 mb-3">
               <span className="text-sm font-semibold text-foreground">
                 全部规则
               </span>
               <span className="text-xs text-default-600">
-                {sortedForwards.length} 条规则
+                _{sortedForwards.length}个
               </span>
             </div>
             <DndContext
@@ -4797,9 +4592,6 @@ export default function ForwardPage() {
                                               copyToClipboard={copyToClipboard}
                                               formatFlow={formatFlow}
                                               forward={forward}
-                                              getSpeedLimitName={
-                                                getSpeedLimitName
-                                              }
                                               getStrategyDisplay={
                                                 getStrategyDisplay
                                               }
@@ -4808,9 +4600,6 @@ export default function ForwardPage() {
                                               handleEdit={handleEdit}
                                               handleServiceToggle={
                                                 handleServiceToggle
-                                              }
-                                              handleSetSpeedLimit={
-                                                handleSetSpeedLimit
                                               }
                                               isAdmin={isAdmin}
                                               selectedIds={selectedIds}
@@ -4996,42 +4785,42 @@ export default function ForwardPage() {
               </ModalHeader>
               <ModalBody>
                 <div className="space-y-4 pb-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-                  <Input
-                    errorMessage={errors.name}
-                    isInvalid={!!errors.name}
-                    label="规则名称"
-                    placeholder="请输入规则名称"
-                    value={form.name}
-                    variant="bordered"
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                  />
-                  {/* 入口端口 */}
-                  <Input
-                    description={
-                      currentTunnelPortRange
-                        ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
-                        : "指定入口端口，留空则从节点可用端口中自动分配"
-                    }
-                    errorMessage={errors.inPort}
-                    isInvalid={!!errors.inPort}
-                    label="入口端口"
-                    placeholder="留空则自动分配可用端口"
-                    type="number"
-                    value={form.inPort !== null ? form.inPort.toString() : ""}
-                    variant="bordered"
-                    onChange={(e) => {
-                      const value = e.target.value;
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                    <Input
+                      errorMessage={errors.name}
+                      isInvalid={!!errors.name}
+                      label="规则名称"
+                      placeholder="请输入规则名称"
+                      value={form.name}
+                      variant="bordered"
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, name: e.target.value }))
+                      }
+                    />
+                    {/* 入口端口 */}
+                    <Input
+                      description={
+                        currentTunnelPortRange
+                          ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
+                          : "指定入口端口，留空则从节点可用端口中自动分配"
+                      }
+                      errorMessage={errors.inPort}
+                      isInvalid={!!errors.inPort}
+                      label="入口端口"
+                      placeholder="留空则自动分配可用端口"
+                      type="number"
+                      value={form.inPort !== null ? form.inPort.toString() : ""}
+                      variant="bordered"
+                      onChange={(e) => {
+                        const value = e.target.value;
 
-                      setForm((prev) => ({
-                        ...prev,
-                        inPort: value ? parseInt(value) : null,
-                      }));
-                    }}
-                  />
-                  {/* 暂时保留旧限速选择 - 后续可删除
+                        setForm((prev) => ({
+                          ...prev,
+                          inPort: value ? parseInt(value) : null,
+                        }));
+                      }}
+                    />
+                    {/* 暂时保留旧限速选择 - 后续可删除
                   {isAdmin && (
                     <Select
                       label="规则限速"
@@ -5189,7 +4978,7 @@ export default function ForwardPage() {
                     />
                     {getAddressCount(form.remoteAddr) > 1 && (
                       <Select
-                        description="多个目标地址的负载均衡策略"
+                        description="多个落地地址的负载均衡策略"
                         label="负载策略"
                         placeholder="请选择负载均衡策略"
                         selectedKeys={[form.strategy]}
@@ -5271,16 +5060,16 @@ export default function ForwardPage() {
                             }
                           />
 
-                        {/* 到期时间 */}
-                        <ExpiryTimeField
-                          value={form.expiryTime}
-                          onChange={(val) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              expiryTime: val,
-                            }))
-                          }
-                        />
+                          {/* 到期时间 */}
+                          <ExpiryTimeField
+                            value={form.expiryTime}
+                            onChange={(val) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                expiryTime: val,
+                              }))
+                            }
+                          />
                         </div>
                       </div>
                     )}
@@ -5410,7 +5199,7 @@ export default function ForwardPage() {
           <ModalHeader className="flex flex-col gap-1">
             <h2 className="text-xl font-bold">导出规则数据</h2>
             <p className="text-small text-default-500">
-              格式：目标地址|规则名称|入口端口
+              格式：落地地址|规则名称|入口端口
             </p>
           </ModalHeader>
           <ModalBody className="pb-6">
@@ -5574,16 +5363,16 @@ export default function ForwardPage() {
             {importFormat === "flvx" ? (
               <>
                 <p className="text-small text-default-500">
-                  格式：目标地址|规则名称|入口端口，每行一个，入口端口留空将自动分配可用端口
+                  格式：落地地址|规则名称|入口端口，每行一个，入口端口留空将自动分配可用端口
                 </p>
                 <p className="text-small text-default-400">
-                  目标地址支持单个地址(如：example.com:8080)或多个地址用逗号分隔(如：3.3.3.3:3,4.4.4.4:4)
+                  落地地址支持单个地址(如：example.com:8080)或多个地址用逗号分隔(如：3.3.3.3:3,4.4.4.4:4)
                 </p>
               </>
             ) : (
               <>
                 <p className="text-small text-default-500">
-                  ny格式：JSON对象，支持多个目标地址（负载均衡），按所选隧道导入
+                  ny格式：JSON对象，支持多个落地地址（负载均衡），按所选隧道导入
                 </p>
                 <p className="text-small text-default-400">
                   格式：&#123;&quot;dest&quot;:[&quot;地址:端口&quot;],&quot;listen_port&quot;:端口,&quot;name&quot;:&quot;名称&quot;&#125;（listen_port可省略，自动分配端口）
@@ -5667,7 +5456,7 @@ export default function ForwardPage() {
                 minRows={8}
                 placeholder={
                   importFormat === "flvx"
-                    ? "请输入要导入的规则数据，格式：目标地址|规则名称|入口端口"
+                    ? "请输入要导入的规则数据，格式：落地地址|规则名称|入口端口"
                     : '请输入ny格式数据，每行一个JSON对象，如：{"dest":["1.2.3.4:80"],"listen_port":8080,"name":"规则1"}；listen_port可省略自动分配'
                 }
                 value={importData}
@@ -6410,136 +6199,7 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
-      {/* 限速设置模态框 */}
-      <Modal
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-[500px] rounded-2xl overflow-hidden",
-        }}
-        isOpen={batchSpeedLimitModalOpen}
-        placement="center"
-        scrollBehavior="inside"
-        size="lg"
-        onClose={() => setBatchSpeedLimitModalOpen(false)}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                设置限速规则
-              </ModalHeader>
-              <ModalBody>
-                <p className="text-sm text-default-600 mb-4">
-                  {forwardToSetSpeedLimit
-                    ? `为规则 "${forwardToSetSpeedLimit.name}" 选择限速规则：`
-                    : "请选择限速规则："}
-                </p>
-                <Select
-                  label="限速规则"
-                  placeholder="不限速"
-                  selectedKeys={
-                    selectedSpeedLimitId !== null
-                      ? [selectedSpeedLimitId.toString()]
-                      : []
-                  }
-                  variant="bordered"
-                  onSelectionChange={(keys) => {
-                    const selectedKey = Array.from(keys)[0] as
-                      | string
-                      | undefined;
-
-                    setSelectedSpeedLimitId(
-                      selectedKey ? Number(selectedKey) : null,
-                    );
-                  }}
-                >
-                  {speedLimits.map((speedLimit) => (
-                    <SelectItem key={speedLimit.id.toString()}>
-                      {speedLimit.name || `限速${speedLimit.speed}`}
-                    </SelectItem>
-                  ))}
-                </Select>
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="secondary"
-                  isLoading={speedLimitLoading}
-                  onPress={confirmSetSpeedLimit}
-                >
-                  确定
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-      {/* 批量限速模态框 */}
-      <Modal
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={batchSpeedLimitModalOpen}
-        onOpenChange={setBatchSpeedLimitModalOpen}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                批量设置限速
-              </ModalHeader>
-              <ModalBody>
-                <p className="text-sm text-default-600 mb-4">
-                  为选中的 {selectedIds.size} 项规则选择限速规则：
-                </p>
-                <Select
-                  label="限速规则"
-                  placeholder="不限速"
-                  selectedKeys={
-                    selectedSpeedLimitId !== null
-                      ? [selectedSpeedLimitId.toString()]
-                      : []
-                  }
-                  variant="bordered"
-                  onSelectionChange={(keys) => {
-                    const selectedKey = Array.from(keys)[0] as
-                      | string
-                      | undefined;
-
-                    setSelectedSpeedLimitId(
-                      selectedKey ? Number(selectedKey) : null,
-                    );
-                  }}
-                >
-                  {speedLimits.map((speedLimit) => (
-                    <SelectItem
-                      key={speedLimit.id.toString()}
-                      textValue={speedLimit.name || `限速${speedLimit.speed}`}
-                    >
-                      {speedLimit.name || `限速${speedLimit.speed}`} (
-                      {speedLimit.speed}M)
-                    </SelectItem>
-                  ))}
-                </Select>
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="secondary"
-                  isLoading={speedLimitLoading}
-                  onPress={confirmBatchSetSpeedLimit}
-                >
-                  确定
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-      {/* 搜索与筛选五合一模态框 */}
+      {/* 搜索筛选弹窗 */}
       <Modal
         classNames={{
           base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
@@ -6553,7 +6213,7 @@ export default function ForwardPage() {
           {() => (
             <>
               <ModalHeader className="flex flex-col gap-1">
-                搜索筛选用户规则
+                搜索筛选规则
               </ModalHeader>
               <ModalBody>
                 <div className="flex flex-col gap-4 py-2">
@@ -6583,8 +6243,8 @@ export default function ForwardPage() {
                     }
                   />
                   <Input
-                    label="目标地址或端口 (模糊)"
-                    placeholder="请输入目标IP、域名或端口"
+                    label="落地地址或端口 (模糊)"
+                    placeholder="请输入目标 IP、域名或端口"
                     value={searchParams.remoteAddr}
                     variant="bordered"
                     onChange={(e) =>
@@ -6594,89 +6254,6 @@ export default function ForwardPage() {
                       }))
                     }
                   />
-                  {isAdmin && (
-                    <Select
-                      label="所属用户"
-                      placeholder="选择用户"
-                      selectedKeys={[searchParams.userId]}
-                      variant="bordered"
-                      onSelectionChange={(keys) => {
-                        const key = Array.from(keys)[0] as string;
-
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          userId: key || "all",
-                        }));
-                      }}
-                    >
-                      <SelectItem key="all">全部用户</SelectItem>
-                      {uniqueUsers.map((user) => (
-                        <SelectItem key={user.id.toString()}>
-                          {user.name}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  )}
-                  {isAdmin && (
-                    <Select
-                      label="限速规则"
-                      placeholder="选择限速规则"
-                      selectedKeys={[searchParams.speedLimitId || "all"]}
-                      variant="bordered"
-                      onSelectionChange={(keys) => {
-                        const key = Array.from(keys)[0] as string;
-
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          speedLimitId: key === "all" ? undefined : Number(key),
-                        }));
-                      }}
-                    >
-                      <SelectItem key="all">全部规则</SelectItem>
-                      <SelectItem key="unlimited">不限速</SelectItem>
-                      {availableSpeedLimits.map((speedLimit) => (
-                        <SelectItem key={speedLimit.id.toString()}>
-                          {speedLimit.name || `限速${speedLimit.speed}`} (
-                          {speedLimit.speed}M)
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  )}
-                  <Select
-                    label="所属隧道"
-                    placeholder="选择隧道"
-                    selectedKeys={[searchParams.tunnelId]}
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      const key = Array.from(keys)[0] as string;
-
-                      setSearchParams((prev) => ({
-                        ...prev,
-                        tunnelId: key || "all",
-                      }));
-                    }}
-                  >
-                    <SelectItem key="all">全部隧道</SelectItem>
-                    {tunnels.map((tunnel) => (
-                      <SelectItem
-                        key={tunnel.id.toString()}
-                        textValue={
-                          tunnel.remark
-                            ? `${tunnel.name} (${tunnel.remark})`
-                            : tunnel.name
-                        }
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>{tunnel.name}</span>
-                          {tunnel.remark && (
-                            <span className="text-default-400 text-xs">
-                              ({tunnel.remark})
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </Select>
                 </div>
               </ModalBody>
               <ModalFooter>
