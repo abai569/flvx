@@ -21,7 +21,8 @@ import {
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { BrandLogo } from "@/components/brand-logo";
 import { VersionFooter } from "@/components/version-footer";
-import { getMonitorAccess, updatePassword } from "@/api";
+import { updatePassword } from "@/api";
+import { licenseAPI } from "@/api/license";
 import { safeLogout } from "@/utils/logout";
 import { siteConfig } from "@/config/site";
 import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
@@ -55,9 +56,9 @@ export default function AdminLayout({
     () => localStorage.getItem("sidebar_collapsed") === "true",
   );
   const [username, setUsername] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [monitorAllowed, setMonitorAllowed] = useState<boolean | null>(null);
-  const [monitorAccessReason, setMonitorAccessReason] = useState<string | null>(
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [monitorAllowed, _setMonitorAllowed] = useState<boolean | null>(null);
+  const [monitorAccessReason, _setMonitorAccessReason] = useState<string | null>(
     null,
   );
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -67,6 +68,7 @@ export default function AdminLayout({
     newPassword: "",
     confirmPassword: "",
   });
+  const [isAuthorized, setIsAuthorized] = useState(true);
   const isMobile = useMobileBreakpoint();
 
   // 菜单项配置
@@ -195,13 +197,12 @@ export default function AdminLayout({
   ];
 
   useEffect(() => {
-    // 获取用户信息
-    const name = getSessionName() || "Admin";
+    const sessionName = getSessionName();
     const adminFlag = getAdminFlag();
-
-    setUsername(name);
+    setUsername(sessionName || "");
     setIsAdmin(adminFlag);
 
+<<<<<<< HEAD
     // Monitor permission is not strictly role-based; non-admin users may be
     // granted access explicitly. Fetch a lightweight capability flag so we can
     // avoid a confusing 403 navigation.
@@ -240,7 +241,22 @@ export default function AdminLayout({
     return () => {
       cancelled = true;
     };
+=======
+    // 检查授权状态
+    checkLicenseStatus();
+>>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
   }, []);
+
+  const checkLicenseStatus = async () => {
+    try {
+      const status = await licenseAPI.getStatus();
+      // 如果未激活或已过期，则标记为未授权
+      setIsAuthorized(status.activated && status.status !== 2);
+    } catch (error) {
+      // API 调用失败，默认允许访问（兼容旧版本）
+      setIsAuthorized(true);
+    }
+  };
 
   useEffect(() => {
     if (!isMobile) {
@@ -274,6 +290,13 @@ export default function AdminLayout({
 
   // 菜单点击处理
   const handleMenuClick = (path: string) => {
+    // 检查授权状态（除仪表和设置外，其他页面都需要授权）
+    if (!isAuthorized && path !== "/dashboard" && path !== "/settings") {
+      toast.error("面板未授权或授权已过期，请先激活授权");
+      navigate("/dashboard");
+      return;
+    }
+
     if (path === "/monitor" && monitorAllowed !== true) {
       if (monitorAllowed == null) {
         toast("正在检查监控权限，请稍后重试");
@@ -440,14 +463,17 @@ export default function AdminLayout({
                      `}
                     title={
                       isCollapsed
-                        ? isMonitorBlocked
-                          ? `${item.label} (无权限)`
-                          : item.label
+                        ? !isAuthorized && item.path !== "/dashboard" && item.path !== "/settings"
+                          ? `${item.label} (未授权)`
+                          : isMonitorBlocked
+                            ? `${item.label} (无权限)`
+                            : item.label
                         : undefined
                     }
                     transition={{ duration: 0.15 }}
                     onClick={() => handleMenuClick(item.path)}
                   >
+                    <div className={`${!isAuthorized && item.path !== "/dashboard" && item.path !== "/settings" ? "opacity-50 cursor-not-allowed" : ""} w-full`}>
                     {isActive && (
                       <motion.div
                         className="absolute inset-0 rounded-lg bg-primary-100 dark:bg-primary-600/20"
@@ -475,6 +501,7 @@ export default function AdminLayout({
                       <span className="font-medium text-sm relative z-10 whitespace-nowrap">
                         {item.label}
                       </span>
+                    </div>
                     </div>
                   </motion.button>
                 </li>
