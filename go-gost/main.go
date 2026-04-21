@@ -16,7 +16,9 @@ import (
 	xlogger "github.com/go-gost/x/logger"
 	"github.com/go-gost/x/service"
 	"github.com/go-gost/x/socket"
+	"github.com/go-gost/x/traffic"
 	"github.com/judwhite/go-svc"
+	psnet "github.com/shirou/gopsutil/v3/net"
 )
 
 type stringList []string
@@ -119,9 +121,50 @@ func main() {
 	log := xlogger.NewLogger()
 	logger.SetDefault(log)
 
+	// 根据 service_name 确定配置目录
+	configDir := "/etc/flux_agent"
+	if config.ServiceName != "" {
+		configDir = "/etc/" + config.ServiceName
+	}
+
+	// 启动时检查基线文件是否存在，不存在则创建初始基线
+	baselinePath := configDir + "/traffic_baseline.json"
+	if _, err := os.Stat(baselinePath); os.IsNotExist(err) {
+		fmt.Printf("📝 检测到基线文件不存在，创建初始基线...\n")
+		// 使用 config.NodeID（可能为 0，表示未关联面板）
+		nodeID := config.NodeID
+		if nodeID <= 0 {
+			nodeID = 1 // 临时 ID，后续通过 WebSocket 更新
+		}
+		if _, err := traffic.InitBaselineManager(nodeID, baselinePath); err == nil {
+			if bm := traffic.GetManager(); bm != nil {
+				// 获取当前网卡流量
+				var networkStats struct {
+					BytesReceived    uint64
+					BytesTransmitted uint64
+				}
+				ioCounters, err := psnet.IOCounters(true)
+				if err == nil {
+					for _, io := range ioCounters {
+						if io.Name == "lo" || strings.HasPrefix(io.Name, "lo") {
+							continue
+						}
+						networkStats.BytesReceived += io.BytesRecv
+						networkStats.BytesTransmitted += io.BytesSent
+					}
+				}
+				if _, err := bm.CreateInitialBaseline(networkStats.BytesReceived, networkStats.BytesTransmitted, ""); err != nil {
+					fmt.Printf("⚠️ 创建初始基线失败：%v\n", err)
+				} else {
+					fmt.Printf("✅ 初始流量基线已创建（上行：%d, 下行：%d）\n", networkStats.BytesReceived, networkStats.BytesTransmitted)
+				}
+			}
+		}
+	}
+
 	distro := socket.DetectDistro()
 	fullVersion := fmt.Sprintf("%s (%s/%s)", version, distro, runtime.GOARCH)
-	wsReporter := socket.StartWebSocketReporterWithConfig(config.Addr, config.Secret, config.Http, config.Tls, config.Socks, fullVersion)
+	wsReporter := socket.StartWebSocketReporterWithConfig(config.Addr, config.Secret, config.Http, config.Tls, config.Socks, fullVersion, config.NodeID)
 	defer wsReporter.Stop()
 	service.SetHTTPReportURL(config.Addr, config.Secret)
 

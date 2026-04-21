@@ -43,9 +43,7 @@ export const AnnouncementBanner = ({
       <CardBody className="-mt-5 !px-9 pt-4 text-sm text-foreground dark:text-white/90 break-words leading-relaxed">
         <ReactMarkdown
           components={{
-            p: ({ children }) => (
-              <p className="mb-2 last:mb-0">{children}</p>
-            ),
+            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
             a: ({ children, href }) => (
               <a
                 className="underline decoration-blue-500/70 underline-offset-2 hover:text-blue-700 dark:hover:text-blue-100"

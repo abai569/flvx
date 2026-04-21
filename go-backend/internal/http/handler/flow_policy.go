@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -48,6 +49,9 @@ func (h *Handler) processFlowItem(nodeID int64, item flowItem) {
 			h.enforceUserQuotaIfNeeded(userID, quota)
 		}
 		h.processPeerShareFlowFromForward(forwardID, nodeID, serviceName, item)
+
+		// ✅ 新增：检查 Forward 流量限制
+		h.enforceForwardTrafficLimit(forwardID, inFlow, outFlow)
 
 		if userTunnelID > 0 {
 			h.enforceFlowPolicies(userID, userTunnelID)
@@ -466,6 +470,8 @@ func (h *Handler) pauseForwardRecords(forwards []forwardRecord, now int64) {
 	for i := range forwards {
 		forward := forwards[i]
 		_ = h.controlForwardServices(&forward, "PauseService", false)
+		// 断开已建立的连接，防止流量继续超额
+		_ = h.controlForwardServices(&forward, "TerminateConnections", false)
 		_ = h.repo.UpdateForwardStatus(forward.ID, 0, now)
 	}
 }
@@ -612,9 +618,80 @@ func (h *Handler) speedLimiterExists(name string) bool {
 		return false
 	}
 	id, err := strconv.ParseInt(name, 10, 64)
-	if err != nil || id <= 0 {
+	if err != nil {
 		return false
 	}
 	ok, _ := h.repo.SpeedLimitExists(id)
 	return ok
+}
+
+// ✅ 新增：检查 Forward 流量限制
+func (h *Handler) enforceForwardTrafficLimit(forwardID int64, inFlow, outFlow int64) {
+	if h == nil || h.repo == nil || forwardID <= 0 {
+		return
+	}
+
+	forward, err := h.getForwardRecord(forwardID)
+	if err != nil || forward == nil || forward.TrafficLimit <= 0 {
+		return // 未设置流量限制
+	}
+
+	// 计算累计流量（包含本次上报）
+	totalFlow := forward.InFlow + forward.OutFlow + inFlow + outFlow
+	limitBytes := forward.TrafficLimit * bytesPerGB
+
+	if totalFlow >= limitBytes {
+		// 流量超限，暂停转发
+		if pauseErr := h.pauseForward(forwardID, "流量超限"); pauseErr != nil {
+			log.Printf("ERROR: pauseForward %d failed: %v", forwardID, pauseErr)
+		} else {
+			log.Printf("Forward %d paused: traffic limit exceeded (%.2f GB / %.2f GB)",
+				forwardID, float64(totalFlow)/1e9, float64(limitBytes)/1e9)
+		}
+	}
+}
+
+// ✅ 新增：暂停 Forward 规则
+func (h *Handler) pauseForward(forwardID int64, reason string) error {
+	if h == nil || h.repo == nil {
+		return errors.New("invalid handler context")
+	}
+
+	// 更新数据库状态
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpdateForwardStatus(forwardID, 0, now); err != nil {
+		return fmt.Errorf("update forward status: %w", err)
+	}
+
+	// 获取 Forward 信息
+	forward, err := h.getForwardRecord(forwardID)
+	if err != nil {
+		return fmt.Errorf("get forward record: %w", err)
+	}
+
+	// 获取入口端口
+	ports, err := h.listForwardPorts(forwardID)
+	if err != nil {
+		return fmt.Errorf("list forward ports: %w", err)
+	}
+
+	// 通知 gost 删除服务
+	serviceBase := buildForwardServiceBaseWithResolvedUserTunnel(forwardID, forward.UserID, 0)
+	for _, fp := range ports {
+		node, nodeErr := h.getNodeRecord(fp.NodeID)
+		if nodeErr != nil {
+			log.Printf("WARN: pauseForward %d: get node %d failed: %v", forwardID, fp.NodeID, nodeErr)
+			continue
+		}
+
+		serviceName := serviceBase
+		_, _ = h.sendNodeCommand(node.ID, "DeleteService", map[string]interface{}{
+			"services": []string{serviceName + "_tcp", serviceName + "_udp"},
+		}, false, true)
+
+		log.Printf("Forward %d: deleted service on node %d", forwardID, node.ID)
+	}
+
+	log.Printf("Forward %d paused: %s", forwardID, reason)
+	return nil
 }

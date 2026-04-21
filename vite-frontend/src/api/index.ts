@@ -3,8 +3,13 @@ import type {
   ForwardDiagnosisApiData,
   ForwardApiItem,
   GroupPermissionApiItem,
+  NodeGroupApiItem,
+  NodeGroupMutationPayload,
   NodeReleaseApiItem,
   NodeApiItem,
+  NodeTagApiItem,
+  NodeTagMutationPayload,
+  OfflineDeployPayload,
   SpeedLimitApiItem,
   TunnelBatchDeletePreviewApiData,
   TunnelBatchDeleteWithForwardsApiData,
@@ -12,6 +17,11 @@ import type {
   TunnelDeleteWithForwardsApiData,
   TunnelDiagnosisApiData,
   TunnelGroupApiItem,
+  TunnelGroupNewApiItem,
+  TunnelGroupNewMutationPayload,
+  TunnelListApiItem,
+  TunnelListOrderPayload,
+  TunnelListTunnelOrderPayload,
   UserApiItem,
   UserGroupApiItem,
   UserListQuery,
@@ -90,6 +100,32 @@ export const getNodeInstallCommand = (
   id: number,
   channel: ReleaseChannel = "stable",
 ) => Network.post<string>("/node/install", { id, channel });
+export const getNodeInstallCommandDomestic = (
+  id: number,
+  channel?: ReleaseChannel,
+) =>
+  Network.post<string>("/node/install-domestic", {
+    id,
+    channel: channel || "",
+  });
+export const getNodeInstallCommandOverseas = (
+  id: number,
+  channel?: ReleaseChannel,
+) =>
+  Network.post<string>("/node/install-overseas", {
+    id,
+    channel: channel || "",
+  });
+export const getNodeInstallCommandAlternative = (
+  id: number,
+  channel?: ReleaseChannel,
+) =>
+  Network.post<string>("/node/install-alternative", {
+    id,
+    channel: channel || "",
+  });
+export const getNodeInstallCommandOffline = (id: number) =>
+  Network.post<OfflineDeployPayload>("/node/install-offline", { id });
 export const updateNodeOrder = (data: {
   nodes: Array<{ id: number; inx: number }>;
 }) => Network.post("/node/update-order", data);
@@ -149,9 +185,12 @@ export const deleteTunnelWithForwards = (data: {
     data,
   );
 export const previewBatchTunnelDelete = (ids: number[]) =>
-  Network.post<TunnelBatchDeletePreviewApiData>("/tunnel/batch-delete-preview", {
-    ids,
-  });
+  Network.post<TunnelBatchDeletePreviewApiData>(
+    "/tunnel/batch-delete-preview",
+    {
+      ids,
+    },
+  );
 export const batchDeleteTunnelsWithForwards = (data: {
   ids: number[];
   action: "replace" | "delete_forwards";
@@ -274,6 +313,11 @@ export const batchDeleteTunnels = (ids: number[]) =>
   Network.post<BatchOperationResult>("/tunnel/batch-delete", { ids });
 export const batchDeleteNodes = (ids: number[]) =>
   Network.post<BatchOperationResult>("/node/batch-delete", { ids });
+export const batchResetNodeTraffic = (nodeIds: number[], reason?: string) =>
+  Network.post<BatchOperationResult>("/node/batch-reset-traffic", {
+    nodeIds,
+    reason,
+  });
 export const batchRedeployForwards = (ids: number[]) =>
   Network.post<BatchOperationResult>("/forward/batch-redeploy", { ids });
 export const batchRedeployTunnels = (ids: number[]) =>
@@ -283,7 +327,8 @@ export const batchChangeTunnel = (data: {
   targetTunnelId: number;
 }) => Network.post<BatchOperationResult>("/forward/batch-change-tunnel", data);
 
-// 分组与权限分配接口
+// ─── Group & Permission Management ───────────────────────────────────
+
 export const getTunnelGroupList = () =>
   Network.post<TunnelGroupApiItem[]>("/group/tunnel/list");
 export const createTunnelGroup = (data: { name: string; status?: number }) =>
@@ -372,37 +417,58 @@ export interface BackupTypes {
   configs?: boolean;
 }
 
-export const exportBackup = async (types: string[] = []) => {
+export const exportBackup = async (types: string[] = [], mode: 'core' | 'full' = 'full') => {
   const token = window.localStorage.getItem("token");
-  const baseURL = axios.defaults.baseURL || "/api/v1/";
-
-  const response = await axios.post(
-    `${baseURL}/backup/export`,
-    { types },
-    {
-      headers: {
-        Authorization: token,
-        "Content-Type": "application/json",
+  
+  try {
+    const response = await axios.post(
+      "backup/export",
+      { types, mode },
+      {
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        responseType: "blob",
       },
-      responseType: "blob",
-    },
-  );
+    );
 
-  const url = window.URL.createObjectURL(new Blob([response.data]));
-  const link = document.createElement("a");
+    // 检查响应是否为有效的 Blob
+    if (!response.data || !(response.data instanceof Blob)) {
+      throw new Error("无效的响应数据");
+    }
 
-  link.href = url;
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
 
-  link.setAttribute("download", `backup_${timestamp}.json`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
+    link.href = url;
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
+
+    link.setAttribute("download", `backup_${timestamp}_${mode}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error: any) {
+    // 如果是错误响应，尝试读取错误信息
+    if (error.response?.data) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const errorData = JSON.parse(reader.result as string);
+          throw new Error(errorData.msg || "导出失败");
+        } catch {
+          throw new Error("导出失败，请检查后端日志");
+        }
+      };
+      reader.readAsText(error.response.data);
+    }
+    throw error;
+  }
 };
 
 export const importBackup = (data: BackupImportPayload) =>
-  Network.post("/backup/import", data);
+  Network.post("/backup/import", data, { timeout: 5 * 60 * 1000 });
 
 export interface AnnouncementData {
   content: string;
@@ -514,3 +580,104 @@ export const assignMonitorPermission = (userId: number) =>
 
 export const removeMonitorPermission = (userId: number) =>
   Network.post("/monitor/permission/remove", { userId });
+
+export const batchAssignMonitorPermission = (userIds: number[]) =>
+  Network.post("/monitor/permission/batch-assign", { userIds });
+
+export const batchRemoveMonitorPermission = (userIds: number[]) =>
+  Network.post("/monitor/permission/batch-remove", { userIds });
+
+export const batchDeleteUsers = (ids: number[]) =>
+  Network.post("/user/batch-delete", { ids });
+
+export const batchResetUserFlow = (ids: number[]) =>
+  Network.post("/user/batch-reset", { ids });
+
+export const updateUserOrder = (users: Array<{ id: number; inx: number }>) =>
+  Network.post("/user/update-order", { users });
+
+// ─── Tunnel List Grouping ────────────────────────────────────────────
+
+export const getTunnelListList = () =>
+  Network.post<TunnelListApiItem[]>("/tunnel-list/list");
+
+export const createTunnelList = (data: {
+  name: string;
+  status?: number;
+  inx?: number;
+}) => Network.post("/tunnel-list/create", data);
+
+export const updateTunnelList = (data: {
+  id: number;
+  name: string;
+  status?: number;
+  inx?: number;
+}) => Network.post("/tunnel-list/update", data);
+
+export const deleteTunnelList = (id: number) =>
+  Network.post("/tunnel-list/delete", { id });
+
+export const assignTunnelsToList = (data: {
+  listId: number;
+  tunnelIds: number[];
+}) => Network.post("/tunnel-list/assign", data);
+
+export const updateTunnelListOrder = (data: {
+  orders: TunnelListOrderPayload[];
+}) => Network.post("/tunnel-list/order", data);
+
+export const updateTunnelListTunnelOrder = (data: {
+  listId: number;
+  orders: TunnelListTunnelOrderPayload[];
+}) => Network.post("/tunnel-list/tunnel-order", data);
+
+// ─── Tunnel Group Management (New API for Tunnel Page) ─────────────────
+
+export const getTunnelGroupNewList = () =>
+  Network.post<TunnelGroupNewApiItem[]>("/tunnel-group-new/list");
+
+export const createTunnelGroupNew = (data: TunnelGroupNewMutationPayload) =>
+  Network.post("/tunnel-group-new/create", data);
+
+export const updateTunnelGroupNew = (data: TunnelGroupNewMutationPayload) =>
+  Network.post("/tunnel-group-new/update", data);
+
+export const deleteTunnelGroupNew = (id: number) =>
+  Network.post("/tunnel-group-new/delete", { id });
+
+export const assignTunnelToGroupNew = (data: {
+  groupId: number;
+  tunnelIds: number[];
+}) => Network.post("/tunnel-group-new/assign", data);
+
+// ─── Node Group & Tag Management ─────────────────────────────────────
+
+export const getNodeGroupList = () =>
+  Network.post<NodeGroupApiItem[]>("/node-group/list");
+
+export const createNodeGroup = (data: NodeGroupMutationPayload) =>
+  Network.post("/node-group/create", data);
+
+export const updateNodeGroup = (data: NodeGroupMutationPayload) =>
+  Network.post("/node-group/update", data);
+
+export const deleteNodeGroup = (id: number) =>
+  Network.post("/node-group/delete", { id });
+
+export const assignNodeToGroup = (nodeId: number, groupId: number | null) =>
+  Network.post("/node-group/assign", { nodeId, groupId });
+
+export const getNodeTagList = () =>
+  Network.post<NodeTagApiItem[]>("/node-tag/list");
+
+export const createNodeTag = (data: NodeTagMutationPayload) =>
+  Network.post("/node-tag/create", data);
+
+export const updateNodeTag = (data: NodeTagMutationPayload) =>
+  Network.post("/node-tag/update", data);
+
+export const deleteNodeTag = (id: number) =>
+  Network.post("/node-tag/delete", { id });
+
+export const assignTagsToNode = (nodeId: number, tagIds: number[]) =>
+  Network.post("/node-tag/assign", { nodeId, tagIds });

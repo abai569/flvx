@@ -14,12 +14,14 @@ type User struct {
 	User          string        `gorm:"column:user;type:varchar(100);not null"`
 	Pwd           string        `gorm:"type:varchar(100);not null"`
 	RoleID        int           `gorm:"column:role_id;not null"`
+	Name          string        `gorm:"column:name;type:varchar(100);default:''"` // 用户备注
 	ExpTime       int64         `gorm:"column:exp_time;not null"`
 	Flow          int64         `gorm:"not null"`
 	InFlow        int64         `gorm:"column:in_flow;not null;default:0"`
 	OutFlow       int64         `gorm:"column:out_flow;not null;default:0"`
 	FlowResetTime int64         `gorm:"column:flow_reset_time;not null"`
 	Num           int           `gorm:"not null"`
+	Inx           int           `gorm:"column:inx;default:0"` // 排序索引
 	CreatedTime   int64         `gorm:"column:created_time;not null"`
 	UpdatedTime   sql.NullInt64 `gorm:"column:updated_time"`
 	Status        int           `gorm:"not null"`
@@ -29,20 +31,27 @@ func (User) TableName() string { return "user" }
 
 // Forward maps to the "forward" table.
 type Forward struct {
-	ID          int64         `gorm:"primaryKey;autoIncrement"`
-	UserID      int64         `gorm:"column:user_id;not null"`
-	UserName    string        `gorm:"column:user_name;type:varchar(100);not null"`
-	Name        string        `gorm:"type:varchar(100);not null"`
-	TunnelID    int64         `gorm:"column:tunnel_id;not null"`
-	RemoteAddr  string        `gorm:"column:remote_addr;type:text;not null"`
-	Strategy    string        `gorm:"type:varchar(100);not null;default:'fifo'"`
-	InFlow      int64         `gorm:"not null;default:0"`
-	OutFlow     int64         `gorm:"column:out_flow;not null;default:0"`
-	CreatedTime int64         `gorm:"column:created_time;not null"`
-	UpdatedTime int64         `gorm:"column:updated_time;not null"`
-	Status      int           `gorm:"not null"`
-	Inx         int           `gorm:"not null;default:0"`
-	SpeedID     sql.NullInt64 `gorm:"column:speed_id"`
+	ID                int64         `gorm:"primaryKey;autoIncrement"`
+	UserID            int64         `gorm:"column:user_id;not null"`
+	UserName          string        `gorm:"column:user_name;type:varchar(100);not null"`
+	Name              string        `gorm:"type:varchar(100);not null"`
+	TunnelID          int64         `gorm:"column:tunnel_id;not null"`
+	RemoteAddr        string        `gorm:"column:remote_addr;type:text;not null"`
+	Strategy          string        `gorm:"type:varchar(100);not null;default:'fifo'"`
+	InFlow            int64         `gorm:"not null;default:0"`
+	OutFlow           int64         `gorm:"column:out_flow;not null;default:0"`
+	CreatedTime       int64         `gorm:"column:created_time;not null"`
+	UpdatedTime       int64         `gorm:"column:updated_time;not null"`
+	Status            int           `gorm:"not null"`
+	Inx               int           `gorm:"not null;default:0"`
+	SpeedID           sql.NullInt64 `gorm:"column:speed_id"`
+	MaxConnections    int           `gorm:"column:max_connections;not null;default:0"`
+	TrafficLimit      int64         `gorm:"column:traffic_limit;not null;default:0"`
+	ExpiryTime        sql.NullInt64 `gorm:"column:expiry_time"`
+	SpeedLimitEnabled bool          `gorm:"column:speed_limit_enabled;not null;default:false"`
+	SpeedLimit        int           `gorm:"column:speed_limit;not null;default:0"`
+	UploadSpeed       int           `gorm:"column:upload_speed;not null;default:0"`
+	DownloadSpeed     int           `gorm:"column:download_speed;not null;default:0"`
 }
 
 func (Forward) TableName() string { return "forward" }
@@ -65,6 +74,7 @@ type Node struct {
 	RenewalCycle            sql.NullString `gorm:"column:renewal_cycle;type:varchar(20)"`
 	Secret                  string         `gorm:"type:varchar(100);not null"`
 	ServerIP                string         `gorm:"column:server_ip;type:varchar(100);not null"`
+	IntranetIP              sql.NullString `gorm:"column:intranet_ip;type:varchar(100)"`
 	ServerIPV4              sql.NullString `gorm:"column:server_ip_v4;type:varchar(100)"`
 	ServerIPV6              sql.NullString `gorm:"column:server_ip_v6;type:varchar(100)"`
 	ExtraIPs                sql.NullString `gorm:"column:extra_ips;type:text"`
@@ -85,6 +95,8 @@ type Node struct {
 	RemoteToken             sql.NullString `gorm:"column:remote_token;type:text"`
 	RemoteConfig            sql.NullString `gorm:"column:remote_config;type:text"`
 	ExpiryReminderDismissed int            `gorm:"column:expiry_reminder_dismissed;not null;default:0"`
+	GroupID                 sql.NullInt64  `gorm:"column:group_id;index:idx_node_group_id"`
+	ServiceName             sql.NullString `gorm:"column:service_name;type:varchar(100)"`
 }
 
 func (Node) TableName() string { return "node" }
@@ -114,18 +126,21 @@ type StatisticsFlow struct {
 func (StatisticsFlow) TableName() string { return "statistics_flow" }
 
 type Tunnel struct {
-	ID           int64          `gorm:"primaryKey;autoIncrement"`
-	Name         string         `gorm:"type:varchar(100);not null"`
-	TrafficRatio float64        `gorm:"column:traffic_ratio;not null;default:1.0"`
-	Type         int            `gorm:"not null"`
-	Protocol     string         `gorm:"type:varchar(10);not null;default:'tls'"`
-	Flow         int64          `gorm:"not null"`
-	CreatedTime  int64          `gorm:"column:created_time;not null"`
-	UpdatedTime  int64          `gorm:"column:updated_time;not null"`
-	Status       int            `gorm:"not null"`
-	InIP         sql.NullString `gorm:"column:in_ip;type:text"`
-	Inx          int            `gorm:"not null;default:0"`
-	IPPreference string         `gorm:"column:ip_preference;type:varchar(10);not null;default:''"`
+	ID            int64          `gorm:"primaryKey;autoIncrement"`
+	Name          string         `gorm:"type:varchar(100);not null"`
+	TrafficRatio  float64        `gorm:"column:traffic_ratio;not null;default:1.0"`
+	Type          int            `gorm:"not null"`
+	Protocol      string         `gorm:"type:varchar(10);not null;default:'tls'"`
+	Flow          int64          `gorm:"not null"`
+	CreatedTime   int64          `gorm:"column:created_time;not null"`
+	UpdatedTime   int64          `gorm:"column:updated_time;not null"`
+	Status        int            `gorm:"not null"`
+	InIP          sql.NullString `gorm:"column:in_ip;type:text"`
+	Inx           int            `gorm:"not null;default:0"`
+	IPPreference  string         `gorm:"column:ip_preference;type:varchar(10);not null;default:''"`
+	ListID        sql.NullInt64  `gorm:"column:list_id;index"`         // 所属隧道分组（旧字段，保留兼容）
+	TunnelGroupID sql.NullInt64  `gorm:"column:tunnel_group_id;index"` // 所属隧道分组（新字段）
+	Remark        sql.NullString `gorm:"column:remark;type:text"`
 }
 
 func (Tunnel) TableName() string { return "tunnel" }
@@ -148,15 +163,16 @@ type UserQuota struct {
 func (UserQuota) TableName() string { return "user_quota" }
 
 type ChainTunnel struct {
-	ID        int64          `gorm:"primaryKey;autoIncrement"`
-	TunnelID  int64          `gorm:"column:tunnel_id;not null"`
-	ChainType string         `gorm:"column:chain_type;type:varchar(10);not null"`
-	NodeID    int64          `gorm:"column:node_id;not null"`
-	Port      sql.NullInt64  `gorm:"column:port"`
-	Strategy  sql.NullString `gorm:"type:varchar(10)"`
-	Inx       sql.NullInt64  `gorm:"column:inx"`
-	Protocol  sql.NullString `gorm:"type:varchar(10)"`
-	ConnectIP sql.NullString `gorm:"column:connect_ip;type:varchar(45)"`
+	ID            int64          `gorm:"primaryKey;autoIncrement"`
+	TunnelID      int64          `gorm:"column:tunnel_id;not null"`
+	ChainType     string         `gorm:"column:chain_type;type:varchar(10);not null"`
+	NodeID        int64          `gorm:"column:node_id;not null"`
+	Port          sql.NullInt64  `gorm:"column:port"`
+	Strategy      sql.NullString `gorm:"type:varchar(10)"`
+	Inx           sql.NullInt64  `gorm:"column:inx"`
+	Protocol      sql.NullString `gorm:"type:varchar(10)"`
+	ConnectIP     sql.NullString `gorm:"column:connect_ip;type:varchar(45)"`
+	ConnectIPType sql.NullString `gorm:"column:connect_ip_type;type:varchar(10)"`
 }
 
 func (ChainTunnel) TableName() string { return "chain_tunnel" }
@@ -180,12 +196,37 @@ func (UserTunnel) TableName() string { return "user_tunnel" }
 type TunnelGroup struct {
 	ID          int64  `gorm:"primaryKey;autoIncrement"`
 	Name        string `gorm:"type:varchar(100);not null;uniqueIndex:idx_tunnel_group_name"`
+	Color       string `gorm:"type:varchar(20);default:'#3b82f6'"`
+	Description string `gorm:"type:text"`
+	Inx         int    `gorm:"column:inx;default:0"`
 	CreatedTime int64  `gorm:"column:created_time;not null"`
 	UpdatedTime int64  `gorm:"column:updated_time;not null"`
 	Status      int    `gorm:"not null"`
 }
 
 func (TunnelGroup) TableName() string { return "tunnel_group" }
+
+type TunnelGroupNew struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement"`
+	Name        string `gorm:"type:varchar(100);not null;uniqueIndex:idx_tunnel_group_new_name"`
+	Color       string `gorm:"type:varchar(20);default:'#3b82f6'"`
+	Description string `gorm:"type:text"`
+	Inx         int    `gorm:"column:inx;default:0"`
+	CreatedTime int64  `gorm:"column:created_time;not null"`
+	UpdatedTime int64  `gorm:"column:updated_time;not null"`
+	Status      int    `gorm:"not null;default:1"`
+}
+
+func (TunnelGroupNew) TableName() string { return "tunnel_group_new" }
+
+type TunnelGroupTunnelNew struct {
+	ID            int64 `gorm:"primaryKey;autoIncrement"`
+	TunnelGroupID int64 `gorm:"column:tunnel_group_id;not null;uniqueIndex:idx_tunnel_group_tunnel_new_unique"`
+	TunnelID      int64 `gorm:"column:tunnel_id;not null;uniqueIndex:idx_tunnel_group_tunnel_new_unique"`
+	CreatedTime   int64 `gorm:"column:created_time;not null"`
+}
+
+func (TunnelGroupTunnelNew) TableName() string { return "tunnel_group_tunnel_new" }
 
 type UserGroup struct {
 	ID          int64  `gorm:"primaryKey;autoIncrement"`
@@ -528,15 +569,24 @@ type ImportResult struct {
 
 // ForwardRecord is a minimal forward view used by control plane and flow policy.
 type ForwardRecord struct {
-	ID         int64
-	UserID     int64
-	UserName   string
-	Name       string
-	TunnelID   int64
-	RemoteAddr string
-	Strategy   string
-	Status     int
-	SpeedID    sql.NullInt64
+	ID                int64
+	UserID            int64
+	UserName          string
+	Name              string
+	TunnelID          int64
+	RemoteAddr        string
+	Strategy          string
+	Status            int
+	SpeedID           sql.NullInt64
+	MaxConnections    int
+	TrafficLimit      int64
+	ExpiryTime        sql.NullInt64
+	SpeedLimitEnabled bool
+	SpeedLimit        int
+	UploadSpeed       int
+	DownloadSpeed     int
+	InFlow            int64
+	OutFlow           int64
 }
 
 // TunnelRecord is a minimal tunnel view used by control plane.
@@ -575,6 +625,7 @@ type NodeRecord struct {
 	ServerIP      string
 	ServerIPv4    string
 	ServerIPv6    string
+	IntranetIP    string
 	ExtraIPs      string
 	Status        int
 	PortRange     string
@@ -588,14 +639,15 @@ type NodeRecord struct {
 }
 
 type ChainNodeRecord struct {
-	ChainType int
-	Inx       int64
-	NodeID    int64
-	Port      int
-	NodeName  string
-	Protocol  string
-	Strategy  string
-	ConnectIP string
+	ChainType     int
+	Inx           int64
+	NodeID        int64
+	Port          int
+	NodeName      string
+	Protocol      string
+	Strategy      string
+	ConnectIP     string
+	ConnectIPType string
 }
 
 type UserTunnelLimiterInfo struct {
@@ -731,3 +783,59 @@ type TunnelQuality struct {
 }
 
 func (TunnelQuality) TableName() string { return "tunnel_quality" }
+
+// TunnelList maps to the "tunnel_list" table for tunnel grouping (display only, independent from tunnel_group).
+type TunnelList struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name        string `gorm:"type:varchar(100);not null;uniqueIndex:idx_tunnel_list_name" json:"name"`
+	Inx         int    `gorm:"column:inx;default:0" json:"inx"`
+	CreatedTime int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+	Status      int    `gorm:"not null;default:1" json:"status"`
+}
+
+func (TunnelList) TableName() string { return "tunnel_list" }
+
+// TunnelListTunnel maps to the "tunnel_list_tunnel" junction table.
+type TunnelListTunnel struct {
+	ID           int64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	TunnelListID int64 `gorm:"column:tunnel_list_id;not null;uniqueIndex:idx_tunnel_list_tunnel_unique" json:"tunnelListId"`
+	TunnelID     int64 `gorm:"column:tunnel_id;not null;uniqueIndex:idx_tunnel_list_tunnel_unique" json:"tunnelId"`
+	Inx          int   `gorm:"column:inx;default:0" json:"inx"`
+	CreatedTime  int64 `gorm:"column:created_time;not null" json:"createdTime"`
+}
+
+func (TunnelListTunnel) TableName() string { return "tunnel_list_tunnel" }
+
+// NodeGroup maps to the "node_group" table for node grouping.
+type NodeGroup struct {
+	ID          int64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex:idx_node_group_name" json:"name"`
+	Description sql.NullString `gorm:"column:description;type:text" json:"description"`
+	Color       string         `gorm:"type:varchar(20);default:'#3b82f6'" json:"color"`
+	Inx         int            `gorm:"column:inx;default:0" json:"inx"`
+	CreatedTime int64          `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime sql.NullInt64  `gorm:"column:updated_time" json:"updatedTime"`
+}
+
+func (NodeGroup) TableName() string { return "node_group" }
+
+// NodeTag maps to the "node_tag" table for node tagging.
+type NodeTag struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name        string `gorm:"type:varchar(50);not null;uniqueIndex:idx_node_tag_name" json:"name"`
+	Color       string `gorm:"type:varchar(20);default:'#6b7280'" json:"color"`
+	CreatedTime int64  `gorm:"column:created_time;not null" json:"createdTime"`
+}
+
+func (NodeTag) TableName() string { return "node_tag" }
+
+// NodeTagNode maps to the "node_tag_node" junction table for node-tag many-to-many relationship.
+type NodeTagNode struct {
+	ID        int64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	NodeID    int64 `gorm:"column:node_id;not null;uniqueIndex:idx_node_tag_node_unique" json:"nodeId"`
+	TagID     int64 `gorm:"column:tag_id;not null;uniqueIndex:idx_node_tag_node_unique" json:"tagId"`
+	CreatedAt int64 `gorm:"column:created_at;not null" json:"createdAt"`
+}
+
+func (NodeTagNode) TableName() string { return "node_tag_node" }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -157,14 +158,18 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 	_, hasMonthlyQuota := req["monthlyQuotaGB"]
 	now := time.Now().UnixMilli()
 
+	name := asString(req["name"]) // 解析前端传来的备注名称
 	pwd := asString(req["pwd"])
+
 	if strings.TrimSpace(pwd) == "" {
-		if err := h.repo.UpdateUserWithoutPassword(id, username, flow, num, expTime, flowResetTime, status, now); err != nil {
+		// 在参数里增加了 name
+		if err := h.repo.UpdateUserWithoutPassword(id, username, name, flow, num, expTime, flowResetTime, status, now); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
 	} else {
-		if err := h.repo.UpdateUserWithPassword(id, username, security.MD5(pwd), flow, num, expTime, flowResetTime, status, now); err != nil {
+		// 在参数里增加了 name
+		if err := h.repo.UpdateUserWithPassword(id, username, security.MD5(pwd), name, flow, num, expTime, flowResetTime, status, now); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
@@ -285,6 +290,147 @@ func (h *Handler) userResetFlow(w http.ResponseWriter, r *http.Request) {
 	response.WriteJSON(w, response.OKEmpty())
 }
 
+func (h *Handler) userBatchDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.IDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	successCount := 0
+	failCount := 0
+
+	for _, id := range req.IDs {
+		roleID, err := h.repo.GetUserRoleID(id)
+		if err != nil || roleID == 0 {
+			failCount++
+			continue
+		}
+
+		if err := h.repo.DeleteUserCascade(id); err != nil {
+			failCount++
+		} else {
+			successCount++
+		}
+	}
+
+	response.WriteJSON(w, response.OK(map[string]int{
+		"successCount": successCount,
+		"failCount":    failCount,
+	}))
+}
+
+func (h *Handler) userBatchResetFlow(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.IDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	resetTime := time.Now().UnixMilli()
+	successCount := 0
+
+	for _, id := range req.IDs {
+		h.repo.ResetUserFlowByUser(id, resetTime)
+		successCount++
+	}
+
+	response.WriteJSON(w, response.OK(map[string]int{
+		"successCount": successCount,
+		"failCount":    0,
+	}))
+}
+
+func (h *Handler) userUpdateOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	var req struct {
+		Users []struct {
+			ID  int64 `json:"id"`
+			Inx int   `json:"inx"`
+		} `json:"users"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	for _, u := range req.Users {
+		h.repo.UpdateUserOrder(u.ID, u.Inx, time.Now().UnixMilli())
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) monitorPermissionBatchAssign(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		UserIDs []int64 `json:"userIds"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.UserIDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	successCount := 0
+	for _, userID := range req.UserIDs {
+		if err := h.repo.InsertMonitorPermission(userID, now); err == nil {
+			successCount++
+		}
+	}
+
+	response.WriteJSON(w, response.OK(map[string]int{
+		"successCount": successCount,
+		"failCount":    len(req.UserIDs) - successCount,
+	}))
+}
+
+func (h *Handler) monitorPermissionBatchRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		UserIDs []int64 `json:"userIds"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.UserIDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	successCount := 0
+	for _, userID := range req.UserIDs {
+		if err := h.repo.DeleteMonitorPermission(userID); err == nil {
+			successCount++
+		}
+	}
+
+	response.WriteJSON(w, response.OK(map[string]int{
+		"successCount": successCount,
+		"failCount":    len(req.UserIDs) - successCount,
+	}))
+}
+
 func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -296,10 +442,32 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := asString(req["name"])
+	// 从 serverIp(serverIpV4/serverIpV6/intranetIp) 中选择第一个非空作为 serverIP
+	// 优先使用 serverIp（兼容旧 API），否则从 serverIpV4/serverIpV6/intranetIp 中选择
 	serverIP := asString(req["serverIp"])
+	if serverIP == "" {
+		serverIP = asString(req["serverIpV4"])
+	}
+	if serverIP == "" {
+		serverIP = asString(req["serverIpV6"])
+	}
+	if serverIP == "" {
+		serverIP = asString(req["intranetIp"])
+	}
 	if name == "" || serverIP == "" {
 		response.WriteJSON(w, response.ErrDefault("节点名称和地址不能为空"))
 		return
+	}
+
+	var groupID interface{}
+	if _, ok := req["groupId"]; ok {
+		if gID, ok := req["groupId"].(float64); ok {
+			if gID > 0 {
+				groupID = int64(gID)
+			} else {
+				groupID = nil
+			}
+		}
 	}
 
 	now := time.Now().UnixMilli()
@@ -316,6 +484,7 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		nullableText(strings.TrimSpace(asString(req["remark"]))),
 		nullableUnixMilli(asInt64(req["expiryTime"], 0)),
 		nullableText(normalizeNodeRenewalCycle(asString(req["renewalCycle"]))),
+		groupID,
 		asInt(req["http"], 0),
 		asInt(req["tls"], 0),
 		asInt(req["socks"], 0),
@@ -373,17 +542,43 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UnixMilli()
+	var groupID interface{}
+	if groupIdRaw, ok := req["groupId"]; ok && groupIdRaw != nil {
+		if gID, ok := groupIdRaw.(float64); ok {
+			if gID > 0 {
+				groupID = int64(gID)
+			} else {
+				groupID = nil
+			}
+		}
+	} else {
+		groupID = nil
+	}
+	// 从 serverIp(serverIpV4/serverIpV6/intranetIp) 中选择第一个非空作为 serverIP
+	// 优先使用 serverIp（兼容旧 API），否则从 serverIpV4/serverIpV6/intranetIp 中选择
+	serverIP := asString(req["serverIp"])
+	if serverIP == "" {
+		serverIP = asString(req["serverIpV4"])
+	}
+	if serverIP == "" {
+		serverIP = asString(req["serverIpV6"])
+	}
+	if serverIP == "" {
+		serverIP = asString(req["intranetIp"])
+	}
 	if err := h.repo.UpdateNode(id,
 		asString(req["name"]),
-		asString(req["serverIp"]),
+		serverIP,
 		nullableText(asString(req["serverIpV4"])),
 		nullableText(asString(req["serverIpV6"])),
+		nullableText(asString(req["intranetIp"])),
 		defaultString(asString(req["port"]), "1000-65535"),
 		nullableText(asString(req["interfaceName"])),
 		nullableText(asString(req["extraIPs"])),
 		nullableText(strings.TrimSpace(asString(req["remark"]))),
 		nullableUnixMilli(asInt64(req["expiryTime"], 0)),
 		nullableText(normalizeNodeRenewalCycle(asString(req["renewalCycle"]))),
+		groupID,
 		newHTTP,
 		newTLS,
 		newSocks,
@@ -413,7 +608,66 @@ func (h *Handler) nodeDelete(w http.ResponseWriter, r *http.Request) {
 	response.WriteJSON(w, response.OKEmpty())
 }
 
-func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) nodeInstallDomestic(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		ID      int64  `json:"id"`
+		Channel string `json:"channel"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("参数错误"))
+		return
+	}
+
+	channel := normalizeReleaseChannel(req.Channel)
+	_, err := resolveLatestReleaseByChannel(channel)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新版本失败：%v", err)))
+		return
+	}
+
+	secret, err := h.repo.GetNodeSecret(req.ID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("节点不存在"))
+		return
+	}
+	panelAddr, err := h.repo.GetViteConfigValue("ip")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置 ip"))
+			return
+		}
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	// 获取自定义国内加速地址
+	domesticURL, _ := h.repo.GetViteConfigValue("domestic_download_url")
+	if domesticURL == "" {
+		domesticURL = "https://chfs.646321.xyz:8/chfs/shared/flvx"
+	}
+
+	// 获取自定义全局加速地址（用于 fallback）
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
+	}
+
+	// 生成安装命令（不包含 GLOBAL_DOWNLOAD_URL 前缀）
+	cmd := fmt.Sprintf(`curl -L %s/install-auto.sh | bash -s -- -a %s -s %s`,
+		domesticURL, processServerAddress(panelAddr), secret)
+	response.WriteJSON(w, response.OK(cmd))
+}
+
+func (h *Handler) nodeInstallOverseas(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
@@ -435,7 +689,7 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 	channel := normalizeReleaseChannel(req.Channel)
 	version, err := resolveLatestReleaseByChannel(channel)
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败: %v", releaseChannelLabel(channel), err)))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
 		return
 	}
 
@@ -447,14 +701,136 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 	panelAddr, err := h.repo.GetViteConfigValue("ip")
 	if err != nil {
 		if err == sql.ErrNoRows {
-			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置ip"))
+			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置 ip"))
 			return
 		}
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/abai569/flvx/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, version, processServerAddress(panelAddr), secret)
+
+	// 获取自定义全局加速地址
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
+	}
+
+	// 使用全局加速地址下载
+	cmd := fmt.Sprintf("curl -L %s/https://github.com/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s",
+		globalURL, githubRepo, version, version, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
+}
+
+func (h *Handler) nodeInstallAlternative(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		ID      int64  `json:"id"`
+		Channel string `json:"channel"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("参数错误"))
+		return
+	}
+
+	channel := normalizeReleaseChannel(req.Channel)
+	version, err := resolveLatestReleaseByChannel(channel)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
+		return
+	}
+
+	secret, err := h.repo.GetNodeSecret(req.ID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("节点不存在"))
+		return
+	}
+	panelAddr, err := h.repo.GetViteConfigValue("ip")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置 ip"))
+			return
+		}
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	// 获取自定义全局加速地址
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
+	}
+
+	// 使用全局加速地址下载
+	cmd := fmt.Sprintf("curl -L %s/https://github.com/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s",
+		globalURL, githubRepo, version, version, processServerAddress(panelAddr), secret)
+	response.WriteJSON(w, response.OK(cmd))
+}
+
+func (h *Handler) nodeInstallOffline(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req struct {
+		ID int64 `json:"id"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("参数错误"))
+		return
+	}
+
+	secret, err := h.repo.GetNodeSecret(req.ID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("节点不存在"))
+		return
+	}
+	panelAddr, err := h.repo.GetViteConfigValue("ip")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			response.WriteJSON(w, response.ErrDefault("请先前往网站配置中设置 ip"))
+			return
+		}
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	nodeName, err := h.repo.GetNodeName(req.ID)
+	if err != nil {
+		nodeName = ""
+	}
+
+	// 获取自定义全局加速地址
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
+	}
+
+	type OfflineDeployPayload struct {
+		PanelAddr     string `json:"panelAddr"`
+		Secret        string `json:"secret"`
+		NodeName      string `json:"nodeName"`
+		AMD64Download string `json:"amd64Download"`
+		ARM64Download string `json:"arm64Download"`
+	}
+
+	response.WriteJSON(w, response.OK(OfflineDeployPayload{
+		PanelAddr:     processServerAddress(panelAddr),
+		Secret:        secret,
+		NodeName:      nodeName,
+		AMD64Download: fmt.Sprintf("%s/https://github.com/%s/releases/latest/download/offline-amd64.zip", globalURL, githubRepo),
+		ARM64Download: fmt.Sprintf("%s/https://github.com/%s/releases/latest/download/offline-arm64.zip", globalURL, githubRepo),
+	}))
 }
 
 func (h *Handler) nodeUpdateOrder(w http.ResponseWriter, r *http.Request) {
@@ -521,7 +897,7 @@ func (h *Handler) nodeCheckStatus(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
-	items, err := h.repo.ListNodes()
+	items, err := h.repo.ListNodes(nil)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -567,6 +943,18 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UnixMilli()
 	inx := h.repo.NextIndex("tunnel")
 	localDomain := h.federationLocalDomain()
+
+	// Handle tunnelGroupId the same way as node groupId
+	var tunnelGroupID interface{}
+	if _, ok := req["tunnelGroupId"]; ok {
+		if gID, ok := req["tunnelGroupId"].(float64); ok {
+			if gID > 0 {
+				tunnelGroupID = int64(gID)
+			} else {
+				tunnelGroupID = nil
+			}
+		}
+	}
 
 	tx := h.repo.BeginTx()
 	if tx.Error != nil {
@@ -637,18 +1025,32 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	if trimmed := strings.TrimSpace(inIP); trimmed != "" {
 		tunnelInIP = sql.NullString{String: trimmed, Valid: true}
 	}
+	listID := asInt64(req["listId"], 0)
+	var tunnelListID sql.NullInt64
+	if listID > 0 {
+		tunnelListID = sql.NullInt64{Int64: listID, Valid: true}
+	}
+	var tunnelTunnelGroupID sql.NullInt64
+	if tunnelGroupID != nil {
+		if groupID, ok := tunnelGroupID.(int64); ok && groupID > 0 {
+			tunnelTunnelGroupID = sql.NullInt64{Int64: groupID, Valid: true}
+		}
+	}
 	tunnel := model.Tunnel{
-		Name:         name,
-		TrafficRatio: trafficRatio,
-		Type:         typeVal,
-		Protocol:     "tls",
-		Flow:         flow,
-		CreatedTime:  now,
-		UpdatedTime:  now,
-		Status:       status,
-		InIP:         tunnelInIP,
-		Inx:          inx,
-		IPPreference: ipPreference,
+		Name:          name,
+		TrafficRatio:  trafficRatio,
+		Type:          typeVal,
+		Protocol:      "tls",
+		Flow:          flow,
+		CreatedTime:   now,
+		UpdatedTime:   now,
+		Status:        status,
+		InIP:          tunnelInIP,
+		Inx:           inx,
+		IPPreference:  ipPreference,
+		ListID:        tunnelListID,
+		TunnelGroupID: tunnelTunnelGroupID,
+		Remark:        sql.NullString{String: strings.TrimSpace(asString(req["remark"])), Valid: req["remark"] != nil},
 	}
 	if err := tx.Create(&tunnel).Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -684,12 +1086,51 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		if applyErr != nil {
 			h.rollbackTunnelRuntime(createdChains, createdServices, tunnelID)
 			h.releaseFederationRuntimeRefs(federationReleaseRefs)
+			_ = h.repo.DeleteFederationTunnelBindingsByTunnel(tunnelID)
+			if len(federationReleaseRefs) == 0 && shouldDeferTunnelRuntimeApplyError(applyErr) {
+				response.WriteJSON(w, response.OKEmpty())
+				return
+			}
 			_ = h.deleteTunnelByID(tunnelID)
 			response.WriteJSON(w, response.ErrDefault(applyErr.Error()))
 			return
 		}
+
+		_ = h.updateTunnelChainConnectIpType(tx, tunnelID, runtimeState.Nodes, runtimeState.IPPreference)
 	}
 	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) updateTunnelChainConnectIpType(tx *gorm.DB, tunnelID int64, nodes map[int64]*nodeRecord, ipPreference string) error {
+	if h == nil || tx == nil || nodes == nil {
+		return nil
+	}
+
+	var chainTunnels []model.ChainTunnel
+	if err := tx.Where("tunnel_id = ?", tunnelID).Find(&chainTunnels).Error; err != nil {
+		return err
+	}
+
+	for _, ct := range chainTunnels {
+		if ct.ConnectIPType.Valid && ct.ConnectIPType.String != "" {
+			continue
+		}
+
+		fromNode := nodes[ct.NodeID]
+		if fromNode == nil {
+			continue
+		}
+
+		_, actualIPType, err := selectTunnelDialHost(fromNode, fromNode, ipPreference, "")
+		if err != nil || actualIPType == "" {
+			continue
+		}
+
+		if err := h.repo.UpdateChainTunnelConnectIpTypeTx(tx, tunnelID, ct.ChainType, ct.NodeID, actualIPType); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (h *Handler) cleanupTunnelRuntime(tunnelID int64) {
@@ -769,6 +1210,18 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	ipPreference := asString(req["ipPreference"])
 	localDomain := h.federationLocalDomain()
 
+	// Handle tunnelGroupId the same way as node groupId
+	var tunnelGroupID interface{}
+	if _, ok := req["tunnelGroupId"]; ok {
+		if gID, ok := req["tunnelGroupId"].(float64); ok {
+			if gID > 0 {
+				tunnelGroupID = int64(gID)
+			} else {
+				tunnelGroupID = nil
+			}
+		}
+	}
+
 	tx := h.repo.BeginTx()
 	if tx.Error != nil {
 		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
@@ -784,7 +1237,12 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	runtimeState.TunnelID = id
 	runtimeState.IPPreference = ipPreference
 
-	inIp := buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes, ipPreference)
+	// 🎯 修复：优先读取前端传递的入口地址
+	inIp := asString(req["inIp"])
+	if strings.TrimSpace(inIp) == "" {
+		// 只有在前端真正留空时，才去兜底获取节点底层IP
+		inIp = buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes, ipPreference)
+	}
 
 	var federationBindings []repo.FederationTunnelBinding
 	var federationReleaseRefs []federationRuntimeReleaseRef
@@ -805,6 +1263,9 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		asInt(req["status"], 1),
 		inIp,
 		ipPreference,
+		asInt64(req["listId"], 0),
+		tunnelGroupID,
+		asString(req["remark"]),
 		now,
 	); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -862,6 +1323,8 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.ErrDefault(applyErr.Error()))
 			return
 		}
+
+		_ = h.updateTunnelChainConnectIpType(tx, id, runtimeState.Nodes, runtimeState.IPPreference)
 	}
 
 	if forwards, fwdErr := h.listForwardsByTunnel(id); fwdErr == nil {
@@ -1326,22 +1789,23 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 
 	for _, r := range inNodes {
 		state.InNodes = append(state.InNodes, tunnelRuntimeNode{
-			NodeID:    r.NodeID,
-			Protocol:  r.Protocol,
-			Strategy:  r.Strategy,
-			ChainType: 1,
+			NodeID:        r.NodeID,
+			Protocol:      r.Protocol,
+			Strategy:      r.Strategy,
+			ChainType:     1,
+			ConnectIPType: r.ConnectIPType,
 		})
 		state.NodeIDList = append(state.NodeIDList, r.NodeID)
 	}
 
 	for _, r := range outNodes {
 		state.OutNodes = append(state.OutNodes, tunnelRuntimeNode{
-			NodeID:    r.NodeID,
-			Protocol:  r.Protocol,
-			Strategy:  r.Strategy,
-			ChainType: 3,
-			Port:      r.Port,
-			ConnectIP: r.ConnectIP,
+			NodeID:        r.NodeID,
+			Protocol:      r.Protocol,
+			Strategy:      r.Strategy,
+			ChainType:     3,
+			Port:          r.Port,
+			ConnectIPType: r.ConnectIPType,
 		})
 		state.NodeIDList = append(state.NodeIDList, r.NodeID)
 	}
@@ -1350,13 +1814,13 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 		stateHop := make([]tunnelRuntimeNode, 0)
 		for _, r := range hop {
 			stateHop = append(stateHop, tunnelRuntimeNode{
-				NodeID:    r.NodeID,
-				Protocol:  r.Protocol,
-				Strategy:  r.Strategy,
-				ChainType: 2,
-				Inx:       int(r.Inx),
-				Port:      r.Port,
-				ConnectIP: r.ConnectIP,
+				NodeID:        r.NodeID,
+				Protocol:      r.Protocol,
+				Strategy:      r.Strategy,
+				ChainType:     2,
+				Inx:           int(r.Inx),
+				Port:          r.Port,
+				ConnectIPType: r.ConnectIPType,
 			})
 			state.NodeIDList = append(state.NodeIDList, r.NodeID)
 		}
@@ -1557,6 +2021,12 @@ func (h *Handler) userTunnelRemove(w http.ResponseWriter, r *http.Request) {
 	if id <= 0 {
 		return
 	}
+	userID, tunnelID, lookupErr := h.repo.GetUserTunnelUserAndTunnel(id)
+	if lookupErr != nil {
+		response.WriteJSON(w, response.Err(-2, lookupErr.Error()))
+		return
+	}
+	h.cleanupForwardsForUserTunnel(userID, tunnelID)
 	if err := h.repo.DeleteUserTunnel(id); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1669,6 +2139,16 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("转发名称和目标地址不能为空"))
 		return
 	}
+
+	// ✅ 新增：验证到期时间
+	if expiryTimeVal, ok := req["expiryTime"]; ok && expiryTimeVal != nil {
+		expiryTime := asInt64(expiryTimeVal, 0)
+		now := time.Now().UnixMilli()
+		if expiryTime > 0 && expiryTime <= now {
+			response.WriteJSON(w, response.ErrDefault("到期时间不能早于或等于当前时间"))
+			return
+		}
+	}
 	if roleID != 0 {
 		if speedIDVal, ok := req["speedId"]; ok && speedIDVal != nil {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法设置限速规则"))
@@ -1718,7 +2198,11 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	if userName == "" {
 		userName = "user"
 	}
-	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID))
+	trafficLimit := asInt64(req["trafficLimit"], 0)
+	expiryTime := asAnyToInt64Ptr(req["expiryTime"])
+	speedLimitEnabled := asBool(req["speedLimitEnabled"], false)
+	speedLimit := asInt(req["speedLimit"], 0)
+	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), asInt(req["maxConnections"], 0), trafficLimit, expiryTime, speedLimitEnabled, speedLimit)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1863,7 +2347,29 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	now := time.Now().UnixMilli()
-	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID); err != nil {
+	maxConnections := asInt(req["maxConnections"], forward.MaxConnections)
+	if _, ok := req["maxConnections"]; !ok {
+		maxConnections = forward.MaxConnections
+	}
+	trafficLimit := asInt64(req["trafficLimit"], forward.TrafficLimit)
+	if _, ok := req["trafficLimit"]; !ok {
+		trafficLimit = forward.TrafficLimit
+	}
+	var newExpiryTime interface{}
+	if _, ok := req["expiryTime"]; ok {
+		newExpiryTime = asAnyToInt64Ptr(req["expiryTime"])
+	} else {
+		newExpiryTime = forward.ExpiryTime
+	}
+	speedLimitEnabled := asBool(req["speedLimitEnabled"], forward.SpeedLimitEnabled)
+	if _, ok := req["speedLimitEnabled"]; !ok {
+		speedLimitEnabled = forward.SpeedLimitEnabled
+	}
+	speedLimit := asInt(req["speedLimit"], forward.SpeedLimit)
+	if _, ok := req["speedLimit"]; !ok {
+		speedLimit = forward.SpeedLimit
+	}
+	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConnections, trafficLimit, newExpiryTime, speedLimitEnabled, speedLimit); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -1945,6 +2451,10 @@ func (h *Handler) forwardDelete(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
+
+	// ✅ 删除动态限速器
+	h.deleteForwardDynamicLimiter(forward)
+
 	if err := h.deleteForwardByID(id); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1994,7 +2504,16 @@ func (h *Handler) forwardPause(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
-	_ = h.repo.UpdateForwardStatus(id, 0, time.Now().UnixMilli())
+	// 断开已建立的连接
+	if err := h.controlForwardServices(forward, "TerminateConnections", false); err != nil {
+		log.Printf("断开连接失败：%v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpdateForwardStatus(id, 0, now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
 	response.WriteJSON(w, response.OKEmpty())
 }
 
@@ -2291,9 +2810,20 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 			nd, ndErr := h.getNodeRecord(nid)
 			if ndErr != nil {
 				portRangeErr = ndErr
-				continue
+				portRangeOk = false
+				break
 			}
 			if validateErr := validateRemoteNodePort(nd, p); validateErr != nil {
+				portRangeOk = false
+				portRangeErr = validateErr
+				break
+			}
+			if validateErr := validateLocalNodePort(nd, p); validateErr != nil {
+				portRangeOk = false
+				portRangeErr = validateErr
+				break
+			}
+			if validateErr := h.validateForwardPortAvailability(nd, p, id); validateErr != nil {
 				portRangeOk = false
 				portRangeErr = validateErr
 				break
@@ -2483,13 +3013,17 @@ func (h *Handler) groupUserAssign(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	if err := h.repo.RevokeGroupGrantsForRemovedUsersTx(tx, req.GroupID, previousUserIDs, req.UserIDs); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+	revokedPairs, revokeErr := h.repo.RevokeGroupGrantsForRemovedUsersTx(tx, req.GroupID, previousUserIDs, req.UserIDs)
+	if revokeErr != nil {
+		response.WriteJSON(w, response.Err(-2, revokeErr.Error()))
 		return
 	}
 	if err := tx.Commit().Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
+	}
+	for _, pair := range revokedPairs {
+		h.cleanupForwardsForUserTunnel(pair.UserID, pair.TunnelID)
 	}
 	_ = h.syncPermissionsByUserGroup(req.GroupID)
 	response.WriteJSON(w, response.OKEmpty())
@@ -2534,9 +3068,12 @@ func (h *Handler) groupPermissionRemove(w http.ResponseWriter, r *http.Request) 
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	var revokedPairs []repo.RevokedUserTunnelPair
 	if exists {
-		if err := h.repo.RevokeGroupPermissionPairTx(tx, ug, tg); err != nil {
-			response.WriteJSON(w, response.Err(-2, err.Error()))
+		var revokeErr error
+		revokedPairs, revokeErr = h.repo.RevokeGroupPermissionPairTx(tx, ug, tg)
+		if revokeErr != nil {
+			response.WriteJSON(w, response.Err(-2, revokeErr.Error()))
 			return
 		}
 	}
@@ -2544,6 +3081,9 @@ func (h *Handler) groupPermissionRemove(w http.ResponseWriter, r *http.Request) 
 	if err := tx.Commit().Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
+	}
+	for _, pair := range revokedPairs {
+		h.cleanupForwardsForUserTunnel(pair.UserID, pair.TunnelID)
 	}
 	response.WriteJSON(w, response.OKEmpty())
 }
@@ -2639,13 +3179,13 @@ func (h *Handler) syncPermissionsByTunnelGroup(tunnelGroupID int64) error {
 }
 
 type tunnelRuntimeNode struct {
-	NodeID    int64
-	Protocol  string
-	Strategy  string
-	Inx       int
-	ChainType int
-	Port      int
-	ConnectIP string
+	NodeID        int64
+	Protocol      string
+	Strategy      string
+	Inx           int
+	ChainType     int
+	Port          int
+	ConnectIPType string
 }
 
 type tunnelCreateState struct {
@@ -2676,10 +3216,11 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 		}
 		nodeIDs = append(nodeIDs, nodeID)
 		state.InNodes = append(state.InNodes, tunnelRuntimeNode{
-			NodeID:    nodeID,
-			Protocol:  defaultString(asString(item["protocol"]), "tls"),
-			Strategy:  defaultString(asString(item["strategy"]), "round"),
-			ChainType: 1,
+			NodeID:        nodeID,
+			Protocol:      defaultString(asString(item["protocol"]), "tls"),
+			Strategy:      defaultString(asString(item["strategy"]), "round"),
+			ChainType:     1,
+			ConnectIPType: asString(item["connectIpType"]),
 		})
 	}
 	if len(state.InNodes) == 0 {
@@ -2707,19 +3248,23 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 				}
 				if !isRemote {
 					var err error
-					port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					if excludeTunnelID > 0 {
+						port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					} else {
+						port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					}
 					if err != nil {
 						return nil, err
 					}
 				}
 			}
 			state.OutNodes = append(state.OutNodes, tunnelRuntimeNode{
-				NodeID:    nodeID,
-				Protocol:  defaultString(asString(item["protocol"]), "tls"),
-				Strategy:  defaultString(asString(item["strategy"]), "round"),
-				ChainType: 3,
-				Port:      port,
-				ConnectIP: asString(item["connectIp"]),
+				NodeID:        nodeID,
+				Protocol:      defaultString(asString(item["protocol"]), "tls"),
+				Strategy:      defaultString(asString(item["strategy"]), "round"),
+				ChainType:     3,
+				Port:          port,
+				ConnectIPType: asString(item["connectIpType"]),
 			})
 		}
 		if len(state.OutNodes) == 0 {
@@ -2742,20 +3287,24 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 					}
 					if !isRemote {
 						var err error
-						port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						if excludeTunnelID > 0 {
+							port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						} else {
+							port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						}
 						if err != nil {
 							return nil, err
 						}
 					}
 				}
 				hop = append(hop, tunnelRuntimeNode{
-					NodeID:    nodeID,
-					Protocol:  defaultString(asString(item["protocol"]), "tls"),
-					Strategy:  defaultString(asString(item["strategy"]), "round"),
-					Inx:       hopIdx + 1,
-					ChainType: 2,
-					Port:      port,
-					ConnectIP: asString(item["connectIp"]),
+					NodeID:        nodeID,
+					Protocol:      defaultString(asString(item["protocol"]), "tls"),
+					Strategy:      defaultString(asString(item["strategy"]), "round"),
+					Inx:           hopIdx + 1,
+					ChainType:     2,
+					Port:          port,
+					ConnectIPType: asString(item["connectIpType"]),
 				})
 			}
 			if len(hop) > 0 {
@@ -3058,7 +3607,7 @@ func (h *Handler) applyFederationRuntime(state *tunnelCreateState, localDomain s
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, errors.New("节点不存在")
 				}
-				host, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference, target.ConnectIP)
+				host, _, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference, target.ConnectIPType)
 				if hostErr != nil {
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, hostErr
@@ -3322,6 +3871,10 @@ func shouldDeferTunnelRuntimeApplyError(err error) bool {
 	return false
 }
 
+func isNodeOfflineOrTimeoutError(err error) bool {
+	return shouldDeferTunnelRuntimeApplyError(err)
+}
+
 func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRuntimeNode, nodes map[int64]*nodeRecord, ipPreference string) (map[string]interface{}, error) {
 	fromNode := nodes[fromNodeID]
 	if fromNode == nil {
@@ -3336,7 +3889,7 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		if targetNode == nil {
 			return nil, errors.New("节点不存在")
 		}
-		host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, target.ConnectIP)
+		host, _, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, target.ConnectIPType)
 		if err != nil {
 			return nil, err
 		}
@@ -3345,11 +3898,13 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 			return nil, errors.New("节点端口不能为空")
 		}
 		protocol := defaultString(target.Protocol, "tls")
+		// ✅ 修复 1: 为所有 Relay Connector 启用 noDelay 模式（不限于 TLS）
 		connector := map[string]interface{}{
 			"type": "relay",
-		}
-		if isTLSTunnelProtocol(protocol) {
-			connector["metadata"] = map[string]interface{}{"nodelay": true}
+			"metadata": map[string]interface{}{
+				"nodelay": true,
+				"udpTTL":  "5s", // ✅ 修复 2: 添加 UDP TTL 默认配置
+			},
 		}
 		nodeItems = append(nodeItems, map[string]interface{}{
 			"name":      fmt.Sprintf("node_%d", idx+1),
@@ -3386,18 +3941,21 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 		return nil
 	}
 	protocol := defaultString(chainNode.Protocol, "tls")
+	// ✅ 修复 1: 为所有 Relay Handler 启用 noDelay 模式（不限于 TLS）
+	// 确保连接错误立即暴露，故障转移机制正常工作
 	handlerCfg := map[string]interface{}{
 		"type": "relay",
-	}
-	if isTLSTunnelProtocol(protocol) {
-		handlerCfg["metadata"] = map[string]interface{}{"nodelay": true}
+		"metadata": map[string]interface{}{
+			"nodelay": true,
+			"udpTTL":  "5s", // ✅ 修复 2: 添加 UDP TTL 默认配置
+		},
 	}
 	if nextHopCandidateCount > 1 {
 		handlerCfg["retries"] = nextHopCandidateCount - 1
 	}
 	service := map[string]interface{}{
 		"name":    fmt.Sprintf("%d_tls", tunnelID),
-		"addr":    processServerAddress(fmt.Sprintf("%s:%d", defaultString(strings.TrimSpace(chainNode.ConnectIP), node.TCPListenAddr), chainNode.Port)),
+		"addr":    processServerAddress(fmt.Sprintf("%s:%d", node.TCPListenAddr, chainNode.Port)),
 		"handler": handlerCfg,
 		"listener": map[string]interface{}{
 			"type": protocol,
@@ -3412,54 +3970,105 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	return []map[string]interface{}{service}
 }
 
-func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, connectIp string) (string, error) {
+func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, connectIpType string) (string, string, error) {
 	if fromNode == nil || toNode == nil {
-		return "", errors.New("节点不存在")
-	}
-	if strings.TrimSpace(connectIp) != "" {
-		return strings.TrimSpace(connectIp), nil
+		return "", "", errors.New("节点不存在")
 	}
 	fromV4 := nodeSupportsV4(fromNode)
 	fromV6 := nodeSupportsV6(fromNode)
 	toV4 := nodeSupportsV4(toNode)
 	toV6 := nodeSupportsV6(toNode)
 
-	switch strings.TrimSpace(ipPreference) {
+	effectivePreference := strings.TrimSpace(connectIpType)
+	if effectivePreference == "" {
+		effectivePreference = strings.TrimSpace(ipPreference)
+	}
+
+	switch effectivePreference {
 	case "v6":
 		if fromV6 && toV6 {
 			if host := pickNodeAddressV6(toNode); host != "" {
-				return host, nil
+				return host, "v6", nil
 			}
 		}
 		if fromV4 && toV4 {
 			if host := pickNodeAddressV4(toNode); host != "" {
-				return host, nil
+				return host, "v4", nil
 			}
 		}
 	case "v4":
 		if fromV4 && toV4 {
 			if host := pickNodeAddressV4(toNode); host != "" {
-				return host, nil
+				return host, "v4", nil
 			}
 		}
 		if fromV6 && toV6 {
 			if host := pickNodeAddressV6(toNode); host != "" {
-				return host, nil
+				return host, "v6", nil
+			}
+		}
+	case "lan":
+		if host := pickNodeAddressLan(toNode); host != "" {
+			return host, "lan", nil
+		}
+		if fromV4 && toV4 {
+			if host := pickNodeAddressV4(toNode); host != "" {
+				return host, "v4", nil
+			}
+		}
+		if fromV6 && toV6 {
+			if host := pickNodeAddressV6(toNode); host != "" {
+				return host, "v6", nil
+			}
+		}
+	case "auto":
+		if fromV4 && toV4 {
+			if host := pickNodeAddressV4(toNode); host != "" {
+				return host, "v4", nil
+			}
+		}
+		if fromV6 && toV6 {
+			if host := pickNodeAddressV6(toNode); host != "" {
+				return host, "v6", nil
 			}
 		}
 	default:
+		// 优先 LAN（内网 IP）
+		if host := pickNodeAddressLan(toNode); host != "" {
+			return host, "lan", nil
+		}
+		// 其次 IPv4
 		if fromV4 && toV4 {
 			if host := pickNodeAddressV4(toNode); host != "" {
-				return host, nil
+				return host, "v4", nil
 			}
 		}
+		// 最后 IPv6
 		if fromV6 && toV6 {
 			if host := pickNodeAddressV6(toNode); host != "" {
-				return host, nil
+				return host, "v6", nil
 			}
 		}
 	}
-	return "", fmt.Errorf("节点链路不兼容：%s(v4=%t,v6=%t) -> %s(v4=%t,v6=%t)", nodeDisplayName(fromNode), fromV4, fromV6, nodeDisplayName(toNode), toV4, toV6)
+	return "", "", fmt.Errorf("节点链路不兼容：%s(v4=%t,v6=%t) -> %s(v4=%t,v6=%t)", nodeDisplayName(fromNode), fromV4, fromV6, nodeDisplayName(toNode), toV4, toV6)
+}
+
+func pickNodeAddressLan(node *nodeRecord) string {
+	if node == nil {
+		return ""
+	}
+	if ip := strings.TrimSpace(node.IntranetIP); ip != "" {
+		return ip
+	}
+	if ips := strings.TrimSpace(node.ExtraIPs); ips != "" {
+		for _, ip := range strings.Split(ips, ",") {
+			ip = strings.TrimSpace(ip)
+			if ip != "" && !strings.HasPrefix(ip, "[") {
+				return ip
+			}
+		}
+	}
+	return ""
 }
 
 func nodeDisplayName(node *nodeRecord) string {
@@ -3554,6 +4163,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			i+1,
 			defaultString(asString(n["protocol"]), "tls"),
 			"",
+			asString(n["connectIpType"]),
 		); err != nil {
 			return err
 		}
@@ -3566,12 +4176,13 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 		port := asInt(n["port"], 0)
 		if port <= 0 {
 			var pickErr error
-			port, pickErr = h.repo.PickNodePortTx(tx, nodeID, allocated, 0)
+			port, pickErr = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, 0)
 			if pickErr != nil {
 				return pickErr
 			}
 		}
 		connectIp := asString(n["connectIp"])
+		connectIpType := asString(n["connectIpType"])
 		if err := h.repo.CreateChainTunnelTx(
 			tx,
 			tunnelID,
@@ -3582,6 +4193,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			i+1,
 			defaultString(asString(n["protocol"]), "tls"),
 			connectIp,
+			connectIpType,
 		); err != nil {
 			return err
 		}
@@ -3596,12 +4208,13 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			port := asInt(n["port"], 0)
 			if port <= 0 {
 				var pickErr error
-				port, pickErr = h.repo.PickNodePortTx(tx, nodeID, allocated, 0)
+				port, pickErr = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, 0)
 				if pickErr != nil {
 					return pickErr
 				}
 			}
 			connectIp := asString(n["connectIp"])
+			connectIpType := asString(n["connectIpType"])
 			if err := h.repo.CreateChainTunnelTx(
 				tx,
 				tunnelID,
@@ -3612,6 +4225,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 				i+1,
 				defaultString(asString(n["protocol"]), "tls"),
 				connectIp,
+				connectIpType,
 			); err != nil {
 				return err
 			}
@@ -4000,6 +4614,27 @@ func (h *Handler) syncUserTunnelForwards(userID, tunnelID int64) error {
 	return nil
 }
 
+// cleanupForwardsForUserTunnel deletes all forwarding rules belonging to a
+// specific user+tunnel pair. It notifies nodes to remove the runtime services
+// first, then deletes the DB records. This is best-effort: individual failures
+// do not abort the overall cleanup so that remaining forwards are still cleaned.
+func (h *Handler) cleanupForwardsForUserTunnel(userID, tunnelID int64) {
+	if userID <= 0 || tunnelID <= 0 {
+		return
+	}
+	forwards, err := h.repo.ListForwardsByUserAndTunnel(userID, tunnelID)
+	if err != nil || len(forwards) == 0 {
+		return
+	}
+	for i := range forwards {
+		f := &forwards[i]
+		if f.Status == 1 {
+			_ = h.controlForwardServices(f, "DeleteService", true)
+		}
+		_ = h.deleteForwardByID(f.ID)
+	}
+}
+
 func (h *Handler) normalizeSpeedLimitReference(speedID *int64) (*int64, error) {
 	if speedID == nil {
 		return nil, nil
@@ -4299,4 +4934,224 @@ func parsePortRangeMinMax(input string) (int, int) {
 		}
 	}
 	return minPort, maxPort
+}
+
+// ─── Tunnel List Grouping ────────────────────────────────────────────
+
+func (h *Handler) tunnelListHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	lists, err := h.repo.ListTunnelLists()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	// Build response with tunnel IDs and names
+	type TunnelListItem struct {
+		model.TunnelList
+		TunnelIDs   []int64  `json:"tunnelIds"`
+		TunnelNames []string `json:"tunnelNames"`
+	}
+	items := make([]TunnelListItem, 0, len(lists))
+	for _, list := range lists {
+		tunnelIDs, err := h.repo.GetTunnelIDsByTunnelList(list.ID)
+		if err != nil {
+			continue
+		}
+		tunnelNames := make([]string, 0, len(tunnelIDs))
+		for _, tid := range tunnelIDs {
+			tunnelName, err := h.repo.GetTunnelName(tid)
+			if err != nil {
+				continue
+			}
+			tunnelNames = append(tunnelNames, tunnelName)
+		}
+		items = append(items, TunnelListItem{
+			TunnelList:  list,
+			TunnelIDs:   tunnelIDs,
+			TunnelNames: tunnelNames,
+		})
+	}
+	response.WriteJSON(w, response.OK(items))
+}
+
+func (h *Handler) tunnelListCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		Name   string `json:"name"`
+		Status int    `json:"status"`
+		Inx    int    `json:"inx"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || req.Name == "" {
+		response.WriteJSON(w, response.ErrDefault("分组名称不能为空"))
+		return
+	}
+	if req.Status == 0 {
+		req.Status = 1
+	}
+	id, err := h.repo.CreateTunnelList(req.Name, req.Status, req.Inx)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OK(map[string]interface{}{"id": id}))
+}
+
+func (h *Handler) tunnelListUpdate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		ID     int64  `json:"id"`
+		Name   string `json:"name"`
+		Status int    `json:"status"`
+		Inx    int    `json:"inx"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || req.ID <= 0 || req.Name == "" {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if err := h.repo.UpdateTunnelList(req.ID, req.Name, req.Status, req.Inx); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) tunnelListDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	id := idFromBody(r, w)
+	if id <= 0 {
+		return
+	}
+	if err := h.repo.DeleteTunnelList(id); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) tunnelListAssign(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		ListID    int64   `json:"listId"`
+		TunnelIDs []int64 `json:"tunnelIds"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || req.ListID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	tx := h.repo.BeginTx()
+	if tx.Error != nil {
+		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
+		return
+	}
+	defer func() { tx.Rollback() }()
+	if err := h.repo.ReplaceTunnelListMembersTx(tx, req.ListID, req.TunnelIDs, time.Now().UnixMilli()); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) tunnelListOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		Orders []struct {
+			ID  int64 `json:"id"`
+			Inx int   `json:"inx"`
+		} `json:"orders"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || len(req.Orders) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	tx := h.repo.BeginTx()
+	if tx.Error != nil {
+		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
+		return
+	}
+	defer func() { tx.Rollback() }()
+	if err := h.repo.UpdateTunnelListOrderTx(tx, req.Orders); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) tunnelListTunnelOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	if !h.ensureAdminAccess(w, r) {
+		return
+	}
+	var req struct {
+		ListID int64 `json:"listId"`
+		Orders []struct {
+			TunnelID int64 `json:"tunnelId"`
+			Inx      int   `json:"inx"`
+		} `json:"orders"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil || req.ListID <= 0 || len(req.Orders) == 0 {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	tx := h.repo.BeginTx()
+	if tx.Error != nil {
+		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
+		return
+	}
+	defer func() { tx.Rollback() }()
+	if err := h.repo.UpdateTunnelListTunnelOrderTx(tx, req.ListID, req.Orders); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
 }

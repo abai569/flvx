@@ -14,13 +14,11 @@ import DefaultLayout from "@/layouts/default";
 import { login, LoginData, checkCaptcha, getConfigByName } from "@/api";
 import { writeLoginSession } from "@/utils/session";
 import { useWebViewMode } from "@/hooks/useWebViewMode";
-
 interface LoginForm {
   username: string;
   password: string;
   captchaId: string;
 }
-
 export default function IndexPage() {
   const [form, setForm] = useState<LoginForm>({
     username: "",
@@ -33,7 +31,6 @@ export default function IndexPage() {
   const [siteKey, setSiteKey] = useState("");
   const navigate = useNavigate();
   const isWebView = useWebViewMode();
-
   // 验证表单
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginForm> = {};
@@ -41,18 +38,15 @@ export default function IndexPage() {
     if (!form.username.trim()) {
       newErrors.username = "请输入用户名";
     }
-
     if (!form.password.trim()) {
       newErrors.password = "请输入密码";
     } else if (form.password.length < 6) {
       newErrors.password = "密码长度至少6位";
     }
-
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
   };
-
   // 处理输入变化
   const handleInputChange = (field: keyof LoginForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -61,7 +55,6 @@ export default function IndexPage() {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
-
   // 执行登录请求
   const performLogin = async (captchaToken?: string) => {
     try {
@@ -69,13 +62,11 @@ export default function IndexPage() {
         typeof captchaToken === "string" && captchaToken.trim()
           ? captchaToken
           : form.captchaId;
-
       const loginData: LoginData = {
         username: form.username.trim(),
         password: form.password,
         captchaId: finalCaptchaId,
       };
-
       const response = await login(loginData);
 
       if (response.code !== 0) {
@@ -86,7 +77,6 @@ export default function IndexPage() {
 
         return;
       }
-
       // 检查是否需要强制修改密码
       if (response.data.requirePasswordChange) {
         writeLoginSession(response.data);
@@ -95,10 +85,8 @@ export default function IndexPage() {
 
         return;
       }
-
       // 保存登录信息
       writeLoginSession(response.data);
-
       // 登录成功
       toast.success("登录成功");
       navigate("/dashboard");
@@ -108,12 +96,9 @@ export default function IndexPage() {
       setLoading(false);
     }
   };
-
   const handleLogin = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
-
     try {
       // 先检查是否需要验证码
       const checkResponse = await checkCaptcha();
@@ -124,7 +109,6 @@ export default function IndexPage() {
 
         return;
       }
-
       // 根据返回值决定是否显示验证码
       if (checkResponse.data === 0) {
         await performLogin();
@@ -144,7 +128,6 @@ export default function IndexPage() {
       setLoading(false);
     }
   };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !loading) {
       handleLogin();
@@ -182,7 +165,6 @@ export default function IndexPage() {
                   }
                   onKeyDown={handleKeyPress}
                 />
-
                 <Input
                   isDisabled={loading}
                   isInvalid={!!errors.password}
@@ -196,7 +178,6 @@ export default function IndexPage() {
                   }
                   onKeyDown={handleKeyPress}
                 />
-
                 <Button
                   className="mt-2"
                   color="primary"
@@ -211,9 +192,7 @@ export default function IndexPage() {
             </CardBody>
           </Card>
         </motion.div>
-
         {/* 版权信息 - 固定在底部，不占据布局空间 */}
-
         <VersionFooter
           containerClassName="fixed inset-x-0 bottom-4 text-center py-4"
           poweredClassName="text-xs text-gray-400 dark:text-gray-500"
@@ -221,7 +200,6 @@ export default function IndexPage() {
           version={isWebView ? siteConfig.app_version : siteConfig.version}
           versionClassName="text-xs text-gray-400 dark:text-gray-500 mt-1"
         />
-
         {/* 验证码弹层 */}
         {showCaptcha && siteKey && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">

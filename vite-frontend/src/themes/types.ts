@@ -182,7 +182,11 @@ export type ComponentKey =
  * All overridable layout keys.
  * Layouts receive `{ children: React.ReactNode }` as props.
  */
-export type LayoutKey = "AdminLayout" | "H5Layout" | "H5SimpleLayout" | "DefaultLayout";
+export type LayoutKey =
+  | "AdminLayout"
+  | "H5Layout"
+  | "H5SimpleLayout"
+  | "DefaultLayout";
 
 /**
  * All overridable page keys.
@@ -283,7 +287,9 @@ export interface ThemePackage {
   /**
    * Map of layout overrides.  Each layout receives `{ children }`.
    */
-  layouts?: Partial<Record<LayoutKey, ComponentType<{ children: React.ReactNode }>>>;
+  layouts?: Partial<
+    Record<LayoutKey, ComponentType<{ children: React.ReactNode }>>
+  >;
 
   /**
    * Map of page overrides.  Each page is a full route-level component.

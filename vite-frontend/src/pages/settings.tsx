@@ -23,13 +23,11 @@ import {
   deletePanelAddress,
   validatePanelAddress,
 } from "@/utils/panel";
-
 interface PanelAddress {
   name: string;
   address: string;
   inx: boolean;
 }
-
 const FORWARD_COMPACT_MODE_CONFIG_KEY = "forward_compact_mode";
 
 export const SettingsPage = () => {
@@ -43,19 +41,15 @@ export const SettingsPage = () => {
   const [forwardCompactMode, setForwardCompactMode] = useState(false);
   const [forwardCompactModeSaving, setForwardCompactModeSaving] =
     useState(false);
-
   const admin = isAdmin();
-
   const setPanelAddressesFunc = (newAddress: PanelAddress[]) => {
     setPanelAddresses(newAddress);
   };
-
   // 加载面板地址列表
   const loadPanelAddresses = async () => {
     (window as any).setPanelAddresses = setPanelAddressesFunc;
     getPanelAddresses();
   };
-
   // 添加新面板地址
   const addPanelAddress = async () => {
     if (!newName.trim() || !newAddress.trim()) {
@@ -63,7 +57,6 @@ export const SettingsPage = () => {
 
       return;
     }
-
     // 验证地址格式
     if (!validatePanelAddress(newAddress.trim())) {
       toast.error(
@@ -78,14 +71,12 @@ export const SettingsPage = () => {
     setNewAddress("");
     toast.success("添加成功");
   };
-
   // 设置当前面板地址
   const setCurrentPanel = async (name: string) => {
     (window as any).setPanelAddresses = setPanelAddressesFunc;
     setCurrentPanelAddress(name);
     reinitializeBaseURL();
   };
-
   // 删除面板地址
   const handleDeletePanelAddress = async (name: string) => {
     (window as any).setPanelAddresses = setPanelAddressesFunc;
@@ -99,7 +90,6 @@ export const SettingsPage = () => {
     loadPanelAddresses();
     loadForwardCompactMode();
   }, []);
-
   const loadForwardCompactMode = async () => {
     try {
       const res = await getConfigByName(FORWARD_COMPACT_MODE_CONFIG_KEY);
@@ -113,12 +103,10 @@ export const SettingsPage = () => {
       setForwardCompactMode(false);
     }
   };
-
   const handleForwardCompactModeChange = async (enabled: boolean) => {
     if (!admin || forwardCompactModeSaving) {
       return;
     }
-
     const previous = forwardCompactMode;
 
     setForwardCompactMode(enabled);
@@ -147,7 +135,6 @@ export const SettingsPage = () => {
       setForwardCompactModeSaving(false);
     }
   };
-
   const handleUpdateChannelChange = (channel: UpdateReleaseChannel) => {
     setUpdateChannel(channel);
     setUpdateReleaseChannel(channel);
@@ -177,7 +164,6 @@ export const SettingsPage = () => {
           </div>
         </div>
       </div>
-
       {/* 内容区域 */}
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="space-y-6">
@@ -210,7 +196,6 @@ export const SettingsPage = () => {
               </div>
             </CardBody>
           </Card>
-
           <Card className="border border-gray-200 dark:border-gray-700">
             <CardBody className="p-6">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -241,7 +226,6 @@ export const SettingsPage = () => {
               </div>
             </CardBody>
           </Card>
-
           {/* 添加新地址 */}
           <Card className="border border-gray-200 dark:border-gray-700">
             <CardBody className="p-6">
@@ -269,7 +253,6 @@ export const SettingsPage = () => {
               </div>
             </CardBody>
           </Card>
-
           {/* 地址列表 */}
           <Card className="border border-gray-200 dark:border-gray-700">
             <CardBody className="p-6">

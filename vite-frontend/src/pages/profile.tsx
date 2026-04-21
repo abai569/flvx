@@ -25,7 +25,6 @@ interface PasswordForm {
   newPassword: string;
   confirmPassword: string;
 }
-
 interface MenuItem {
   path: string;
   label: string;
@@ -33,7 +32,6 @@ interface MenuItem {
   color: string;
   description: string;
 }
-
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -52,7 +50,6 @@ export default function ProfilePage() {
     setUsername(getSessionName() || "Admin");
     setIsAdmin(getAdminFlag());
   }, []);
-
   // 管理员菜单项
   const adminMenuItems: MenuItem[] = [
     {
@@ -123,13 +120,11 @@ export default function ProfilePage() {
       description: "配置网站设置",
     },
   ];
-
   // 退出登录
   const handleLogout = () => {
     safeLogout();
     navigate("/", { replace: true });
   };
-
   // 密码表单验证
   const validatePasswordForm = (): boolean => {
     if (!passwordForm.newUsername.trim()) {
@@ -165,11 +160,9 @@ export default function ProfilePage() {
 
     return true;
   };
-
   // 提交密码修改
   const handlePasswordSubmit = async () => {
     if (!validatePasswordForm()) return;
-
     setPasswordLoading(true);
     try {
       const response = await updatePassword(passwordForm);
@@ -187,7 +180,6 @@ export default function ProfilePage() {
       setPasswordLoading(false);
     }
   };
-
   // 重置密码表单
   const resetPasswordForm = () => {
     setPasswordForm({
@@ -240,7 +232,6 @@ export default function ProfilePage() {
             </div>
           </CardBody>
         </Card>
-
         {/* 功能网格 */}
         <Card className="border border-gray-200 dark:border-default-200 shadow-md hover:shadow-lg transition-shadow">
           <CardBody className="p-4">
@@ -263,7 +254,6 @@ export default function ProfilePage() {
                     </span>
                   </button>
                 ))}
-
               {/* 修改密码 */}
               <button
                 className="flex flex-col items-center p-3 rounded-2xl bg-gray-50 dark:bg-default-100 hover:bg-gray-100 dark:hover:bg-default-200 transition-colors duration-200"
@@ -286,7 +276,6 @@ export default function ProfilePage() {
                   修改密码
                 </span>
               </button>
-
               {/* 退出登录 */}
               <button
                 className="flex flex-col items-center p-3 rounded-2xl bg-gray-50 dark:bg-default-100 hover:bg-gray-100 dark:hover:bg-default-200 transition-colors duration-200"
@@ -312,7 +301,6 @@ export default function ProfilePage() {
             </div>
           </CardBody>
         </Card>
-
         <VersionFooter
           containerClassName="fixed inset-x-0 bottom-20 text-center py-4"
           poweredClassName="text-xs text-gray-400 dark:text-gray-500"
@@ -323,10 +311,12 @@ export default function ProfilePage() {
           versionClassName="text-xs text-gray-400 dark:text-gray-500 mt-1"
         />
       </div>
-
       {/* 修改密码弹窗 */}
-      <Modal classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={isOpen}
         placement="center"
         scrollBehavior="outside"

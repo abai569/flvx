@@ -168,16 +168,16 @@ export default function AdminLayout({
       ),
       adminOnly: true,
     },
-    {
-      path: "/panel-sharing",
-      label: "共享",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-        </svg>
-      ),
-      adminOnly: true,
-    },
+    //    {
+    //      path: "/panel-sharing",
+    //      label: "共享",
+    //      icon: (
+    //        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+    //          <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+    //        </svg>
+    //      ),
+    //      adminOnly: true,
+    //    },
     {
       path: "/config",
       label: "设置",
@@ -208,19 +208,23 @@ export default function AdminLayout({
     if (adminFlag) {
       setMonitorAllowed(true);
       setMonitorAccessReason(null);
+
       return;
     }
 
     let cancelled = false;
+
     (async () => {
       try {
         const res = await getMonitorAccess();
+
         if (cancelled) return;
         if (res.code === 0 && res.data) {
           setMonitorAllowed(Boolean(res.data.allowed));
           setMonitorAccessReason(
-            res.data.allowed ? null : (res.data.reason || null),
+            res.data.allowed ? null : res.data.reason || null,
           );
+
           return;
         }
         // Fail open to preserve legacy navigation behavior.
@@ -385,7 +389,7 @@ export default function AdminLayout({
         className={`
         ${isMobile ? "fixed" : "relative"} 
         ${isMobile && !mobileMenuVisible ? "-translate-x-full" : "translate-x-0"}
-        ${isMobile ? "w-64" : isCollapsed ? "w-20" : "w-72"} 
+        ${isCollapsed ? "w-20" : "w-[10%] min-w-[200px]"}
         bg-white dark:bg-black 
         shadow-lg 
         border-r border-gray-200 dark:border-gray-600
@@ -421,6 +425,7 @@ export default function AdminLayout({
               return (
                 <li key={item.path}>
                   <motion.button
+                    aria-disabled={isMonitorBlocked}
                     className={`
                        w-full flex items-center p-2 rounded-lg text-left
                        relative min-h-[44px] overflow-hidden transition-colors
@@ -428,12 +433,11 @@ export default function AdminLayout({
                        ${
                          isActive
                            ? "text-primary-600 dark:text-primary-300"
-                            : isMonitorBlocked
-                              ? "text-gray-500 dark:text-gray-400"
-                              : "text-gray-700 dark:text-gray-200"
+                           : isMonitorBlocked
+                             ? "text-gray-500 dark:text-gray-400"
+                             : "text-gray-700 dark:text-gray-200"
                        }
                      `}
-                    aria-disabled={isMonitorBlocked}
                     title={
                       isCollapsed
                         ? isMonitorBlocked

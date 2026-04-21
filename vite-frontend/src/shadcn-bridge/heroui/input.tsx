@@ -128,7 +128,7 @@ export function Textarea({
 }: TextareaProps) {
   const generatedId = React.useId();
   const resolvedId = id ?? generatedId;
-  const rows = props.rows ?? minRows ?? 3;
+  const rows = props.rows ?? minRows ?? 1;
 
   return (
     <FieldContainer
@@ -153,7 +153,7 @@ export function Textarea({
         disabled={isDisabled}
         id={resolvedId}
         required={isRequired}
-        rows={rows}
+        rows={classNames?.input ? undefined : rows}
         {...props}
       />
     </FieldContainer>

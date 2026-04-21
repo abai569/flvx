@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log"
 	"time"
 )
 
@@ -163,6 +164,9 @@ func (h *Handler) runResetAndExpiryJob(now time.Time) {
 	h.resetUserQuotaWindows(now)
 	h.disableExpiredUsers(now.UnixMilli())
 	h.disableExpiredUserTunnels(now.UnixMilli())
+
+	// ✅ 新增：检查 Forward 规则到期
+	h.disableExpiredForwards(now.UnixMilli())
 }
 
 func (h *Handler) resetMonthlyFlow(now time.Time) {
@@ -200,6 +204,23 @@ func (h *Handler) disableExpiredUserTunnels(nowMs int64) {
 			h.pauseForwardRecords(forwards, nowMs)
 		}
 		_ = h.repo.DisableUserTunnel(item.ID)
+	}
+}
+
+// ✅ 新增：禁用已过期的 Forward 规则
+func (h *Handler) disableExpiredForwards(nowMs int64) {
+	forwards, err := h.repo.ListExpiredActiveForwards(nowMs)
+	if err != nil {
+		return
+	}
+
+	for _, forward := range forwards {
+		// 暂停 Forward 规则
+		if pauseErr := h.pauseForward(forward.ID, "已到期"); pauseErr != nil {
+			log.Printf("ERROR: pauseForward %d failed: %v", forward.ID, pauseErr)
+		} else {
+			log.Printf("Forward %d paused: expired at %v", forward.ID, time.UnixMilli(forward.ExpiryTime.Int64))
+		}
 	}
 }
 

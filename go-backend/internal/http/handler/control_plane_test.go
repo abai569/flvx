@@ -421,6 +421,63 @@ func TestBuildForwardServiceConfigs_BindIPAlreadyContainsPort(t *testing.T) {
 	}
 }
 
+func TestBuildForwardServiceConfigs_IPv6BindIP(t *testing.T) {
+	tests := []struct {
+		name     string
+		bindIP   string
+		port     int
+		wantAddr string
+	}{
+		{
+			name:     "pure ipv6 without port",
+			bindIP:   "2001:db8::1",
+			port:     22000,
+			wantAddr: "[2001:db8::1]:22000",
+		},
+		{
+			name:     "bracketed ipv6 without port",
+			bindIP:   "[2001:db8::2]",
+			port:     22001,
+			wantAddr: "[2001:db8::2]:22001",
+		},
+		{
+			name:     "bracketed ipv6 with port",
+			bindIP:   "[2001:db8::3]:8080",
+			port:     55555,
+			wantAddr: "[2001:db8::3]:8080",
+		},
+		{
+			name:     "ipv6 link-local with zone",
+			bindIP:   "fe80::1%eth0",
+			port:     22002,
+			wantAddr: "[fe80::1%eth0]:22002",
+		},
+		{
+			name:     "ipv6 localhost",
+			bindIP:   "::1",
+			port:     22003,
+			wantAddr: "[::1]:22003",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			forward := &forwardRecord{RemoteAddr: "1.2.3.4:80", Strategy: "fifo", TunnelID: 7}
+			node := &nodeRecord{TCPListenAddr: "[::]", UDPListenAddr: "[::]"}
+			services := buildForwardServiceConfigs("1_2_0", forward, nil, node, tt.port, tt.bindIP, nil, false)
+			if len(services) != 2 {
+				t.Fatalf("expected 2 services, got %d", len(services))
+			}
+			for _, svc := range services {
+				addr, _ := svc["addr"].(string)
+				if addr != tt.wantAddr {
+					t.Fatalf("expected addr %q, got %q", tt.wantAddr, addr)
+				}
+			}
+		})
+	}
+}
+
 func TestProcessServerAddress_StripsURLSchemeAndPath(t *testing.T) {
 	tests := []struct {
 		name string

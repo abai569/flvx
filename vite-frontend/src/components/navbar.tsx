@@ -57,8 +57,8 @@ export const Navbar = () => {
   return (
     <>
       <HeroUINavbar
-        className="shrink-0"
-        height="60px"
+        className="shrink-0 mt-4"
+        height="40px"
         maxWidth="xl"
         position="sticky"
       >

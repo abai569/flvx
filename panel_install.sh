@@ -5,7 +5,86 @@ set -e
 export LANG=en_US.UTF-8
 export LC_ALL=C
 
+# 检查并安装必要的下载工具
+install_download_tools() {
+  local need_install=0
+  
+  if ! command -v curl &> /dev/null; then
+    echo "⚠️  未检测到 curl"
+    need_install=1
+  fi
+  
+  if ! command -v wget &> /dev/null; then
+    echo "⚠️  未检测到 wget"
+    need_install=1
+  fi
+  
+  if [ $need_install -eq 0 ]; then
+    return 0
+  fi
+  
+  echo "🔧 正在安装缺失的下载工具..."
+  
+  OS_TYPE=$(uname -s)
+  
+  if [[ "$OS_TYPE" == "Darwin" ]]; then
+    if command -v brew &> /dev/null; then
+      brew install curl wget
+    else
+      echo "❌ 未检测到 Homebrew，请手动安装 curl 和 wget"
+      exit 1
+    fi
+    return 0
+  fi
+  
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO=$ID
+  elif [ -f /etc/redhat-release ]; then
+    DISTRO="rhel"
+  elif [ -f /etc/debian_version ]; then
+    DISTRO="debian"
+  else
+    DISTRO="unknown"
+  fi
+  
+  case $DISTRO in
+    ubuntu|debian|kali)
+      apt update
+      apt install -y curl wget
+      ;;
+    centos|rhel|fedora|almalinux|rocky)
+      if command -v dnf &> /dev/null; then
+        dnf install -y curl wget
+      elif command -v yum &> /dev/null; then
+        yum install -y curl wget
+      fi
+      ;;
+    alpine)
+      apk add --no-cache curl wget
+      ;;
+    arch|manjaro|endeavouros)
+      pacman -S --noconfirm curl wget
+      ;;
+    opensuse*|sles)
+      zypper install -y curl wget
+      ;;
+    void)
+      xbps-install -Sy curl wget
+      ;;
+    gentoo)
+      emerge --ask=n net-misc/curl net-misc/wget
+      ;;
+    *)
+      echo "⚠️  未知发行版，请手动安装 curl 和 wget"
+      exit 1
+      ;;
+  esac
+  
+  echo "✅ 下载工具安装完成"
+}
 
+install_download_tools
 
 # GitHub repo used for release downloads
 REPO="abai569/flvx"
@@ -14,9 +93,15 @@ REPO="abai569/flvx"
 PINNED_VERSION=""
 
 # 镜像加速（所有下载均经过镜像源，以支持 IPv6）
+# maybe_proxy_url() {
+#  local url="$1"
+#   echo "https://gcode.hostcentral.cc/${url}"
+# }
+
+# 取消镜像加速，直接返回原地址
 maybe_proxy_url() {
   local url="$1"
-  echo "https://gcode.hostcentral.cc/${url}"
+  echo "${url}"
 }
 
 resolve_latest_release_tag() {
@@ -320,13 +405,13 @@ wait_for_backend_healthy() {
 }
 
 # 删除脚本自身
-delete_self() {
-  echo ""
-  echo "🗑️ 操作已完成，正在清理脚本文件..."
-  SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
-  sleep 1
-  rm -f "$SCRIPT_PATH" && echo "✅ 脚本文件已删除" || echo "❌ 删除脚本文件失败"
-}
+# delete_self() {
+#   echo ""
+#   echo "🗑️ 操作已完成，正在清理脚本文件..."
+#   SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+#   sleep 1
+#   rm -f "$SCRIPT_PATH" && echo "✅ 脚本文件已删除" || echo "❌ 删除脚本文件失败"
+# }
 
 
 
@@ -374,6 +459,13 @@ get_config_params() {
 # 安装功能
 install_panel() {
   echo "🚀 开始安装面板..."
+  
+  # 创建安装目录
+  INSTALL_DIR="/opt/flux_panel"
+  echo "📁 创建安装目录：$INSTALL_DIR"
+  $SUDO_CMD mkdir -p "$INSTALL_DIR"
+  cd "$INSTALL_DIR"
+  
   check_docker
   get_config_params
 
@@ -425,6 +517,18 @@ EOF
 # 更新功能
 update_panel() {
   echo "🔄 开始更新面板..."
+  
+  # 切换到安装目录
+  INSTALL_DIR="/opt/flux_panel"
+  
+  # 检测目录是否存在，不存在则先创建
+  if [[ ! -d "$INSTALL_DIR" ]]; then
+    echo "📁 升级目录不存在，正在创建：$INSTALL_DIR"
+    $SUDO_CMD mkdir -p "$INSTALL_DIR"
+  fi
+  
+  cd "$INSTALL_DIR"
+  
   check_docker
 
   if [[ ! -f ".env" ]]; then
@@ -577,6 +681,18 @@ migrate_to_postgres() {
 # 卸载功能
 uninstall_panel() {
   echo "🗑️ 开始卸载面板..."
+  
+  # 切换到安装目录
+  INSTALL_DIR="/opt/flux_panel"
+  
+  # 检测目录是否存在，不存在则先创建
+  if [[ ! -d "$INSTALL_DIR" ]]; then
+    echo "📁 升级目录不存在，正在创建：$INSTALL_DIR"
+    $SUDO_CMD mkdir -p "$INSTALL_DIR"
+  fi
+  
+  cd "$INSTALL_DIR"
+  
   check_docker
 
   if [[ ! -f "docker-compose.yml" ]]; then
@@ -611,27 +727,27 @@ main() {
     case $choice in
       1)
         install_panel
-        delete_self
+#        delete_self
         exit 0
         ;;
       2)
         update_panel
-        delete_self
+#        delete_self
         exit 0
         ;;
       3)
         uninstall_panel
-        delete_self
+#        delete_self
         exit 0
         ;;
       4)
         migrate_to_postgres
-        delete_self
+#        delete_self
         exit 0
         ;;
       5)
         echo "👋 退出脚本"
-        delete_self
+#        delete_self
         exit 0
         ;;
       *)

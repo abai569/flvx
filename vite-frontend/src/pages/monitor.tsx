@@ -10,16 +10,13 @@ import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { getMonitorNodes } from "@/api";
 import { MonitorView } from "@/pages/node/monitor-view";
 import { TunnelMonitorView } from "@/pages/node/tunnel-monitor-view";
-
 type MonitorNode = {
   id: number;
   name: string;
   connectionStatus: "online" | "offline";
   version?: string;
 };
-
 type MonitorTab = "nodes" | "tunnels";
-
 export default function MonitorPage() {
   const [nodes, setNodes] = useState<MonitorNodeApiItem[]>([]);
   const [nodesLoading, setNodesLoading] = useState(false);
@@ -28,9 +25,9 @@ export default function MonitorPage() {
   const [activeTab, setActiveTab] = useState<MonitorTab>("nodes");
   const [tunnelsLoading, setTunnelsLoading] = useState(false);
   const [tunnelRefreshTrigger, setTunnelRefreshTrigger] = useState(0);
-
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
+
     if (!silent) setNodesLoading(true);
     try {
       const response = await getMonitorNodes();
@@ -41,14 +38,12 @@ export default function MonitorPage() {
 
         return;
       }
-
       if (response.code === 403) {
         setNodes([]);
         setNodesError(response.msg || "暂无监控权限，请联系管理员授权");
 
         return;
       }
-
       if (!silent) toast.error(response.msg || "加载节点失败");
     } catch {
       if (!silent) toast.error("加载节点失败");
@@ -60,7 +55,6 @@ export default function MonitorPage() {
   useEffect(() => {
     void loadNodes();
   }, [loadNodes]);
-
   useEffect(() => {
     const timer = window.setInterval(() => {
       void loadNodes({ silent: true });
@@ -68,7 +62,6 @@ export default function MonitorPage() {
 
     return () => window.clearInterval(timer);
   }, [loadNodes]);
-
   const nodeMap = useMemo(() => {
     const list: MonitorNode[] = nodes
       .filter((n) => Number(n.id) > 0)
@@ -99,15 +92,15 @@ export default function MonitorPage() {
               {viewMode === "grid" ? "列表" : "卡片"}
             </Button>
             <Button
-              isLoading={activeTab === "nodes" ? nodesLoading : tunnelsLoading}
               color="primary"
+              isLoading={activeTab === "nodes" ? nodesLoading : tunnelsLoading}
               size="sm"
               variant="flat"
               onPress={() => {
                 if (activeTab === "nodes") {
                   loadNodes();
                 } else {
-                  setTunnelRefreshTrigger(prev => prev + 1);
+                  setTunnelRefreshTrigger((prev) => prev + 1);
                 }
               }}
             >
@@ -115,31 +108,31 @@ export default function MonitorPage() {
             </Button>
           </div>
         </div>
-
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">
           <button
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "nodes"
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "nodes"
                 ? "bg-background shadow-sm text-foreground"
                 : "text-default-500 hover:text-foreground"
-              }`}
+            }`}
             onClick={() => setActiveTab("nodes")}
           >
             <Server className="w-4 h-4" />
             节点
           </button>
           <button
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "tunnels"
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "tunnels"
                 ? "bg-background shadow-sm text-foreground"
                 : "text-default-500 hover:text-foreground"
-              }`}
+            }`}
             onClick={() => setActiveTab("tunnels")}
           >
             <ArrowRightLeft className="w-4 h-4" />
             隧道
           </button>
         </div>
-
         {nodesError && activeTab === "nodes" ? (
           <Card>
             <CardHeader>
@@ -151,13 +144,16 @@ export default function MonitorPage() {
           </Card>
         ) : null}
       </div>
-
       <>
         <div className={activeTab === "nodes" ? "block" : "hidden"}>
           <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
         </div>
         <div className={activeTab === "tunnels" ? "block" : "hidden"}>
-          <TunnelMonitorView viewMode={viewMode} refreshTrigger={tunnelRefreshTrigger} onLoadingChange={setTunnelsLoading} />
+          <TunnelMonitorView
+            refreshTrigger={tunnelRefreshTrigger}
+            viewMode={viewMode}
+            onLoadingChange={setTunnelsLoading}
+          />
         </div>
       </>
     </AnimatedPage>

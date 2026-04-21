@@ -45,15 +45,16 @@ func (r *Repository) ListForwardsByTunnelTx(tx *gorm.DB, tunnelID int64) ([]mode
 	rows := make([]model.ForwardRecord, 0, len(forwards))
 	for _, f := range forwards {
 		rows = append(rows, model.ForwardRecord{
-			ID:         f.ID,
-			UserID:     f.UserID,
-			UserName:   f.UserName,
-			Name:       f.Name,
-			TunnelID:   f.TunnelID,
-			RemoteAddr: f.RemoteAddr,
-			Strategy:   f.Strategy,
-			Status:     f.Status,
-			SpeedID:    f.SpeedID,
+			ID:             f.ID,
+			UserID:         f.UserID,
+			UserName:       f.UserName,
+			Name:           f.Name,
+			TunnelID:       f.TunnelID,
+			RemoteAddr:     f.RemoteAddr,
+			Strategy:       f.Strategy,
+			Status:         f.Status,
+			SpeedID:        f.SpeedID,
+			MaxConnections: f.MaxConnections,
 		})
 	}
 	for i := range rows {
@@ -63,7 +64,6 @@ func (r *Repository) ListForwardsByTunnelTx(tx *gorm.DB, tunnelID int64) ([]mode
 	}
 	return rows, nil
 }
-
 
 func (r *Repository) ListActiveTunnelIDsByNode(nodeID int64) ([]int64, error) {
 	if r == nil || r.db == nil {
@@ -126,7 +126,6 @@ func (r *Repository) ListForwardPortsTx(tx *gorm.DB, forwardID int64) ([]model.F
 	return rows, nil
 }
 
-
 func (r *Repository) HasOtherForwardOnNodePort(nodeID int64, port int, currentForwardID int64) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, errors.New("repository not initialized")
@@ -152,7 +151,6 @@ func (r *Repository) HasOtherForwardOnNodePortTx(tx *gorm.DB, nodeID int64, port
 
 	return count > 0, nil
 }
-
 
 func (r *Repository) GetTunnelOutProtocol(tunnelID int64) (string, error) {
 	if r == nil || r.db == nil {
@@ -223,6 +221,9 @@ func nodeRecordFromModel(n *model.Node) *model.NodeRecord {
 	}
 	if n.ServerIPV6.Valid {
 		rec.ServerIPv6 = strings.TrimSpace(n.ServerIPV6.String)
+	}
+	if n.IntranetIP.Valid {
+		rec.IntranetIP = strings.TrimSpace(n.IntranetIP.String)
 	}
 	if n.ExtraIPs.Valid {
 		rec.ExtraIPs = strings.TrimSpace(n.ExtraIPs.String)
@@ -332,18 +333,19 @@ func (r *Repository) ListChainNodesForTunnel(tunnelID int64) ([]model.ChainNodeR
 		return nil, errors.New("repository not initialized")
 	}
 	type row struct {
-		ChainType string
-		Inx       sql.NullInt64
-		NodeID    int64
-		Port      sql.NullInt64
-		Name      sql.NullString
-		Protocol  sql.NullString
-		Strategy  sql.NullString
-		ConnectIP sql.NullString
+		ChainType     string
+		Inx           sql.NullInt64
+		NodeID        int64
+		Port          sql.NullInt64
+		Name          sql.NullString
+		Protocol      sql.NullString
+		Strategy      sql.NullString
+		ConnectIP     sql.NullString
+		ConnectIPType sql.NullString
 	}
 	var rows []row
 	err := r.db.Model(&model.ChainTunnel{}).
-		Select("chain_tunnel.chain_type, chain_tunnel.inx, chain_tunnel.node_id, chain_tunnel.port, node.name, chain_tunnel.protocol, chain_tunnel.strategy, chain_tunnel.connect_ip").
+		Select("chain_tunnel.chain_type, chain_tunnel.inx, chain_tunnel.node_id, chain_tunnel.port, node.name, chain_tunnel.protocol, chain_tunnel.strategy, chain_tunnel.connect_ip, chain_tunnel.connect_ip_type").
 		Joins("LEFT JOIN node ON node.id = chain_tunnel.node_id").
 		Where("chain_tunnel.tunnel_id = ?", tunnelID).
 		Order("chain_tunnel.chain_type ASC, chain_tunnel.inx ASC, chain_tunnel.id ASC").
@@ -390,6 +392,9 @@ func (r *Repository) ListChainNodesForTunnel(tunnelID int64) ([]model.ChainNodeR
 		}
 		if row.ConnectIP.Valid {
 			item.ConnectIP = row.ConnectIP.String
+		}
+		if row.ConnectIPType.Valid {
+			item.ConnectIPType = row.ConnectIPType.String
 		}
 		result = append(result, item)
 	}

@@ -75,27 +75,31 @@ type Server struct {
 	onNodeOnline func(nodeID int64)
 	onNodeMetric func(nodeID int64, info SystemInfo)
 
-	mu      sync.RWMutex
-	admins  map[*connWrap]struct{}
-	nodes   map[int64]*nodeSession
-	byConn  map[*websocket.Conn]*nodeSession
-	pending map[string]pendingRequest
+	mu                    sync.RWMutex
+	admins                map[*connWrap]struct{}
+	nodes                 map[int64]*nodeSession
+	byConn                map[*websocket.Conn]*nodeSession
+	pending               map[string]pendingRequest
+	serviceConnections    map[int64]map[string]int // nodeID -> serviceName -> connections
+	serviceConnUpdateTime map[int64]int64          // nodeID -> last update time
 }
 
 type SystemInfo struct {
-	Uptime           uint64  `json:"uptime"`
-	BytesReceived    uint64  `json:"bytes_received"`
-	BytesTransmitted uint64  `json:"bytes_transmitted"`
-	CPUUsage         float64 `json:"cpu_usage"`
-	MemoryUsage      float64 `json:"memory_usage"`
-	DiskUsage        float64 `json:"disk_usage"`
-	Load1            float64 `json:"load1"`
-	Load5            float64 `json:"load5"`
-	Load15           float64 `json:"load15"`
-	TCPConns         int64   `json:"tcp_conns"`
-	UDPConns         int64   `json:"udp_conns"`
-	NetInSpeed       int64   `json:"net_in_speed"`
-	NetOutSpeed      int64   `json:"net_out_speed"`
+	Uptime             uint64         `json:"uptime"`
+	BytesReceived      uint64         `json:"bytes_received"`
+	BytesTransmitted   uint64         `json:"bytes_transmitted"`
+	CPUUsage           float64        `json:"cpu_usage"`
+	MemoryUsage        float64        `json:"memory_usage"`
+	DiskUsage          float64        `json:"disk_usage"`
+	Load1              float64        `json:"load1"`
+	Load5              float64        `json:"load5"`
+	Load15             float64        `json:"load15"`
+	TCPConns           int64          `json:"tcp_conns"`
+	UDPConns           int64          `json:"udp_conns"`
+	NetInSpeed         int64          `json:"net_in_speed"`
+	NetOutSpeed        int64          `json:"net_out_speed"`
+	ServiceName        string         `json:"service_name,omitempty"`
+	ServiceConnections map[string]int `json:"serviceConnections"`
 }
 
 func (s *Server) SetNodeOnlineHook(fn func(nodeID int64)) {
@@ -116,6 +120,44 @@ func (s *Server) SetNodeMetricHook(fn func(nodeID int64, info SystemInfo)) {
 	s.mu.Unlock()
 }
 
+// GetServiceConnections 获取指定节点上所有服务的连接数
+func (s *Server) GetServiceConnections(nodeID int64) map[string]int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if conns, ok := s.serviceConnections[nodeID]; ok {
+		// 返回副本避免外部修改
+		result := make(map[string]int, len(conns))
+		for k, v := range conns {
+			result[k] = v
+		}
+		return result
+	}
+	return nil
+}
+
+// GetForwardCurrentConnections 获取指定转发的当前连接数
+// 服务名格式为 "{forwardID}_{userID}_{userTunnelID}_tcp" 或 "{forwardID}_{userID}_{userTunnelID}_udp"
+func (s *Server) GetForwardCurrentConnections(nodeID int64, forwardID int64) int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	conns := s.serviceConnections[nodeID]
+	if conns == nil {
+		return 0
+	}
+
+	total := 0
+	// 服务名格式: {forwardID}_{userID}_{userTunnelID}_tcp 或 _udp
+	// 遍历所有连接数，匹配以 "{forwardID}_" 开头的服务
+	prefix := fmt.Sprintf("%d_", forwardID)
+	for serviceName, count := range conns {
+		if strings.HasPrefix(serviceName, prefix) {
+			total += count
+		}
+	}
+	return total
+}
+
 func NewServer(repo *repo.Repository, jwtSecret string) *Server {
 	return &Server{
 		repo:      repo,
@@ -123,10 +165,12 @@ func NewServer(repo *repo.Repository, jwtSecret string) *Server {
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
-		admins:  make(map[*connWrap]struct{}),
-		nodes:   make(map[int64]*nodeSession),
-		byConn:  make(map[*websocket.Conn]*nodeSession),
-		pending: make(map[string]pendingRequest),
+		admins:                make(map[*connWrap]struct{}),
+		nodes:                 make(map[int64]*nodeSession),
+		byConn:                make(map[*websocket.Conn]*nodeSession),
+		pending:               make(map[string]pendingRequest),
+		serviceConnections:    make(map[int64]map[string]int),
+		serviceConnUpdateTime: make(map[int64]int64),
 	}
 }
 
@@ -274,6 +318,16 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 					// 解析 SystemInfo 并调用 hook
 					var sysInfo SystemInfo
 					if json.Unmarshal(envelope.Data, &sysInfo) == nil {
+						// 缓存服务连接数
+						s.mu.Lock()
+						s.serviceConnections[nodeID] = sysInfo.ServiceConnections
+						s.serviceConnUpdateTime[nodeID] = time.Now().Unix()
+						// 更新 service_name
+						if sysInfo.ServiceName != "" {
+							_ = s.repo.UpdateNodeServiceName(nodeID, sysInfo.ServiceName)
+						}
+						s.mu.Unlock()
+
 						s.mu.RLock()
 						onMetric := s.onNodeMetric
 						s.mu.RUnlock()
@@ -283,6 +337,25 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 					}
 					// 广播内层 data 给前端（保持平坦结构兼容性）
 					s.broadcastTyped(nodeID, "metric", string(envelope.Data))
+				}
+				continue
+			case "ReportPublicIP":
+				// 节点上报公网 IP
+				var envelope struct {
+					Data struct {
+						PublicIP string `json:"public_ip"`
+					} `json:"data"`
+				}
+				if err := json.Unmarshal([]byte(msg), &envelope); err == nil && envelope.Data.PublicIP != "" {
+					// 更新节点公网 IP
+					if s.onNodeMetric != nil {
+						// 通过 repo 更新数据库
+						if err := s.repo.UpdateNodePublicIP(nodeID, envelope.Data.PublicIP); err != nil {
+							fmt.Printf("⚠️ 更新节点%d公网 IP 失败：%v\n", nodeID, err)
+						} else {
+							fmt.Printf("✅ 节点%d公网 IP 已更新：%s\n", nodeID, envelope.Data.PublicIP)
+						}
+					}
 				}
 				continue
 			case "UpgradeProgress":
@@ -300,6 +373,12 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 		if looksLikeSystemInfoMessage(msg) {
 			var sysInfo SystemInfo
 			if err := json.Unmarshal([]byte(msg), &sysInfo); err == nil {
+				// 缓存服务连接数
+				s.mu.Lock()
+				s.serviceConnections[nodeID] = sysInfo.ServiceConnections
+				s.serviceConnUpdateTime[nodeID] = time.Now().Unix()
+				s.mu.Unlock()
+
 				s.mu.RLock()
 				onMetric := s.onNodeMetric
 				s.mu.RUnlock()

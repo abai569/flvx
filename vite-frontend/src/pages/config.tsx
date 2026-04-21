@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+// 👇 加上这一行，引入动画组件
+import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
@@ -10,14 +12,6 @@ import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Divider } from "@/shadcn-bridge/heroui/divider";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
-import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
-import {
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-} from "@/shadcn-bridge/heroui/modal";
 import {
   updateConfigs,
   exportBackup,
@@ -26,7 +20,8 @@ import {
   updateAnnouncement,
   type AnnouncementData,
 } from "@/api";
-import { ThemeSettings } from "@/components/theme-settings";
+// 主题设置暂时放在这里，后续可以独立成一个页面或者组件
+// import { ThemeSettings } from "@/components/theme-settings";
 import { isAdmin } from "@/utils/auth";
 import { getCachedConfigs, configCache, updateSiteConfig } from "@/config/site";
 import {
@@ -39,7 +34,6 @@ import {
   isPngDataURL,
   type BrandAssetKind,
 } from "@/utils/brand-asset";
-
 // 简单的保存图标组件
 const SaveIcon = ({ className }: { className?: string }) => (
   <svg
@@ -67,42 +61,44 @@ interface ConfigItem {
   dependsOn?: string; // 依赖的配置项key
   dependsValue?: string; // 依赖的配置项值
 }
-
 const BRAND_PREVIEW_KEYS = ["app_logo", "app_favicon"] as const;
 
 type BrandPreviewKey = (typeof BRAND_PREVIEW_KEYS)[number];
-
 const isBrandPreviewKey = (key: string): key is BrandPreviewKey =>
   BRAND_PREVIEW_KEYS.includes(key as BrandPreviewKey);
-
 const BRAND_FILE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
-
 const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
   return key === "app_logo" ? "logo" : "favicon";
 };
-
 // 网站配置项定义
 const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: "ip",
     label: "面板后端地址",
-    placeholder: "请输入面板后端IP:PORT",
+    placeholder: "请输入面板后端 IP:PORT",
     description:
-      '格式"ip:port"或"domain:port",用于对接节点时使用。支持套CDN和HTTPS,通讯数据有加密',
-    type: "input",
-  },
-  {
-    key: "panel_domain",
-    label: "面板域名",
-    placeholder: "请输入面板域名",
-    description: "当前面板的域名，用于与其他面板进行联邦共享时验证身份",
+      '格式"ip:port"或"domain:port",用于对接节点时使用。支持套 CDN 和 HTTPS，通讯数据有加密',
     type: "input",
   },
   {
     key: "app_name",
-    label: "应用名称",
-    placeholder: "请输入应用名称",
-    description: "在浏览器标签页和导航栏显示的应用名称",
+    label: "站点名称",
+    placeholder: "请输入站点名称",
+    description: "在浏览器标签页和导航栏显示的站点名称",
+    type: "input",
+  },
+  {
+    key: "global_download_url",
+    label: "自定义全局加速源",
+    placeholder: "https://ghfast.top",
+    description: "海外机器安装和更新时使用的加速地址，留空使用默认值",
+    type: "input",
+  },
+  {
+    key: "domestic_download_url",
+    label: "自定义国内镜像源",
+    placeholder: "https://chfs.646321.xyz:8/chfs/shared/flvx",
+    description: "国内机器首次对接安装时使用的加速地址，留空使用默认值",
     type: "input",
   },
   {
@@ -150,32 +146,17 @@ const CONFIG_ITEMS: ConfigItem[] = [
     dependsValue: "true",
   },
 ];
-
-const BACKUP_TYPE_OPTIONS = [
-  { value: "users", label: "用户" },
-  { value: "nodes", label: "节点" },
-  { value: "tunnels", label: "隧道" },
-  { value: "forwards", label: "规则" },
-  { value: "userTunnels", label: "用户隧道权限" },
-  { value: "speedLimits", label: "限速规则" },
-  { value: "tunnelGroups", label: "隧道分组" },
-  { value: "userGroups", label: "用户分组" },
-  { value: "permissions", label: "分组权限" },
-  { value: "configs", label: "系统配置" },
-] as const;
-
-const BACKUP_TYPE_VALUES = BACKUP_TYPE_OPTIONS.map((option) => option.value);
-
 // 初始化时从缓存读取配置，避免闪烁
 const getInitialConfigs = (): Record<string, string> => {
   if (typeof window === "undefined") return {};
-
   const configKeys = [
     "app_name",
     "captcha_enabled",
     "cloudflare_site_key",
     "cloudflare_secret_key",
     "forward_compact_mode",
+    "ghfast_url",
+    "domestic_download_host",
     "ip",
     "panel_domain",
     "app_logo",
@@ -208,18 +189,12 @@ export default function ConfigPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalConfigs, setOriginalConfigs] =
     useState<Record<string, string>>(initialConfigs);
-
-  const [exportTypes, setExportTypes] = useState<string[]>([]);
-  const [importTypes, setImportTypes] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [exportSelectorOpen, setExportSelectorOpen] = useState(false);
-  const [importSelectorOpen, setImportSelectorOpen] = useState(false);
   const [importFileName, setImportFileName] = useState("");
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
-
   const [announcement, setAnnouncement] = useState<AnnouncementData>({
     content: "",
     enabled: 0,
@@ -235,6 +210,7 @@ export default function ConfigPage() {
   const [brandUploading, setBrandUploading] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
+  const [exportMode, setExportMode] = useState<'core' | 'full'>('core');
 
   // 权限检查
   useEffect(() => {
@@ -245,7 +221,6 @@ export default function ConfigPage() {
       return;
     }
   }, [navigate]);
-
   // 加载配置数据（优先从缓存）
   const loadConfigs = async (currentConfigs?: Record<string, string>) => {
     const configsToCompare = currentConfigs || configs;
@@ -255,10 +230,8 @@ export default function ConfigPage() {
     if (!hasInitialData) {
       setLoading(true);
     }
-
     try {
       const configData = await getCachedConfigs();
-
       // 只有在数据有变化时才更新
       const hasDataChanged =
         JSON.stringify(configData) !== JSON.stringify(configsToCompare);
@@ -287,7 +260,6 @@ export default function ConfigPage() {
 
     return () => clearTimeout(timer);
   }, []);
-
   const loadAnnouncement = async () => {
     setAnnouncementLoading(true);
     try {
@@ -301,7 +273,6 @@ export default function ConfigPage() {
       setAnnouncementLoading(false);
     }
   };
-
   const saveAnnouncement = async () => {
     setAnnouncementSaving(true);
     try {
@@ -318,7 +289,6 @@ export default function ConfigPage() {
       setAnnouncementSaving(false);
     }
   };
-
   const handleUpdateChannelChange = (channel: UpdateReleaseChannel) => {
     setUpdateChannel(channel);
     setUpdateReleaseChannel(channel);
@@ -326,16 +296,13 @@ export default function ConfigPage() {
       `更新通道已切换为${channel === "stable" ? "稳定版" : "开发版"}`,
     );
   };
-
   const handleConfigChange = (key: string, value: string) => {
     const newConfigs = { ...configs, [key]: value };
 
     setConfigs(newConfigs);
-
     if (isBrandPreviewKey(key)) {
       setPreviewLoadFailed((prev) => ({ ...prev, [key]: false }));
     }
-
     const hasChangesNow =
       Object.keys(newConfigs).some(
         (k) => newConfigs[k] !== originalConfigs[k],
@@ -346,7 +313,6 @@ export default function ConfigPage() {
 
     setHasChanges(hasChangesNow);
   };
-
   // 保存配置
   const handleSave = async () => {
     setSaving(true);
@@ -360,25 +326,20 @@ export default function ConfigPage() {
 
         return;
       }
-
       const changedPayload: Record<string, string> = {};
 
       changedKeys.forEach((key) => {
         changedPayload[key] = configs[key] || "";
       });
-
       const response = await updateConfigs(changedPayload);
 
       if (response.code === 0) {
         toast.success("配置保存成功");
-
         Object.entries(configs).forEach(([key, value]) => {
           configCache.set(key, value);
         });
-
         setOriginalConfigs({ ...configs });
         setHasChanges(false);
-
         if (
           changedKeys.some((key) =>
             ["app_name", "app_logo", "app_favicon"].includes(key),
@@ -386,7 +347,6 @@ export default function ConfigPage() {
         ) {
           await updateSiteConfig(configs);
         }
-
         // 触发配置更新事件，通知其他组件
         window.dispatchEvent(
           new CustomEvent("configUpdated", {
@@ -402,7 +362,6 @@ export default function ConfigPage() {
       setSaving(false);
     }
   };
-
   // 检查配置项是否应该显示（依赖检查）
   const shouldShowItem = (item: ConfigItem): boolean => {
     if (!item.dependsOn || !item.dependsValue) {
@@ -411,24 +370,19 @@ export default function ConfigPage() {
 
     return configs[item.dependsOn] === item.dependsValue;
   };
-
   const getBrandInputRef = (key: BrandPreviewKey) => {
     return key === "app_logo" ? logoFileInputRef : faviconFileInputRef;
   };
-
   const triggerBrandFilePicker = (key: BrandPreviewKey) => {
     if (brandUploading[key]) {
       return;
     }
-
     getBrandInputRef(key).current?.click();
   };
-
   const clearBrandAsset = (key: BrandPreviewKey) => {
     handleConfigChange(key, "");
     setPreviewLoadFailed((prev) => ({ ...prev, [key]: false }));
   };
-
   const handleBrandFileChange = async (
     key: BrandPreviewKey,
     event: React.ChangeEvent<HTMLInputElement>,
@@ -438,9 +392,7 @@ export default function ConfigPage() {
     if (!file) {
       return;
     }
-
     setBrandUploading((prev) => ({ ...prev, [key]: true }));
-
     try {
       const pngDataURL = await convertBrandAssetToPngDataURL(
         file,
@@ -459,7 +411,6 @@ export default function ConfigPage() {
       event.target.value = "";
     }
   };
-
   const renderBrandPreview = (key: BrandPreviewKey) => {
     const previewUrl = (configs[key] || "").trim();
     const appNamePreview = (configs.app_name || "").trim() || "应用名称";
@@ -516,17 +467,14 @@ export default function ConfigPage() {
             </div>
           )}
         </div>
-
         {previewUrl.length === 0 ? (
           <p className="mt-2 text-xs text-default-500">
             上传图片后会实时显示预览
           </p>
         ) : null}
-
         {previewUrl.length > 0 && failed ? (
           <p className="mt-2 text-xs text-danger">图片加载失败，请重新上传</p>
         ) : null}
-
         {previewUrl.length > 0 && !isPngDataURL(previewUrl) ? (
           <p className="mt-2 text-xs text-warning-600 dark:text-warning-400">
             当前是旧版 URL 配置，建议重新上传图片以启用无闪烁加载
@@ -535,7 +483,6 @@ export default function ConfigPage() {
       </div>
     );
   };
-
   const renderBrandAssetUploader = (
     key: BrandPreviewKey,
     isChanged: boolean,
@@ -561,7 +508,6 @@ export default function ConfigPage() {
             void handleBrandFileChange(key, event);
           }}
         />
-
         <div className="flex flex-wrap items-center gap-2">
           <Button
             color="primary"
@@ -590,18 +536,15 @@ export default function ConfigPage() {
             仅支持图片文件，自动转换为 PNG
           </span>
         </div>
-
         <p className="mt-2 text-xs text-default-500">
           {isLogo
             ? "建议上传方形图片，系统会统一转换为 96x96 PNG"
             : "建议上传方形图片，系统会统一转换为 64x64 PNG"}
         </p>
-
         {renderBrandPreview(key)}
       </div>
     );
   };
-
   // 渲染不同类型的配置项
   const renderConfigItem = (item: ConfigItem) => {
     const isChanged =
@@ -611,6 +554,46 @@ export default function ConfigPage() {
       case "input":
         if (isBrandPreviewKey(item.key)) {
           return renderBrandAssetUploader(item.key, isChanged);
+        }
+        if (item.key === "github_proxy_urls") {
+          const rawValue = configs[item.key] || "";
+          let displayValue = "";
+
+          try {
+            const urls = JSON.parse(rawValue);
+
+            if (Array.isArray(urls)) {
+              displayValue = urls.join("\n");
+            } else {
+              displayValue = rawValue;
+            }
+          } catch {
+            displayValue = rawValue;
+          }
+
+          return (
+            <Textarea
+              classNames={{
+                inputWrapper: isChanged
+                  ? "border-warning-300 data-[hover=true]:border-warning-400"
+                  : "",
+                input: "font-mono text-sm",
+              }}
+              minRows={3}
+              placeholder={"https://gcode.hostcentral.cc\nhttps://ghfast.top"}
+              size="md"
+              value={displayValue}
+              variant="bordered"
+              onChange={(e) => {
+                const lines = e.target.value
+                  .split("\n")
+                  .map((l) => l.trim())
+                  .filter((l) => l.length > 0);
+
+                handleConfigChange(item.key, JSON.stringify(lines));
+              }}
+            />
+          );
         }
 
         return (
@@ -628,7 +611,6 @@ export default function ConfigPage() {
             onChange={(e) => handleConfigChange(item.key, e.target.value)}
           />
         );
-
       case "switch":
         return (
           <Switch
@@ -647,7 +629,6 @@ export default function ConfigPage() {
             </span>
           </Switch>
         );
-
       case "select":
         return (
           <Select
@@ -675,70 +656,37 @@ export default function ConfigPage() {
             )) || []}
           </Select>
         );
-
       default:
         return null;
     }
   };
-
-  const handleExport = async () => {
-    if (exportTypes.length === 0) {
-      toast.error("请至少选择一种数据类型");
-
-      return;
-    }
+  const handleExportAll = async () => {
     setExporting(true);
     try {
-      await exportBackup(exportTypes);
+      await exportBackup([], exportMode);
       toast.success("导出成功");
-      setExportSelectorOpen(false);
     } catch {
       toast.error("导出失败，请重试");
     } finally {
       setExporting(false);
     }
   };
-
-  const triggerImportFilePicker = () => {
-    if (importTypes.length === 0) {
-      toast.error("请先选择要导入的数据类型");
-
-      return;
-    }
-
-    setImportSelectorOpen(false);
-    requestAnimationFrame(() => backupFileInputRef.current?.click());
-  };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
-
-    if (importTypes.length === 0) {
-      toast.error("请先选择要导入的数据类型");
-
-      return;
-    }
-
     setImportFileName(file.name);
     setImporting(true);
-
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-
-      const response = await importBackup({
-        types: importTypes,
-        ...data,
-      });
+      const response = await importBackup(data);
 
       if (response.code === 0) {
-        toast.success(`导入成功: ${JSON.stringify(response.data)}`);
-        setImportTypes([]);
+        toast.success(`导入成功：${JSON.stringify(response.data)}`);
         setImportFileName("");
       } else {
-        toast.error("导入失败: " + response.msg);
+        toast.error("导入失败：" + response.msg);
       }
     } catch {
       toast.error("导入失败，请检查文件格式");
@@ -748,92 +696,6 @@ export default function ConfigPage() {
         backupFileInputRef.current.value = "";
       }
     }
-  };
-
-  const toggleTypeSelection = (
-    type: string,
-    setTypes: React.Dispatch<React.SetStateAction<string[]>>,
-  ) => {
-    setTypes((prev) =>
-      prev.includes(type)
-        ? prev.filter((item) => item !== type)
-        : [...prev, type],
-    );
-  };
-
-  const isAllTypesSelected = (types: string[]) =>
-    BACKUP_TYPE_VALUES.every((type) => types.includes(type));
-
-  const renderTypeSelection = (
-    label: string,
-    selectedTypes: string[],
-    setTypes: React.Dispatch<React.SetStateAction<string[]>>,
-  ) => {
-    const allSelected = isAllTypesSelected(selectedTypes);
-
-    return (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium text-default-700 dark:text-default-300">
-            {label}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="flat"
-              onPress={() =>
-                setTypes(allSelected ? [] : [...BACKUP_TYPE_VALUES])
-              }
-            >
-              {allSelected ? "取消全选" : "全选"}
-            </Button>
-            <Button size="sm" variant="light" onPress={() => setTypes([])}>
-              清空
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {BACKUP_TYPE_OPTIONS.map((option) => {
-            const isSelected = selectedTypes.includes(option.value);
-
-            return (
-              <button
-                key={option.value}
-                aria-pressed={isSelected}
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${
-                  isSelected
-                    ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
-                    : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
-                }`}
-                type="button"
-                onClick={() => toggleTypeSelection(option.value, setTypes)}
-              >
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    classNames={{
-                      base: "pointer-events-none",
-                    }}
-                    color="primary"
-                    isSelected={isSelected}
-                    size="md"
-                  />
-                  <span
-                    className={`font-medium ${
-                      isSelected
-                        ? "text-default-900 dark:text-default-100"
-                        : "text-default-700 dark:text-default-500"
-                    }`}
-                  >
-                    {option.label}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
   };
 
   if (loading) {
@@ -866,7 +728,6 @@ export default function ConfigPage() {
           </p>
         </div>
       </div> */}
-
       <Card className="shadow-md">
         <CardHeader className="pb-6">
           <div className="flex items-center w-full">
@@ -878,16 +739,13 @@ export default function ConfigPage() {
             </div>
           </div>
         </CardHeader>
-
         <Divider />
-
         <CardBody className="space-y-6 pt-8 md:pt-8">
           {CONFIG_ITEMS.map((item, index) => {
             // 检查配置项是否应该显示
             if (!shouldShowItem(item)) {
               return null;
             }
-
             // 计算是否是最后一个显示的项目（用于决定是否显示分隔线）
             const remainingItems = CONFIG_ITEMS.slice(index + 1).filter(
               shouldShowItem,
@@ -895,32 +753,43 @@ export default function ConfigPage() {
             const isLastItem = remainingItems.length === 0;
 
             return (
-              <div key={item.key} className="space-y-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {item.label}
-                  </label>
-                  {item.description && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {item.description}
-                    </p>
-                  )}
+              <div key={item.key}>
+                {/* 🎯 如果是开关(switch)，使用 justify-between 左右排列；如果是其他，使用 space-y-3 上下排列 */}
+                <div
+                  className={
+                    item.type === "switch"
+                      ? "flex justify-between items-center gap-4"
+                      : "space-y-3"
+                  }
+                >
+                  {/* 左侧：标题和描述 */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      {item.label}
+                    </label>
+                    {item.description && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap">
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+                  {/* 右侧/下方：配置组件 */}
+                  {/* flex-shrink-0 防止开关被长文本挤变形 */}
+                  <div
+                    className={item.type === "switch" ? "flex-shrink-0" : ""}
+                  >
+                    {renderConfigItem(item)}
+                  </div>
                 </div>
-
-                {/* 渲染配置项 */}
-                {renderConfigItem(item)}
-
                 {/* 分隔线 */}
                 {!isLastItem && <Divider className="mt-6" />}
               </div>
             );
           })}
-
           <Divider className="my-2" />
-
           <div className="space-y-3">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div className="flex flex-col gap-1 mt-5">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 更新通道
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -928,7 +797,6 @@ export default function ConfigPage() {
                 的版本。
               </p>
             </div>
-
             <Select
               selectedKeys={[updateChannel]}
               size="md"
@@ -951,79 +819,118 @@ export default function ConfigPage() {
               </SelectItem>
             </Select>
           </div>
-
-          <div className="flex justify-end pt-6 border-t border-divider/50 mt-4">
-            <Button
-              color="primary"
-              disabled={!hasChanges}
-              isLoading={saving}
-              startContent={<SaveIcon className="w-4 h-4" />}
-              onPress={handleSave}
-            >
-              {saving ? "保存中..." : "保存配置"}
-            </Button>
-          </div>
+          {/* 👇 完美靠齐卡片右侧的悬浮保存按钮 */}
+          <AnimatePresence>
+            {hasChanges && (
+              <motion.div
+                animate={{ y: 0, opacity: 1 }}
+                className="sticky fixed bottom-8 z-50 pointer-events-none flex justify-end mt-6"
+                exit={{ y: 100, opacity: 0 }}
+                initial={{ y: 100, opacity: 0 }}
+                transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              >
+                {/* 内部容器添加 pointer-events-auto */}
+                <div className="pointer-events-auto flex items-center gap-3 bg-white dark:bg-default-900 rounded-full shadow-2xl border border-default-200 dark:border-default-700 px-5 py-3">
+                  {/* 提示图标 */}
+                  <div className="flex items-center gap-2 text-warning-600 dark:text-warning-400">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                      />
+                    </svg>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      配置已变更
+                    </span>
+                  </div>
+                  {/* 分隔线 */}
+                  <div className="w-px h-5 bg-default-200 dark:bg-default-700" />
+                  {/* 保存按钮 */}
+                  <Button
+                    className="rounded-full font-medium text-white min-w-[100px]"
+                    color="primary"
+                    isLoading={saving}
+                    size="sm"
+                    startContent={
+                      !saving && (
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            d="M5 13l4 4L19 7"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                      )
+                    }
+                    onPress={handleSave}
+                  >
+                    {saving ? "保存中" : "保存"}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </CardBody>
       </Card>
-
-      {/* 主题设置 */}
-      <div className="mt-6">
-        <ThemeSettings />
-      </div>
-
-      {hasChanges && (
-        <Card className="mt-4 bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800 shadow-sm overflow-hidden">
-          <div className="h-10 flex items-center justify-center gap-2 text-warning-700 dark:text-warning-300">
-            <div className="w-2 h-2 bg-warning-500 rounded-full animate-pulse flex-shrink-0" />
-            <span className="text-sm font-medium leading-none">
-              检测到配置变更，请记得保存您的修改
-            </span>
-          </div>
-        </Card>
-      )}
-
       <Card className="mt-6 shadow-md">
         <CardHeader className="pb-6">
-          <div className="flex justify-between items-center w-full">
+          <div className="flex justify-between items-center w-full gap-4">
             <div>
               <h2 className="text-xl font-semibold">公告管理</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                设置首页显示的公告内容
+                设置首页显示的公告内容，启用后将在首页顶部展示
               </p>
             </div>
+            {/* 👇 开关被优雅地提到了这里，居右对齐 */}
+            {!announcementLoading && (
+              <Switch
+                color="primary"
+                isSelected={announcement.enabled === 1}
+                size="md"
+                onValueChange={(checked) =>
+                  setAnnouncement({
+                    ...announcement,
+                    enabled: checked ? 1 : 0,
+                  })
+                }
+              >
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  {announcement.enabled === 1 ? "已启用" : "未启用"}
+                </span>
+              </Switch>
+            )}
           </div>
         </CardHeader>
-
         <Divider />
-
-        <CardBody className="space-y-4 pt-8 md:pt-8">
+        <CardBody className="space-y-4 pt-6 md:pt-6">
           {announcementLoading ? (
             <div className="flex justify-center py-8">
               <Spinner size="lg" />
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                <Switch
-                  isSelected={announcement.enabled === 1}
-                  onValueChange={(checked) =>
-                    setAnnouncement({
-                      ...announcement,
-                      enabled: checked ? 1 : 0,
-                    })
-                  }
-                >
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {announcement.enabled === 1 ? "已启用" : "已禁用"}
-                  </span>
-                </Switch>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  启用后，公告将在首页顶部显示
-                </p>
-              </div>
-
+              {/* 👇 下面变得非常清爽，只剩下输入框和保存按钮 */}
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                公告内容
+                <span className="ml-2 text-xs text-gray-400 dark:text-gray-500 font-normal">
+                  公告支持 Markdown 语法，链接会在新标签页打开
+                </span>
+              </p>
               <Textarea
-                label="公告内容"
+                label=""
                 minRows={4}
                 placeholder="支持 Markdown，例如：**加粗**、[链接](https://example.com)、- 列表"
                 value={announcement.content}
@@ -1032,11 +939,7 @@ export default function ConfigPage() {
                   setAnnouncement({ ...announcement, content: e.target.value })
                 }
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                公告支持 Markdown 语法，链接会在新标签页打开
-              </p>
-
-              <div className="flex justify-end mt-4 pt-4 border-t border-divider/50">
+              <div className="flex justify-end mt-2 pt-4 border-t border-divider/50">
                 <Button
                   color="primary"
                   isLoading={announcementSaving}
@@ -1050,56 +953,75 @@ export default function ConfigPage() {
           )}
         </CardBody>
       </Card>
-
-      {/* 备份与恢复 */}
+      {/* 主题设置
+      <div className="mt-6 shadow-md">
+        <ThemeSettings />
+      </div> */}
+      {/* 导出全部数据 */}
       <Card className="mt-6 shadow-md">
         <CardHeader className="pb-6">
           <div className="flex justify-between items-center w-full">
             <div>
-              <h2 className="text-xl font-semibold">数据备份与恢复</h2>
+              <h2 className="text-xl font-semibold">导出全部数据</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                导出或导入系统数据，支持选择特定数据类型
+                导出系统所有数据为 JSON 格式文件
               </p>
             </div>
           </div>
         </CardHeader>
-
         <Divider />
-
         <CardBody className="space-y-6 pt-8 md:pt-8">
           {/* 导出部分 */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">导出数据</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              选择要导出的数据类型，导出为 JSON 格式文件
-            </p>
-            <p className="text-xs text-default-500">
-              当前已选 {exportTypes.length} / {BACKUP_TYPE_VALUES.length}
-            </p>
-
-            <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-between items-start gap-4">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-medium">导出数据</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                选择导出范围，一键导出为 JSON 格式文件
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <Select
+                  label=""
+                  selectedKeys={[exportMode]}
+                  size="sm"
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const key = Array.from(keys)[0] as string;
+                    if (key === "core" || key === "full") {
+                      setExportMode(key);
+                    }
+                  }}
+                  classNames={{ trigger: "min-w-[150px]" }}
+                >
+                  <SelectItem key="core">快速导出（核心数据）</SelectItem>
+                  <SelectItem key="full">完整导出（所有数据）</SelectItem>
+                </Select>
+                <span className="text-xs text-gray-500">
+                  {exportMode === 'core' ? '仅用户/节点/隧道/规则' : '包含所有表和配置'}
+                </span>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
               <Button
                 color="primary"
                 isLoading={exporting}
-                onPress={() => setExportSelectorOpen(true)}
+                onPress={handleExportAll}
               >
-                {exporting ? "导出中..." : "选择并导出"}
+                {exporting ? "导出中..." : "导出全部数据"}
               </Button>
             </div>
           </div>
-
           <Divider />
-
           {/* 导入部分 */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">导入数据</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              选择要导入的数据类型，支持从备份文件恢复数据
-            </p>
-            <p className="text-xs text-default-500">
-              当前已选 {importTypes.length} / {BACKUP_TYPE_VALUES.length}
-            </p>
-
+          <div className="flex justify-between items-start gap-4">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-medium">导入数据</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                从 JSON 备份文件恢复数据
+              </p>
+              {importFileName && (
+                <p className="text-xs text-primary">已选择：{importFileName}</p>
+              )}
+            </div>
             <input
               ref={backupFileInputRef}
               accept=".json"
@@ -1107,89 +1029,19 @@ export default function ConfigPage() {
               type="file"
               onChange={handleFileChange}
             />
-
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex-shrink-0">
               <Button
                 color="primary"
                 isLoading={importing}
                 variant="flat"
-                onPress={() => setImportSelectorOpen(true)}
+                onPress={() => backupFileInputRef.current?.click()}
               >
-                {importing ? "导入中..." : "选择并导入"}
+                {importing ? "导入中..." : "选择文件导入"}
               </Button>
-              {importFileName && (
-                <span className="self-center text-sm text-gray-600 dark:text-gray-400">
-                  已选择: {importFileName}
-                </span>
-              )}
             </div>
           </div>
         </CardBody>
       </Card>
-
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={exportSelectorOpen}
-        onOpenChange={setExportSelectorOpen}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>选择导出内容</ModalHeader>
-              <ModalBody>
-                {renderTypeSelection("导出内容", exportTypes, setExportTypes)}
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="primary"
-                  isLoading={exporting}
-                  onPress={handleExport}
-                >
-                  {exporting ? "导出中..." : "确认导出"}
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={importSelectorOpen}
-        onOpenChange={setImportSelectorOpen}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>选择导入内容</ModalHeader>
-              <ModalBody>
-                {renderTypeSelection("导入内容", importTypes, setImportTypes)}
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button
-                  color="primary"
-                  isDisabled={importTypes.length === 0}
-                  onPress={triggerImportFilePicker}
-                >
-                  下一步选择文件
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
     </div>
   );
 }

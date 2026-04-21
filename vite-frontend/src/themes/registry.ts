@@ -9,7 +9,13 @@
  * integration lives in `./context.tsx`.
  */
 
-import type { ThemePackage, ThemeTokens, ComponentKey, LayoutKey, PageKey } from "./types";
+import type {
+  ThemePackage,
+  ThemeTokens,
+  ComponentKey,
+  LayoutKey,
+  PageKey,
+} from "./types";
 
 // ─── internal state ──────────────────────────────────────────────────────────
 
@@ -62,7 +68,7 @@ export function getActiveThemeId(): string | null {
 
 /** Get the currently active ThemePackage (or null). */
 export function getActiveTheme(): ThemePackage | null {
-  return activeId ? installed.get(activeId) ?? null : null;
+  return activeId ? (installed.get(activeId) ?? null) : null;
 }
 
 // ─── theme mode ──────────────────────────────────────────────────────────────
@@ -71,13 +77,18 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export function resolveSystemMode(): "light" | "dark" {
   if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 export function getSavedMode(): ThemeMode {
   if (typeof window === "undefined") return "system";
   const raw = localStorage.getItem(MODE_KEY);
+
   if (raw === "light" || raw === "dark" || raw === "system") return raw;
+
   return "system";
 }
 
@@ -88,6 +99,7 @@ export function saveMode(mode: ThemeMode): void {
 
 export function getEffectiveMode(): "light" | "dark" {
   const mode = getSavedMode();
+
   return mode === "system" ? resolveSystemMode() : mode;
 }
 
@@ -103,8 +115,10 @@ export function getEffectiveMode(): "light" | "dark" {
  */
 export function activateTheme(id: string): void {
   const pkg = installed.get(id);
+
   if (!pkg) {
     console.warn(`[FLVX themes] Theme "${id}" is not registered.`);
+
     return;
   }
 
@@ -116,6 +130,7 @@ export function activateTheme(id: string): void {
   // Inject tokens
   const mode = getEffectiveMode();
   const tokens = mode === "dark" ? pkg.tokens?.dark : pkg.tokens?.light;
+
   if (tokens) injectTokens(tokens);
 
   // Inject custom CSS
@@ -128,6 +143,7 @@ export function activateTheme(id: string): void {
 
   // Update dark class
   const root = document.documentElement;
+
   root.classList.toggle("dark", mode === "dark");
   root.style.colorScheme = mode;
 
@@ -143,6 +159,7 @@ export function activateTheme(id: string): void {
 /** Deactivate the current theme, reverting all overrides. */
 export function deactivateTheme(): void {
   const prev = activeId ? installed.get(activeId) : null;
+
   prev?.onDeactivate?.();
 
   // Remove injected tokens
@@ -163,20 +180,24 @@ export function reapplyActiveTheme(): void {
     const id = activeId;
     // quick re-inject without full lifecycle
     const pkg = installed.get(id);
+
     if (!pkg) return;
 
     clearInjectedTokens();
     const mode = getEffectiveMode();
     const tokens = mode === "dark" ? pkg.tokens?.dark : pkg.tokens?.light;
+
     if (tokens) injectTokens(tokens);
 
     const root = document.documentElement;
+
     root.classList.toggle("dark", mode === "dark");
     root.style.colorScheme = mode;
   } else {
     // No theme active — just set dark class based on mode
     const mode = getEffectiveMode();
     const root = document.documentElement;
+
     root.classList.toggle("dark", mode === "dark");
     root.style.colorScheme = mode;
   }
@@ -195,6 +216,7 @@ export function resolveComponent<P = any>(
 ): React.ComponentType<P> {
   const pkg = activeId ? installed.get(activeId) : null;
   const override = pkg?.components?.[key];
+
   return (override as React.ComponentType<P>) ?? fallback;
 }
 
@@ -204,6 +226,7 @@ export function resolveLayout(
   fallback: React.ComponentType<{ children: React.ReactNode }>,
 ): React.ComponentType<{ children: React.ReactNode }> {
   const pkg = activeId ? installed.get(activeId) : null;
+
   return pkg?.layouts?.[key] ?? fallback;
 }
 
@@ -214,6 +237,7 @@ export function resolvePage<P = any>(
 ): React.ComponentType<P> {
   const pkg = activeId ? installed.get(activeId) : null;
   const override = pkg?.pages?.[key];
+
   return (override as React.ComponentType<P>) ?? fallback;
 }
 
@@ -221,6 +245,7 @@ export function resolvePage<P = any>(
 
 export function subscribe(listener: ChangeListener): () => void {
   changeListeners.add(listener);
+
   return () => changeListeners.delete(listener);
 }
 
@@ -232,6 +257,7 @@ export function subscribe(listener: ChangeListener): () => void {
  */
 export function initThemeSystem(): void {
   const savedId = localStorage.getItem(STORAGE_KEY);
+
   if (savedId && installed.has(savedId)) {
     activateTheme(savedId);
   } else {
@@ -246,6 +272,7 @@ const injectedVars: string[] = [];
 
 function injectTokens(tokens: ThemeTokens): void {
   const root = document.documentElement;
+
   for (const [varName, value] of Object.entries(tokens)) {
     if (value !== undefined) {
       root.style.setProperty(varName, value);
@@ -256,6 +283,7 @@ function injectTokens(tokens: ThemeTokens): void {
 
 function clearInjectedTokens(): void {
   const root = document.documentElement;
+
   for (const varName of injectedVars) {
     root.style.removeProperty(varName);
   }

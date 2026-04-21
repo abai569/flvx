@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from "react";
+
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 
 export function GlobalPullToRefresh() {
@@ -15,15 +16,22 @@ export function GlobalPullToRefresh() {
 
     const getScrollTop = (target: EventTarget | null) => {
       let node = target as HTMLElement | null;
-      while (node && node !== document.body && node !== document.documentElement) {
+
+      while (
+        node &&
+        node !== document.body &&
+        node !== document.documentElement
+      ) {
         if (node.scrollHeight > node.clientHeight) {
           const overflowY = window.getComputedStyle(node).overflowY;
-          if (overflowY === 'auto' || overflowY === 'scroll') {
+
+          if (overflowY === "auto" || overflowY === "scroll") {
             return node.scrollTop;
           }
         }
         node = node.parentElement;
       }
+
       return window.scrollY || document.documentElement.scrollTop;
     };
 
@@ -41,24 +49,24 @@ export function GlobalPullToRefresh() {
       const distance = y - startY.current;
 
       if (distance > 0) {
-         if (getScrollTop(e.target) <= 0) {
-           if (e.cancelable) e.preventDefault();
-           currentDistance.current = Math.min(distance * 0.4, MAX_PULL);
-           setPullDistance(currentDistance.current);
-         } else {
-           isPulling.current = false;
-           setPullDistance(0);
-         }
+        if (getScrollTop(e.target) <= 0) {
+          if (e.cancelable) e.preventDefault();
+          currentDistance.current = Math.min(distance * 0.4, MAX_PULL);
+          setPullDistance(currentDistance.current);
+        } else {
+          isPulling.current = false;
+          setPullDistance(0);
+        }
       } else {
-         isPulling.current = false;
-         setPullDistance(0);
+        isPulling.current = false;
+        setPullDistance(0);
       }
     };
 
     const onTouchEnd = () => {
       if (!isPulling.current) return;
       isPulling.current = false;
-      
+
       if (currentDistance.current >= THRESHOLD) {
         setRefreshing(true);
         setPullDistance(THRESHOLD - 20);
@@ -69,14 +77,14 @@ export function GlobalPullToRefresh() {
       }
     };
 
-    document.addEventListener('touchstart', onTouchStart, { passive: true });
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
-    document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
 
     return () => {
-      document.removeEventListener('touchstart', onTouchStart);
-      document.removeEventListener('touchmove', onTouchMove);
-      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
     };
   }, []);
 
@@ -86,26 +94,37 @@ export function GlobalPullToRefresh() {
     <div
       className="fixed top-0 left-0 w-full flex justify-center items-start pt-6 z-[9999] pointer-events-none transition-transform duration-200"
       style={{
-         transform: `translateY(${refreshing ? 40 : pullDistance}px)`,
-         opacity: pullDistance / 80 || (refreshing ? 1 : 0),
-         marginTop: '-40px'
+        transform: `translateY(${refreshing ? 40 : pullDistance}px)`,
+        opacity: pullDistance / 80 || (refreshing ? 1 : 0),
+        marginTop: "-40px",
       }}
     >
       <div className="bg-content1 shadow-lg rounded-full px-4 py-2 flex items-center gap-2 border border-divider">
         {refreshing ? (
           <>
             <Spinner size="sm" />
-            <span className="text-sm font-medium text-foreground">刷新中...</span>
+            <span className="text-sm font-medium text-foreground">
+              刷新中...
+            </span>
           </>
         ) : (
           <>
             <svg
-              className={`w-4 h-4 text-default-500 transition-transform duration-200 ${pullDistance >= 60 ? 'rotate-180' : ''}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              className={`w-4 h-4 text-default-500 transition-transform duration-200 ${pullDistance >= 60 ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              <path
+                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
             </svg>
-            <span className="text-sm font-medium text-default-500">{pullDistance >= 60 ? "松开刷新" : "下拉刷新"}</span>
+            <span className="text-sm font-medium text-default-500">
+              {pullDistance >= 60 ? "松开刷新" : "下拉刷新"}
+            </span>
           </>
         )}
       </div>

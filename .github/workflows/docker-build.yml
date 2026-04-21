@@ -292,6 +292,7 @@ jobs:
 
           # 复制并修改安装脚本
           cp install.sh ./artifacts/install.sh
+          cp install-auto.sh ./artifacts/install-auto.sh
           cp panel_install.sh ./artifacts/panel_install.sh
 
           # 替换仓库地址和版本号
@@ -303,6 +304,20 @@ jobs:
           # 注入固定版本号，使从 Release 页下载的脚本只安装该版本
           sed -i "s|^PINNED_VERSION=\"\"|PINNED_VERSION=\"${VERSION}\"|" ./artifacts/install.sh
           sed -i "s|^PINNED_VERSION=\"\"|PINNED_VERSION=\"${VERSION}\"|" ./artifacts/panel_install.sh
+
+          # 构建离线包（amd64）
+          echo "📦 构建离线包 (amd64)..."
+          mkdir -p ./artifacts/offline-amd64
+          cp ./artifacts/gost-amd64 ./artifacts/offline-amd64/flux_agent
+          cp ./install.sh ./artifacts/offline-amd64/offline.sh
+          cd ./artifacts/offline-amd64 && zip -r ../offline-amd64.zip . && cd ../..
+
+          # 构建离线包（arm64）
+          echo "📦 构建离线包 (arm64)..."
+          mkdir -p ./artifacts/offline-arm64
+          cp ./artifacts/gost-arm64 ./artifacts/offline-arm64/flux_agent
+          cp ./install.sh ./artifacts/offline-arm64/offline.sh
+          cd ./artifacts/offline-arm64 && zip -r ../offline-arm64.zip . && cd ../..
 
       - name: Create Release
         env:
@@ -369,13 +384,28 @@ jobs:
 
           echo "📤 上传安装脚本..."
           gh release upload "${VERSION}" ./artifacts/install.sh --clobber
+          gh release upload "${VERSION}" ./artifacts/install-auto.sh --clobber
           gh release upload "${VERSION}" ./artifacts/panel_install.sh --clobber
 
           echo "📤 上传 Docker Compose 配置文件..."
           gh release upload "${VERSION}" ./artifacts/docker-compose-v4.yml --clobber
           gh release upload "${VERSION}" ./artifacts/docker-compose-v6.yml --clobber
 
+          echo "📤 上传离线包..."
+          gh release upload "${VERSION}" ./artifacts/offline-amd64.zip --clobber
+          gh release upload "${VERSION}" ./artifacts/offline-arm64.zip --clobber
+
           echo "✅ Release ${VERSION} 创建完成"
+
+      #- name: Sync to Chinese CDN
+      #  if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+      #  run: ./scripts/sync-to-chfs.sh
+      #  env:
+      #    IS_PRERELEASE: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
+      #    CHFS_URL: ${{ secrets.CHSF_URL }}
+      #    CHFS_USER: ${{ secrets.CHSF_USER }}
+      #    CHFS_PASS: ${{ secrets.CHSF_PASS }}
+      #    ARTIFACTS_DIR: ./artifacts
 
   update-release-gost:
     name: Update GOST Binaries in Release
@@ -416,6 +446,20 @@ jobs:
           mv ./artifacts/amd64/gost-amd64 ./artifacts/gost-amd64
           mv ./artifacts/arm64/gost-arm64 ./artifacts/gost-arm64
 
+      - name: Build offline packages
+        run: |
+          echo "📦 构建离线包 (amd64)..."
+          mkdir -p ./artifacts/offline-amd64
+          cp ./artifacts/gost-amd64 ./artifacts/offline-amd64/flux_agent
+          cp ./install.sh ./artifacts/offline-amd64/offline.sh
+          cd ./artifacts/offline-amd64 && zip -r ../offline-amd64.zip . && cd ../..
+
+          echo "📦 构建离线包 (arm64)..."
+          mkdir -p ./artifacts/offline-arm64
+          cp ./artifacts/gost-arm64 ./artifacts/offline-arm64/flux_agent
+          cp ./install.sh ./artifacts/offline-arm64/offline.sh
+          cd ./artifacts/offline-arm64 && zip -r ../offline-arm64.zip . && cd ../..
+
       - name: Update GOST binaries in Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -431,4 +475,9 @@ jobs:
           gh release upload "${VERSION}" ./artifacts/gost-amd64.sha256 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
 
-          echo "✅ GOST 二进制文件更新完成"
+          echo " 📤 上传离线包..."
+          gh release upload "${VERSION}" ./artifacts/offline-amd64.zip --clobber
+          gh release upload "${VERSION}" ./artifacts/offline-arm64.zip --clobber
+
+          echo " ✅ GOST 二进制文件更新完成
+

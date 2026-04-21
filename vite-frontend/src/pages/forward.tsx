@@ -1,7 +1,5 @@
 import type { ForwardApiItem, SpeedLimitApiItem } from "@/api/types";
 
-
-
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
@@ -23,12 +21,14 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
 import { AnimatedPage } from "@/components/animated-page";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Textarea } from "@/shadcn-bridge/heroui/input";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
+import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import {
   Table,
   TableBody,
@@ -44,7 +44,6 @@ import {
   ModalBody,
   ModalFooter,
 } from "@/shadcn-bridge/heroui/modal";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
@@ -97,7 +96,6 @@ import { PageLoadingState } from "@/components/page-state";
 // import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
 import { saveOrder } from "@/utils/order-storage";
 import { JwtUtil } from "@/utils/jwt";
-
 interface Forward {
   id: number;
   name: string;
@@ -119,8 +117,13 @@ interface Forward {
   userId?: number;
   inx?: number;
   speedId?: number | null;
+  maxConnections?: number;
+  currentConnections?: number;
+  trafficLimit?: number;
+  expiryTime?: number | null;
+  speedLimitEnabled?: boolean;
+  speedLimit?: number;
 }
-
 interface Tunnel {
   id: number;
   name: string;
@@ -131,8 +134,9 @@ interface Tunnel {
   inNodePortEnd?: number;
   portRangeMin?: number;
   portRangeMax?: number;
+  remark?: string;
+  trafficRatio?: number;
 }
-
 interface Node {
   id: number;
   name?: string;
@@ -141,7 +145,6 @@ interface Node {
   serverIpV6?: string;
   extraIPs?: string;
 }
-
 interface ForwardForm {
   id?: number;
   userId?: number;
@@ -153,30 +156,30 @@ interface ForwardForm {
   interfaceName?: string;
   strategy: string;
   speedId: number | null;
+  maxConnections: number;
+  trafficLimit: number;
+  expiryTime: number | null;
+  speedLimitEnabled: boolean;
+  speedLimit: number;
 }
-
 interface ForwardUserGroup {
   userId: number;
   userName: string;
   tunnels: ForwardTunnelGroup[];
 }
-
 interface ForwardTunnelGroup {
   tunnelKey: string;
   tunnelName: string;
   tunnelTrafficRatio?: number;
   items: Forward[];
 }
-
 interface BatchProgressState {
   active: boolean;
   label: string;
   percent: number;
 }
-
 type ForwardGroupOrderMap = Record<string, string[]>;
 type ForwardGroupCollapsedMap = Record<string, boolean>;
-
 const UNKNOWN_FORWARD_USER_NAME = "未知用户";
 const UNCATEGORIZED_FORWARD_TUNNEL_NAME = "未分类";
 const FORWARD_COMPACT_MODE_CONFIG_KEY = "forward_compact_mode";
@@ -200,26 +203,22 @@ const FORWARD_GROUPED_TABLE_COLUMN_CLASS = {
   status: "w-[90px]",
   actions: "w-[160px] text-right pr-4",
 } as const;
-
 const normalizeForwardUserName = (userName?: string): string => {
   const normalized = (userName || UNKNOWN_FORWARD_USER_NAME).trim();
 
   return normalized || UNKNOWN_FORWARD_USER_NAME;
 };
-
 const compareForwardUserNameAsc = (a: string, b: string): number => {
   return a.localeCompare(b, "en", {
     sensitivity: "base",
     numeric: true,
   });
 };
-
 const normalizeForwardTunnelName = (tunnelName?: string): string => {
   const normalized = (tunnelName || "").trim();
 
   return normalized || UNCATEGORIZED_FORWARD_TUNNEL_NAME;
 };
-
 const buildForwardTunnelGroupKey = (tunnelName?: string): string => {
   const normalized = normalizeForwardTunnelName(tunnelName);
 
@@ -229,14 +228,12 @@ const buildForwardTunnelGroupKey = (tunnelName?: string): string => {
 
   return normalized.toLocaleLowerCase();
 };
-
 const compareForwardTunnelNameAsc = (a: string, b: string): number => {
   return a.localeCompare(b, "en", {
     sensitivity: "base",
     numeric: true,
   });
 };
-
 const compareForwardTunnelGroupKeyAsc = (a: string, b: string): number => {
   const aIsUncategorized = a === "__uncategorized__";
   const bIsUncategorized = b === "__uncategorized__";
@@ -247,12 +244,10 @@ const compareForwardTunnelGroupKeyAsc = (a: string, b: string): number => {
 
   return compareForwardTunnelNameAsc(a, b);
 };
-
 const normalizeTunnelTrafficRatio = (value: unknown): number => {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return value;
   }
-
   if (typeof value === "string") {
     const parsed = Number(value);
 
@@ -263,7 +258,6 @@ const normalizeTunnelTrafficRatio = (value: unknown): number => {
 
   return 1;
 };
-
 const formatTunnelTrafficRatio = (value?: number): string => {
   const ratio = normalizeTunnelTrafficRatio(value);
 
@@ -273,22 +267,18 @@ const formatTunnelTrafficRatio = (value?: number): string => {
 
   return `${parseFloat(ratio.toFixed(2))}x`;
 };
-
 const buildForwardGroupOrderLocalKey = (tokenUserId: number): string => {
   return `${FORWARD_GROUP_ORDER_LOCAL_STORAGE_PREFIX}:u:${tokenUserId}`;
 };
-
 const buildForwardGroupCollapsedLocalKey = (tokenUserId: number): string => {
   return `${FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX}:u:${tokenUserId}`;
 };
-
 const parsePreferenceMap = <T,>(
   raw: string | null,
 ): Record<string, T> | null => {
   if (!raw) {
     return null;
   }
-
   try {
     const parsed = JSON.parse(raw);
 
@@ -301,21 +291,18 @@ const parsePreferenceMap = <T,>(
     return null;
   }
 };
-
 const parseGroupOrderMap = (raw: string | null): ForwardGroupOrderMap => {
   const parsed = parsePreferenceMap<unknown>(raw);
 
   if (!parsed) {
     return {};
   }
-
   const result: ForwardGroupOrderMap = {};
 
   Object.entries(parsed).forEach(([userId, value]) => {
     if (!Array.isArray(value)) {
       return;
     }
-
     const keys = value
       .map((item) => (typeof item === "string" ? item.trim() : ""))
       .filter((item) => item !== "");
@@ -327,7 +314,6 @@ const parseGroupOrderMap = (raw: string | null): ForwardGroupOrderMap => {
 
   return result;
 };
-
 const parseGroupCollapsedMap = (
   raw: string | null,
 ): ForwardGroupCollapsedMap => {
@@ -336,7 +322,6 @@ const parseGroupCollapsedMap = (
   if (!parsed) {
     return {};
   }
-
   const result: ForwardGroupCollapsedMap = {};
 
   Object.entries(parsed).forEach(([key, value]) => {
@@ -347,7 +332,6 @@ const parseGroupCollapsedMap = (
 
   return result;
 };
-
 const sanitizeGroupOrderMap = (
   source: ForwardGroupOrderMap,
   availableTunnelKeysByUser: Map<number, Set<string>>,
@@ -358,7 +342,6 @@ const sanitizeGroupOrderMap = (
     if (availableKeys.size === 0) {
       return;
     }
-
     const orderFromSource = source[userId.toString()] || [];
     const used = new Set<string>();
     const merged: string[] = [];
@@ -367,11 +350,9 @@ const sanitizeGroupOrderMap = (
       if (!availableKeys.has(key) || used.has(key)) {
         return;
       }
-
       used.add(key);
       merged.push(key);
     });
-
     Array.from(availableKeys)
       .sort(compareForwardTunnelGroupKeyAsc)
       .forEach((key) => {
@@ -380,7 +361,6 @@ const sanitizeGroupOrderMap = (
           merged.push(key);
         }
       });
-
     if (merged.length > 0) {
       sanitized[userId.toString()] = merged;
     }
@@ -388,7 +368,6 @@ const sanitizeGroupOrderMap = (
 
   return sanitized;
 };
-
 const sanitizeGroupCollapsedMap = (
   source: ForwardGroupCollapsedMap,
   availableCollapseKeys: Set<string>,
@@ -403,38 +382,32 @@ const sanitizeGroupCollapsedMap = (
 
   return sanitized;
 };
-
 const buildTunnelGroupCollapseKey = (
   userId: number,
   tunnelKey: string,
 ): string => {
   return `${userId}:${tunnelKey}`;
 };
-
 const buildTunnelGroupSortableId = (
   userId: number,
   tunnelKey: string,
 ): string => {
   return `${FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX}:${userId}:${tunnelKey}`;
 };
-
 const parseTunnelGroupSortableId = (
   value: unknown,
 ): { userId: number; tunnelKey: string } | null => {
   if (typeof value !== "string") {
     return null;
   }
-
   if (!value.startsWith(`${FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX}:`)) {
     return null;
   }
-
   const parts = value.split(":");
 
   if (parts.length < 3) {
     return null;
   }
-
   const userId = Number(parts[1]);
   const tunnelKey = parts.slice(2).join(":").trim();
 
@@ -444,7 +417,6 @@ const parseTunnelGroupSortableId = (
 
   return { userId, tunnelKey };
 };
-
 const buildAvailableGroupData = (
   forwards: Forward[],
 ): {
@@ -457,26 +429,22 @@ const buildAvailableGroupData = (
   forwards.forEach((forward) => {
     const userId = forward.userId ?? 0;
     const tunnelKey = buildForwardTunnelGroupKey(forward.tunnelName);
-
     let set = availableTunnelKeysByUser.get(userId);
 
     if (!set) {
       set = new Set<string>();
       availableTunnelKeysByUser.set(userId, set);
     }
-
     set.add(tunnelKey);
     availableCollapseKeys.add(buildTunnelGroupCollapseKey(userId, tunnelKey));
   });
 
   return { availableTunnelKeysByUser, availableCollapseKeys };
 };
-
 const isSameStringArray = (a: string[], b: string[]): boolean => {
   if (a.length !== b.length) {
     return false;
   }
-
   for (let i = 0; i < a.length; i += 1) {
     if (a[i] !== b[i]) {
       return false;
@@ -485,7 +453,6 @@ const isSameStringArray = (a: string[], b: string[]): boolean => {
 
   return true;
 };
-
 const isSameGroupOrderMap = (
   a: ForwardGroupOrderMap,
   b: ForwardGroupOrderMap,
@@ -496,7 +463,6 @@ const isSameGroupOrderMap = (
   if (!isSameStringArray(aKeys, bKeys)) {
     return false;
   }
-
   for (const key of aKeys) {
     if (!isSameStringArray(a[key] || [], b[key] || [])) {
       return false;
@@ -505,7 +471,6 @@ const isSameGroupOrderMap = (
 
   return true;
 };
-
 const isSameGroupCollapsedMap = (
   a: ForwardGroupCollapsedMap,
   b: ForwardGroupCollapsedMap,
@@ -516,7 +481,6 @@ const isSameGroupCollapsedMap = (
   if (!isSameStringArray(aKeys, bKeys)) {
     return false;
   }
-
   for (const key of aKeys) {
     if (a[key] !== b[key]) {
       return false;
@@ -525,14 +489,12 @@ const isSameGroupCollapsedMap = (
 
   return true;
 };
-
 const normalizeForwardItems = (items: Forward[]): Forward[] => {
   return items.map((forward) => ({
     ...forward,
     serviceRunning: forward.status === 1,
   }));
 };
-
 const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
   return (items || []).map((forward) => ({
     id: forward.id,
@@ -558,9 +520,14 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
         ? forward.speedId
         : undefined,
     serviceRunning: forward.status === 1,
+    maxConnections: forward.maxConnections ?? 0,
+    currentConnections: forward.currentConnections ?? 0,
+    trafficLimit: forward.trafficLimit ?? 0,
+    expiryTime: forward.expiryTime ?? null,
+    speedLimitEnabled: forward.speedLimitEnabled ?? false,
+    speedLimit: forward.speedLimit ?? 0,
   }));
 };
-
 const SortableTunnelGroupContainer = ({
   groupUserId,
   tunnel,
@@ -584,10 +551,7 @@ const SortableTunnelGroupContainer = ({
   bodyClassName: string;
   children: React.ReactNode;
 }) => {
-  const sortableId = buildTunnelGroupSortableId(
-    groupUserId,
-    tunnel.tunnelKey,
-  );
+  const sortableId = buildTunnelGroupSortableId(groupUserId, tunnel.tunnelKey);
   const {
     attributes,
     listeners,
@@ -596,7 +560,6 @@ const SortableTunnelGroupContainer = ({
     transition,
     isDragging,
   } = useSortable({ id: sortableId });
-
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
@@ -613,15 +576,17 @@ const SortableTunnelGroupContainer = ({
 
   return (
     <div ref={setNodeRef} className={wrapperClassName} style={style}>
-      <div className={headerClassName}>
+      <div
+        className={`${headerClassName} cursor-pointer select-none transition-colors`}
+        onClick={onToggleCollapsed}
+      >
         <div className="flex items-center gap-2 min-w-0">
           <Button
             isIconOnly
             aria-label={collapsed ? "展开分组" : "折叠分组"}
-            className="h-7 w-7 min-w-7"
+            className="h-7 w-7 min-w-7 pointer-events-none"
             size="sm"
             variant="light"
-            onPress={onToggleCollapsed}
           >
             <svg
               aria-hidden="true"
@@ -649,6 +614,8 @@ const SortableTunnelGroupContainer = ({
             title="拖拽分组排序"
             {...attributes}
             {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <svg
               aria-hidden="true"
@@ -665,7 +632,6 @@ const SortableTunnelGroupContainer = ({
     </div>
   );
 };
-
 // 可拖拽的规则卡片组件
 const SortableForwardCard = ({ forward, renderCard }: any) => {
   const {
@@ -676,7 +642,6 @@ const SortableForwardCard = ({ forward, renderCard }: any) => {
     transition,
     isDragging,
   } = useSortable({ id: forward.id });
-
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
@@ -696,100 +661,8 @@ const SortableForwardCard = ({ forward, renderCard }: any) => {
     </div>
   );
 };
-
 // 可拖拽的表格行组件
-const SortableTableRow = ({ copyToClipboard, forward, selectedIds, toggleSelect, handleServiceToggle, handleEdit, handleDelete, handleDiagnose, handleSetSpeedLimit, getSpeedLimitName, formatFlow }: any) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: forward.id });
-  const style = { transform: CSS.Transform.toString(transform), transition: isDragging ? 'none' : transition, opacity: isDragging ? 0.6 : 1, zIndex: isDragging ? 50 : undefined, position: isDragging ? ('relative' as const) : undefined, willChange: 'transform', backgroundColor: isDragging ? "var(--nextui-default-100)" : undefined };
-  const rowBg = selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
-  const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, '') : "默认 IP";
-  const inAddrNoPorts = rawInIp === "默认 IP" ? rawInIp : rawInIp.split(',').map((ip: string) => ip.trim().replace(/:\d+$/, "")).join(',');
-  const inAddrWithPorts = rawInIp === "默认 IP" ? `默认 IP:${forward.inPort}` : rawInIp.split(',').map((ip: string) => `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`).join(',');
-  const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
-  const remotePortOnly = (forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "-";
-
-  return (
-    <TableRow key={forward.id} ref={setNodeRef} style={style as any}>
-      <TableCell className={rowBg}>
-        <div className="flex items-center justify-center h-full">
-          <Checkbox isSelected={selectedIds.has(forward.id)} onValueChange={() => toggleSelect(forward.id)} />
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors flex-shrink-0" {...attributes} {...listeners}>
-          <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" /></svg>
-        </div>
-      </TableCell>
-      <TableCell className={`whitespace-nowrap text-black ${rowBg}`}><span className="cursor-pointer hover:text-primary transition-colors text-black" onClick={() => copyToClipboard(forward.name, "规则名")}>{forward.name}</span></TableCell>
-      <TableCell className={rowBg}>
-        <Chip color="secondary" size="sm" variant="solid"> {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
-          {getSpeedLimitName(forward.speedId ?? null)}
-        </Chip>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(inAddrWithPorts.split(',').join('\n'), "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={inAddrNoPorts} onClick={() => copyToClipboard(inAddrNoPorts.split(',').join('\n'), "入口地址")}>{inAddrNoPorts}</span>
-        </div>
-      </TableCell>
-
-      <TableCell className={rowBg}>
-        <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors" onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}>{forward.inPort}</span>
-      </TableCell>
-
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(forward.remoteAddr.split(",")[0], "完整落地"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={remoteAddrOnly} onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}>{remoteAddrOnly}</span>
-          {forward.remoteAddr.includes(',') && <span className="text-primary-400 ml-0.5">...</span>}
-        </div>
-      </TableCell>
-
-      <TableCell className={rowBg}>
-        <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors" onClick={() => copyToClipboard(remotePortOnly, "落地端口")}>{remotePortOnly}</span>
-      </TableCell>
-
-      <TableCell className={`whitespace-nowrap ${rowBg}`}><span className="text-sm font-mono text-black">{formatFlow(getForwardDisplayFlow(forward))}</span></TableCell>
-      <TableCell className={rowBg}><div className="flex items-center gap-2.5 whitespace-nowrap"><Chip
-        color={forward.serviceRunning ? "success" : "warning"}
-        size="sm"
-        variant="flat"
-      >
-        {forward.serviceRunning ? "正常" : "暂停"}
-      </Chip></div></TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex justify-start gap-2 pl-2">
-          <Button isIconOnly className={forward.serviceRunning ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]" : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"} size="sm" onPress={() => handleServiceToggle(forward)} title={forward.serviceRunning ? "暂停" : "启用"}>
-            {forward.serviceRunning ? (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
-            ) : (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            )}
-          </Button>
-          <Button isIconOnly className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]" size="sm" title="编辑" onPress={() => handleEdit(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2} /></svg></Button>
-          <Button isIconOnly className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]" size="sm" title="诊断" onPress={() => handleDiagnose(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" strokeWidth={2} /></svg></Button>
-          <Button
-            isIconOnly
-            color="secondary"
-            variant="flat"
-            className="flex-shrink-0 min-w-[32px]"
-            size="sm"
-            title="限速"
-            onPress={() => handleSetSpeedLimit(forward)}
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-              <path d="m12 14 4-4" />
-              <path d="M3.34 19a10 10 0 1 1 17.32 0" />
-            </svg>
-          </Button>
-          <Button isIconOnly className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]" size="sm" title="删除" onPress={() => handleDelete(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2} /></svg></Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-};
-
-const SortableCompactTableRow = ({
+const SortableTableRow = ({
   copyToClipboard,
   forward,
   selectedIds,
@@ -798,9 +671,9 @@ const SortableCompactTableRow = ({
   handleEdit,
   handleDelete,
   handleDiagnose,
-  handleSetSpeedLimit,
   getSpeedLimitName,
   formatFlow,
+  isAdmin,
 }: any) => {
   const {
     attributes,
@@ -810,113 +683,565 @@ const SortableCompactTableRow = ({
     transition,
     isDragging,
   } = useSortable({ id: forward.id });
-
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : transition,
+    transition: isDragging ? "none" : transition,
     opacity: isDragging ? 0.6 : 1,
     zIndex: isDragging ? 50 : undefined,
-    position: isDragging ? ('relative' as const) : undefined,
-    willChange: 'transform',
+    position: isDragging ? ("relative" as const) : undefined,
+    willChange: "transform",
     backgroundColor: isDragging ? "var(--nextui-default-100)" : undefined,
   };
-
-  const rowBg = selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : "";
-
-  const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, '') : "默认IP";
-  const inAddrNoPorts = rawInIp === "默认IP" ? rawInIp : rawInIp.split(',').map((ip: string) => ip.trim().replace(/:\d+$/, "")).join(',');
-  const inAddrWithPorts = rawInIp === "默认IP" ? `默认IP:${forward.inPort}` : rawInIp.split(',').map((ip: string) => `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`).join(',');
-  const remoteAddrOnly = (forward.remoteAddr.split(',')[0] || "").replace(/:\d+$/, "");
-  const remotePortOnly = (forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "-";
+  const rowBg = selectedIds.has(forward.id)
+    ? "bg-primary-50/70 dark:bg-primary-900/40"
+    : "";
+  const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, "") : "默认 IP";
+  const inAddrNoPorts =
+    rawInIp === "默认 IP"
+      ? rawInIp
+      : rawInIp
+        .split(",")
+        .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
+        .join(",");
+  const inAddrWithPorts =
+    rawInIp === "默认 IP"
+      ? `默认 IP:${forward.inPort}`
+      : rawInIp
+        .split(",")
+        .map(
+          (ip: string) =>
+            `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
+        )
+        .join(",");
+  const remoteAddrOnly = (forward.remoteAddr.split(",")[0] || "").replace(
+    /:\d+$/,
+    "",
+  );
+  const remotePortOnly =
+    forward.remoteAddr.split(",")[0].match(/:(\d+)$/)?.[1] || "-";
 
   return (
     <TableRow key={forward.id} ref={setNodeRef} style={style as any}>
       <TableCell className={rowBg}>
         <div className="flex items-center justify-center h-full">
-          <Checkbox isSelected={selectedIds.has(forward.id)} onValueChange={() => toggleSelect(forward.id)} />
+          <Checkbox
+            isSelected={selectedIds.has(forward.id)}
+            onValueChange={() => toggleSelect(forward.id)}
+          />
         </div>
       </TableCell>
       <TableCell className={rowBg}>
-        <div className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors flex-shrink-0" {...attributes} {...listeners}>
-          <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" /></svg>
+        <div
+          className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors flex-shrink-0"
+          {...attributes}
+          {...listeners}
+        >
+          <svg
+            aria-hidden="true"
+            className="w-4 h-4"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+          </svg>
         </div>
       </TableCell>
-      <TableCell className={`whitespace-nowrap text-black ${rowBg}`}><span className="cursor-pointer hover:text-primary transition-colors text-black" onClick={() => copyToClipboard(forward.name, "规则名")}>{forward.name}</span></TableCell>
+      {/* 添加用户名单元格 */}
+      {isAdmin && (
+        <TableCell className={`whitespace-nowrap ${rowBg}`}>
+          <span className="text-sm text-foreground">
+            {forward.userName || "-"}
+          </span>
+        </TableCell>
+      )}
+      <TableCell className={`whitespace-nowrap text-black ${rowBg}`}>
+        <span
+          className="cursor-pointer hover:text-primary transition-colors text-black"
+          onClick={() => copyToClipboard(forward.name, "规则名")}
+        >
+          {forward.name}
+        </span>
+      </TableCell>
+      {isAdmin && (
+        <TableCell className={rowBg}>
+          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
+            {" "}
+            {getSpeedLimitName(forward.speedId ?? null)}
+          </div>
+        </TableCell>
+      )}
       <TableCell className={rowBg}>
-        <Chip color="secondary" size="sm" variant="solid"> {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
-          {getSpeedLimitName(forward.speedId ?? null)}
-        </Chip>
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          <svg
+            className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            viewBox="0 0 24 24"
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(
+                inAddrWithPorts.split(",").join("\n"),
+                "完整入口",
+              );
+            }}
+          >
+            <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+          </svg>
+          <span
+            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
+            title={inAddrNoPorts}
+            onClick={() =>
+              copyToClipboard(inAddrNoPorts.split(",").join("\n"), "入口地址")
+            }
+          >
+            {inAddrNoPorts}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <span
+          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
+          onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}
+        >
+          {forward.inPort}
+        </span>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          <svg
+            className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            viewBox="0 0 24 24"
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(forward.remoteAddr.split(",")[0], "完整落地");
+            }}
+          >
+            <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+          </svg>
+          <span
+            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
+            title={remoteAddrOnly}
+            onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}
+          >
+            {remoteAddrOnly}
+          </span>
+          {forward.remoteAddr.includes(",") && (
+            <span className="text-primary-400 ml-0.5">...</span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <span
+          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
+          onClick={() => copyToClipboard(remotePortOnly, "落地端口")}
+        >
+          {remotePortOnly}
+        </span>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="flex items-center">
-          <span className="font-medium text-black text-sm">{forward.tunnelName}</span>
-          {/* 隧道倍率标识 - 统一 10px 字体 */}
-          <span className="text-primary-600 font-bold text-[10px] ml-1.5">^{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}</span>
+        <span className="text-sm font-medium text-black">
+          {formatFlow(getForwardDisplayFlow(forward))}
+        </span>
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <ConnectionCountCell
+          current={forward.currentConnections ?? 0}
+          max={forward.maxConnections ?? 0}
+        />
+      </TableCell>
+      <TableCell className={rowBg}>
+        <div className="flex items-center gap-2.5 whitespace-nowrap">
+          <div
+            className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${forward.serviceRunning ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-warning-500/10 text-warning-600 dark:text-warning-400"}`}
+          >
+            {forward.serviceRunning ? "正常" : "暂停"}
+          </div>
         </div>
       </TableCell>
-
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(inAddrWithPorts.split(',').join('\n'), "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={inAddrNoPorts} onClick={() => copyToClipboard(inAddrNoPorts.split(',').join('\n'), "入口地址")}>{inAddrNoPorts}</span>
-        </div>
-      </TableCell>
-
-      <TableCell className={rowBg}>
-        <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors" onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}>{forward.inPort}</span>
-      </TableCell>
-
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(forward.remoteAddr.split(",")[0], "完整落地"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block" title={remoteAddrOnly} onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}>{remoteAddrOnly}</span>
-          {forward.remoteAddr.includes(',') && <span className="text-primary-400 ml-0.5">...</span>}
-        </div>
-      </TableCell>
-
-      <TableCell className={rowBg}>
-        <span className="text-sm font-mono text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors" onClick={() => copyToClipboard(remotePortOnly, "落地端口")}>{remotePortOnly}</span>
-      </TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}><span className="text-sm font-mono text-black">{formatFlow(getForwardDisplayFlow(forward))}</span></TableCell>
-      <TableCell className={rowBg}><div className="flex items-center gap-2.5 whitespace-nowrap"><Chip
-        color={forward.serviceRunning ? "success" : "warning"}
-        size="sm"
-        variant="flat"
-      >
-        {forward.serviceRunning ? "正常" : "暂停"}
-      </Chip></div></TableCell>
       <TableCell className={rowBg}>
         <div className="flex justify-start gap-2 pl-2">
-          <Button isIconOnly className={forward.serviceRunning ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]" : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"} size="sm" onPress={() => handleServiceToggle(forward)} title={forward.serviceRunning ? "暂停" : "启用"}>
-            {forward.serviceRunning ? (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
-            ) : (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            )}
-          </Button>
-          <Button isIconOnly className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]" size="sm" title="编辑" onPress={() => handleEdit(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2} /></svg></Button>
-          <Button isIconOnly className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]" size="sm" title="诊断" onPress={() => handleDiagnose(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" strokeWidth={2} /></svg></Button>
           <Button
             isIconOnly
-            color="secondary"
-            variant="flat"
-            className="flex-shrink-0 min-w-[32px]"
+            className={
+              forward.serviceRunning
+                ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]"
+                : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
+            }
             size="sm"
-            title="限速"
-            onPress={() => handleSetSpeedLimit(forward)}
+            title={forward.serviceRunning ? "暂停" : "启用"}
+            onPress={() => handleServiceToggle(forward)}
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-              <path d="m12 14 4-4" />
-              <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+            {forward.serviceRunning ? (
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+              </svg>
+            ) : (
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+          </Button>
+          <Button
+            isIconOnly
+            className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]"
+            size="sm"
+            title="编辑"
+            onPress={() => handleEdit(forward)}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                strokeWidth={2}
+              />
             </svg>
           </Button>
-          <Button isIconOnly className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]" size="sm" title="删除" onPress={() => handleDelete(forward)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth={2} /></svg></Button>
+          <Button
+            isIconOnly
+            className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
+            size="sm"
+            title="诊断"
+            onPress={() => handleDiagnose(forward)}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                strokeWidth={2}
+              />
+            </svg>
+          </Button>
+          <Button
+            isIconOnly
+            className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
+            size="sm"
+            title="删除"
+            onPress={() => handleDelete(forward)}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                strokeWidth={2}
+              />
+            </svg>
+          </Button>
         </div>
       </TableCell>
     </TableRow>
   );
 };
+const SortableCompactTableRow = ({
+  copyToClipboard,
+  forward,
+  selectedIds,
+  toggleSelect,
+  handleServiceToggle,
+  handleEdit,
+  handleDelete,
+  handleDiagnose,
+  getSpeedLimitName,
+  formatFlow,
+  isAdmin,
+}: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: forward.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? "none" : transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 50 : undefined,
+    position: isDragging ? ("relative" as const) : undefined,
+    willChange: "transform",
+    backgroundColor: isDragging ? "var(--nextui-default-100)" : undefined,
+  };
+  const rowBg = selectedIds.has(forward.id)
+    ? "bg-primary-50/70 dark:bg-primary-900/40"
+    : "";
+  const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, "") : "默认IP";
+  const inAddrNoPorts =
+    rawInIp === "默认IP"
+      ? rawInIp
+      : rawInIp
+        .split(",")
+        .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
+        .join(",");
+  const inAddrWithPorts =
+    rawInIp === "默认IP"
+      ? `默认IP:${forward.inPort}`
+      : rawInIp
+        .split(",")
+        .map(
+          (ip: string) =>
+            `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
+        )
+        .join(",");
+  const remoteAddrOnly = (forward.remoteAddr.split(",")[0] || "").replace(
+    /:\d+$/,
+    "",
+  );
+  const remotePortOnly =
+    forward.remoteAddr.split(",")[0].match(/:(\d+)$/)?.[1] || "-";
 
+  return (
+    <TableRow key={forward.id} ref={setNodeRef} style={style as any}>
+      <TableCell className={rowBg}>
+        <div className="flex items-center justify-center h-full">
+          <Checkbox
+            isSelected={selectedIds.has(forward.id)}
+            onValueChange={() => toggleSelect(forward.id)}
+          />
+        </div>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <div
+          className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors flex-shrink-0"
+          {...attributes}
+          {...listeners}
+        >
+          <svg
+            aria-hidden="true"
+            className="w-4 h-4"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+          </svg>
+        </div>
+      </TableCell>
+      {/* 添加用户名单元格 */}
+      {isAdmin && (
+        <TableCell className={`whitespace-nowrap ${rowBg}`}>
+          <span className="text-sm text-foreground">
+            {forward.userName || "-"}
+          </span>
+        </TableCell>
+      )}
+      <TableCell className={`whitespace-nowrap text-black ${rowBg}`}>
+        <span
+          className="cursor-pointer hover:text-primary transition-colors text-black"
+          onClick={() => copyToClipboard(forward.name, "规则名")}
+        >
+          {forward.name}
+        </span>
+      </TableCell>
+      {isAdmin && (
+        <TableCell className={rowBg}>
+          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
+            {getSpeedLimitName(forward.speedId ?? null)}
+          </div>
+        </TableCell>
+      )}
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <div className="flex items-center">
+          <span className="font-medium text-black text-sm">
+            {forward.tunnelName}
+          </span>
+          {/* 隧道倍率标识 - 统一 10px 字体 */}
+          <span className="text-primary-600 font-bold text-[10px] ml-1.5">
+            ^{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          <svg
+            className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            viewBox="0 0 24 24"
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(
+                inAddrWithPorts.split(",").join("\n"),
+                "完整入口",
+              );
+            }}
+          >
+            <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+          </svg>
+          <span
+            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
+            title={inAddrNoPorts}
+            onClick={() =>
+              copyToClipboard(inAddrNoPorts.split(",").join("\n"), "入口地址")
+            }
+          >
+            {inAddrNoPorts}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <span
+          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
+          onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}
+        >
+          {forward.inPort}
+        </span>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          <svg
+            className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            viewBox="0 0 24 24"
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(forward.remoteAddr.split(",")[0], "完整落地");
+            }}
+          >
+            <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+          </svg>
+          <span
+            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
+            title={remoteAddrOnly}
+            onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}
+          >
+            {remoteAddrOnly}
+          </span>
+          {forward.remoteAddr.includes(",") && (
+            <span className="text-primary-400 ml-0.5">...</span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <span
+          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
+          onClick={() => copyToClipboard(remotePortOnly, "落地端口")}
+        >
+          {remotePortOnly}
+        </span>
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <span className="text-sm font-medium text-black">
+          {formatFlow(getForwardDisplayFlow(forward))}
+        </span>
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <ConnectionCountCell
+          current={forward.currentConnections ?? 0}
+          max={forward.maxConnections ?? 0}
+        />
+      </TableCell>
+      <TableCell className={rowBg}>
+        <div className="flex items-center gap-2.5 whitespace-nowrap">
+          <div
+            className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${forward.serviceRunning ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-warning-500/10 text-warning-600 dark:text-warning-400"}`}
+          >
+            {forward.serviceRunning ? "正常" : "暂停"}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className={rowBg}>
+        <div className="flex justify-start gap-2 pl-2">
+          <Button
+            isIconOnly
+            className={
+              forward.serviceRunning
+                ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]"
+                : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
+            }
+            size="sm"
+            title={forward.serviceRunning ? "暂停" : "启用"}
+            onPress={() => handleServiceToggle(forward)}
+          >
+            {forward.serviceRunning ? (
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+              </svg>
+            ) : (
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+          </Button>
+          <Button
+            isIconOnly
+            className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]"
+            size="sm"
+            title="编辑"
+            onPress={() => handleEdit(forward)}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                strokeWidth={2}
+              />
+            </svg>
+          </Button>
+          <Button
+            isIconOnly
+            className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
+            size="sm"
+            title="诊断"
+            onPress={() => handleDiagnose(forward)}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                strokeWidth={2}
+              />
+            </svg>
+          </Button>
+          <Button
+            isIconOnly
+            className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
+            size="sm"
+            title="删除"
+            onPress={() => handleDelete(forward)}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                strokeWidth={2}
+              />
+            </svg>
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
 const getForwardDisplayFlow = (forward: Forward): number => {
   const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
 
@@ -931,16 +1256,28 @@ export default function ForwardPage() {
   const tokenUserId = JwtUtil.getUserIdFromToken();
   const tokenRoleId = JwtUtil.getRoleIdFromToken();
   const isAdmin = tokenRoleId === 0;
-
-  const [searchParams, setSearchParams] = useState({
-    name: "",
-    userId: tokenUserId ? tokenUserId.toString() : "all",
-    tunnelId: "all",
-    inPort: "",
-    remoteAddr: ""
-  });
+  const [searchParams, setSearchParams] = useLocalStorageState(
+    "forward-search-params",
+    {
+      name: "",
+      userId: tokenUserId ? tokenUserId.toString() : "all",
+      tunnelId: "all",
+      speedLimitId: undefined as number | undefined,
+      inPort: "",
+      remoteAddr: "",
+    },
+  );
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const activeFilterCount = (searchParams.name ? 1 : 0) + (searchParams.userId !== "all" && searchParams.userId !== (tokenUserId ? tokenUserId.toString() : "all") ? 1 : 0) + (searchParams.tunnelId !== "all" ? 1 : 0) + (searchParams.inPort ? 1 : 0) + (searchParams.remoteAddr ? 1 : 0);
+  const activeFilterCount =
+    (searchParams.name ? 1 : 0) +
+    (searchParams.userId !== "all" &&
+      searchParams.userId !== (tokenUserId ? tokenUserId.toString() : "all")
+      ? 1
+      : 0) +
+    (searchParams.tunnelId !== "all" ? 1 : 0) +
+    (searchParams.speedLimitId !== undefined ? 1 : 0) +
+    (searchParams.inPort ? 1 : 0) +
+    (searchParams.remoteAddr ? 1 : 0);
   const [loading, setLoading] = useState(true);
   const [forwards, setForwards] = useState<Forward[]>([]);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
@@ -951,7 +1288,6 @@ export default function ForwardPage() {
   // searchKeyword removed
   // isSearchVisible removed
   const [compactMode, setCompactMode] = useState(false);
-
   // 显示模式状态 - 从localStorage读取，默认为平铺显示
   const [viewMode, setViewMode] = useState<"grouped" | "direct">(() => {
     try {
@@ -962,14 +1298,11 @@ export default function ForwardPage() {
       return "direct";
     }
   });
-
   // 筛选状态
   // filterUserId removed
   // filterTunnelId removed
-
   // 拖拽排序相关状态
   const [forwardOrder, setForwardOrder] = useState<number[]>([]);
-
   // 模态框状态
   const [modalOpen, setModalOpen] = useState(false);
   // isFilterModalOpen removed
@@ -995,7 +1328,6 @@ export default function ForwardPage() {
   const diagnosisAbortRef = useRef<AbortController | null>(null);
   const [addressModalTitle, setAddressModalTitle] = useState("");
   const [addressList, setAddressList] = useState<ForwardAddressItem[]>([]);
-
   // 导出相关状态
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportData, setExportData] = useState("");
@@ -1021,7 +1353,6 @@ export default function ForwardPage() {
       forwardName?: string;
     }>
   >([]);
-
   // 表单状态
   const [form, setForm] = useState<ForwardForm>({
     name: "",
@@ -1032,12 +1363,15 @@ export default function ForwardPage() {
     interfaceName: "",
     strategy: "fifo",
     speedId: null,
+    maxConnections: 0,
+    trafficLimit: 0,
+    expiryTime: null,
+    speedLimitEnabled: false,
+    speedLimit: 0,
   });
   const [inIpTouched, setInIpTouched] = useState(false);
-
   // 表单验证错误
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
   // 批量操作相关状态
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -1047,7 +1381,11 @@ export default function ForwardPage() {
   const [batchTargetTunnelId, setBatchTargetTunnelId] = useState<number | null>(
     null,
   );
-  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchRedeployLoading, setBatchRedeployLoading] = useState(false);
+  const [batchPauseLoading, setBatchPauseLoading] = useState(false);
+  const [batchResumeLoading, setBatchResumeLoading] = useState(false);
+  const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
+  const [batchChangeTunnelLoading, setBatchChangeTunnelLoading] = useState(false);
   const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
     active: false,
     label: "",
@@ -1057,19 +1395,20 @@ export default function ForwardPage() {
   const [collapsedTunnelGroups, setCollapsedTunnelGroups] =
     useState<ForwardGroupCollapsedMap>({});
   const [groupPreferenceHydrated, setGroupPreferenceHydrated] = useState(false);
-
   // 限速相关状态
-  const [speedLimitModalOpen, setSpeedLimitModalOpen] = useState(false);
-  const [batchSpeedLimitModalOpen, setBatchSpeedLimitModalOpen] = useState(false);
-  const [forwardToSetSpeedLimit, setForwardToSetSpeedLimit] = useState<Forward | null>(null);
-  const [selectedSpeedLimitId, setSelectedSpeedLimitId] = useState<number | null>(null);
+  const [batchSpeedLimitModalOpen, setBatchSpeedLimitModalOpen] =
+    useState(false);
+  const [forwardToSetSpeedLimit, setForwardToSetSpeedLimit] =
+    useState<Forward | null>(null);
+  const [selectedSpeedLimitId, setSelectedSpeedLimitId] = useState<
+    number | null
+  >(null);
   const [speedLimitLoading, setSpeedLimitLoading] = useState(false);
-
+  const [advancedOptionsOpen, setAdvancedOptionsOpen] = useState(false);
   const parseNodeIPs = (node?: Node): string[] => {
     if (!node) {
       return [];
     }
-
     const ips: string[] = [];
     const add = (value?: string) => {
       const trimmed = (value || "").trim();
@@ -1082,7 +1421,6 @@ export default function ForwardPage() {
     add(node.serverIpV4);
     add(node.serverIpV6);
     add(node.serverIp);
-
     (node.extraIPs || "")
       .split(",")
       .map((v) => v.trim())
@@ -1091,7 +1429,6 @@ export default function ForwardPage() {
 
     return Array.from(new Set(ips));
   };
-
   const tunnelInIpOptionMap = useMemo(() => {
     const map = new Map<number, string[]>();
     const nodeMap = new Map<number, Node>(nodes.map((n) => [n.id, n]));
@@ -1103,7 +1440,6 @@ export default function ForwardPage() {
       for (const entry of entryNodes) {
         collected.push(...parseNodeIPs(nodeMap.get(entry.nodeId)));
       }
-
       if (collected.length === 0) {
         (tunnel.inIp || "")
           .split(",")
@@ -1111,13 +1447,11 @@ export default function ForwardPage() {
           .filter((v) => v)
           .forEach((v) => collected.push(v));
       }
-
       map.set(tunnel.id, Array.from(new Set(collected)));
     }
 
     return map;
   }, [allTunnels, nodes]);
-
   const currentTunnelIpOptions = useMemo(() => {
     if (!form.tunnelId) {
       return [];
@@ -1125,24 +1459,20 @@ export default function ForwardPage() {
 
     return tunnelInIpOptionMap.get(form.tunnelId) || [];
   }, [form.tunnelId, tunnelInIpOptionMap]);
-
   const isCurrentTunnelMultiEntrance = useMemo(() => {
     if (!form.tunnelId) {
       return false;
     }
-
     const currentTunnel = allTunnels.find(
       (tunnel) => tunnel.id === form.tunnelId,
     );
 
     return (currentTunnel?.inNodeId?.length || 0) > 1;
   }, [allTunnels, form.tunnelId]);
-
   const currentTunnelPortRange = useMemo(() => {
     if (!form.tunnelId) {
       return null;
     }
-
     const currentTunnel = allTunnels.find(
       (tunnel) => tunnel.id === form.tunnelId,
     );
@@ -1168,12 +1498,10 @@ export default function ForwardPage() {
       diagnosisAbortRef.current = null;
     };
   }, []);
-
   const persistGroupOrderToLocal = (nextOrderMap: ForwardGroupOrderMap) => {
     if (tokenUserId === null) {
       return;
     }
-
     try {
       localStorage.setItem(
         buildForwardGroupOrderLocalKey(tokenUserId),
@@ -1181,14 +1509,12 @@ export default function ForwardPage() {
       );
     } catch { }
   };
-
   const persistGroupCollapsedToLocal = (
     nextCollapsedMap: ForwardGroupCollapsedMap,
   ) => {
     if (tokenUserId === null) {
       return;
     }
-
     try {
       localStorage.setItem(
         buildForwardGroupCollapsedLocalKey(tokenUserId),
@@ -1196,14 +1522,12 @@ export default function ForwardPage() {
       );
     } catch { }
   };
-
   const persistGroupOrderToGlobal = async (
     nextOrderMap: ForwardGroupOrderMap,
   ): Promise<void> => {
     if (!isAdmin || tokenUserId === null) {
       return;
     }
-
     try {
       const currentRes = await getConfigByName(FORWARD_GROUP_ORDER_CONFIG_KEY);
       const globalMap =
@@ -1214,7 +1538,6 @@ export default function ForwardPage() {
         ) || {};
 
       globalMap[tokenUserId.toString()] = nextOrderMap;
-
       const saveRes = await updateConfig(
         FORWARD_GROUP_ORDER_CONFIG_KEY,
         JSON.stringify(globalMap),
@@ -1227,14 +1550,12 @@ export default function ForwardPage() {
       toast.error("保存分组排序失败");
     }
   };
-
   const persistGroupCollapsedToGlobal = async (
     nextCollapsedMap: ForwardGroupCollapsedMap,
   ): Promise<void> => {
     if (!isAdmin || tokenUserId === null) {
       return;
     }
-
     try {
       const currentRes = await getConfigByName(
         FORWARD_GROUP_COLLAPSED_CONFIG_KEY,
@@ -1247,7 +1568,6 @@ export default function ForwardPage() {
         ) || {};
 
       globalMap[tokenUserId.toString()] = nextCollapsedMap;
-
       const saveRes = await updateConfig(
         FORWARD_GROUP_COLLAPSED_CONFIG_KEY,
         JSON.stringify(globalMap),
@@ -1263,7 +1583,6 @@ export default function ForwardPage() {
 
   useEffect(() => {
     let cancelled = false;
-
     const loadGroupPreferences = async () => {
       if (tokenUserId === null) {
         if (!cancelled) {
@@ -1274,7 +1593,6 @@ export default function ForwardPage() {
 
         return;
       }
-
       let localOrderMap: ForwardGroupOrderMap = {};
       let localCollapsedMap: ForwardGroupCollapsedMap = {};
 
@@ -1285,7 +1603,6 @@ export default function ForwardPage() {
       } catch {
         localOrderMap = {};
       }
-
       try {
         localCollapsedMap = parseGroupCollapsedMap(
           localStorage.getItem(buildForwardGroupCollapsedLocalKey(tokenUserId)),
@@ -1293,14 +1610,12 @@ export default function ForwardPage() {
       } catch {
         localCollapsedMap = {};
       }
-
       if (isAdmin) {
         try {
           const [globalOrderRes, globalCollapsedRes] = await Promise.all([
             getConfigByName(FORWARD_GROUP_ORDER_CONFIG_KEY),
             getConfigByName(FORWARD_GROUP_COLLAPSED_CONFIG_KEY),
           ]);
-
           const globalOrderMap = parsePreferenceMap<ForwardGroupOrderMap>(
             globalOrderRes.code === 0 &&
               typeof globalOrderRes.data?.value === "string"
@@ -1314,7 +1629,6 @@ export default function ForwardPage() {
                 ? globalCollapsedRes.data.value
                 : null,
             );
-
           const globalOrderBucket = globalOrderMap?.[tokenUserId.toString()];
           const globalCollapsedBucket =
             globalCollapsedMap?.[tokenUserId.toString()];
@@ -1328,7 +1642,6 @@ export default function ForwardPage() {
               JSON.stringify(globalOrderBucket),
             );
           }
-
           if (
             globalCollapsedBucket &&
             typeof globalCollapsedBucket === "object" &&
@@ -1340,11 +1653,9 @@ export default function ForwardPage() {
           }
         } catch { }
       }
-
       if (cancelled) {
         return;
       }
-
       setGroupOrderMap(localOrderMap);
       setCollapsedTunnelGroups(localCollapsedMap);
       persistGroupOrderToLocal(localOrderMap);
@@ -1359,7 +1670,6 @@ export default function ForwardPage() {
       cancelled = true;
     };
   }, [tokenUserId, isAdmin]);
-
   useEffect(() => {
     const loadForwardCompactMode = async () => {
       try {
@@ -1374,7 +1684,6 @@ export default function ForwardPage() {
         setCompactMode(false);
       }
     };
-
     const handleCompactModeChanged = (event: Event) => {
       const customEvent = event as CustomEvent<{ enabled?: boolean }>;
 
@@ -1396,38 +1705,32 @@ export default function ForwardPage() {
       );
     };
   }, []);
-
   const parseShareIdFromTunnelName = (tunnelName: string): number | null => {
     const normalized = (tunnelName || "").trim();
 
     if (!normalized.startsWith("Share-")) {
       return null;
     }
-
     const raw = normalized.slice("Share-".length);
     const idx = raw.indexOf("-Port-");
 
     if (idx <= 0) {
       return null;
     }
-
     const shareId = Number(raw.slice(0, idx).trim());
 
     return Number.isFinite(shareId) && shareId > 0 ? shareId : null;
   };
-
   const mergeFederationShareFlow = useCallback(
     async (forwardsData: Forward[]): Promise<Forward[]> => {
       if (forwardsData.length === 0) {
         return forwardsData;
       }
-
       try {
         const [usageRes, localShareRes] = await Promise.all([
           getPeerRemoteUsageList(),
           getPeerShareList(),
         ]);
-
         const flowByShare = new Map<number, number>();
         const shareIdsByTunnel = new Map<number, Set<number>>();
 
@@ -1446,7 +1749,6 @@ export default function ForwardPage() {
 
               flowByShare.set(shareId, Math.max(prev, currentFlow));
             }
-
             if (Number.isFinite(shareId) && shareId > 0) {
               const bindings = Array.isArray(item.bindings)
                 ? (item.bindings as Array<Record<string, unknown>>)
@@ -1459,24 +1761,20 @@ export default function ForwardPage() {
                 if (!Number.isFinite(tunnelId) || tunnelId <= 0) {
                   return;
                 }
-
                 if (Number.isFinite(chainType) && chainType !== 1) {
                   return;
                 }
-
                 let shareSet = shareIdsByTunnel.get(tunnelId);
 
                 if (!shareSet) {
                   shareSet = new Set<number>();
                   shareIdsByTunnel.set(tunnelId, shareSet);
                 }
-
                 shareSet.add(shareId);
               });
             }
           });
         }
-
         if (localShareRes.code === 0 && Array.isArray(localShareRes.data)) {
           localShareRes.data.forEach((item: Record<string, unknown>) => {
             const shareId = Number(item.id || 0);
@@ -1494,11 +1792,9 @@ export default function ForwardPage() {
             }
           });
         }
-
         if (flowByShare.size === 0) {
           return forwardsData;
         }
-
         const resolveShareIdForForward = (forward: Forward): number | null => {
           const candidates = new Set<number>();
           const shareIdFromName = parseShareIdFromTunnelName(
@@ -1508,7 +1804,6 @@ export default function ForwardPage() {
           if (shareIdFromName) {
             candidates.add(shareIdFromName);
           }
-
           const tunnelId = Number(forward.tunnelId || 0);
           const shareSetByTunnel = shareIdsByTunnel.get(tunnelId);
 
@@ -1519,11 +1814,9 @@ export default function ForwardPage() {
               }
             });
           }
-
           if (candidates.size === 0) {
             return null;
           }
-
           let bestShareId: number | null = null;
           let bestFlow = 0;
 
@@ -1538,7 +1831,6 @@ export default function ForwardPage() {
 
           return bestShareId;
         };
-
         const resolvedShareByForwardId = new Map<number, number>();
 
         forwardsData.forEach((forward) => {
@@ -1548,7 +1840,6 @@ export default function ForwardPage() {
             resolvedShareByForwardId.set(forward.id, shareId);
           }
         });
-
         const forwardCountByShare = new Map<number, number>();
 
         forwardsData.forEach((forward) => {
@@ -1557,7 +1848,6 @@ export default function ForwardPage() {
           if (!shareId || !flowByShare.has(shareId)) {
             return;
           }
-
           forwardCountByShare.set(
             shareId,
             (forwardCountByShare.get(shareId) || 0) + 1,
@@ -1570,19 +1860,16 @@ export default function ForwardPage() {
           if (!shareId) {
             return { ...forward, federationShareFlow: undefined };
           }
-
           const shareFlow = flowByShare.get(shareId) || 0;
 
           if (shareFlow <= 0) {
             return { ...forward, federationShareFlow: undefined };
           }
-
           const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
 
           if (directFlow > 0) {
             return { ...forward, federationShareFlow: undefined };
           }
-
           const count = forwardCountByShare.get(shareId) || 1;
           const estimated = Math.max(1, Math.floor(shareFlow / count));
 
@@ -1594,7 +1881,6 @@ export default function ForwardPage() {
     },
     [],
   );
-
   // 切换显示模式并保存到localStorage
   const handleViewModeChange = () => {
     const newMode = viewMode === "grouped" ? "direct" : "grouped";
@@ -1604,30 +1890,7 @@ export default function ForwardPage() {
       localStorage.setItem("forward-view-mode", newMode);
     } catch { }
   };
-
   // 切换精简模式
-  const handleCompactModeToggle = async (checked: boolean) => {
-    try {
-      const res = await updateConfig(FORWARD_COMPACT_MODE_CONFIG_KEY, checked ? "true" : "false");
-
-      if (res.code === 0) {
-        setCompactMode(checked);
-        // 触发事件通知其他组件
-        window.dispatchEvent(
-          new CustomEvent(FORWARD_COMPACT_MODE_EVENT, {
-            detail: { enabled: checked },
-          }),
-        );
-        toast.success(checked ? "已启用精简模式" : "已关闭精简模式");
-      } else {
-        toast.error(res.msg || "切换失败");
-      }
-    } catch {
-      toast.error("切换失败，请重试");
-    }
-  };
-
-
   const applyForwardList = useCallback(
     async (items: Forward[]) => {
       const mergedForwards = await mergeFederationShareFlow(
@@ -1635,7 +1898,6 @@ export default function ForwardPage() {
       );
 
       setForwards(mergedForwards);
-
       const currentUserId = JwtUtil.getUserIdFromToken();
       const { order, fromDatabase } = buildForwardOrder(
         mergedForwards,
@@ -1643,20 +1905,17 @@ export default function ForwardPage() {
       );
 
       setForwardOrder(order);
-
       if (fromDatabase) {
         saveOrder(FORWARD_ORDER_KEY, order);
       }
     },
     [mergeFederationShareFlow],
   );
-
   const refreshForwardList = useCallback(
     async (lod = true) => {
       if (lod) {
         setLoading(true);
       }
-
       try {
         const forwardsRes = await getForwardList();
 
@@ -1675,7 +1934,6 @@ export default function ForwardPage() {
     },
     [applyForwardList],
   );
-
   // 加载所有数据
   const loadData = useCallback(
     async (lod = true) => {
@@ -1691,23 +1949,19 @@ export default function ForwardPage() {
         ]);
 
         await refreshForwardList(false);
-
         if (tunnelsRes.code === 0) {
           setTunnels(tunnelsRes.data || []);
         } else {
         }
-
         if (
           allTunnelsRes.status === "fulfilled" &&
           allTunnelsRes.value.code === 0
         ) {
           setAllTunnels((allTunnelsRes.value.data || []) as Tunnel[]);
         }
-
         if (nodesRes.status === "fulfilled" && nodesRes.value.code === 0) {
           setNodes((nodesRes.value.data || []) as Node[]);
         }
-
         if (speedLimitsRes.code === 0) {
           setSpeedLimits(speedLimitsRes.data || []);
         }
@@ -1723,59 +1977,61 @@ export default function ForwardPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+  // 定时刷新连接数（每5秒）
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // 只在页面可见时刷新，且不在加载中
+      if (!document.hidden && !loading) {
+        refreshForwardList(false);
+      }
+    }, 5000);
 
+    return () => clearInterval(interval);
+  }, [loading, refreshForwardList]);
   // 表单验证
   const noLimitSpeedLimitIds = useMemo(() => {
     return new Set(
       speedLimits
         .filter((speedLimit) => {
           const name = speedLimit.name || "";
+
           return name.includes("不限速") || speedLimit.speed === 0;
         })
         .map((speedLimit) => speedLimit.id),
     );
   }, [speedLimits]);
-
   const speedLimitIds = useMemo(() => {
     return new Set(speedLimits.map((speedLimit) => speedLimit.id));
   }, [speedLimits]);
-
   const availableSpeedLimits = useMemo(() => {
     return speedLimits.filter(
       (speedLimit) => !noLimitSpeedLimitIds.has(speedLimit.id),
     );
   }, [speedLimits, noLimitSpeedLimitIds]);
-
   const normalizeSpeedId = (speedId?: number | null): number | null => {
     if (speedId === null || speedId === undefined) {
       return null;
     }
-
     if (noLimitSpeedLimitIds.has(speedId)) {
       return null;
     }
-
     if (speedLimits.length > 0 && !speedLimitIds.has(speedId)) {
       return null;
     }
 
     return speedId;
   };
-
   const isMissingSpeedLimit = (speedId?: number | null): boolean => {
     if (speedId === null || speedId === undefined) {
       return false;
     }
-
     if (speedLimits.length === 0 || noLimitSpeedLimitIds.has(speedId)) {
       return false;
     }
 
     return !speedLimitIds.has(speedId);
   };
-
-  const selectedSpeedId = normalizeSpeedId(form.speedId);
-
+  // const selectedSpeedId = normalizeSpeedId(form.speedId); // 已弃用
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
 
@@ -1784,11 +2040,9 @@ export default function ForwardPage() {
     } else if (form.name.length < 2 || form.name.length > 50) {
       newErrors.name = "规则名称长度应在2-50个字符之间";
     }
-
     if (!form.tunnelId) {
       newErrors.tunnelId = "请选择关联隧道";
     }
-
     if (
       form.inPort !== null &&
       form.inPort !== undefined &&
@@ -1802,7 +2056,6 @@ export default function ForwardPage() {
         newErrors.inPort = `端口 ${currentTunnelPortRange.min}-${currentTunnelPortRange.max} 超出允许范围`;
       }
     }
-
     if (!form.remoteAddr.trim()) {
       newErrors.remoteAddr = "请输入落地地址";
     } else {
@@ -1831,12 +2084,10 @@ export default function ForwardPage() {
         }
       }
     }
-
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
   };
-
   // 新增规则
   const handleAdd = () => {
     setIsEdit(false);
@@ -1850,11 +2101,15 @@ export default function ForwardPage() {
       interfaceName: "",
       strategy: "fifo",
       speedId: null,
+      maxConnections: 0,
+      trafficLimit: 0,
+      expiryTime: null,
+      speedLimitEnabled: false,
+      speedLimit: 0,
     });
     setErrors({});
     setModalOpen(true);
   };
-
   // 编辑规则
   const handleEdit = (forward: Forward) => {
     setIsEdit(true);
@@ -1870,21 +2125,23 @@ export default function ForwardPage() {
       interfaceName: forward.interfaceName || "",
       strategy: forward.strategy || "fifo",
       speedId: normalizeSpeedId(forward.speedId),
+      maxConnections: forward.maxConnections ?? 0,
+      trafficLimit: forward.trafficLimit ?? 0,
+      expiryTime: forward.expiryTime ?? null,
+      speedLimitEnabled: forward.speedLimitEnabled ?? false,
+      speedLimit: forward.speedLimit ?? 0,
     });
     setErrors({});
     setModalOpen(true);
   };
-
   // 显示删除确认
   const handleDelete = (forward: Forward) => {
     setForwardToDelete(forward);
     setDeleteModalOpen(true);
   };
-
   // 确认删除规则
   const confirmDelete = async () => {
     if (!forwardToDelete) return;
-
     setDeleteLoading(true);
     try {
       const res = await deleteForward(forwardToDelete.id);
@@ -1951,14 +2208,12 @@ export default function ForwardPage() {
       setDeleteLoading(false);
     }
   };
-
   // 处理隧道选择变化
   const handleTunnelChange = (tunnelId: string) => {
     const nextTunnelId = parseInt(tunnelId);
     const options = tunnelInIpOptionMap.get(nextTunnelId) || [];
 
     setInIpTouched(false);
-
     setForm((prev) => {
       const tunnelChanged = prev.tunnelId !== nextTunnelId;
 
@@ -1969,11 +2224,9 @@ export default function ForwardPage() {
       };
     });
   };
-
   // 提交表单
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setSubmitLoading(true);
     try {
       const processedRemoteAddr = form.remoteAddr
@@ -1981,9 +2234,7 @@ export default function ForwardPage() {
         .map((addr) => addr.trim())
         .filter((addr) => addr)
         .join(",");
-
       const addressCount = processedRemoteAddr.split(",").length;
-
       let res: { code: number; msg: string };
       const normalizedSpeedId = normalizeSpeedId(form.speedId);
       const speedLimitAutoCleared = isMissingSpeedLimit(form.speedId);
@@ -1998,6 +2249,11 @@ export default function ForwardPage() {
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
+          maxConnections: form.maxConnections,
+          trafficLimit: form.trafficLimit,
+          expiryTime: form.expiryTime,
+          speedLimitEnabled: form.speedLimitEnabled,
+          speedLimit: form.speedLimit,
         };
 
         res = await updateForward(updateData);
@@ -2010,11 +2266,15 @@ export default function ForwardPage() {
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
+          maxConnections: form.maxConnections,
+          trafficLimit: form.trafficLimit,
+          expiryTime: form.expiryTime,
+          speedLimitEnabled: form.speedLimitEnabled,
+          speedLimit: form.speedLimit,
         };
 
         res = await createForward(createData);
       }
-
       if (res.code === 0) {
         const warningItems = Array.isArray((res as any).data?.warnings)
           ? (res as any).data.warnings
@@ -2048,7 +2308,6 @@ export default function ForwardPage() {
       setSubmitLoading(false);
     }
   };
-
   // 处理服务开关
   const handleServiceToggle = async (forward: Forward) => {
     if (forward.status !== 1 && forward.status !== 0) {
@@ -2056,7 +2315,6 @@ export default function ForwardPage() {
 
       return;
     }
-
     const targetState = !forward.serviceRunning;
 
     try {
@@ -2066,7 +2324,6 @@ export default function ForwardPage() {
           f.id === forward.id ? { ...f, serviceRunning: targetState } : f,
         ),
       );
-
       let res: { code: number; msg: string };
 
       if (targetState) {
@@ -2074,7 +2331,6 @@ export default function ForwardPage() {
       } else {
         res = await pauseForwardService(forward.id);
       }
-
       if (res.code === 0) {
         toast.success(targetState ? "服务已启动" : "服务已暂停");
         // 更新规则状态
@@ -2102,14 +2358,12 @@ export default function ForwardPage() {
       toast.error("网络错误，操作失败");
     }
   };
-
   // 诊断规则
   const handleDiagnose = async (forward: Forward) => {
     diagnosisAbortRef.current?.abort();
     const abortController = new AbortController();
 
     diagnosisAbortRef.current = abortController;
-
     setCurrentDiagnosisForward(forward);
     setDiagnosisModalOpen(true);
     setDiagnosisLoading(true);
@@ -2125,7 +2379,6 @@ export default function ForwardPage() {
       timestamp: Date.now(),
       results: [],
     });
-
     try {
       let streamErrorMessage = "";
       const streamResult = await diagnoseForwardStream(
@@ -2251,7 +2504,6 @@ export default function ForwardPage() {
 
         return;
       }
-
       if (streamErrorMessage) {
         toast.error(streamErrorMessage);
       }
@@ -2285,15 +2537,16 @@ export default function ForwardPage() {
       setDiagnosisLoading(false);
     }
   };
-
   // 获取限速规则名称
-  const getSpeedLimitName = useCallback((speedId: number | null): string => {
-    if (speedId === null) return '不限速';
+  const getSpeedLimitName = useCallback(
+    (speedId: number | null): string => {
+      if (speedId === null) return "不限速";
+      const limit = speedLimits.find((s) => s.id === speedId);
 
-    const limit = speedLimits.find(s => s.id === speedId);
-    return limit ? `${limit.speed} Mbps` : '不限速';
-  }, [speedLimits]);
-
+      return limit ? `${limit.speed}M` : "不限速";
+    },
+    [speedLimits],
+  );
   // 格式化流量
   const formatFlow = (value: number): string => {
     if (value === 0) return "0 B";
@@ -2304,7 +2557,6 @@ export default function ForwardPage() {
 
     return (value / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   };
-
   // 显示地址列表弹窗
   const showAddressModal = (
     addressString: string,
@@ -2316,18 +2568,15 @@ export default function ForwardPage() {
     if (action.type === "none") {
       return;
     }
-
     if (action.type === "copy") {
       copyToClipboard(action.text, action.label);
 
       return;
     }
-
     setAddressList(action.items);
     setAddressModalTitle(action.title);
     setAddressModalOpen(true);
   };
-
   // 复制到剪贴板
   const copyToClipboard = async (text: string, label: string = "内容") => {
     try {
@@ -2336,19 +2585,26 @@ export default function ForwardPage() {
         toast.success(`已复制${label}`);
       } else {
         const textArea = document.createElement("textarea");
+
         textArea.value = text;
         textArea.style.position = "fixed";
         textArea.style.left = "-9999px";
         textArea.style.top = "0";
         document.body.appendChild(textArea);
-        textArea.focus(); textArea.select();
-        try { document.execCommand('copy'); toast.success(`已复制${label}`); }
-        catch (err) { toast.error("复制失败"); }
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand("copy");
+          toast.success(`已复制${label}`);
+        } catch (err) {
+          toast.error("复制失败");
+        }
         document.body.removeChild(textArea);
       }
-    } catch { toast.error("复制失败"); }
+    } catch {
+      toast.error("复制失败");
+    }
   };
-
   // 复制地址
   const copyAddress = async (addressItem: ForwardAddressItem) => {
     try {
@@ -2368,7 +2624,6 @@ export default function ForwardPage() {
       );
     }
   };
-
   // 复制所有地址
   const copyAllAddresses = async () => {
     if (addressList.length === 0) return;
@@ -2376,14 +2631,12 @@ export default function ForwardPage() {
 
     await copyToClipboard(allAddresses, "所有地址");
   };
-
   // 导出规则数据
   const handleExport = () => {
     setSelectedTunnelForExport(null);
     setExportData("");
     setExportModalOpen(true);
   };
-
   // 执行导出
   const executeExport = () => {
     if (!selectedTunnelForExport) {
@@ -2391,9 +2644,7 @@ export default function ForwardPage() {
 
       return;
     }
-
     setExportLoading(true);
-
     try {
       // 获取要导出的规则列表
       const forwardsToExport = sortedForwards.filter(
@@ -2406,12 +2657,10 @@ export default function ForwardPage() {
 
         return;
       }
-
       // 格式化导出数据：remoteAddr|name|inPort
       const exportLines = forwardsToExport.map((forward) => {
         return `${forward.remoteAddr}|${forward.name}|${forward.inPort}`;
       });
-
       const exportText = exportLines.join("\n");
 
       setExportData(exportText);
@@ -2421,12 +2670,10 @@ export default function ForwardPage() {
       setExportLoading(false);
     }
   };
-
   // 复制导出数据
   const copyExportData = async () => {
     await copyToClipboard(exportData, "规则数据");
   };
-
   // 导入规则数据
   const handleImport = () => {
     setImportData("");
@@ -2434,7 +2681,6 @@ export default function ForwardPage() {
     setSelectedTunnelForImport(null);
     setImportModalOpen(true);
   };
-
   // 执行导入
   const executeImport = async () => {
     if (!importData.trim()) {
@@ -2442,28 +2688,23 @@ export default function ForwardPage() {
 
       return;
     }
-
     if (!selectedTunnelForImport) {
       toast.error("请选择要导入的隧道");
 
       return;
     }
-
     setImportLoading(true);
     setImportResults([]);
-
     try {
       if (importFormat === "ny") {
         const parsedItems = parseNyFormatData(importData);
 
         if (parsedItems.length === 0) {
           toast.error("未解析到有效的ny格式数据");
-
           setImportLoading(false);
 
           return;
         }
-
         for (const item of parsedItems) {
           if (item.error) {
             setImportResults((prev) => [
@@ -2474,10 +2715,8 @@ export default function ForwardPage() {
               },
               ...prev,
             ]);
-
             continue;
           }
-
           if (!item.parsed) {
             setImportResults((prev) => [
               {
@@ -2487,10 +2726,8 @@ export default function ForwardPage() {
               },
               ...prev,
             ]);
-
             continue;
           }
-
           const parsedNyItem = item.parsed;
           const nyForwardInput = convertNyItemToForwardInput(parsedNyItem);
 
@@ -2555,7 +2792,6 @@ export default function ForwardPage() {
             ]);
             continue;
           }
-
           const [remoteAddr, name, inPort] = parts;
 
           if (!remoteAddr.trim() || !name.trim()) {
@@ -2569,7 +2805,6 @@ export default function ForwardPage() {
             ]);
             continue;
           }
-
           const addresses = remoteAddr.trim().split(",");
           const addressPattern = /^[^:]+:\d+$/;
           const isValidFormat = addresses.every((addr) =>
@@ -2588,7 +2823,6 @@ export default function ForwardPage() {
             ]);
             continue;
           }
-
           try {
             let portNumber: number | null = null;
 
@@ -2608,7 +2842,6 @@ export default function ForwardPage() {
               }
               portNumber = port;
             }
-
             const response = await createForward({
               name: name.trim(),
               tunnelId: selectedTunnelForImport,
@@ -2649,9 +2882,7 @@ export default function ForwardPage() {
           }
         }
       }
-
       toast.success("导入执行完成");
-
       await refreshForwardList(false);
     } catch {
       toast.error("导入过程中发生错误");
@@ -2659,7 +2890,6 @@ export default function ForwardPage() {
       setImportLoading(false);
     }
   };
-
   // 获取状态显示
   const getStatusDisplay = (status: number) => {
     switch (status) {
@@ -2673,7 +2903,6 @@ export default function ForwardPage() {
         return { color: "default", text: "未知" };
     }
   };
-
   // 获取策略显示
   const getStrategyDisplay = (strategy: string) => {
     switch (strategy) {
@@ -2687,7 +2916,6 @@ export default function ForwardPage() {
         return { color: "default", text: "未知" };
     }
   };
-
   // 获取地址数量
   const getAddressCount = (addressString: string): number => {
     if (!addressString) return 0;
@@ -2698,13 +2926,11 @@ export default function ForwardPage() {
 
     return addresses.length;
   };
-
   // 处理拖拽结束
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (!active || !over || active.id === over.id) return;
-
     const activeGroup = parseTunnelGroupSortableId(active.id);
     const overGroup = parseTunnelGroupSortableId(over.id);
 
@@ -2712,11 +2938,9 @@ export default function ForwardPage() {
       if (compactMode || !groupPreferenceHydrated) {
         return;
       }
-
       if (activeGroup.userId !== overGroup.userId) {
         return;
       }
-
       const userIdKey = activeGroup.userId.toString();
       const currentOrder = groupOrderMap[userIdKey] || [];
       const oldIndex = currentOrder.indexOf(activeGroup.tunnelKey);
@@ -2725,7 +2949,6 @@ export default function ForwardPage() {
       if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
         return;
       }
-
       const moved = arrayMove(currentOrder, oldIndex, newIndex);
       const nextOrderMap: ForwardGroupOrderMap = {
         ...groupOrderMap,
@@ -2738,16 +2961,13 @@ export default function ForwardPage() {
 
       return;
     }
-
     // 确保 forwardOrder 存在且有效
     if (!forwardOrder || forwardOrder.length === 0) return;
-
     const activeId = Number(active.id);
     const overId = Number(over.id);
 
     // 检查 ID 是否有效
     if (isNaN(activeId) || isNaN(overId)) return;
-
     const activeForward = forwards.find((forward) => forward.id === activeId);
     const overForward = forwards.find((forward) => forward.id === overId);
     const activeUserId = activeForward?.userId ?? 0;
@@ -2768,7 +2988,6 @@ export default function ForwardPage() {
         return;
       }
     }
-
     let oldIndex: number;
     let newIndex: number;
     let currentOrder: number[];
@@ -2782,7 +3001,6 @@ export default function ForwardPage() {
       oldIndex = forwardOrder.indexOf(activeId);
       newIndex = forwardOrder.indexOf(overId);
     }
-
     if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
       const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
 
@@ -2790,14 +3008,12 @@ export default function ForwardPage() {
         setForwardOrder(newOrder);
         saveOrder(FORWARD_ORDER_KEY, newOrder);
       }
-
       // 持久化到数据库
       try {
         const forwardsToUpdate = newOrder.map((id, index) => ({
           id,
           inx: index,
         }));
-
         const response = await updateForwardOrder({
           forwards: forwardsToUpdate,
         });
@@ -2838,10 +3054,9 @@ export default function ForwardPage() {
   const deselectAll = () => {
     setSelectedIds(new Set());
   };
-
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
-    setBatchLoading(true);
+    setBatchDeleteLoading(true);
     setBatchProgress({
       active: true,
       label: `正在删除 ${selectedIds.size} 项规则...`,
@@ -2855,7 +3070,6 @@ export default function ForwardPage() {
       } else {
         toast.error(outcome.toastMessage);
       }
-
       if (outcome.shouldRefresh) {
         setBatchProgress({
           active: true,
@@ -2871,22 +3085,21 @@ export default function ForwardPage() {
       }
     } finally {
       setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      setBatchDeleteLoading(false);
     }
   };
-
-  const handleBatchToggleService = async (enable: boolean) => {
+  const handleBatchPause = async () => {
     if (selectedIds.size === 0) return;
-    setBatchLoading(true);
+    setBatchPauseLoading(true);
     setBatchProgress({
       active: true,
-      label: `正在${enable ? "启用" : "停用"} ${selectedIds.size} 项规则...`,
+      label: `正在停用 ${selectedIds.size} 项规则...`,
       percent: 30,
     });
     try {
       const outcome = await executeForwardBatchToggleService(
         Array.from(selectedIds),
-        enable,
+        false,
       );
 
       if (outcome.toastVariant === "success") {
@@ -2894,7 +3107,6 @@ export default function ForwardPage() {
       } else {
         toast.error(outcome.toastMessage);
       }
-
       if (outcome.shouldRefresh) {
         setBatchProgress({
           active: true,
@@ -2907,13 +3119,46 @@ export default function ForwardPage() {
       }
     } finally {
       setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      setBatchPauseLoading(false);
     }
   };
+  const handleBatchResume = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchResumeLoading(true);
+    setBatchProgress({
+      active: true,
+      label: `正在启用 ${selectedIds.size} 项规则...`,
+      percent: 30,
+    });
+    try {
+      const outcome = await executeForwardBatchToggleService(
+        Array.from(selectedIds),
+        true,
+      );
 
+      if (outcome.toastVariant === "success") {
+        toast.success(outcome.toastMessage);
+      } else {
+        toast.error(outcome.toastMessage);
+      }
+      if (outcome.shouldRefresh) {
+        setBatchProgress({
+          active: true,
+          label: outcome.progressLabel || "正在刷新规则列表...",
+          percent: outcome.progressPercent ?? 75,
+        });
+        setSelectedIds(new Set());
+        setSelectMode(false);
+        await refreshForwardList(false);
+      }
+    } finally {
+      setBatchProgress({ active: false, label: "", percent: 0 });
+      setBatchResumeLoading(false);
+    }
+  };
   const handleBatchRedeploy = async () => {
     if (selectedIds.size === 0) return;
-    setBatchLoading(true);
+    setBatchRedeployLoading(true);
     setBatchProgress({
       active: true,
       label: `正在重新下发 ${selectedIds.size} 项规则...`,
@@ -2929,7 +3174,6 @@ export default function ForwardPage() {
       } else {
         toast.error(outcome.toastMessage);
       }
-
       if (outcome.shouldRefresh) {
         setBatchProgress({
           active: true,
@@ -2942,13 +3186,12 @@ export default function ForwardPage() {
       }
     } finally {
       setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      setBatchRedeployLoading(false);
     }
   };
-
   const handleBatchChangeTunnel = async () => {
     if (selectedIds.size === 0 || !batchTargetTunnelId) return;
-    setBatchLoading(true);
+    setBatchChangeTunnelLoading(true);
     setBatchProgress({
       active: true,
       label: `正在为 ${selectedIds.size} 项规则切换隧道...`,
@@ -2965,7 +3208,6 @@ export default function ForwardPage() {
       } else {
         toast.error(outcome.toastMessage);
       }
-
       if (outcome.shouldRefresh) {
         setBatchProgress({
           active: true,
@@ -2984,21 +3226,18 @@ export default function ForwardPage() {
       }
     } finally {
       setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      setBatchChangeTunnelLoading(false);
     }
   };
-
   // 设置单条规则限速
   const handleSetSpeedLimit = (forward: Forward) => {
     setForwardToSetSpeedLimit(forward);
     setSelectedSpeedLimitId(forward.speedId ?? null);
-    setSpeedLimitModalOpen(true);
+    // speedLimitModalOpen 已删除
   };
-
   // 确认设置单条规则限速
   const confirmSetSpeedLimit = async () => {
     if (!forwardToSetSpeedLimit) return;
-
     setSpeedLimitLoading(true);
     try {
       const res = await updateForward({
@@ -3013,14 +3252,13 @@ export default function ForwardPage() {
         toast.error(res.msg || "设置失败");
       }
     } catch {
-      toast.error("设置失败");
+      toast.error("设置异常，请重试");
     } finally {
       setSpeedLimitLoading(false);
-      setSpeedLimitModalOpen(false);
+      // speedLimitModalOpen 已删除
       setForwardToSetSpeedLimit(null);
     }
   };
-
   // 确认批量设置限速
   const confirmBatchSetSpeedLimit = async () => {
     setSpeedLimitLoading(true);
@@ -3029,7 +3267,6 @@ export default function ForwardPage() {
       label: `正在为 ${selectedIds.size} 项规则设置限速...`,
       percent: 30,
     });
-
     try {
       const forwardIds = Array.from(selectedIds);
       let successCount = 0;
@@ -3044,15 +3281,15 @@ export default function ForwardPage() {
         if (res.code === 0) {
           successCount++;
         }
-
         setBatchProgress({
           active: true,
           label: `正在设置限速... ${i + 1}/${forwardIds.length}`,
           percent: Math.round(((i + 1) / forwardIds.length) * 100),
         });
       }
-
-      toast.success(`成功设置 ${successCount}/${forwardIds.length} 项规则的限速`);
+      toast.success(
+        `成功设置 ${successCount}/${forwardIds.length} 项规则的限速`,
+      );
       await refreshForwardList(false);
     } catch {
       toast.error("批量设置失败");
@@ -3062,7 +3299,6 @@ export default function ForwardPage() {
       setBatchSpeedLimitModalOpen(false);
     }
   };
-
   // 传感器配置 - 使用默认配置避免错误
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -3080,44 +3316,69 @@ export default function ForwardPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
   // 根据排序顺序获取规则列表
   const orderedForwards = useMemo((): Forward[] => {
     // 确保 forwards 数组存在且有效
     if (!forwards || forwards.length === 0) {
       return [];
     }
-
     let filteredForwards = forwards;
 
     if (searchParams.userId !== "all") {
       const targetUserId = parseInt(searchParams.userId);
-      filteredForwards = filteredForwards.filter(f => f.userId === targetUserId || (targetUserId === 0 && !f.userId));
+
+      filteredForwards = filteredForwards.filter(
+        (f) => f.userId === targetUserId || (targetUserId === 0 && !f.userId),
+      );
     }
     if (searchParams.tunnelId !== "all") {
       const targetTunnelId = parseInt(searchParams.tunnelId);
-      filteredForwards = filteredForwards.filter(f => f.tunnelId === targetTunnelId);
+
+      filteredForwards = filteredForwards.filter(
+        (f) => f.tunnelId === targetTunnelId,
+      );
+    }
+    // 添加限速规则筛选
+    if (searchParams.speedLimitId !== undefined) {
+      if (searchParams.speedLimitId === -1) {
+        // 不限速（speedId 为 null 或 undefined）
+        filteredForwards = filteredForwards.filter(
+          (f) => f.speedId === null || f.speedId === undefined,
+        );
+      } else {
+        // 特定限速规则
+        filteredForwards = filteredForwards.filter(
+          (f) => f.speedId === searchParams.speedLimitId,
+        );
+      }
     }
     if (searchParams.name.trim()) {
       const lowerName = searchParams.name.toLowerCase();
-      filteredForwards = filteredForwards.filter(f => f.name && f.name.toLowerCase().includes(lowerName));
+
+      filteredForwards = filteredForwards.filter(
+        (f) => f.name && f.name.toLowerCase().includes(lowerName),
+      );
     }
     if (searchParams.inPort.trim()) {
       const targetPort = parseInt(searchParams.inPort.trim());
+
       if (!isNaN(targetPort)) {
-        filteredForwards = filteredForwards.filter(f => f.inPort === targetPort);
+        filteredForwards = filteredForwards.filter(
+          (f) => f.inPort === targetPort,
+        );
       }
     }
     if (searchParams.remoteAddr.trim()) {
       const lowerAddr = searchParams.remoteAddr.toLowerCase();
-      filteredForwards = filteredForwards.filter(f => f.remoteAddr && f.remoteAddr.toLowerCase().includes(lowerAddr));
-    }
 
+      filteredForwards = filteredForwards.filter(
+        (f) => f.remoteAddr && f.remoteAddr.toLowerCase().includes(lowerAddr),
+      );
+    }
     // 确保过滤后的规则列表有效
     if (!filteredForwards || filteredForwards.length === 0) {
       return [];
     }
-
     // 优先使用数据库中的 inx 字段进行排序
     const sortedByDb = [...filteredForwards].sort((a, b) => {
       const aInx = a.inx ?? 0;
@@ -3146,7 +3407,6 @@ export default function ForwardPage() {
           localSortedForwards.push(forward);
         }
       });
-
       // 添加不在排序列表中的规则（新添加的）
       filteredForwards.forEach((forward) => {
         if (!forwardOrder.includes(forward.id)) {
@@ -3159,12 +3419,10 @@ export default function ForwardPage() {
 
     return sortedByDb;
   }, [forwards, forwardOrder, searchParams]);
-
   const availableGroupData = useMemo(
     () => buildAvailableGroupData(forwards),
     [forwards],
   );
-
   const sanitizedGroupOrderMap = useMemo(
     () =>
       sanitizeGroupOrderMap(
@@ -3173,7 +3431,6 @@ export default function ForwardPage() {
       ),
     [groupOrderMap, availableGroupData],
   );
-
   const sanitizedCollapsedTunnelGroups = useMemo(
     () =>
       sanitizeGroupCollapsedMap(
@@ -3187,17 +3444,14 @@ export default function ForwardPage() {
     if (!groupPreferenceHydrated || tokenUserId === null) {
       return;
     }
-
     if (forwards.length === 0) {
       return;
     }
-
     if (!isSameGroupOrderMap(groupOrderMap, sanitizedGroupOrderMap)) {
       setGroupOrderMap(sanitizedGroupOrderMap);
       persistGroupOrderToLocal(sanitizedGroupOrderMap);
       void persistGroupOrderToGlobal(sanitizedGroupOrderMap);
     }
-
     if (
       !isSameGroupCollapsedMap(
         collapsedTunnelGroups,
@@ -3217,18 +3471,15 @@ export default function ForwardPage() {
     collapsedTunnelGroups,
     sanitizedCollapsedTunnelGroups,
   ]);
-
   const groupedForwards = useMemo((): ForwardUserGroup[] => {
     if (orderedForwards.length === 0) {
       return [];
     }
-
     type MutableForwardUserGroup = {
       userId: number;
       userName: string;
       tunnelMap: Map<string, ForwardTunnelGroup>;
     };
-
     const userGroupMap = new Map<number, MutableForwardUserGroup>();
 
     orderedForwards.forEach((forward) => {
@@ -3236,7 +3487,6 @@ export default function ForwardPage() {
       const userName = normalizeForwardUserName(forward.userName);
       const tunnelName = normalizeForwardTunnelName(forward.tunnelName);
       const tunnelKey = buildForwardTunnelGroupKey(forward.tunnelName);
-
       let existingGroup = userGroupMap.get(userId);
 
       if (!existingGroup) {
@@ -3252,7 +3502,6 @@ export default function ForwardPage() {
       ) {
         existingGroup.userName = userName;
       }
-
       const existingTunnelGroup = existingGroup.tunnelMap.get(tunnelKey);
 
       if (!existingTunnelGroup) {
@@ -3267,16 +3516,13 @@ export default function ForwardPage() {
 
         return;
       }
-
       existingTunnelGroup.items.push(forward);
-
       if (
         existingTunnelGroup.tunnelName === UNCATEGORIZED_FORWARD_TUNNEL_NAME &&
         tunnelName !== UNCATEGORIZED_FORWARD_TUNNEL_NAME
       ) {
         existingTunnelGroup.tunnelName = tunnelName;
       }
-
       if (
         normalizeTunnelTrafficRatio(existingTunnelGroup.tunnelTrafficRatio) ===
         1 &&
@@ -3287,7 +3533,6 @@ export default function ForwardPage() {
         );
       }
     });
-
     const groups = Array.from(userGroupMap.values()).map((group) => {
       const tunnels = Array.from(group.tunnelMap.values());
       const tunnelOrder = sanitizedGroupOrderMap[group.userId.toString()] || [];
@@ -3296,7 +3541,6 @@ export default function ForwardPage() {
       tunnelOrder.forEach((key, index) => {
         tunnelOrderIndex.set(key, index);
       });
-
       tunnels.sort((a, b) => {
         const aIndex = tunnelOrderIndex.get(a.tunnelKey);
         const bIndex = tunnelOrderIndex.get(b.tunnelKey);
@@ -3305,14 +3549,12 @@ export default function ForwardPage() {
           if (aIndex === undefined) {
             return 1;
           }
-
           if (bIndex === undefined) {
             return -1;
           }
 
           return aIndex - bIndex;
         }
-
         const nameCompare = compareForwardTunnelNameAsc(
           a.tunnelName,
           b.tunnelName,
@@ -3341,7 +3583,6 @@ export default function ForwardPage() {
           return aIsSelf ? -1 : 1;
         }
       }
-
       const nameCompare = compareForwardUserNameAsc(a.userName, b.userName);
 
       if (nameCompare !== 0) {
@@ -3353,7 +3594,6 @@ export default function ForwardPage() {
 
     return groups;
   }, [orderedForwards, isAdmin, tokenUserId, sanitizedGroupOrderMap]);
-
   const sortedForwards = useMemo(() => {
     if (compactMode) {
       return orderedForwards;
@@ -3363,33 +3603,31 @@ export default function ForwardPage() {
       group.tunnels.flatMap((tunnel) => tunnel.items),
     );
   }, [compactMode, orderedForwards, groupedForwards]);
-
   const sortableForwardIds = useMemo(
     () => sortedForwards.map((f) => f.id).filter((id) => id > 0),
     [sortedForwards],
   );
-
-
   const selectAll = () => {
     const allIds = sortedForwards.map((f) => f.id);
+
     setSelectedIds(new Set(allIds));
   };
-
   const isAllSelected = useMemo(() => {
-    return sortedForwards && sortedForwards.length > 0 && selectedIds.size === sortedForwards.length;
+    return (
+      sortedForwards &&
+      sortedForwards.length > 0 &&
+      selectedIds.size === sortedForwards.length
+    );
   }, [sortedForwards, selectedIds]);
-
   const handleSelectAllToggle = (isSelected: boolean) => {
     if (isSelected) {
       const allIds = sortedForwards.map((f) => f.id);
+
       setSelectedIds(new Set(allIds));
     } else {
       setSelectedIds(new Set());
     }
   };
-
-
-
   const toggleTunnelGroupCollapsed = (userId: number, tunnelKey: string) => {
     const collapseKey = buildTunnelGroupCollapseKey(userId, tunnelKey);
     const nextCollapsedMap: ForwardGroupCollapsedMap = {
@@ -3401,12 +3639,10 @@ export default function ForwardPage() {
     } else {
       nextCollapsedMap[collapseKey] = true;
     }
-
     setCollapsedTunnelGroups(nextCollapsedMap);
     persistGroupCollapsedToLocal(nextCollapsedMap);
     void persistGroupCollapsedToGlobal(nextCollapsedMap);
   };
-
   // 生成用作筛选项的用户和隧道列表
   const uniqueUsers = useMemo(() => {
     const userMap = new Map<number, { id: number; name: string }>();
@@ -3421,7 +3657,6 @@ export default function ForwardPage() {
 
         return;
       }
-
       if (
         existingUser.name === UNKNOWN_FORWARD_USER_NAME &&
         userName !== UNKNOWN_FORWARD_USER_NAME
@@ -3429,7 +3664,6 @@ export default function ForwardPage() {
         existingUser.name = userName;
       }
     });
-
     const users = Array.from(userMap.values());
 
     users.sort((a, b) => {
@@ -3441,7 +3675,6 @@ export default function ForwardPage() {
           return aIsSelf ? -1 : 1;
         }
       }
-
       const nameCompare = compareForwardUserNameAsc(a.name, b.name);
 
       if (nameCompare !== 0) {
@@ -3453,12 +3686,26 @@ export default function ForwardPage() {
 
     return users;
   }, [forwards, isAdmin, tokenUserId]);
-
   // 渲染规则卡片
   const renderForwardCard = (forward: Forward, listeners?: any) => {
-    const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, '') : "默认IP";
-    const inAddrNoPorts = rawInIp === "默认IP" ? rawInIp : rawInIp.split(',').map((ip: string) => ip.trim().replace(/:\d+$/, "")).join(',');
-    const inAddrWithPorts = rawInIp === "默认IP" ? `默认IP:${forward.inPort}` : rawInIp.split(',').map((ip: string) => `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`).join(',');
+    const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, "") : "默认IP";
+    const inAddrNoPorts =
+      rawInIp === "默认IP"
+        ? rawInIp
+        : rawInIp
+          .split(",")
+          .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
+          .join(",");
+    const inAddrWithPorts =
+      rawInIp === "默认IP"
+        ? `默认IP:${forward.inPort}`
+        : rawInIp
+          .split(",")
+          .map(
+            (ip: string) =>
+              `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
+          )
+          .join(",");
     const statusDisplay = getStatusDisplay(forward.status);
     const strategyDisplay = getStrategyDisplay(forward.strategy);
 
@@ -3484,13 +3731,24 @@ export default function ForwardPage() {
                 onValueChange={() => handleServiceToggle(forward)}
               />
               {viewMode === "direct" && (
-                <div className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0" {...listeners} style={{ touchAction: "none" }} title="拖拽排序">
-                  <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" /></svg>
+                <div
+                  className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
+                  {...listeners}
+                  style={{ touchAction: "none" }}
+                  title="拖拽排序"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+                  </svg>
                 </div>
               )}
             </div>
           </div>
-
           {/* 第二行：规则名与隧道信息 */}
           <div className="flex-1 min-w-0 w-full pl-0.5">
             <div className="flex items-center justify-between gap-2 mb-1">
@@ -3500,12 +3758,17 @@ export default function ForwardPage() {
               >
                 {forward.name}
               </h3>
-              <Chip color="secondary" size="sm" variant="solid"> {/* 注：如果你图里是实心底色，可以把原来的 flat 改成 solid */}
-                {getSpeedLimitName(forward.speedId ?? null)}
-              </Chip>
+              {isAdmin && (
+                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
+                  {" "}
+                  {getSpeedLimitName(forward.speedId ?? null)}
+                </div>
+              )}
             </div>
             <div className="text-xs text-foreground font-bold truncate flex items-center mt-0.5">
-              <span className="truncate">{normalizeForwardTunnelName(forward.tunnelName)}</span>
+              <span className="truncate">
+                {normalizeForwardTunnelName(forward.tunnelName)}
+              </span>
               {/* 隧道倍率标识 - 统一 10px 字体 */}
               <span className="text-primary-600 font-bold text-[10px] ml-1">
                 ^{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
@@ -3513,7 +3776,6 @@ export default function ForwardPage() {
             </div>
           </div>
         </CardHeader>
-
         <CardBody className="flex flex-1 flex-col pt-0 pb-3 md:pt-0 md:pb-3">
           <div className="space-y-3 flex-1 py-1">
             {/* 入口信息区 */}
@@ -3525,23 +3787,48 @@ export default function ForwardPage() {
               <div className="flex gap-1 items-center">
                 <div className="flex-1 min-w-0 h-8 bg-default-100/60 text-red-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center transition-colors">
                   <div className="flex items-center gap-1.5 w-full">
-                    <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(inAddrWithPorts.split(',').join('\n'), "完整入口"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                    <code className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]" title={inAddrNoPorts} onClick={() => copyToClipboard(inAddrNoPorts.split(',').join('\n'), "入口地址")}>
+                    <svg
+                      className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      viewBox="0 0 24 24"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyToClipboard(
+                          inAddrWithPorts.split(",").join("\n"),
+                          "完整入口",
+                        );
+                      }}
+                    >
+                      <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                    <code
+                      className="text-xs font-medium text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]"
+                      title={inAddrNoPorts}
+                      onClick={() =>
+                        copyToClipboard(
+                          inAddrNoPorts.split(",").join("\n"),
+                          "入口地址",
+                        )
+                      }
+                    >
                       {(forward.inIp || "").replace(/:\d+$/, "") || "默认IP"}
                     </code>
                   </div>
                 </div>
                 <div
                   className="w-16 h-8 bg-default-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center justify-center cursor-pointer transition-colors"
-                  onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}
+                  onClick={() =>
+                    copyToClipboard(forward.inPort.toString(), "入口端口")
+                  }
                 >
-                  <code className="text-xs font-mono text-foreground font-bold">
+                  <code className="text-xs font-medium text-foreground font-bold">
                     {forward.inPort}
                   </code>
                 </div>
               </div>
             </div>
-
             {/* 落地信息区 */}
             <div className="space-y-1">
               <div className="flex gap-1 px-1 text-[11px] font-bold text-foreground uppercase tracking-wider">
@@ -3551,50 +3838,119 @@ export default function ForwardPage() {
               <div className="flex gap-1 items-center">
                 <div className="flex-1 min-w-0 h-8 bg-default-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center transition-colors">
                   <div className="flex items-center gap-1.5 w-full">
-                    <svg onClick={(e) => { e.stopPropagation(); copyToClipboard(`${forward.remoteAddr.split(",")[0]}`, "完整落地"); }} className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                    <code className="text-xs font-mono text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]" title={forward.remoteAddr.split(',')[0].replace(/:\d+$/, "")} onClick={() => copyToClipboard(forward.remoteAddr.split(',')[0].replace(/:\d+$/, ""), "落地地址")}>
-                      {forward.remoteAddr.split(',')[0].replace(/:\d+$/, "")}
+                    <svg
+                      className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      viewBox="0 0 24 24"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyToClipboard(
+                          `${forward.remoteAddr.split(",")[0]}`,
+                          "完整落地",
+                        );
+                      }}
+                    >
+                      <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                    <code
+                      className="text-xs font-medium text-foreground font-bold truncate block flex-1 cursor-pointer max-w-[100px]"
+                      title={forward.remoteAddr
+                        .split(",")[0]
+                        .replace(/:\d+$/, "")}
+                      onClick={() =>
+                        copyToClipboard(
+                          forward.remoteAddr.split(",")[0].replace(/:\d+$/, ""),
+                          "落地地址",
+                        )
+                      }
+                    >
+                      {forward.remoteAddr.split(",")[0].replace(/:\d+$/, "")}
                     </code>
                   </div>
                 </div>
                 <div
                   className="w-16 h-8 bg-default-100/60 dark:bg-default-50/10 hover:bg-default-200 dark:hover:bg-default-100/20 rounded-md px-2 flex items-center justify-center cursor-pointer transition-colors"
-                  onClick={() => copyToClipboard((forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "", "落地端口")}
+                  onClick={() =>
+                    copyToClipboard(
+                      forward.remoteAddr.split(",")[0].match(/:(\d+)$/)?.[1] ||
+                      "",
+                      "落地端口",
+                    )
+                  }
                 >
-                  <code className="text-xs font-mono text-foreground font-bold">
-                    {(forward.remoteAddr.split(',')[0].match(/:(\d+)$/)?.[1]) || "-"}
+                  <code className="text-xs font-medium text-foreground font-bold">
+                    {forward.remoteAddr.split(",")[0].match(/:(\d+)$/)?.[1] ||
+                      "-"}
                   </code>
                 </div>
               </div>
             </div>
           </div>
-
           {/* 底部 Chip 区 */}
           <div className="flex flex-wrap items-center justify-start pt-2 border-t border-divider gap-1">
             <div className="flex items-center gap-1">
-              <Chip className="text-xs whitespace-nowrap shrink-0 font-bold" color={strategyDisplay.color as any} size="sm" variant="flat">{strategyDisplay.text}</Chip>
-              <Chip className="text-xs whitespace-nowrap shrink-0 font-bold" color={statusDisplay.color as any} size="sm" variant="flat">{statusDisplay.text}</Chip>
+              <div
+                className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${strategyDisplay.color === "primary" ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : strategyDisplay.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : strategyDisplay.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : strategyDisplay.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"}`}
+              >
+                {strategyDisplay.text}
+              </div>
+              <div
+                className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${statusDisplay.color === "primary" ? "bg-primary-500/10 text-primary-600 dark:text-primary-400" : statusDisplay.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : statusDisplay.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : statusDisplay.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"}`}
+              >
+                {statusDisplay.text}
+              </div>
             </div>
             {(forward.inFlow || 0) + (forward.outFlow || 0) > 0 ? (
               <div className="flex items-center gap-1">
-                <Chip className="text-xs whitespace-nowrap font-bold" color="primary" size="sm" variant="flat">↑{formatFlow(forward.inFlow || 0)}</Chip>
-                <Chip className="text-xs whitespace-nowrap font-bold" color="success" size="sm" variant="flat">↓{formatFlow(forward.outFlow || 0)}</Chip>
+                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                  ↑{formatFlow(forward.inFlow || 0)}
+                </div>
+                <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-success-500/10 text-success-600 dark:text-success-400">
+                  ↓{formatFlow(forward.outFlow || 0)}
+                </div>
               </div>
             ) : (
-              <Chip className="text-xs whitespace-nowrap font-bold" color="default" size="sm" variant="flat">总流量 {formatFlow(0)}</Chip>
+              <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-default-500/10 text-default-500">
+                总流量 {formatFlow(0)}
+              </div>
             )}
           </div>
-
           <div className="flex gap-1.5 mt-3">
-            <Button className="flex-1 min-h-8 font-bold flex-shrink-0" color="primary" size="sm" variant="flat" onPress={() => handleEdit(forward)}>编辑</Button>
-            <Button className="flex-1 min-h-8 font-bold flex-shrink-0" color="warning" size="sm" variant="flat" onPress={() => handleDiagnose(forward)}>诊断</Button>
-            <Button className="flex-1 min-h-8 font-bold flex-shrink-0 bg-secondary/10 text-secondary hover:bg-secondary/20" size="sm" variant="flat" onPress={() => handleSetSpeedLimit(forward)}>限速</Button>
-            <Button className="flex-1 min-h-8 font-bold flex-shrink-0" color="danger" size="sm" variant="flat" onPress={() => handleDelete(forward)}>删除</Button>
+            <Button
+              className="flex-1 min-h-8 font-bold flex-shrink-0"
+              color="primary"
+              size="sm"
+              variant="flat"
+              onPress={() => handleEdit(forward)}
+            >
+              编辑
+            </Button>
+            <Button
+              className="flex-1 min-h-8 font-bold flex-shrink-0"
+              color="warning"
+              size="sm"
+              variant="flat"
+              onPress={() => handleDiagnose(forward)}
+            >
+              诊断
+            </Button>
+            <Button
+              className="flex-1 min-h-8 font-bold flex-shrink-0"
+              color="danger"
+              size="sm"
+              variant="flat"
+              onPress={() => handleDelete(forward)}
+            >
+              删除
+            </Button>
           </div>
         </CardBody>
       </Card>
     );
   };
+
   if (loading || !groupPreferenceHydrated) {
     return <PageLoadingState message="正在加载..." />;
   }
@@ -3602,167 +3958,155 @@ export default function ForwardPage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
-      <div className="flex items-center justify-between mb-6 gap-3">
-        <div className="flex-1" />
-        <div className="min-h-9 min-w-0 max-w-full overflow-x-auto touch-pan-x">
-          <div className="flex min-h-9 w-max min-w-full items-center justify-end gap-2 whitespace-nowrap sm:gap-3 [&>*]:shrink-0">
-            {selectedIds.size > 0 ? (
-              <>
-                <span className="text-sm text-danger-400 shrink-0">
-                  已选 {selectedIds.size} 项
-                </span>
-                <Button
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={selectAll}
-                >
-                  全选
-                </Button>
-                <Button
-                  color="warning"
-                  size="sm"
-                  variant="flat"
-                  onPress={deselectAll}
-                >
-                  清空
-                </Button>
-                <Button
-                  color="secondary"
-                  isDisabled={selectedIds.size === 0}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchSpeedLimitModalOpen(true)}
-                >
-                  限速
-                </Button>
-                <Button
-                  color="danger"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => handleBatchToggleService(false)}
-                >
-                  停用
-                </Button>
-                <Button
-                  color="success"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => handleBatchToggleService(true)}
-                >
-                  启用
-                </Button>
-                <Button
-                  color="primary"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleBatchRedeploy}
-                >
-                  下发
-                </Button>
-                <Button
-                  color="success"
-                  isDisabled={selectedIds.size === 0}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchChangeTunnelModalOpen(true)}
-                >
-                  隧道
-                </Button>
-                <Button
-                  color="danger"
-                  isDisabled={selectedIds.size === 0}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchDeleteModalOpen(true)}
-                >
-                  删除
-                </Button>
-
-              </>
-            ) : (
-              <>
-                {/* 筛选按钮 */}
-                <Button
-                  className="h-8 px-2 text-xs whitespace-nowrap bg-red-100"
-                  color={activeFilterCount > 0 ? "secondary" : "danger"}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setIsSearchModalOpen(true)}
-                >
-                  筛选{activeFilterCount > 0 && `(${activeFilterCount})`}
-                </Button>
-                {activeFilterCount > 0 && (
-                  <Button size="sm" variant="light" color="danger" onPress={() => setSearchParams({ name: "", userId: tokenUserId ? tokenUserId.toString() : "all", tunnelId: "all", inPort: "", remoteAddr: "" })}>
-                    清空条件
-                  </Button>
-                )}
-
-                {/* 显示模式切换按钮 */}
-                <Button
-                  color={viewMode === "grouped" ? "primary" : "warning"}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleViewModeChange}
-                >
-                  {viewMode === "grouped" ? "卡片" : "列表"}
-                </Button>
-                {/* 精简模式按钮 - 仅管理员可见 */}
-                {isAdmin && (
-                  <Button
-                    color={compactMode ? "success" : "secondary"}
-                    size="sm"
-                    variant="flat"
-                    onPress={() => handleCompactModeToggle(!compactMode)}
-                  >
-                    {compactMode ? "默认" : "精简"}
-                  </Button>
-                )}
-
-
-                {/* 导入按钮 */}
+      <div className="flex items-center mb-6 gap-3">
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 ? (
+            <>
+              
+              <Button
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={selectAll}
+              >
+                全选
+              </Button>
+              <Button
+                color="warning"
+                size="sm"
+                variant="flat"
+                onPress={deselectAll}
+              >
+                清空
+              </Button>
+              <Button
+                color="secondary"
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchSpeedLimitModalOpen(true)}
+              >
+                限速
+              </Button>
+              <Button
+                color="danger"
+                isLoading={batchPauseLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleBatchPause}
+              >
+                停用
+              </Button>
+              <Button
+                color="success"
+                isLoading={batchResumeLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleBatchResume}
+              >
+                启用
+              </Button>
+              <Button
+                color="primary"
+                isLoading={batchRedeployLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleBatchRedeploy}
+              >
+                下发
+              </Button>
+              <Button
+                color="success"
+                isLoading={batchChangeTunnelLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchChangeTunnelModalOpen(true)}
+              >
+                隧道
+              </Button>
+              <Button
+                color="danger"
+                isLoading={batchDeleteLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchDeleteModalOpen(true)}
+              >
+                删除
+              </Button>
+              <span className="text-sm text-danger-400 shrink-0">
+                已选 {selectedIds.size} 项
+              </span>
+            </>
+          ) : (
+            <>
+              <Button
+                color="warning"
+                size="sm"
+                variant="flat"
+                onPress={handleImport}
+              >
+                导入
+              </Button>
+              {/* 导出按钮 */}
+              <Button
+                color="success"
+                isLoading={exportLoading}
+                size="sm"
+                variant="flat"
+                onPress={handleExport}
+              >
+                导出
+              </Button>
+              {/* 显示模式切换按钮 */}
+              <Button
+                color={viewMode === "grouped" ? "primary" : "warning"}
+                size="sm"
+                variant="flat"
+                onPress={handleViewModeChange}
+              >
+                {viewMode === "grouped" ? "卡片" : "列表"}
+              </Button>            
+              {/* 筛选按钮 */}
+              <Button
+                className="whitespace-nowrap bg-red-100"
+                color={activeFilterCount > 0 ? "secondary" : "danger"}
+                size="sm"
+                variant="flat"
+                onPress={() => setIsSearchModalOpen(true)}
+              >
+                筛选{activeFilterCount > 0 && `(${activeFilterCount})`}
+              </Button>
+              {activeFilterCount > 0 && (
                 <Button
                   color="warning"
                   size="sm"
                   variant="flat"
-                  onPress={handleImport}
+                  onPress={() => {
+                    setSearchParams({
+                      name: "",
+                      userId: tokenUserId ? tokenUserId.toString() : "all",
+                      tunnelId: "all",
+                      speedLimitId: undefined,
+                      inPort: "",
+                      remoteAddr: "",
+                    });
+                  }}
                 >
-                  导入
+                  重置
                 </Button>
-
-                {/* 导出按钮 */}
-                <Button
-                  color="success"
-                  isLoading={exportLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleExport}
-                >
-                  导出
-                </Button>
-
-
-
-                <Button
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={handleAdd}
-                >
-                  新增
-                </Button>
+              )}              
+              <Button
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={handleAdd}
+              >
+                新增
+              </Button>
+              {/* 导入按钮 */}
               </>
-            )}
-          </div>
+          )}
         </div>
       </div>
-
       {batchProgress.active && (
         <div className="mb-4">
           <Alert
@@ -3779,7 +4123,6 @@ export default function ForwardPage() {
           />
         </div>
       )}
-
       {/* 根据显示模式渲染不同内容 */}
       {compactMode ? (
         viewMode === "grouped" ? (
@@ -3817,40 +4160,226 @@ export default function ForwardPage() {
                           <TableColumn className="whitespace-nowrap flex-shrink-0 w-14 text-left">
                             {/* @ts-ignore */}
                             <div className="flex items-center justify-center h-full">
-                              <Checkbox isSelected={isAllSelected} onValueChange={handleSelectAllToggle} aria-label="全选" />
+                              <Checkbox
+                                aria-label="全选"
+                                isSelected={isAllSelected}
+                                onValueChange={handleSelectAllToggle}
+                              />
                             </div>
                           </TableColumn>
                         )}
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">规则名</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">速度限制</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道倍率</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">入口地址</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">落地地址</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用量</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left" align="left" >操作</TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">
+                          排序
+                        </TableColumn>
+                        {/* <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用户名</TableColumn> */}
+                        {isAdmin && (
+                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                            <Select
+                              aria-label="按用户筛选"
+                              className="w-full min-w-[80px]"
+                              classNames={{
+                                trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                                value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                                selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                                innerWrapper: "w-fit flex-none",
+                                placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
+                              }}
+                              size="sm"
+                              variant="flat"
+                              onSelectionChange={(keys) => {
+                                const key = Array.from(keys)[0] as string | undefined;
+                                setSearchParams((prev: any) => ({
+                                  ...prev,
+                                  userId: key || "all",
+                                }));
+                              }}
+                              placeholder="所属用户"
+                              // 🎯 逻辑对齐：如果是 "all" 或者空，传 [] 让它显示 placeholder ("所属用户")
+                              selectedKeys={(!searchParams?.userId || searchParams.userId === "all") ? [] : [String(searchParams.userId)]}
+                            >
+                              <SelectItem key="all" textValue="全部用户">
+                                全部用户
+                              </SelectItem>
+                              {(uniqueUsers || []).map((user: any) => (
+                                <SelectItem
+                                  key={user.id.toString()}
+                                  textValue={user.name}
+                                >
+                                  {user.name}
+                                </SelectItem>
+                              ))}
+                            </Select>
+                          </TableColumn>
+                        )}
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                          规则名
+                        </TableColumn>
+                        {/* {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>} */}
+                        {isAdmin && (
+                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                            <Select
+                              aria-label="按限速规则筛选"
+                              classNames={{
+                                trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                                value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                                selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                                innerWrapper: "w-fit flex-none",
+                                // 🎯 修复2：必须加上 placeholder 的样式！不然默认的 placeholder 会缩水变形
+                                placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
+                              }}
+                              variant="flat"
+                              onSelectionChange={(keys) => {
+                                const key = Array.from(keys)[0] as string | undefined;
+                                setSearchParams?.((prev: any) => ({
+                                  ...prev,
+                                  // 保持你后端的处理习惯，全选传 undefined，其它透传
+                                  speedLimitId: (!key || key === "all") ? undefined : (key === "unlimited" ? "unlimited" : Number(key)),
+                                }));
+                              }}
+                              placeholder="限速规则"
+                              // 🎯 修复3：逻辑对齐。当没有选、或者选了 "all" 时，传入空数组 []，从而触发上面的 placeholder 显示
+                              selectedKeys={!searchParams?.speedLimitId ? [] : [String(searchParams.speedLimitId)]}
+                              size="sm"
+                              // 🎯 修复1：加上 min-w 撑开基础宽度，防止挤压
+                              className="w-full min-w-[100px]"
+                            >
+                              <SelectItem key="all" textValue="全部规则">
+                                全部规则
+                              </SelectItem>
+                              <SelectItem key="unlimited" textValue="不限速">
+                                不限速
+                              </SelectItem>
+                              {(availableSpeedLimits || []).map(
+                                (speedLimit: any) => (
+                                  <SelectItem
+                                    key={speedLimit.id.toString()}
+                                    textValue={
+                                      speedLimit.name ||
+                                      `限速${speedLimit.speed}M`
+                                    }
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span>
+                                        {speedLimit.name ||
+                                          `限速${speedLimit.speed}`}
+                                      </span>
+                                      <span className="text-default-400 text-xs">
+                                        ({speedLimit.speed}M)
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ),
+                              )}
+                            </Select>
+                          </TableColumn>
+                        )}
+                        {/* <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">隧道倍率</TableColumn> */}
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                          <Select
+                            aria-label="按所属隧道筛选"
+                            className="w-full"
+                            classNames={{
+                              trigger:
+                                "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1 hover:bg-default-100/50 transition-colors",
+                              value:
+                                "text-sm text-default-600 font-semibold uppercase tracking-wider p-0",
+                              selectorIcon:
+                                "text-default-400 static w-3.5 h-3.5",
+                            }}
+                            placeholder="隧道名称"
+                            selectedKeys={
+                              searchParams.tunnelId &&
+                                searchParams.tunnelId !== "all"
+                                ? [searchParams.tunnelId]
+                                : []
+                            }
+                            size="sm"
+                            variant="flat"
+                            onSelectionChange={(keys) => {
+                              const key = Array.from(keys)[0] as
+                                | string
+                                | undefined;
+
+                              setSearchParams((prev) => ({
+                                ...prev,
+                                tunnelId: key || "all",
+                              }));
+                            }}
+                          >
+                            <SelectItem key="all" textValue="全部隧道">
+                              全部隧道
+                            </SelectItem>
+                            {tunnels.map((tunnel) => (
+                              <SelectItem
+                                key={tunnel.id.toString()}
+                                textValue={
+                                  tunnel.remark
+                                    ? `${tunnel.name} (${tunnel.remark})`
+                                    : tunnel.name
+                                }
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">
+                                    {tunnel.name}
+                                  </span>
+                                  {tunnel.remark && (
+                                    <span className="text-default-400 text-xs">
+                                      ({tunnel.remark})
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </Select>
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                          入口地址
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                          端口
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                          落地地址
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                          端口
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                          用量
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">
+                          连接数
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                          状态
+                        </TableColumn>
+                        <TableColumn
+                          align="left"
+                          className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left"
+                        >
+                          操作
+                        </TableColumn>
                       </TableHeader>
                       <TableBody
                         emptyContent="暂无规则配置"
                         items={sortedForwards}
                       >
                         {(forward) => (
-                          <SortableCompactTableRow copyToClipboard={copyToClipboard}
+                          <SortableCompactTableRow
+                            copyToClipboard={copyToClipboard}
                             formatFlow={formatFlow}
                             formatInAddress={formatInAddress}
                             formatRemoteAddress={formatRemoteAddress}
                             forward={forward}
+                            getSpeedLimitName={getSpeedLimitName}
                             getStrategyDisplay={getStrategyDisplay}
                             handleDelete={handleDelete}
                             handleDiagnose={handleDiagnose}
                             handleEdit={handleEdit}
                             handleServiceToggle={handleServiceToggle}
                             handleSetSpeedLimit={handleSetSpeedLimit}
-                            getSpeedLimitName={getSpeedLimitName}
                             hasMultipleAddresses={hasMultipleAddresses}
+                            isAdmin={isAdmin}
                             selectMode={selectMode}
                             selectedIds={selectedIds}
                             showAddressModal={showAddressModal}
@@ -3898,7 +4427,11 @@ export default function ForwardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                   {sortedForwards.map((forward) =>
                     forward && forward.id ? (
-                      <SortableForwardCard renderCard={renderForwardCard} key={forward.id} forward={forward} />
+                      <SortableForwardCard
+                        key={forward.id}
+                        forward={forward}
+                        renderCard={renderForwardCard}
+                      />
                     ) : null,
                   )}
                 </div>
@@ -3938,17 +4471,17 @@ export default function ForwardPage() {
                       <span className="text-sm font-semibold text-foreground">
                         {group.userName}
                       </span>
+                      {/* 🌟 列表分组视图 */}
                       {isSelfGroup && (
-                        <Chip color="primary" size="sm" variant="flat">
+                        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                           管理员本人
-                        </Chip>
+                        </div>
                       )}
                     </div>
                     <span className="text-xs text-default-600">
                       {groupForwardCount} 条规则
                     </span>
                   </div>
-
                   <div className="space-y-4 p-4">
                     <DndContext
                       collisionDetection={pointerWithin}
@@ -3983,7 +4516,7 @@ export default function ForwardPage() {
                               collapsed={collapsed}
                               countClassName="text-xs text-default-600"
                               groupUserId={group.userId}
-                              headerClassName="flex items-center justify-between border-b border-divider bg-default-100/50 px-4 py-2.5"
+                              headerClassName="flex items-center justify-between border-b border-divider bg-default-100/50 hover:bg-default-200/50 px-4 py-2.5"
                               titleClassName="truncate text-sm font-semibold text-foreground"
                               tunnel={tunnel}
                               wrapperClassName="overflow-hidden rounded-lg border border-divider bg-content1"
@@ -4000,17 +4533,31 @@ export default function ForwardPage() {
                                 onDragEnd={handleDragEnd}
                               >
                                 {(() => {
-                                  const groupIds = tunnel.items.map(f => f.id);
-                                  const isGroupSelected = groupIds.every(id => selectedIds.has(id));
-                                  const handleGroupToggle = (isSelected: boolean) => {
+                                  const groupIds = tunnel.items.map(
+                                    (f) => f.id,
+                                  );
+                                  const isGroupSelected = groupIds.every((id) =>
+                                    selectedIds.has(id),
+                                  );
+                                  const handleGroupToggle = (
+                                    isSelected: boolean,
+                                  ) => {
                                     const next = new Set(selectedIds);
-                                    groupIds.forEach(id => isSelected ? next.add(id) : next.delete(id));
+
+                                    groupIds.forEach((id) =>
+                                      isSelected
+                                        ? next.add(id)
+                                        : next.delete(id),
+                                    );
                                     setSelectedIds(next);
                                   };
+
                                   return (
                                     <Table
                                       aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
-                                      className={FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}
+                                      className={
+                                        FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS
+                                      }
                                       classNames={{
                                         th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
                                         td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
@@ -4019,38 +4566,195 @@ export default function ForwardPage() {
                                       }}
                                     >
                                       <TableHeader>
-                                        <TableColumn className={`whitespace-nowrap flex-shrink-0 ${FORWARD_GROUPED_TABLE_COLUMN_CLASS.select} text-left`}>
+                                        <TableColumn
+                                          className={`whitespace-nowrap flex-shrink-0 ${FORWARD_GROUPED_TABLE_COLUMN_CLASS.select} text-left`}
+                                        >
                                           <div className="flex items-center justify-center h-full">
-                                            <Checkbox isSelected={isGroupSelected} onValueChange={handleGroupToggle} aria-label="本组全选" />
+                                            <Checkbox
+                                              aria-label="本组全选"
+                                              isSelected={isGroupSelected}
+                                              onValueChange={handleGroupToggle}
+                                            />
                                           </div>
                                         </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">排序</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[220px] text-left">规则名</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">速度限制</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">入口地址</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">落地地址</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">端口</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">用量</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">状态</TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left" align="left" >操作</TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-16 pl-2 text-left">
+                                          排序
+                                        </TableColumn>
+                                        {/* <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">用户名</TableColumn> */}
+                                        {isAdmin && (
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                                            <Select
+                                              aria-label="按用户筛选"
+                                              className="w-full min-w-[80px]"
+                                              classNames={{
+                                                trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                                                value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                                                selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                                                innerWrapper: "w-fit flex-none",
+                                                placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
+                                              }}
+                                              size="sm"
+                                              variant="flat"
+                                              onSelectionChange={(keys) => {
+                                                const key = Array.from(keys)[0] as string | undefined;
+                                                setSearchParams((prev: any) => ({
+                                                  ...prev,
+                                                  userId: key || "all",
+                                                }));
+                                              }}
+                                              placeholder="所属用户"
+                                              // 🎯 逻辑对齐：如果是 "all" 或者空，传 [] 让它显示 placeholder ("所属用户")
+                                              selectedKeys={(!searchParams?.userId || searchParams.userId === "all") ? [] : [String(searchParams.userId)]}
+                                            >
+                                              <SelectItem
+                                                key="all"
+                                                textValue="全部用户"
+                                              >
+                                                全部用户
+                                              </SelectItem>
+                                              {(uniqueUsers || []).map(
+                                                (user: any) => (
+                                                  <SelectItem
+                                                    key={user.id.toString()}
+                                                    textValue={user.name}
+                                                  >
+                                                    {user.name}
+                                                  </SelectItem>
+                                                ),
+                                              )}
+                                            </Select>
+                                          </TableColumn>
+                                        )}
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[180px] text-left">
+                                          规则名
+                                        </TableColumn>
+                                        {/* {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>} */}
+                                        {isAdmin && (
+                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                                            <Select
+                                              aria-label="按限速规则筛选"
+                                              classNames={{
+                                                trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
+                                                value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
+                                                selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
+                                                innerWrapper: "w-fit flex-none",
+                                                // 🎯 修复2：必须加上 placeholder 的样式！不然默认的 placeholder 会缩水变形
+                                                placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
+                                              }}
+                                              variant="flat"
+                                              onSelectionChange={(keys) => {
+                                                const key = Array.from(keys)[0] as string | undefined;
+                                                setSearchParams?.((prev: any) => ({
+                                                  ...prev,
+                                                  // 保持你后端的处理习惯，全选传 undefined，其它透传
+                                                  speedLimitId: (!key || key === "all") ? undefined : (key === "unlimited" ? "unlimited" : Number(key)),
+                                                }));
+                                              }}
+                                              placeholder="限速规则"
+                                              // 🎯 修复3：逻辑对齐。当没有选、或者选了 "all" 时，传入空数组 []，从而触发上面的 placeholder 显示
+                                              selectedKeys={!searchParams?.speedLimitId ? [] : [String(searchParams.speedLimitId)]}
+                                              size="sm"
+                                              // 🎯 修复1：加上 min-w 撑开基础宽度，防止挤压
+                                              className="w-full min-w-[100px]"
+                                            >
+                                              <SelectItem
+                                                key="all"
+                                                textValue="全部规则"
+                                              >
+                                                全部规则
+                                              </SelectItem>
+                                              <SelectItem
+                                                key="unlimited"
+                                                textValue="不限速"
+                                              >
+                                                不限速
+                                              </SelectItem>
+                                              {(availableSpeedLimits || []).map(
+                                                (speedLimit: any) => (
+                                                  <SelectItem
+                                                    key={speedLimit.id.toString()}
+                                                    textValue={
+                                                      speedLimit.name ||
+                                                      `限速${speedLimit.speed}M`
+                                                    }
+                                                  >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                      <span>
+                                                        {speedLimit.name ||
+                                                          `限速${speedLimit.speed}`}
+                                                      </span>
+                                                      <span className="text-default-400 text-xs">
+                                                        ({speedLimit.speed}M)
+                                                      </span>
+                                                    </div>
+                                                  </SelectItem>
+                                                ),
+                                              )}
+                                            </Select>
+                                          </TableColumn>
+                                        )}
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                                          入口地址
+                                        </TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                                          端口
+                                        </TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                                          落地地址
+                                        </TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                                          端口
+                                        </TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                                          用量
+                                        </TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">
+                                          连接数
+                                        </TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                                          状态
+                                        </TableColumn>
+                                        <TableColumn
+                                          align="left"
+                                          className="whitespace-nowrap flex-shrink-0 min-w-[220px] pl-4 text-left"
+                                        >
+                                          操作
+                                        </TableColumn>
                                       </TableHeader>
-                                      <TableBody emptyContent="暂无规则配置" items={tunnel.items}>
+                                      <TableBody
+                                        emptyContent="暂无规则配置"
+                                        items={tunnel.items}
+                                      >
                                         {(forward) => (
-                                          <SortableContext key={forward.id} items={tunnelSortableForwardIds} strategy={verticalListSortingStrategy}>
+                                          <SortableContext
+                                            key={forward.id}
+                                            items={tunnelSortableForwardIds}
+                                            strategy={
+                                              verticalListSortingStrategy
+                                            }
+                                          >
                                             <SortableTableRow
                                               copyToClipboard={copyToClipboard}
+                                              formatFlow={formatFlow}
                                               forward={forward}
-                                              selectedIds={selectedIds}
-                                              toggleSelect={toggleSelect}
-                                              getStrategyDisplay={getStrategyDisplay}
-                                              handleServiceToggle={handleServiceToggle}
-                                              handleEdit={handleEdit}
+                                              getSpeedLimitName={
+                                                getSpeedLimitName
+                                              }
+                                              getStrategyDisplay={
+                                                getStrategyDisplay
+                                              }
                                               handleDelete={handleDelete}
                                               handleDiagnose={handleDiagnose}
-                                              handleSetSpeedLimit={handleSetSpeedLimit}
-                                              getSpeedLimitName={getSpeedLimitName}
-                                              formatFlow={formatFlow}
+                                              handleEdit={handleEdit}
+                                              handleServiceToggle={
+                                                handleServiceToggle
+                                              }
+                                              handleSetSpeedLimit={
+                                                handleSetSpeedLimit
+                                              }
+                                              isAdmin={isAdmin}
+                                              selectedIds={selectedIds}
+                                              toggleSelect={toggleSelect}
                                             />
                                           </SortableContext>
                                         )}
@@ -4082,7 +4786,7 @@ export default function ForwardPage() {
           </Card>
         )
       ) : sortedForwards.length > 0 ? (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {groupedForwards.map((group) => {
             const isSelfGroup =
               isAdmin && tokenUserId !== null && group.userId === tokenUserId;
@@ -4094,25 +4798,26 @@ export default function ForwardPage() {
             return (
               <div
                 key={`direct-group-${group.userId}-${group.userName}`}
-                className="space-y-3"
+                className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md"
               >
-                <div className="flex items-center justify-between px-1">
+                {/* 🌟 完美继承：列表视图的高颜值外层大卡片 (注释移到里面安全了) */}
+                <div className="flex items-center justify-between border-b border-divider bg-default-100/40 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">
                       {group.userName}
                     </span>
+                    {/* 🌟 卡片分组视图 */}
                     {isSelfGroup && (
-                      <Chip color="primary" size="sm" variant="flat">
+                      <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                         管理员本人
-                      </Chip>
+                      </div>
                     )}
                   </div>
                   <span className="text-xs text-default-600">
                     {groupForwardCount} 条规则
                   </span>
                 </div>
-
-                <div className="space-y-4">
+                <div className="space-y-4 p-4">
                   <DndContext
                     collisionDetection={pointerWithin}
                     sensors={sensors}
@@ -4141,15 +4846,15 @@ export default function ForwardPage() {
 
                         return (
                           <SortableTunnelGroupContainer
-                            key={`direct-group-${group.userId}-${tunnel.tunnelKey}`}
-                            bodyClassName="p-3"
+                            key={`direct-tunnel-${group.userId}-${tunnel.tunnelKey}`}
+                            bodyClassName="p-4" // 给网格留点内边距，更好看
                             collapsed={collapsed}
-                            countClassName="text-xs text-secondary-700"
+                            countClassName="text-xs text-default-600"
                             groupUserId={group.userId}
-                            headerClassName="flex items-center justify-between rounded-lg bg-secondary/10 px-3 py-2"
-                            titleClassName="truncate text-sm font-semibold text-secondary-700"
+                            headerClassName="flex items-center justify-between border-b border-divider bg-default-100/50 hover:bg-default-200/50 px-4 py-2.5"
+                            titleClassName="truncate text-sm font-semibold text-foreground"
                             tunnel={tunnel}
-                            wrapperClassName="rounded-xl border border-secondary/20 bg-secondary/5 space-y-3"
+                            wrapperClassName="overflow-hidden rounded-lg border border-divider bg-content1"
                             onToggleCollapsed={() =>
                               toggleTunnelGroupCollapsed(
                                 group.userId,
@@ -4157,11 +4862,11 @@ export default function ForwardPage() {
                               )
                             }
                           >
+                            {/* 🌟 完美继承：列表视图的隧道分组折叠框 (注释移到这里安全) */}
                             <DndContext
                               collisionDetection={pointerWithin}
                               sensors={sensors}
                               onDragEnd={handleDragEnd}
-                              onDragStart={() => { }}
                             >
                               <SortableContext
                                 items={tunnelSortableForwardIds}
@@ -4170,7 +4875,11 @@ export default function ForwardPage() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                                   {tunnel.items.map((forward) =>
                                     forward && forward.id ? (
-                                      <SortableForwardCard renderCard={renderForwardCard} key={forward.id} forward={forward} />
+                                      <SortableForwardCard
+                                        key={forward.id}
+                                        forward={forward}
+                                        renderCard={renderForwardCard}
+                                      />
                                     ) : null,
                                   )}
                                 </div>
@@ -4198,11 +4907,12 @@ export default function ForwardPage() {
           </CardBody>
         </Card>
       )}
-
       {/* 新增/编辑模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={modalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -4217,11 +4927,16 @@ export default function ForwardPage() {
                   {isEdit ? "编辑规则" : "新增规则"}
                 </h2>
                 <p className="text-small text-default-500">
-                  {isEdit ? "修改现有规则配置的信息" : "创建新的规则配置"}
+                  {
+                    isEdit
+                      ? "修改现有规则配置"
+                      : "创建新的规则配置"
+                  }
                 </p>
               </ModalHeader>
               <ModalBody>
                 <div className="space-y-4 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                   <Input
                     errorMessage={errors.name}
                     isInvalid={!!errors.name}
@@ -4233,7 +4948,30 @@ export default function ForwardPage() {
                       setForm((prev) => ({ ...prev, name: e.target.value }))
                     }
                   />
+                  {/* 入口端口 */}
+                  <Input
+                    description={
+                      currentTunnelPortRange
+                        ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
+                        : "指定入口端口，留空则从节点可用端口中自动分配"
+                    }
+                    errorMessage={errors.inPort}
+                    isInvalid={!!errors.inPort}
+                    label="入口端口"
+                    placeholder="留空则自动分配可用端口"
+                    type="number"
+                    value={form.inPort !== null ? form.inPort.toString() : ""}
+                    variant="bordered"
+                    onChange={(e) => {
+                      const value = e.target.value;
 
+                      setForm((prev) => ({
+                        ...prev,
+                        inPort: value ? parseInt(value) : null,
+                      }));
+                    }}
+                  />
+                  {/* 暂时保留旧限速选择 - 后续可删除
                   {isAdmin && (
                     <Select
                       label="规则限速"
@@ -4258,141 +4996,235 @@ export default function ForwardPage() {
                       {availableSpeedLimits.map((speedLimit) => (
                         <SelectItem
                           key={speedLimit.id.toString()}
-                          textValue={speedLimit.name || `限速${speedLimit.speed}`}
+                          textValue={
+                            speedLimit.name || `限速${speedLimit.speed}`
+                          }
                         >
                           {speedLimit.name || `限速${speedLimit.speed}`}
                         </SelectItem>
                       ))}
                     </Select>
                   )}
-
-                  <Select
-                    description={
-                      isEdit
-                        ? "更改隧道将释放原端口并在新隧道分配端口"
-                        : undefined
-                    }
-                    errorMessage={errors.tunnelId}
-                    isInvalid={!!errors.tunnelId}
-                    label="选择隧道"
-                    placeholder="请选择关联的隧道"
-                    selectedKeys={
-                      form.tunnelId ? [form.tunnelId.toString()] : []
-                    }
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as string;
-
-                      if (selectedKey) {
-                        handleTunnelChange(selectedKey);
-                      }
-                    }}
-                  >
-                    {tunnels.map((tunnel) => (
-                      <SelectItem key={tunnel.id}>{tunnel.name}</SelectItem>
-                    ))}
-                  </Select>
-
-                  <Input
-                    description={
-                      currentTunnelPortRange
-                        ? `指定入口端口，留空自动分配 (允许范围: ${currentTunnelPortRange.min}-${currentTunnelPortRange.max})`
-                        : "指定入口端口，留空则从节点可用端口中自动分配"
-                    }
-                    errorMessage={errors.inPort}
-                    isInvalid={!!errors.inPort}
-                    label="入口端口"
-                    placeholder="留空则自动分配可用端口"
-                    type="number"
-                    value={form.inPort !== null ? form.inPort.toString() : ""}
-                    variant="bordered"
-                    onChange={(e) => {
-                      const value = e.target.value;
-
-                      setForm((prev) => ({
-                        ...prev,
-                        inPort: value ? parseInt(value) : null,
-                      }));
-                    }}
-                  />
-
-                  <Select
-                    description={
-                      isCurrentTunnelMultiEntrance
-                        ? "多入口隧道不支持自定义监听IP，使用各节点默认IP"
-                        : "从入口节点IP中选择，留空使用默认"
-                    }
-                    isDisabled={
-                      !form.tunnelId ||
-                      currentTunnelIpOptions.length === 0 ||
-                      isCurrentTunnelMultiEntrance
-                    }
-                    label="监听IP"
-                    placeholder={
-                      isCurrentTunnelMultiEntrance
-                        ? "多入口隧道使用节点默认IP"
-                        : form.tunnelId
-                          ? currentTunnelIpOptions.length > 0
-                            ? "选择入口监听IP"
-                            : "当前隧道入口节点暂无可选IP"
-                          : "请先选择隧道"
-                    }
-                    selectedKeys={[form.inIp || "__default__"]}
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as string;
-
-                      setInIpTouched(true);
-
-                      setForm((prev) => ({
-                        ...prev,
-                        inIp: selectedKey === "__default__" ? "" : selectedKey,
-                      }));
-                    }}
-                  >
-                    <SelectItem key="__default__">默认入口IP</SelectItem>
-                    {currentTunnelIpOptions.map((ip) => (
-                      <SelectItem key={ip}>{ip}</SelectItem>
-                    ))}
-                  </Select>
-
-                  <Textarea
-                    description="格式: IP:端口 或 域名:端口，支持多个地址（每行一个）"
-                    errorMessage={errors.remoteAddr}
-                    isInvalid={!!errors.remoteAddr}
-                    label="落地地址"
-                    maxRows={6}
-                    minRows={3}
-                    placeholder="请输入落地地址，多个地址用换行分隔，例如:&#10;192.168.1.100:10000&#10;[2001:db8::10]:10086&#10;test.example.com:10010"
-                    value={form.remoteAddr}
-                    variant="bordered"
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        remoteAddr: e.target.value,
-                      }))
-                    }
-                  />
-
-                  {getAddressCount(form.remoteAddr) > 1 && (
+                  */}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                    {/* 选择隧道 */}
                     <Select
-                      description="多个目标地址的负载均衡策略"
-                      label="负载策略"
-                      placeholder="请选择负载均衡策略"
-                      selectedKeys={[form.strategy]}
+                      description={
+                        isEdit
+                          ? "更改隧道将释放原端口并在新隧道分配端口"
+                          : "看括号内说明选择隧道"
+                      }
+                      errorMessage={errors.tunnelId}
+                      isInvalid={!!errors.tunnelId}
+                      label="选择隧道"
+                      placeholder="请选择关联的隧道"
+                      selectedKeys={
+                        form.tunnelId ? [form.tunnelId.toString()] : []
+                      }
                       variant="bordered"
                       onSelectionChange={(keys) => {
                         const selectedKey = Array.from(keys)[0] as string;
 
-                        setForm((prev) => ({ ...prev, strategy: selectedKey }));
+                        if (selectedKey) {
+                          handleTunnelChange(selectedKey);
+                        }
                       }}
                     >
-                      <SelectItem key="fifo">主备模式 - 自上而下</SelectItem>
-                      <SelectItem key="round">轮询模式 - 依次轮换</SelectItem>
-                      <SelectItem key="rand">随机模式 - 随机选择</SelectItem>
-                      <SelectItem key="hash">哈希模式 - IP哈希</SelectItem>
+                      {tunnels.map((tunnel) => {
+                        // 从 allTunnels 中获取 trafficRatio
+                        const allTunnel = allTunnels.find(
+                          (t) => t.id === tunnel.id,
+                        );
+                        const trafficRatio = allTunnel?.trafficRatio;
+                        // 调用统一个格式化函数，自带 x 后缀
+                        const formattedRatio =
+                          formatTunnelTrafficRatio(trafficRatio);
+
+                        return (
+                          <SelectItem
+                            key={tunnel.id.toString()}
+                            textValue={
+                              tunnel.remark
+                                ? `${tunnel.name} ^${formattedRatio} (${tunnel.remark})`
+                                : `${tunnel.name} ^${formattedRatio}`
+                            }
+                          >
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium text-foreground">
+                                {tunnel.name}
+                              </span>
+                              {/* 倍率标识紧跟在隧道名后面 */}
+                              <span className="text-primary-600 font-bold text-[10px]">
+                                ^{formattedRatio}
+                              </span>
+                              {/* 备注放在最后面 */}
+                              {tunnel.remark && (
+                                <span className="text-default-400 text-xs ml-0.5">
+                                  ({tunnel.remark})
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </Select>
-                  )}
+                    {/* 监听ip */}
+                    <Select
+                      description={
+                        isCurrentTunnelMultiEntrance
+                          ? "多入口隧道不支持自定义监听IP，使用各节点默认IP"
+                          : "从入口节点IP中选择，留空使用默认"
+                      }
+                      isDisabled={
+                        !form.tunnelId ||
+                        currentTunnelIpOptions.length === 0 ||
+                        isCurrentTunnelMultiEntrance
+                      }
+                      label="监听IP"
+                      placeholder={
+                        isCurrentTunnelMultiEntrance
+                          ? "多入口隧道使用节点默认IP"
+                          : form.tunnelId
+                            ? currentTunnelIpOptions.length > 0
+                              ? "选择入口监听IP"
+                              : "当前隧道入口节点暂无可选IP"
+                            : "请先选择隧道"
+                      }
+                      selectedKeys={[form.inIp || "__default__"]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as string;
+
+                        setInIpTouched(true);
+                        setForm((prev) => ({
+                          ...prev,
+                          inIp: selectedKey === "__default__" ? "" : selectedKey,
+                        }));
+                      }}
+                    >
+                      <SelectItem key="__default__">默认入口IP</SelectItem>
+                      {currentTunnelIpOptions.map((ip) => (
+                        <SelectItem key={ip}>{ip}</SelectItem>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="space-y-4 pb-4">
+                    <Textarea
+                      description="格式: IP:端口 或 域名:端口，支持多个地址（每行一个）"
+                      errorMessage={errors.remoteAddr}
+                      isInvalid={!!errors.remoteAddr}
+                      label="落地地址"
+                      maxRows={6}
+                      minRows={3}
+                      placeholder="请输入落地地址，多个地址用换行分隔，例如:&#10;8.8.8.8:10000&#10;[2001:db8::10]:10086&#10;test.example.com:10010"
+                      value={form.remoteAddr}
+                      variant="bordered"
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          remoteAddr: e.target.value,
+                        }))
+                      }
+                    />
+                    {getAddressCount(form.remoteAddr) > 1 && (
+                      <Select
+                        description="多个目标地址的负载均衡策略"
+                        label="负载策略"
+                        placeholder="请选择负载均衡策略"
+                        selectedKeys={[form.strategy]}
+                        variant="bordered"
+                        onSelectionChange={(keys) => {
+                          const selectedKey = Array.from(keys)[0] as string;
+
+                          setForm((prev) => ({ ...prev, strategy: selectedKey }));
+                        }}
+                      >
+                        <SelectItem key="fifo">主备模式 - 自上而下</SelectItem>
+                        <SelectItem key="round">轮询模式 - 依次轮换</SelectItem>
+                        <SelectItem key="rand">随机模式 - 随机选择</SelectItem>
+                        <SelectItem key="hash">哈希模式 - IP 哈希</SelectItem>
+                      </Select>
+                    )}
+                  </div>
+                  {/* 高级功能折叠面板 - 移到最底部 */}
+                  <div className="border border-divider rounded-lg overflow-hidden mt-4">
+                    <button
+                      className="w-full flex items-center justify-between px-4 py-3 bg-default-100/50 hover:bg-default-100 transition-colors"
+                      type="button"
+                      onClick={() => setAdvancedOptionsOpen(!advancedOptionsOpen)}
+                    >
+                      <span className="text-sm font-semibold text-foreground">
+                        高级功能
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-default-400 transition-transform ${advancedOptionsOpen ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M19 9l-7 7-7-7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                        />
+                      </svg>
+                    </button>
+                    {advancedOptionsOpen && (
+                      <div className="p-4 space-y-4 bg-content1">
+                        {/* 限速配置 */}
+                        <SpeedLimitConfigField
+                          enabled={form.speedLimitEnabled}
+                          speedLimit={form.speedLimit}
+                          onEnabledChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              speedLimitEnabled: val,
+                            }))
+                          }
+                          onSpeedLimitChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              speedLimit: val,
+                            }))
+                          }
+                        />
+                        {/* 连接数限制 & 流量控制 - 同一行 */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                          <ConnectionLimitField
+                            value={form.maxConnections}
+                            onChange={(val) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                maxConnections: val,
+                              }))
+                            }
+                          />
+                          <TrafficLimitField
+                            value={form.trafficLimit}
+                            onChange={(val) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                trafficLimit: val,
+                              }))
+                            }
+                          />
+
+                        {/* 到期时间 */}
+                        <ExpiryTimeField
+                          value={form.expiryTime}
+                          onChange={(val) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              expiryTime: val,
+                            }))
+                          }
+                        />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </ModalBody>
               <ModalFooter>
@@ -4404,18 +5236,19 @@ export default function ForwardPage() {
                   isLoading={submitLoading}
                   onPress={handleSubmit}
                 >
-                  {isEdit ? "保存修改" : "创建规则"}
+                  {isEdit ? "更新规则" : "创建规则"}
                 </Button>
               </ModalFooter>
             </>
           )}
         </ModalContent>
       </Modal>
-
       {/* 删除确认模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={deleteModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -4456,10 +5289,11 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 地址列表弹窗 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={addressModalOpen}
         scrollBehavior="outside"
         size="lg"
@@ -4473,7 +5307,6 @@ export default function ForwardPage() {
                 复制
               </Button>
             </div>
-
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {addressList.map((item) => (
                 <div
@@ -4497,11 +5330,12 @@ export default function ForwardPage() {
           </ModalBody>
         </ModalContent>
       </Modal>
-
       {/* 导出数据模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={exportModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -4544,14 +5378,24 @@ export default function ForwardPage() {
                   {tunnels.map((tunnel) => (
                     <SelectItem
                       key={tunnel.id.toString()}
-                      textValue={tunnel.name}
+                      textValue={
+                        tunnel.remark
+                          ? `${tunnel.name} (${tunnel.remark})`
+                          : tunnel.name
+                      }
                     >
-                      {tunnel.name}
+                      <span>
+                        {tunnel.name}
+                        {tunnel.remark && (
+                          <span className="text-xs text-default-400 ml-1">
+                            ({tunnel.remark})
+                          </span>
+                        )}
+                      </span>
                     </SelectItem>
                   ))}
                 </Select>
               </div>
-
               {/* 导出按钮和数据 */}
               {exportData && (
                 <div className="flex justify-between items-center">
@@ -4598,7 +5442,6 @@ export default function ForwardPage() {
                   </Button>
                 </div>
               )}
-
               {/* 初始导出按钮 */}
               {!exportData && (
                 <div className="text-right">
@@ -4627,15 +5470,14 @@ export default function ForwardPage() {
                   </Button>
                 </div>
               )}
-
               {/* 导出数据显示 */}
               {exportData && (
                 <div className="relative">
                   <Textarea
                     readOnly
-                    className="font-mono text-sm"
+                    className="font-medium text-sm"
                     classNames={{
-                      input: "font-mono text-sm",
+                      input: "font-medium text-sm",
                     }}
                     maxRows={20}
                     minRows={10}
@@ -4654,15 +5496,16 @@ export default function ForwardPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 导入数据模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
         backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-2xl rounded-2xl overflow-hidden",
+        }}
         isOpen={importModalOpen}
         placement="center"
-        scrollBehavior="outside"
-        size="md"
+        scrollBehavior="inside"
+        size="lg"
         onClose={() => setImportModalOpen(false)}
       >
         <ModalContent>
@@ -4688,7 +5531,7 @@ export default function ForwardPage() {
               </>
             )}
           </ModalHeader>
-          <ModalBody className="pb-6">
+          <ModalBody className="pb-6 overflow-y-auto">
             <div className="space-y-4">
               {/* 格式选择 */}
               <Select
@@ -4715,7 +5558,6 @@ export default function ForwardPage() {
                   ny格式（JSON）
                 </SelectItem>
               </Select>
-
               {/* 隧道选择 - 两种格式都需要 */}
               <Select
                 isRequired
@@ -4738,17 +5580,27 @@ export default function ForwardPage() {
                 {tunnels.map((tunnel) => (
                   <SelectItem
                     key={tunnel.id.toString()}
-                    textValue={tunnel.name}
+                    textValue={
+                      tunnel.remark
+                        ? `${tunnel.name} (${tunnel.remark})`
+                        : tunnel.name
+                    }
                   >
-                    {tunnel.name}
+                    <span>
+                      {tunnel.name}
+                      {tunnel.remark && (
+                        <span className="text-xs text-default-400 ml-1">
+                          ({tunnel.remark})
+                        </span>
+                      )}
+                    </span>
                   </SelectItem>
                 ))}
               </Select>
-
               {/* 输入区域 */}
               <Textarea
                 classNames={{
-                  input: "font-mono text-sm",
+                  input: "font-medium text-sm",
                 }}
                 label="导入数据"
                 maxRows={12}
@@ -4762,7 +5614,6 @@ export default function ForwardPage() {
                 variant="flat"
                 onChange={(e) => setImportData(e.target.value)}
               />
-
               {/* 导入结果 */}
               {importResults.length > 0 && (
                 <div>
@@ -4773,9 +5624,8 @@ export default function ForwardPage() {
                       总计：{importResults.length}
                     </span>
                   </div>
-
                   <div
-                    className="max-h-40 overflow-y-auto space-y-1"
+                    className="max-h-40 sm:max-h-60 overflow-y-auto space-y-1"
                     style={{
                       scrollbarWidth: "thin",
                       scrollbarColor: "rgb(156 163 175) transparent",
@@ -4830,7 +5680,7 @@ export default function ForwardPage() {
                               <span className="text-xs text-default-500">
                                 |
                               </span>
-                              <code className="text-xs font-mono text-default-600 truncate">
+                              <code className="text-xs font-medium text-default-600 truncate">
                                 {result.line}
                               </code>
                             </div>
@@ -4866,11 +5716,12 @@ export default function ForwardPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* 诊断结果模态框 */}
       <Modal
         backdrop="blur"
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={diagnosisModalOpen}
         placement="center"
         scrollBehavior="inside"
@@ -4894,14 +5745,9 @@ export default function ForwardPage() {
                     <span className="text-small text-default-500 truncate flex-1 min-w-0">
                       {currentDiagnosisForward.name}
                     </span>
-                    <Chip
-                      className="flex-shrink-0"
-                      color="primary"
-                      size="sm"
-                      variant="flat"
-                    >
+                    <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                       规则服务
-                    </Chip>
+                    </div>
                   </div>
                 )}
               </ModalHeader>
@@ -4919,12 +5765,11 @@ export default function ForwardPage() {
                               : "?"}
                           </span>
                         </div>
-                        <Chip color="primary" size="sm" variant="flat">
+                        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                           流式更新中
-                        </Chip>
+                        </div>
                       </div>
                     )}
-
                     {diagnosisProgress.timedOut && (
                       <Alert
                         color="warning"
@@ -4933,7 +5778,6 @@ export default function ForwardPage() {
                         variant="flat"
                       />
                     )}
-
                     {/* 统计摘要 */}
                     <div className="grid grid-cols-3 gap-3">
                       <div className="text-center p-3 bg-default-100 dark:bg-gray-800 rounded-lg border border-divider">
@@ -4971,7 +5815,6 @@ export default function ForwardPage() {
                         </div>
                       </div>
                     </div>
-
                     {/* 桌面端表格展示 */}
                     <div className="hidden md:block space-y-3">
                       {(() => {
@@ -4998,7 +5841,6 @@ export default function ForwardPage() {
                             groupedResults.chains[r.fromInx].push(r);
                           }
                         });
-
                         const renderTableSection = (
                           title: string,
                           results: typeof diagnosisResult.results,
@@ -5083,23 +5925,15 @@ export default function ForwardPage() {
                                           </div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                          <Chip
-                                            color={
-                                              isDiagnosing
-                                                ? "warning"
-                                                : isSuccess
-                                                  ? "success"
-                                                  : "danger"
-                                            }
-                                            size="sm"
-                                            variant="flat"
+                                          <div
+                                            className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${isDiagnosing ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : isSuccess ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
                                           >
                                             {isDiagnosing
                                               ? "诊断中"
                                               : isSuccess
                                                 ? "成功"
                                                 : "失败"}
-                                          </Chip>
+                                          </div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess ? (
@@ -5130,14 +5964,11 @@ export default function ForwardPage() {
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           {isSuccess && quality ? (
-                                            <Chip
-                                              className="text-xs whitespace-nowrap"
-                                              color={quality.color as any}
-                                              size="sm"
-                                              variant="flat"
+                                            <div
+                                              className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${quality.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : quality.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
                                             >
                                               {quality.text}
-                                            </Chip>
+                                            </div>
                                           ) : (
                                             <span className="text-default-400">
                                               -
@@ -5160,7 +5991,6 @@ export default function ForwardPage() {
                               "🚪 入口测试",
                               groupedResults.entry,
                             )}
-
                             {/* 链路测试（按跳数排序） */}
                             {Object.keys(groupedResults.chains)
                               .map(Number)
@@ -5171,7 +6001,6 @@ export default function ForwardPage() {
                                   groupedResults.chains[hop],
                                 ),
                               )}
-
                             {/* 出口测试 */}
                             {renderTableSection(
                               "🚀 出口测试",
@@ -5181,7 +6010,6 @@ export default function ForwardPage() {
                         );
                       })()}
                     </div>
-
                     {/* 移动端卡片展示 */}
                     <div className="md:hidden space-y-3">
                       {(() => {
@@ -5208,7 +6036,6 @@ export default function ForwardPage() {
                             groupedResults.chains[r.fromInx].push(r);
                           }
                         });
-
                         const renderCardSection = (
                           title: string,
                           results: typeof diagnosisResult.results,
@@ -5262,26 +6089,16 @@ export default function ForwardPage() {
                                           {result.targetIp}:{result.targetPort}
                                         </div>
                                       </div>
-                                      <Chip
-                                        className="flex-shrink-0"
-                                        color={
-                                          isDiagnosing
-                                            ? "warning"
-                                            : isSuccess
-                                              ? "success"
-                                              : "danger"
-                                        }
-                                        size="sm"
-                                        variant="flat"
+                                      <div
+                                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${isDiagnosing ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : isSuccess ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
                                       >
                                         {isDiagnosing
                                           ? "诊断中"
                                           : isSuccess
                                             ? "成功"
                                             : "失败"}
-                                      </Chip>
+                                      </div>
                                     </div>
-
                                     {isSuccess ? (
                                       <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-divider">
                                         <div className="text-center">
@@ -5308,14 +6125,11 @@ export default function ForwardPage() {
                                         <div className="text-center">
                                           {quality && (
                                             <>
-                                              <Chip
-                                                className="text-xs whitespace-nowrap"
-                                                color={quality.color as any}
-                                                size="sm"
-                                                variant="flat"
+                                              <div
+                                                className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${quality.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : quality.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
                                               >
                                                 {quality.text}
-                                              </Chip>
+                                              </div>
                                               <div className="text-xs text-default-500 mt-0.5">
                                                 质量
                                               </div>
@@ -5351,7 +6165,6 @@ export default function ForwardPage() {
                               "🚪 入口测试",
                               groupedResults.entry,
                             )}
-
                             {/* 链路测试（按跳数排序） */}
                             {Object.keys(groupedResults.chains)
                               .map(Number)
@@ -5362,7 +6175,6 @@ export default function ForwardPage() {
                                   groupedResults.chains[hop],
                                 ),
                               )}
-
                             {/* 出口测试 */}
                             {renderCardSection(
                               "🚀 出口测试",
@@ -5372,7 +6184,6 @@ export default function ForwardPage() {
                         );
                       })()}
                     </div>
-
                     {/* 失败详情（仅桌面端显示，移动端已在卡片中显示） */}
                     {diagnosisResult.results.some(
                       (r) => r.success === false && !r.diagnosing,
@@ -5440,10 +6251,11 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 批量删除确认模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={batchDeleteModalOpen}
         onOpenChange={setBatchDeleteModalOpen}
       >
@@ -5462,7 +6274,7 @@ export default function ForwardPage() {
                 </Button>
                 <Button
                   color="danger"
-                  isLoading={batchLoading}
+                  isLoading={batchDeleteLoading}
                   onPress={handleBatchDelete}
                 >
                   确认删除
@@ -5472,10 +6284,11 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 批量换隧道模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={batchChangeTunnelModalOpen}
         onOpenChange={setBatchChangeTunnelModalOpen}
       >
@@ -5500,8 +6313,22 @@ export default function ForwardPage() {
                   }}
                 >
                   {tunnels.map((tunnel) => (
-                    <SelectItem key={String(tunnel.id)}>
-                      {tunnel.name}
+                    <SelectItem
+                      key={tunnel.id.toString()}
+                      textValue={
+                        tunnel.remark
+                          ? `${tunnel.name} (${tunnel.remark})`
+                          : tunnel.name
+                      }
+                    >
+                      <span>
+                        {tunnel.name}
+                        {tunnel.remark && (
+                          <span className="text-xs text-default-400 ml-1">
+                            ({tunnel.remark})
+                          </span>
+                        )}
+                      </span>
                     </SelectItem>
                   ))}
                 </Select>
@@ -5513,7 +6340,7 @@ export default function ForwardPage() {
                 <Button
                   color="primary"
                   isDisabled={!batchTargetTunnelId}
-                  isLoading={batchLoading}
+                  isLoading={batchChangeTunnelLoading}
                   onPress={handleBatchChangeTunnel}
                 >
                   确认换隧道
@@ -5523,12 +6350,16 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 限速设置模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
-        isOpen={speedLimitModalOpen}
-        onOpenChange={setSpeedLimitModalOpen}
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-[500px] rounded-2xl overflow-hidden",
+        }}
+        isOpen={batchSpeedLimitModalOpen}
+        placement="center"
+        scrollBehavior="inside"
+        size="lg"
+        onClose={() => setBatchSpeedLimitModalOpen(false)}
       >
         <ModalContent>
           {(onClose) => (
@@ -5538,16 +6369,27 @@ export default function ForwardPage() {
               </ModalHeader>
               <ModalBody>
                 <p className="text-sm text-default-600 mb-4">
-                  {forwardToSetSpeedLimit ? `为规则 "${forwardToSetSpeedLimit.name}" 选择限速规则：` : "请选择限速规则："}
+                  {forwardToSetSpeedLimit
+                    ? `为规则 "${forwardToSetSpeedLimit.name}" 选择限速规则：`
+                    : "请选择限速规则："}
                 </p>
                 <Select
                   label="限速规则"
                   placeholder="不限速"
-                  selectedKeys={selectedSpeedLimitId !== null ? [selectedSpeedLimitId.toString()] : []}
+                  selectedKeys={
+                    selectedSpeedLimitId !== null
+                      ? [selectedSpeedLimitId.toString()]
+                      : []
+                  }
                   variant="bordered"
                   onSelectionChange={(keys) => {
-                    const selectedKey = Array.from(keys)[0] as string | undefined;
-                    setSelectedSpeedLimitId(selectedKey ? Number(selectedKey) : null);
+                    const selectedKey = Array.from(keys)[0] as
+                      | string
+                      | undefined;
+
+                    setSelectedSpeedLimitId(
+                      selectedKey ? Number(selectedKey) : null,
+                    );
                   }}
                 >
                   {speedLimits.map((speedLimit) => (
@@ -5573,10 +6415,11 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
-
       {/* 批量限速模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={batchSpeedLimitModalOpen}
         onOpenChange={setBatchSpeedLimitModalOpen}
       >
@@ -5593,16 +6436,29 @@ export default function ForwardPage() {
                 <Select
                   label="限速规则"
                   placeholder="不限速"
-                  selectedKeys={selectedSpeedLimitId !== null ? [selectedSpeedLimitId.toString()] : []}
+                  selectedKeys={
+                    selectedSpeedLimitId !== null
+                      ? [selectedSpeedLimitId.toString()]
+                      : []
+                  }
                   variant="bordered"
                   onSelectionChange={(keys) => {
-                    const selectedKey = Array.from(keys)[0] as string | undefined;
-                    setSelectedSpeedLimitId(selectedKey ? Number(selectedKey) : null);
+                    const selectedKey = Array.from(keys)[0] as
+                      | string
+                      | undefined;
+
+                    setSelectedSpeedLimitId(
+                      selectedKey ? Number(selectedKey) : null,
+                    );
                   }}
                 >
                   {speedLimits.map((speedLimit) => (
-                    <SelectItem key={speedLimit.id.toString()} textValue={speedLimit.name || `限速${speedLimit.speed}`}>
-                      {speedLimit.name || `限速${speedLimit.speed}`} ({speedLimit.speed} Mbps)
+                    <SelectItem
+                      key={speedLimit.id.toString()}
+                      textValue={speedLimit.name || `限速${speedLimit.speed}`}
+                    >
+                      {speedLimit.name || `限速${speedLimit.speed}`} (
+                      {speedLimit.speed}M)
                     </SelectItem>
                   ))}
                 </Select>
@@ -5623,11 +6479,11 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
-
-
       {/* 搜索与筛选五合一模态框 */}
       <Modal
-        classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={isSearchModalOpen}
         placement="center"
         size="md"
@@ -5645,10 +6501,39 @@ export default function ForwardPage() {
                     label="规则名称 (模糊)"
                     placeholder="请输入规则名称关键字"
                     value={searchParams.name}
-                    onChange={(e) => setSearchParams(prev => ({ ...prev, name: e.target.value }))}
                     variant="bordered"
+                    onChange={(e) =>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
                   />
-
+                  <Input
+                    label="入口监听端口 (精确)"
+                    placeholder="请输入具体端口号"
+                    type="number"
+                    value={searchParams.inPort}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        inPort: e.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    label="目标地址或端口 (模糊)"
+                    placeholder="请输入目标IP、域名或端口"
+                    value={searchParams.remoteAddr}
+                    variant="bordered"
+                    onChange={(e) =>
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        remoteAddr: e.target.value,
+                      }))
+                    }
+                  />
                   {isAdmin && (
                     <Select
                       label="所属用户"
@@ -5657,7 +6542,11 @@ export default function ForwardPage() {
                       variant="bordered"
                       onSelectionChange={(keys) => {
                         const key = Array.from(keys)[0] as string;
-                        setSearchParams(prev => ({ ...prev, userId: key || "all" }));
+
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          userId: key || "all",
+                        }));
                       }}
                     >
                       <SelectItem key="all">全部用户</SelectItem>
@@ -5668,7 +6557,31 @@ export default function ForwardPage() {
                       ))}
                     </Select>
                   )}
+                  {isAdmin && (
+                    <Select
+                      label="限速规则"
+                      placeholder="选择限速规则"
+                      selectedKeys={[searchParams.speedLimitId || "all"]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const key = Array.from(keys)[0] as string;
 
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          speedLimitId: key === "all" ? undefined : Number(key),
+                        }));
+                      }}
+                    >
+                      <SelectItem key="all">全部规则</SelectItem>
+                      <SelectItem key="unlimited">不限速</SelectItem>
+                      {availableSpeedLimits.map((speedLimit) => (
+                        <SelectItem key={speedLimit.id.toString()}>
+                          {speedLimit.name || `限速${speedLimit.speed}`} (
+                          {speedLimit.speed}M)
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  )}
                   <Select
                     label="所属隧道"
                     placeholder="选择隧道"
@@ -5676,33 +6589,34 @@ export default function ForwardPage() {
                     variant="bordered"
                     onSelectionChange={(keys) => {
                       const key = Array.from(keys)[0] as string;
-                      setSearchParams(prev => ({ ...prev, tunnelId: key || "all" }));
+
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        tunnelId: key || "all",
+                      }));
                     }}
                   >
                     <SelectItem key="all">全部隧道</SelectItem>
                     {tunnels.map((tunnel) => (
-                      <SelectItem key={tunnel.id.toString()}>
-                        {tunnel.name}
+                      <SelectItem
+                        key={tunnel.id.toString()}
+                        textValue={
+                          tunnel.remark
+                            ? `${tunnel.name} (${tunnel.remark})`
+                            : tunnel.name
+                        }
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{tunnel.name}</span>
+                          {tunnel.remark && (
+                            <span className="text-default-400 text-xs">
+                              ({tunnel.remark})
+                            </span>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </Select>
-
-                  <Input
-                    label="入口监听端口 (精确)"
-                    placeholder="请输入具体端口号"
-                    type="number"
-                    value={searchParams.inPort}
-                    onChange={(e) => setSearchParams(prev => ({ ...prev, inPort: e.target.value }))}
-                    variant="bordered"
-                  />
-
-                  <Input
-                    label="目标地址或端口 (模糊)"
-                    placeholder="请输入目标IP、域名或端口"
-                    value={searchParams.remoteAddr}
-                    onChange={(e) => setSearchParams(prev => ({ ...prev, remoteAddr: e.target.value }))}
-                    variant="bordered"
-                  />
                 </div>
               </ModalBody>
               <ModalFooter>
@@ -5714,8 +6628,9 @@ export default function ForwardPage() {
                       name: "",
                       userId: tokenUserId ? tokenUserId.toString() : "all",
                       tunnelId: "all",
+                      speedLimitId: undefined,
                       inPort: "",
-                      remoteAddr: ""
+                      remoteAddr: "",
                     });
                   }}
                 >
@@ -5726,8 +6641,200 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
-
     </AnimatedPage>
   );
 }
+// ─── Connection Count Cell (list display) ──────────────────────────────────
+function ConnectionCountCell({
+  current,
+  max,
+}: {
+  current: number;
+  max: number;
+}) {
+  // 都是 0 时显示 -
+  if (current === 0 && max === 0) {
+    return <span className="text-sm text-default-400">-</span>;
+  }
+  const maxText = max > 0 ? max.toString() : "不限";
 
+  // 有连接或有限制时显示 current/max
+  return (
+    <span className="text-sm text-default-600">
+      {current}/{maxText}
+    </span>
+  );
+}
+// ─── Connection Limit Field (form input) ───────────────────────────────────
+function ConnectionLimitField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+}) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.trim();
+
+    if (raw === "") {
+      onChange(0);
+
+      return;
+    }
+    const num = parseInt(raw, 10);
+
+    if (isNaN(num) || num < 0) {
+      onChange(0);
+    } else if (num > 9999) {
+      onChange(9999);
+    } else {
+      onChange(num);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <span className="text-sm font-medium text-foreground">连接数限制</span>
+      <Input
+        description="留空表示不限制"
+        placeholder="不限制"
+        type="number"
+        value={value > 0 ? value.toString() : ""}
+        variant="bordered"
+        onChange={handleChange}
+      />
+    </div>
+  );
+}
+// ─── Speed Limit Config Field ──────────────────────────────────────────────
+function SpeedLimitConfigField({
+  enabled,
+  speedLimit,
+  onEnabledChange,
+  onSpeedLimitChange,
+}: {
+  enabled: boolean;
+  speedLimit: number;
+  onEnabledChange: (val: boolean) => void;
+  onSpeedLimitChange: (val: number) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">限速配置</span>
+        <Switch
+          aria-label="启用限速"
+          isSelected={enabled}
+          size="sm"
+          onValueChange={onEnabledChange}
+        >
+          {enabled ? "启用" : "禁用"}
+        </Switch>
+      </div>
+      {enabled && (
+        <div>
+          <span className="text-xs text-default-600 block mb-1.5">
+            速率限制 (Mbps)
+          </span>
+          <Input
+            placeholder="0"
+            type="number"
+            value={speedLimit > 0 ? speedLimit.toString() : ""}
+            variant="bordered"
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+
+              onSpeedLimitChange(isNaN(val) || val < 0 ? 0 : val);
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+// ─── Traffic Limit Field (form input) ──────────────────────────────────────
+function TrafficLimitField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+}) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.trim();
+
+    if (raw === "") {
+      onChange(0);
+
+      return;
+    }
+    const num = parseFloat(raw);
+
+    if (isNaN(num) || num < 0) {
+      onChange(0);
+    } else if (num > 1000000) {
+      onChange(1000000);
+    } else {
+      onChange(num);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <span className="text-sm font-medium text-foreground">流量控制</span>
+      <Input
+        description="留空表示不限制，单位：GB"
+        placeholder="不限制"
+        type="number"
+        value={value > 0 ? value.toString() : ""}
+        variant="bordered"
+        onChange={handleChange}
+      />
+    </div>
+  );
+}
+// ─── Expiry Time Field (form input) ────────────────────────────────────────
+function ExpiryTimeField({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (val: number | null) => void;
+}) {
+  const formatDateToInput = (timestamp: number | null): string => {
+    if (!timestamp || timestamp <= 0) return "";
+
+    return new Date(timestamp).toISOString().slice(0, 10);
+  };
+  const parseDateInputToTimestamp = (dateStr: string): number | null => {
+    if (!dateStr) return null;
+
+    return new Date(dateStr).getTime();
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">到期时间</span>
+      </div>
+      <Input
+        description="留空表示永不过期"
+        label=""
+        max="9999-12-31"
+        placeholder="年 - 月 - 日"
+        type="date"
+        value={formatDateToInput(value)}
+        variant="bordered"
+        onChange={(e) => {
+          const val = e.target.value;
+
+          if (val) {
+            onChange(parseDateInputToTimestamp(val));
+          } else {
+            onChange(null);
+          }
+        }}
+      />
+    </div>
+  );
+}

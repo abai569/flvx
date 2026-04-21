@@ -11,6 +11,7 @@ interface SearchBarProps {
   onOpen: () => void;
   onClose: () => void;
   onChange: (value: string) => void;
+  width?: string; // 新增宽度参数
 }
 
 export function SearchBar({
@@ -20,6 +21,7 @@ export function SearchBar({
   onOpen,
   onClose,
   onChange,
+  width = "120px", // 新增：默认宽度 200px
 }: SearchBarProps) {
   return (
     // Fixed h-8 so the container never changes height — eliminates the vertical jitter
@@ -64,6 +66,7 @@ export function SearchBar({
               placeholder={placeholder}
               value={value}
               onChange={(e) => onChange(e.target.value)}
+              style={{ width }} // 新增：应用宽度
             />
             <Button
               isIconOnly

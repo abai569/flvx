@@ -1,0 +1,130 @@
+import type { NodeGroupApiItem, NodeTagApiItem } from "@/api/types";
+
+import { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+
+import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
+import { Chip } from "@/shadcn-bridge/heroui/chip";
+
+interface NodeGroupCollapsibleProps {
+  group: NodeGroupApiItem | null;
+  nodes: any[];
+  tags?: NodeTagApiItem[];
+  nodeCount?: number;
+  defaultExpanded?: boolean;
+  onToggleCollapsed?: () => void;
+  onNodeClick?: (nodeId: number) => void;
+  children?: React.ReactNode | ((node: any) => React.ReactNode);
+}
+
+export function NodeGroupCollapsible({
+  group,
+  nodes,
+  tags,
+  nodeCount,
+  defaultExpanded = true,
+  onToggleCollapsed,
+  onNodeClick,
+  children,
+}: NodeGroupCollapsibleProps) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  const groupColor = group?.color || "#9ca3af"; // 默认灰色（未分组）
+  const groupName = group?.name || "未分组";
+  const count = nodeCount ?? nodes.length;
+
+  const handleToggle = () => {
+    const newExpanded = !isExpanded;
+
+    setIsExpanded(newExpanded);
+    onToggleCollapsed?.();
+  };
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+        style={{
+          borderLeft: `4px solid ${groupColor}`,
+        }}
+        onClick={handleToggle}
+      >
+        <div className="flex items-center gap-3">
+          {isExpanded ? (
+            <ChevronDown className="w-5 h-5 text-gray-500" />
+          ) : (
+            <ChevronRight className="w-5 h-5 text-gray-500" />
+          )}
+
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: groupColor }}
+          />
+
+          <div className="font-semibold text-lg">{groupName}</div>
+
+          <Chip
+            className="bg-gray-100 dark:bg-gray-800"
+            size="sm"
+            variant="flat"
+          >
+            {count}
+          </Chip>
+
+          {tags && tags.length > 0 && (
+            <div className="flex gap-1 ml-2">
+              {tags.slice(0, 3).map((tag) => (
+                <Chip
+                  key={tag.id}
+                  className="border"
+                  size="sm"
+                  style={{
+                    backgroundColor: `${tag.color}20`,
+                    color: tag.color,
+                    borderColor: tag.color,
+                  }}
+                  variant="flat"
+                >
+                  {tag.name}
+                </Chip>
+              ))}
+              {tags.length > 3 && (
+                <Chip
+                  className="bg-gray-100 dark:bg-gray-800"
+                  size="sm"
+                  variant="flat"
+                >
+                  +{tags.length - 3}
+                </Chip>
+              )}
+            </div>
+          )}
+        </div>
+      </CardHeader>
+
+      {isExpanded && (
+        <CardBody className="p-4">
+          {nodes.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              此分组下暂无节点
+            </div>
+          ) : typeof children === "function" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {nodes.map((node) => (
+                <div
+                  key={(node as any).id}
+                  className="cursor-pointer"
+                  onClick={() => onNodeClick?.((node as any).id)}
+                >
+                  {children(node)}
+                </div>
+              ))}
+            </div>
+          ) : (
+            children
+          )}
+        </CardBody>
+      )}
+    </Card>
+  );
+}

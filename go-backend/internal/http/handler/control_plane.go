@@ -34,14 +34,15 @@ type diagnosisTarget struct {
 }
 
 type diagnosisWorkItem struct {
-	fromNodeID   int64
-	targetIP     string
-	targetPort   int
-	description  string
-	metadata     map[string]interface{}
-	toNode       chainNodeRecord
-	hasChainHop  bool
-	ipPreference string
+	fromNodeID    int64
+	targetIP      string
+	targetPort    int
+	description   string
+	metadata      map[string]interface{}
+	toNode        chainNodeRecord
+	hasChainHop   bool
+	ipPreference  string
+	connectIpType string
 }
 
 type diagnosisExecOptions struct {
@@ -73,7 +74,7 @@ func (h *Handler) buildDiagnosisStreamStartItems(workItems []diagnosisWorkItem) 
 			fromNode, _ := h.cachedNode(nodeCache, workItem.fromNodeID)
 			targetNode, err := h.cachedNode(nodeCache, workItem.toNode.NodeID)
 			if err == nil {
-				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference, workItem.toNode.ConnectIP)
+				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference, workItem.connectIpType)
 				if resolveErr == nil {
 					targetIP = resolvedIP
 					targetPort = resolvedPort
@@ -271,6 +272,12 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 		speed = utSpeed
 	}
 
+	// ✅ 动态限速器名称
+	var dynamicLimiterName string
+	if forward.SpeedLimitEnabled && forward.SpeedLimit > 0 {
+		dynamicLimiterName = fmt.Sprintf("forward_%d_speed", forward.ID)
+	}
+
 	serviceBase := buildForwardServiceBaseWithResolvedUserTunnel(forward.ID, forward.UserID, userTunnelID)
 	tunnelTLSProtocol, err := h.isTunnelSelectedTLSProtocol(forward.TunnelID)
 	if err != nil {
@@ -278,8 +285,32 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 	}
 
 	for _, fp := range ports {
-		if limiterID != nil && speed != nil {
+		// ✅ 应用动态限速器
+		if dynamicLimiterName != "" {
+			if err := h.ensureDynamicLimiterOnNode(fp.NodeID, dynamicLimiterName, forward.SpeedLimit); err != nil {
+				if isNodeOfflineOrTimeoutError(err) {
+					node, _ := h.getNodeRecord(fp.NodeID)
+					nodeName := fmt.Sprintf("%d", fp.NodeID)
+					if node != nil && strings.TrimSpace(node.Name) != "" {
+						nodeName = strings.TrimSpace(node.Name)
+					}
+					warnings = append(warnings, fmt.Sprintf("节点 %s 不在线，已跳过下发", nodeName))
+				} else {
+					return nil, err
+				}
+			}
+		} else if limiterID != nil && speed != nil {
+			// 旧的限速逻辑
 			if err := h.ensureLimiterOnNode(fp.NodeID, *limiterID, *speed); err != nil {
+				if isNodeOfflineOrTimeoutError(err) {
+					node, _ := h.getNodeRecord(fp.NodeID)
+					nodeName := fmt.Sprintf("%d", fp.NodeID)
+					if node != nil && strings.TrimSpace(node.Name) != "" {
+						nodeName = strings.TrimSpace(node.Name)
+					}
+					warnings = append(warnings, fmt.Sprintf("节点 %s 不在线，已跳过下发", nodeName))
+					continue
+				}
 				return nil, err
 			}
 		}
@@ -307,6 +338,12 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 			if err == nil && warning != "" {
 				warnings = append(warnings, warning)
 			}
+		}
+		// When a node is offline, skip it with a warning instead of failing.
+		// This lets users modify forward rules even when some entry nodes are down.
+		if err != nil && isNodeOfflineOrTimeoutError(err) {
+			warnings = append(warnings, fmt.Sprintf("节点 %s 不在线，已跳过下发", node.Name))
+			continue
 		}
 		if err != nil {
 			return warnings, fmt.Errorf("节点 %s 下发失败: %w", node.Name, err)
@@ -714,11 +751,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 				for _, firstNode := range chainHops[0] {
 					description := fmt.Sprintf("入口(%s)->第1跳(%s)", inNode.NodeName, firstNode.NodeName)
 					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       firstNode,
-						hasChainHop:  true,
-						ipPreference: ipPreference,
-						description:  description,
+						fromNodeID:    inNode.NodeID,
+						toNode:        firstNode,
+						hasChainHop:   true,
+						connectIpType: firstNode.ConnectIPType,
+						ipPreference:  ipPreference,
+						description:   description,
 						metadata: map[string]interface{}{
 							"fromChainType": 1,
 							"toChainType":   2,
@@ -730,11 +768,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 				for _, outNode := range outNodes {
 					description := fmt.Sprintf("入口(%s)->出口(%s)", inNode.NodeName, outNode.NodeName)
 					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       outNode,
-						hasChainHop:  true,
-						ipPreference: ipPreference,
-						description:  description,
+						fromNodeID:    inNode.NodeID,
+						toNode:        outNode,
+						hasChainHop:   true,
+						connectIpType: outNode.ConnectIPType,
+						ipPreference:  ipPreference,
+						description:   description,
 						metadata: map[string]interface{}{
 							"fromChainType": 1,
 							"toChainType":   3,
@@ -750,11 +789,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 					for _, nextNode := range chainHops[i+1] {
 						description := fmt.Sprintf("第%d跳(%s)->第%d跳(%s)", i+1, currentNode.NodeName, i+2, nextNode.NodeName)
 						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       nextNode,
-							hasChainHop:  true,
-							ipPreference: ipPreference,
-							description:  description,
+							fromNodeID:    currentNode.NodeID,
+							toNode:        nextNode,
+							hasChainHop:   true,
+							connectIpType: nextNode.ConnectIPType,
+							ipPreference:  ipPreference,
+							description:   description,
 							metadata: map[string]interface{}{
 								"fromChainType": 2,
 								"fromInx":       currentNode.Inx,
@@ -767,11 +807,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 					for _, outNode := range outNodes {
 						description := fmt.Sprintf("第%d跳(%s)->出口(%s)", i+1, currentNode.NodeName, outNode.NodeName)
 						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       outNode,
-							hasChainHop:  true,
-							ipPreference: ipPreference,
-							description:  description,
+							fromNodeID:    currentNode.NodeID,
+							toNode:        outNode,
+							hasChainHop:   true,
+							connectIpType: outNode.ConnectIPType,
+							ipPreference:  ipPreference,
+							description:   description,
 							metadata: map[string]interface{}{
 								"fromChainType": 2,
 								"fromInx":       currentNode.Inx,
@@ -883,11 +924,12 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 				for _, firstNode := range chainHops[0] {
 					description := fmt.Sprintf("入口(%s)->第1跳(%s)", inNode.NodeName, firstNode.NodeName)
 					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       firstNode,
-						hasChainHop:  true,
-						ipPreference: ipPreference,
-						description:  description,
+						fromNodeID:    inNode.NodeID,
+						toNode:        firstNode,
+						hasChainHop:   true,
+						connectIpType: firstNode.ConnectIPType,
+						ipPreference:  ipPreference,
+						description:   description,
 						metadata: map[string]interface{}{
 							"fromChainType": 1,
 							"toChainType":   2,
@@ -899,11 +941,12 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 				for _, outNode := range outNodes {
 					description := fmt.Sprintf("入口(%s)->出口(%s)", inNode.NodeName, outNode.NodeName)
 					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       outNode,
-						hasChainHop:  true,
-						ipPreference: ipPreference,
-						description:  description,
+						fromNodeID:    inNode.NodeID,
+						toNode:        outNode,
+						hasChainHop:   true,
+						connectIpType: outNode.ConnectIPType,
+						ipPreference:  ipPreference,
+						description:   description,
 						metadata: map[string]interface{}{
 							"fromChainType": 1,
 							"toChainType":   3,
@@ -919,11 +962,12 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 					for _, nextNode := range chainHops[i+1] {
 						description := fmt.Sprintf("第%d跳(%s)->第%d跳(%s)", i+1, currentNode.NodeName, i+2, nextNode.NodeName)
 						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       nextNode,
-							hasChainHop:  true,
-							ipPreference: ipPreference,
-							description:  description,
+							fromNodeID:    currentNode.NodeID,
+							toNode:        nextNode,
+							hasChainHop:   true,
+							connectIpType: nextNode.ConnectIPType,
+							ipPreference:  ipPreference,
+							description:   description,
 							metadata: map[string]interface{}{
 								"fromChainType": 2,
 								"fromInx":       currentNode.Inx,
@@ -936,11 +980,12 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 					for _, outNode := range outNodes {
 						description := fmt.Sprintf("第%d跳(%s)->出口(%s)", i+1, currentNode.NodeName, outNode.NodeName)
 						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       outNode,
-							hasChainHop:  true,
-							ipPreference: ipPreference,
-							description:  description,
+							fromNodeID:    currentNode.NodeID,
+							toNode:        outNode,
+							hasChainHop:   true,
+							connectIpType: outNode.ConnectIPType,
+							ipPreference:  ipPreference,
+							description:   description,
 							metadata: map[string]interface{}{
 								"fromChainType": 2,
 								"fromInx":       currentNode.Inx,
@@ -1091,7 +1136,7 @@ func (h *Handler) executeDiagnosisWorkItem(workItem diagnosisWorkItem, options d
 	single := make([]map[string]interface{}, 0, 1)
 	nodeCache := map[int64]*nodeRecord{}
 	if workItem.hasChainHop {
-		h.appendChainHopDiagnosis(&single, nodeCache, workItem.fromNodeID, workItem.toNode, workItem.description, workItem.metadata, workItem.ipPreference, options)
+		h.appendChainHopDiagnosis(&single, nodeCache, workItem.fromNodeID, workItem.toNode, workItem.description, workItem.metadata, workItem.ipPreference, workItem.connectIpType, options)
 	} else {
 		h.appendPathDiagnosis(&single, nodeCache, workItem.fromNodeID, workItem.targetIP, workItem.targetPort, workItem.description, workItem.metadata, options)
 	}
@@ -1276,14 +1321,14 @@ func (h *Handler) appendPathDiagnosis(results *[]map[string]interface{}, nodeCac
 	*results = append(*results, item)
 }
 
-func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nodeCache map[int64]*nodeRecord, fromNodeID int64, toNode chainNodeRecord, description string, metadata map[string]interface{}, ipPreference string, options diagnosisExecOptions) {
+func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nodeCache map[int64]*nodeRecord, fromNodeID int64, toNode chainNodeRecord, description string, metadata map[string]interface{}, ipPreference string, connectIpType string, options diagnosisExecOptions) {
 	fromNode, _ := h.cachedNode(nodeCache, fromNodeID)
 	targetNode, err := h.cachedNode(nodeCache, toNode.NodeID)
 	if err != nil {
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, "", 0, description, metadata, err.Error())
 		return
 	}
-	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference, toNode.ConnectIP)
+	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference, toNode.ConnectIPType)
 	if err != nil {
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]"), toNode.Port, description, metadata, err.Error())
 		return
@@ -1291,11 +1336,11 @@ func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nod
 	h.appendPathDiagnosis(results, nodeCache, fromNodeID, targetIP, targetPort, description, metadata, options)
 }
 
-func resolveChainProbeTarget(fromNode, targetNode *nodeRecord, preferredPort int, ipPreference string, connectIp string) (string, int, error) {
+func resolveChainProbeTarget(fromNode, targetNode *nodeRecord, preferredPort int, ipPreference string, connectIpType string) (string, int, error) {
 	if targetNode == nil {
 		return "", 0, errors.New("目标节点不存在")
 	}
-	host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, connectIp)
+	host, _, err := selectTunnelDialHost(fromNode, targetNode, ipPreference, connectIpType)
 	if err != nil {
 		host = strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]")
 	}
@@ -1554,6 +1599,12 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		strategy = "fifo"
 	}
 
+	// ✅ 动态限速器名称
+	var dynamicLimiterName string
+	if forward.SpeedLimitEnabled && forward.SpeedLimit > 0 {
+		dynamicLimiterName = fmt.Sprintf("forward_%d_speed", forward.ID)
+	}
+
 	for _, protocol := range protocols {
 		listenerAddr := node.TCPListenAddr
 		if protocol == "udp" {
@@ -1561,10 +1612,11 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		}
 		var serviceAddr string
 		if bindIP != "" {
-			if strings.Contains(bindIP, ":") {
-				serviceAddr = processServerAddress(bindIP)
+			trimmedBindIP := strings.TrimSpace(bindIP)
+			if _, _, err := net.SplitHostPort(trimmedBindIP); err == nil {
+				serviceAddr = processServerAddress(trimmedBindIP)
 			} else {
-				serviceAddr = processServerAddress(fmt.Sprintf("%s:%d", bindIP, port))
+				serviceAddr = processServerAddress(net.JoinHostPort(strings.Trim(trimmedBindIP, "[]"), strconv.Itoa(port)))
 			}
 		} else {
 			serviceAddr = processServerAddress(fmt.Sprintf("%s:%d", listenerAddr, port))
@@ -1597,10 +1649,21 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		if tunnel != nil && tunnel.Type == 2 {
 			service["handler"].(map[string]interface{})["chain"] = fmt.Sprintf("chains_%d", forward.TunnelID)
 		}
+		// 合并 metadata
+		meta := make(map[string]interface{})
 		if tunnel != nil && tunnel.Type == 1 && strings.TrimSpace(node.InterfaceName) != "" {
-			service["metadata"] = map[string]interface{}{"interface": node.InterfaceName}
+			meta["interface"] = node.InterfaceName
 		}
-		if limiterID != nil && *limiterID > 0 {
+		if forward.MaxConnections > 0 {
+			meta["maxConnections"] = forward.MaxConnections
+		}
+		if len(meta) > 0 {
+			service["metadata"] = meta
+		}
+		// ✅ 应用限速器（优先使用动态限速器）
+		if dynamicLimiterName != "" {
+			service["limiter"] = dynamicLimiterName
+		} else if limiterID != nil && *limiterID > 0 {
 			service["limiter"] = strconv.FormatInt(*limiterID, 10)
 		}
 		services = append(services, service)
@@ -1696,10 +1759,83 @@ func asBool(v interface{}, def bool) bool {
 
 func (h *Handler) ensureLimiterOnNode(nodeID int64, limiterID int64, speed int) error {
 	if err := h.upsertLimiterOnNode(nodeID, limiterID, speed); err != nil {
-		return fmt.Errorf("限速规则下发失败: %w", err)
+		return fmt.Errorf("限速规则下发失败：%w", err)
 	}
 
 	return nil
+}
+
+// ✅ 新增：确保 Forward 动态限速器存在（所有入口节点）
+func (h *Handler) ensureForwardDynamicLimiter(forward *forwardRecord, limiterName string) error {
+	ports, err := h.listForwardPorts(forward.ID)
+	if err != nil {
+		return err
+	}
+
+	for _, fp := range ports {
+		if err := h.ensureDynamicLimiterOnNode(fp.NodeID, limiterName, forward.SpeedLimit); err != nil {
+			if !isNodeOfflineOrTimeoutError(err) {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ✅ 新增：在节点上创建/更新动态限速器
+func (h *Handler) ensureDynamicLimiterOnNode(nodeID int64, limiterName string, speedLimit int) error {
+	// 构建限速器配置
+	// gost traffic limiter 使用 MB/s 作为单位（通过 units.ParseBase2Bytes 解析）
+	// 前端输入是 Mbps，需要转换：MB/s = Mbps / 8
+	// 配置格式："$ <in> <out>"，其中 $ 是 ServiceLimitKey
+	var limits []string
+	if speedLimit > 0 {
+		// 上下行使用相同的限速值
+		speedMB := float64(speedLimit) / 8.0
+		limits = []string{fmt.Sprintf("$ %.1fMB %.1fMB", speedMB, speedMB)}
+	} else {
+		// 没设置限速，删除限速器
+		_, _ = h.sendNodeCommand(nodeID, "DeleteLimiters", map[string]interface{}{
+			"limiter": limiterName,
+		}, false, true)
+		return nil
+	}
+
+	// 先尝试删除已存在的限速器（确保更新时配置被刷新）
+	_, _ = h.sendNodeCommand(nodeID, "DeleteLimiters", map[string]interface{}{
+		"limiter": limiterName,
+	}, false, true)
+
+	// 等待一小段时间让删除生效
+	time.Sleep(100 * time.Millisecond)
+
+	// 创建新的限速器
+	addPayload := map[string]interface{}{
+		"name":   limiterName,
+		"limits": limits,
+	}
+
+	if _, err := h.sendNodeCommand(nodeID, "AddLimiters", addPayload, false, false); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ✅ 新增：删除 Forward 动态限速器
+func (h *Handler) deleteForwardDynamicLimiter(forward *forwardRecord) {
+	limiterName := fmt.Sprintf("forward_%d_speed", forward.ID)
+	ports, _ := h.listForwardPorts(forward.ID)
+
+	for _, fp := range ports {
+		node, err := h.getNodeRecord(fp.NodeID)
+		if err != nil {
+			continue
+		}
+		_, _ = h.sendNodeCommand(node.ID, "DeleteLimiters", map[string]interface{}{
+			"limiter": limiterName,
+		}, false, true)
+	}
 }
 
 func buildLimiterAddPayload(limiterID int64, speed int) (string, map[string]interface{}) {

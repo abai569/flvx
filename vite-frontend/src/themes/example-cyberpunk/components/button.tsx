@@ -10,10 +10,11 @@
  *    or you can build a completely new component from scratch.
  */
 
+import type { ButtonProps } from "@/shadcn-bridge/heroui/button";
+
 import React from "react";
 
 // Import the original Button's props interface for compatibility
-import type { ButtonProps } from "@/shadcn-bridge/heroui/button";
 // Optionally import the original to wrap it
 import { Button as OriginalButton } from "@/shadcn-bridge/heroui/button";
 

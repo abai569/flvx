@@ -1,5 +1,6 @@
 interface TunnelChainNode {
   nodeId: number;
+  port?: number;
 }
 
 interface TunnelFormInput {
@@ -7,6 +8,7 @@ interface TunnelFormInput {
   type: number;
   inNodeId: TunnelChainNode[];
   outNodeId?: TunnelChainNode[];
+  chainNodes?: TunnelChainNode[][];
   trafficRatio: number;
 }
 
@@ -18,7 +20,7 @@ interface TunnelNodeInput {
 export const createTunnelFormDefaults = () => {
   return {
     name: "",
-    type: 1,
+    type: 2,
     inNodeId: [],
     outNodeId: [],
     chainNodes: [],
@@ -27,6 +29,8 @@ export const createTunnelFormDefaults = () => {
     inIp: "",
     ipPreference: "",
     status: 1,
+    tunnelGroupId: null as number | null,
+    remark: "",
   };
 };
 
@@ -57,7 +61,43 @@ export const validateTunnelForm = (
   }
 
   if (form.trafficRatio <= 0 || form.trafficRatio > 100.0) {
-    errors.trafficRatio = "流量倍率须大于0，支持小数（如 0.5）";
+    errors.trafficRatio = "流量倍率须大于 0，支持小数（如 0.5）";
+  }
+
+  // 🎯 多端口验证：验证出口节点端口格式
+  if (form.type === 2 && form.outNodeId && form.outNodeId.length > 0) {
+    const invalidPorts = form.outNodeId
+      .map((node, idx) => ({ node, idx }))
+      .filter(({ node }) => node.port !== undefined && node.port !== null)
+      .filter(({ node }) => {
+        const port = node.port as number;
+
+        return !Number.isInteger(port) || port < 1 || port > 65535;
+      });
+
+    if (invalidPorts.length > 0) {
+      errors.outNodeId = `端口号必须在 1-65535 范围内（第 ${invalidPorts.map((p) => p.idx + 1).join(", ")} 个出口节点端口无效）`;
+    }
+  }
+
+  // 🎯 多端口验证：验证转发链端口格式
+  if (form.type === 2 && form.chainNodes && form.chainNodes.length > 0) {
+    for (let hopIdx = 0; hopIdx < form.chainNodes.length; hopIdx++) {
+      const hop = form.chainNodes[hopIdx];
+      const invalidPorts = hop
+        .map((node, idx) => ({ node, idx }))
+        .filter(({ node }) => node.port !== undefined && node.port !== null)
+        .filter(({ node }) => {
+          const port = node.port as number;
+
+          return !Number.isInteger(port) || port < 1 || port > 65535;
+        });
+
+      if (invalidPorts.length > 0) {
+        errors[`chainNodes_${hopIdx}_port`] =
+          `第${hopIdx + 1}跳：端口号必须在 1-65535 范围内`;
+      }
+    }
   }
 
   if (form.type === 2) {

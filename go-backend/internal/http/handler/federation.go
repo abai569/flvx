@@ -147,13 +147,14 @@ func buildFederationServiceConfig(serviceName, addr, protocol, role, chainName s
 		"addr": addr,
 		"handler": map[string]interface{}{
 			"type": "relay",
+			"metadata": map[string]interface{}{
+				"nodelay": true, // ✅ 修复 1: 为所有 Relay Handler 启用 noDelay 模式
+				"udpTTL":  "5s", // ✅ 修复 2: 添加 UDP TTL 默认配置
+			},
 		},
 		"listener": map[string]interface{}{
 			"type": protocol,
 		},
-	}
-	if isTLSTunnelProtocol(protocol) {
-		service["handler"].(map[string]interface{})["metadata"] = map[string]interface{}{"nodelay": true}
 	}
 	if role == "middle" {
 		service["handler"].(map[string]interface{})["chain"] = chainName
@@ -1082,11 +1083,13 @@ func (h *Handler) federationRuntimeApplyRole(w http.ResponseWriter, r *http.Requ
 				return
 			}
 			targetProtocol := defaultString(target.Protocol, protocol)
+			// ✅ 修复 1: 为所有 Relay Connector 启用 noDelay 模式
 			connector := map[string]interface{}{
 				"type": "relay",
-			}
-			if isTLSTunnelProtocol(targetProtocol) {
-				connector["metadata"] = map[string]interface{}{"nodelay": true}
+				"metadata": map[string]interface{}{
+					"nodelay": true,
+					"udpTTL":  "5s", // ✅ 修复 2: 添加 UDP TTL 默认配置
+				},
 			}
 			nodeItems = append(nodeItems, map[string]interface{}{
 				"name":      fmt.Sprintf("node_%d", i+1),

@@ -6,16 +6,17 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"go-backend/internal/http/response"
+	"go-backend/internal/store/model"
 )
 
 const (
 	githubRepo     = "abai569/flvx"
-	githubProxy    = "https://gcode.hostcentral.cc"
 	githubAPIBase  = "https://api.github.com"
 	githubHTMLBase = "https://github.com"
 	upgradeTimeout = 5 * time.Minute
@@ -39,6 +40,10 @@ type githubRelease struct {
 }
 
 func normalizeReleaseChannel(channel string) string {
+	// 空字符串返回空，表示不指定通道（获取最新版本）
+	if channel == "" {
+		return ""
+	}
 	switch strings.ToLower(strings.TrimSpace(channel)) {
 	case releaseChannelDev:
 		return releaseChannelDev
@@ -102,6 +107,21 @@ func resolveLatestReleaseByChannel(channel string) (string, error) {
 		return "", err
 	}
 
+	// 如果 channel 为空，返回第一个非 draft 的 release（最新版本）
+	if normalizedChannel == "" {
+		for _, r := range releases {
+			if r.Draft {
+				continue
+			}
+			tag := strings.TrimSpace(r.TagName)
+			if tag != "" {
+				return tag, nil
+			}
+		}
+		return "", fmt.Errorf("未找到版本号")
+	}
+
+	// 否则按通道查找
 	for _, r := range releases {
 		if r.Draft {
 			continue
@@ -116,6 +136,47 @@ func resolveLatestReleaseByChannel(channel string) (string, error) {
 	}
 
 	return "", fmt.Errorf("未找到%s版本号", releaseChannelLabel(normalizedChannel))
+}
+
+func resolveGitHubProxyURLs(repo interface {
+	GetConfigByName(string) (*model.ViteConfig, error)
+}) []string {
+	if repo == nil {
+		return []string{"https://git-proxy.abai.eu.org"}
+	}
+
+	enabledCfg, _ := repo.GetConfigByName("github_proxy_enabled")
+	enabled := enabledCfg == nil || enabledCfg.Value == "" || enabledCfg.Value == "true"
+	if !enabled {
+		return nil
+	}
+
+	urlsCfg, _ := repo.GetConfigByName("github_proxy_urls")
+	if urlsCfg == nil || urlsCfg.Value == "" {
+		return []string{"https://git-proxy.abai.eu.org"}
+	}
+
+	var urls []string
+	if err := json.Unmarshal([]byte(urlsCfg.Value), &urls); err != nil {
+		return []string{"https://git-proxy.abai.eu.org"}
+	}
+
+	var filtered []string
+	for _, u := range urls {
+		u = strings.TrimSpace(u)
+		if u != "" {
+			filtered = append(filtered, u)
+		}
+	}
+	if len(filtered) == 0 {
+		return []string{"https://git-proxy.abai.eu.org"}
+	}
+	return filtered
+}
+
+func buildProxyURL(proxy, path string) string {
+	proxy = strings.TrimRight(proxy, "/")
+	return fmt.Sprintf("%s/%s", proxy, strings.TrimLeft(path, "/"))
 }
 
 func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +195,7 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.ID <= 0 {
-		response.WriteJSON(w, response.ErrDefault("节点ID无效"))
+		response.WriteJSON(w, response.ErrDefault("节点 ID 无效"))
 		return
 	}
 
@@ -144,26 +205,32 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		var err error
 		version, err = resolveLatestReleaseByChannel(channel)
 		if err != nil {
-			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败: %v", releaseChannelLabel(channel), err)))
+			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
 			return
 		}
 	}
 
-	downloadURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}",
-		githubHTMLBase, githubRepo, version,
-	)
-	checksumURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-		githubHTMLBase, githubRepo, version,
-	)
+	// 获取自定义全局加速地址
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
+	}
+
+	// 构建下载源（只使用全局加速地址）
+	downloadURLs := []string{
+		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}", globalURL, githubRepo, version),
+	}
+	checksumURLs := []string{
+		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", globalURL, githubRepo, version),
+	}
 
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
-		"downloadUrl": downloadURL,
-		"checksumUrl": checksumURL,
+		"downloadUrls": downloadURLs,
+		"checksumUrls": checksumURLs,
+		"version":      version,
 	}, upgradeTimeout)
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("升级失败: %v", err)))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("升级失败：%v", err)))
 		return
 	}
 	h.markNodePendingUpgradeRedeploy(req.ID)
@@ -208,19 +275,29 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 		var err error
 		version, err = resolveLatestReleaseByChannel(channel)
 		if err != nil {
-			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败: %v", releaseChannelLabel(channel), err)))
+			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败：%v", releaseChannelLabel(channel), err)))
 			return
 		}
 	}
 
-	downloadURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}",
-		githubHTMLBase, githubRepo, version,
-	)
-	checksumURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-		githubHTMLBase, githubRepo, version,
-	)
+	// 获取自定义全局加速地址
+	globalURL, _ := h.repo.GetViteConfigValue("global_download_url")
+	if globalURL == "" {
+		globalURL = "https://ghfast.top"
+	}
+
+	// 构建下载源（只使用全局加速地址）
+	downloadURLs := []string{
+		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}", globalURL, githubRepo, version),
+	}
+	checksumURLs := []string{
+		fmt.Sprintf("%s/https://github.com/%s/releases/download/%s/gost-{ARCH}.sha256", globalURL, githubRepo, version),
+	}
+
+	if len(downloadURLs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("构建下载源失败"))
+		return
+	}
 
 	type upgradeResult struct {
 		ID      int64  `json:"id"`
@@ -240,8 +317,8 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 			defer func() { <-sem }()
 
 			result, err := h.wsServer.SendCommand(nodeID, "UpgradeAgent", map[string]interface{}{
-				"downloadUrl": downloadURL,
-				"checksumUrl": checksumURL,
+				"downloadUrls": downloadURLs,
+				"checksumUrls": checksumURLs,
 			}, upgradeTimeout)
 			if err != nil {
 				results[index] = upgradeResult{ID: nodeID, Success: false, Message: err.Error()}
@@ -311,36 +388,11 @@ func (h *Handler) listReleases(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].PublishedAt > items[j].PublishedAt
+	})
+
 	response.WriteJSON(w, response.OK(items))
-}
-
-func (h *Handler) nodeRollback(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		response.WriteJSON(w, response.ErrDefault("请求失败"))
-		return
-	}
-
-	var req struct {
-		ID int64 `json:"id"`
-	}
-	if err := decodeJSON(r.Body, &req); err != nil {
-		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
-		return
-	}
-	if req.ID <= 0 {
-		response.WriteJSON(w, response.ErrDefault("节点ID无效"))
-		return
-	}
-
-	result, err := h.wsServer.SendCommand(req.ID, "RollbackAgent", map[string]interface{}{}, 30*time.Second)
-	if err != nil {
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("回退失败: %v", err)))
-		return
-	}
-
-	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"message": result.Message,
-	}))
 }
 
 func (h *Handler) markNodePendingUpgradeRedeploy(nodeID int64) {
@@ -366,6 +418,9 @@ func (h *Handler) consumeNodePendingUpgradeRedeploy(nodeID int64) bool {
 }
 
 func (h *Handler) onNodeOnline(nodeID int64) {
+	// 只在 install.sh 中安装时重置流量
+	// 节点重启上线不重置流量
+
 	if !h.consumeNodePendingUpgradeRedeploy(nodeID) {
 		return
 	}

@@ -7,13 +7,15 @@
  *  • "Reset to default" option
  */
 
+import type { ThemeMode } from "@/themes/registry";
+
 import React from "react";
 import toast from "react-hot-toast";
 
-import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
+import { Card, CardHeader, CardBody } from "@/shadcn-bridge/heroui/card";
+import { Divider } from "@/shadcn-bridge/heroui/divider";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { useThemeContext } from "@/themes/context";
-import type { ThemeMode } from "@/themes/registry";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -39,12 +41,14 @@ export const ThemeSettings: React.FC = () => {
   const handleModeChange = (m: ThemeMode) => {
     setMode(m);
     const label = m === "light" ? "亮色" : m === "dark" ? "暗色" : "跟随系统";
+
     toast.success(`已切换为${label}模式`);
   };
 
   const handleThemeSelect = (id: string) => {
     switchTheme(id);
     const theme = themes.find((t) => t.id === id);
+
     toast.success(`已切换主题「${theme?.name ?? id}」`);
   };
 
@@ -54,41 +58,49 @@ export const ThemeSettings: React.FC = () => {
   };
 
   return (
-    <Card className="border border-gray-200 dark:border-gray-700">
-      <CardBody className="p-6">
-        <div><h2 className="text-xl font-semibold">主题设置</h2></div>
-        {/* ── Mode toggle ────────────────────────────────────── */}
-        <div className="mb-6">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            外观模式
+    <Card className="mt-6 shadow-md border border-gray-200 dark:border-gray-700">
+      {/* 👇 使用 CardHeader 修复顶部间距，并让标题和按钮左右完美对齐 */}
+      <CardHeader className="pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">主题设置</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            外观设置（还没适配好，请勿使用）
           </p>
-          <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 p-1 gap-1">
-            {MODE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                  mode === opt.value
-                    ? "bg-primary text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
-                }`}
-                type="button"
-                onClick={() => handleModeChange(opt.value)}
-              >
-                <span className="mr-1.5">{opt.icon}</span>
-                {opt.label}
-              </button>
-            ))}
-          </div>
         </div>
 
+        <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 p-1 gap-1 shrink-0">
+          {MODE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                mode === opt.value
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              }`}
+              type="button"
+              onClick={() => handleModeChange(opt.value)}
+            >
+              <span className="mr-1.5">{opt.icon}</span>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </CardHeader>
+
+      {/* 👇 增加分割线，和上方的基本设置卡片风格统一 */}
+      <Divider />
+
+      <CardBody className="pt-8 pb-6">
         {/* ── Theme grid ─────────────────────────────────────── */}
-        <div className="mb-4">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+        <div className="mb-4 mt-5">
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
             选择主题
             <span className="ml-2 text-xs text-gray-400 dark:text-gray-500 font-normal">
               共 {themes.length} 个可用主题
             </span>
           </p>
+
+          {/* 下面的 grid 代码保持不变即可... */}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {themes.map((theme) => {
@@ -122,7 +134,13 @@ export const ThemeSettings: React.FC = () => {
                     <div className="flex-1" style={{ background: secondary }} />
                     <div className="flex-1" style={{ background: success }} />
                     <div className="flex-1" style={{ background: danger }} />
-                    <div className="flex-1" style={{ background: bg, borderLeft: "1px solid rgba(0,0,0,0.06)" }} />
+                    <div
+                      className="flex-1"
+                      style={{
+                        background: bg,
+                        borderLeft: "1px solid rgba(0,0,0,0.06)",
+                      }}
+                    />
                   </div>
 
                   {/* Info */}

@@ -1,9 +1,11 @@
 package repo
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,14 +73,17 @@ func (r *Repository) GetUserRoleID(userID int64) (int, error) {
 	return user.RoleID, nil
 }
 
-func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
+func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash, name string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
+	// 使用 Select 强制更新所有字段，包括零值
 	return r.db.Model(&model.User{}).
 		Where("id = ?", id).
+		Select("user", "name", "pwd", "flow", "num", "exp_time", "flow_reset_time", "status", "updated_time").
 		Updates(map[string]interface{}{
 			"user":            username,
+			"name":            name,
 			"pwd":             pwdHash,
 			"flow":            flow,
 			"num":             num,
@@ -89,14 +94,17 @@ func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, 
 		}).Error
 }
 
-func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
+func (r *Repository) UpdateUserWithoutPassword(id int64, username, name string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
+	// 使用 Select 强制更新所有字段，包括零值
 	return r.db.Model(&model.User{}).
 		Where("id = ?", id).
+		Select("user", "name", "flow", "num", "exp_time", "flow_reset_time", "status", "updated_time").
 		Updates(map[string]interface{}{
 			"user":            username,
+			"name":            name,
 			"flow":            flow,
 			"num":             num,
 			"exp_time":        expTime,
@@ -200,7 +208,7 @@ func (r *Repository) GetUserDefaultsForTunnel(userID int64) (flow int64, num int
 	return user.Flow, user.Num, user.ExpTime, user.FlowResetTime, nil
 }
 
-func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version, remark, expiryTime, renewalCycle interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {
+func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -209,6 +217,7 @@ func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serve
 		Remark:        nullStringFromInterface(remark),
 		ExpiryTime:    nullInt64FromInterface(expiryTime),
 		RenewalCycle:  nullStringFromInterface(renewalCycle),
+		GroupID:       nullInt64FromInterface(groupID),
 		Secret:        secret,
 		ServerIP:      serverIP,
 		ServerIPV4:    nullStringFromInterface(serverIPV4),
@@ -246,31 +255,65 @@ func (r *Repository) GetNodeStatusFields(nodeID int64) (status, httpFlag, tlsFla
 	return node.Status, node.HTTP, node.TLS, node.Socks, nil
 }
 
-func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
+// UpdateNodePublicIP 更新节点公网 IP
+func (r *Repository) UpdateNodePublicIP(nodeID int64, publicIP string) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
 	return r.db.Model(&model.Node{}).
-		Where("id = ?", id).
+		Where("id = ?", nodeID).
+		Update("server_ip", publicIP).Error
+}
+
+func (r *Repository) UpdateNodePublicIPs(nodeID int64, ipv4, ipv6 string) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	serverIP := ipv6
+	if serverIP == "" {
+		serverIP = ipv4
+	}
+	return r.db.Model(&model.Node{}).
+		Where("id = ?", nodeID).
 		Updates(map[string]interface{}{
-			"name":                      name,
-			"remark":                    nullStringFromInterface(remark),
-			"expiry_time":               nullInt64FromInterface(expiryTime),
-			"renewal_cycle":             nullStringFromInterface(renewalCycle),
-			"server_ip":                 serverIP,
-			"server_ip_v4":              nullStringFromInterface(serverIPV4),
-			"server_ip_v6":              nullStringFromInterface(serverIPV6),
-			"extra_ips":                 nullStringFromInterface(extraIPs),
-			"port":                      stringFromInterface(port),
-			"interface_name":            nullStringFromInterface(interfaceName),
-			"http":                      httpFlag,
-			"tls":                       tlsFlag,
-			"socks":                     socksFlag,
-			"tcp_listen_addr":           tcpAddr,
-			"udp_listen_addr":           udpAddr,
-			"updated_time":              sql.NullInt64{Int64: now, Valid: true},
-			"expiry_reminder_dismissed": 0,
+			"server_ip":    serverIP,
+			"server_ip_v4": ipv4,
+			"server_ip_v6": ipv6,
 		}).Error
+}
+
+func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, intranetIP, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle, groupID interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	updates := map[string]interface{}{
+		"name":                      name,
+		"remark":                    nullStringFromInterface(remark),
+		"expiry_time":               nullInt64FromInterface(expiryTime),
+		"renewal_cycle":             nullStringFromInterface(renewalCycle),
+		"server_ip":                 serverIP,
+		"server_ip_v4":              nullStringFromInterface(serverIPV4),
+		"server_ip_v6":              nullStringFromInterface(serverIPV6),
+		"intranet_ip":               nullStringFromInterface(intranetIP),
+		"extra_ips":                 nullStringFromInterface(extraIPs),
+		"port":                      stringFromInterface(port),
+		"interface_name":            nullStringFromInterface(interfaceName),
+		"http":                      httpFlag,
+		"tls":                       tlsFlag,
+		"socks":                     socksFlag,
+		"tcp_listen_addr":           tcpAddr,
+		"udp_listen_addr":           udpAddr,
+		"updated_time":              sql.NullInt64{Int64: now, Valid: true},
+		"expiry_reminder_dismissed": 0,
+	}
+	if groupID != nil {
+		updates["group_id"] = groupID
+	} else {
+		updates["group_id"] = sql.NullInt64{Int64: 0, Valid: false}
+	}
+	return r.db.Model(&model.Node{}).
+		Where("id = ?", id).
+		Updates(updates).Error
 }
 
 func (r *Repository) GetNodeSecret(nodeID int64) (string, error) {
@@ -285,16 +328,52 @@ func (r *Repository) GetNodeSecret(nodeID int64) (string, error) {
 	return node.Secret, nil
 }
 
+func (r *Repository) GetNodeName(nodeID int64) (string, error) {
+	if r == nil || r.db == nil {
+		return "", errors.New("repository not initialized")
+	}
+	var node model.Node
+	err := r.db.Select("name").Where("id = ?", nodeID).First(&node).Error
+	if err != nil {
+		return "", normalizeNotFoundErr(err)
+	}
+	return node.Name, nil
+}
+
 func (r *Repository) GetViteConfigValue(name string) (string, error) {
 	if r == nil || r.db == nil {
 		return "", errors.New("repository not initialized")
 	}
+
+	// 先尝试新配置项名称
 	var cfg model.ViteConfig
 	err := r.db.Select("value").Where("name = ?", name).First(&cfg).Error
-	if err != nil {
-		return "", normalizeNotFoundErr(err)
+	if err == nil && cfg.Value != "" {
+		return cfg.Value, nil
 	}
-	return cfg.Value, nil
+
+	// 尝试旧配置项名称（向后兼容）
+	oldName := getOldConfigName(name)
+	if oldName != "" {
+		err = r.db.Select("value").Where("name = ?", oldName).First(&cfg).Error
+		if err == nil && cfg.Value != "" {
+			return cfg.Value, nil
+		}
+	}
+
+	return "", normalizeNotFoundErr(err)
+}
+
+// getOldConfigName 返回旧配置项名称（用于向后兼容）
+func getOldConfigName(newName string) string {
+	switch newName {
+	case "global_download_url":
+		return "ghfast_url"
+	case "domestic_download_url":
+		return "domestic_download_host"
+	default:
+		return ""
+	}
 }
 
 func (r *Repository) UpdateNodeOrder(nodeID int64, inx int, now int64) {
@@ -303,6 +382,18 @@ func (r *Repository) UpdateNodeOrder(nodeID int64, inx int, now int64) {
 	}
 	_ = r.db.Model(&model.Node{}).
 		Where("id = ?", nodeID).
+		Updates(map[string]interface{}{
+			"inx":          inx,
+			"updated_time": sql.NullInt64{Int64: now, Valid: true},
+		}).Error
+}
+
+func (r *Repository) UpdateUserOrder(userID int64, inx int, now int64) {
+	if r == nil || r.db == nil {
+		return
+	}
+	_ = r.db.Model(&model.User{}).
+		Where("id = ?", userID).
 		Updates(map[string]interface{}{
 			"inx":          inx,
 			"updated_time": sql.NullInt64{Int64: now, Valid: true},
@@ -392,22 +483,38 @@ func (r *Repository) UpdateTunnelOrder(tunnelID int64, inx int, now int64) {
 		Updates(map[string]interface{}{"inx": inx, "updated_time": now}).Error
 }
 
-func (r *Repository) UpdateTunnelTx(tx *gorm.DB, tunnelID int64, name string, typeVal int, flow int64, trafficRatio float64, status int, inIP, ipPreference string, now int64) error {
+func (r *Repository) UpdateTunnelTx(tx *gorm.DB, tunnelID int64, name string, typeVal int, flow int64, trafficRatio float64, status int, inIP, ipPreference string, listID int64, tunnelGroupID interface{}, remark string, now int64) error {
 	if tx == nil {
 		return errors.New("database unavailable")
 	}
+	updates := map[string]interface{}{
+		"name":          name,
+		"type":          typeVal,
+		"flow":          flow,
+		"traffic_ratio": trafficRatio,
+		"status":        status,
+		"in_ip":         nullStringFromInterface(inIP),
+		"ip_preference": ipPreference,
+		"updated_time":  now,
+		"remark":        nullStringFromInterface(remark),
+	}
+	if listID > 0 {
+		updates["list_id"] = sql.NullInt64{Int64: listID, Valid: true}
+	} else {
+		updates["list_id"] = sql.NullInt64{Int64: 0, Valid: false}
+	}
+	if tunnelGroupID != nil {
+		if groupID, ok := tunnelGroupID.(int64); ok && groupID > 0 {
+			updates["tunnel_group_id"] = sql.NullInt64{Int64: groupID, Valid: true}
+		} else {
+			updates["tunnel_group_id"] = sql.NullInt64{Int64: 0, Valid: false}
+		}
+	} else {
+		updates["tunnel_group_id"] = sql.NullInt64{Int64: 0, Valid: false}
+	}
 	return tx.Model(&model.Tunnel{}).
 		Where("id = ?", tunnelID).
-		Updates(map[string]interface{}{
-			"name":          name,
-			"type":          typeVal,
-			"flow":          flow,
-			"traffic_ratio": trafficRatio,
-			"status":        status,
-			"in_ip":         nullStringFromInterface(inIP),
-			"ip_preference": ipPreference,
-			"updated_time":  now,
-		}).Error
+		Updates(updates).Error
 }
 
 func (r *Repository) DeleteChainTunnelsByTunnelTx(tx *gorm.DB, tunnelID int64) error {
@@ -417,21 +524,31 @@ func (r *Repository) DeleteChainTunnelsByTunnelTx(tx *gorm.DB, tunnelID int64) e
 	return tx.Where("tunnel_id = ?", tunnelID).Delete(&model.ChainTunnel{}).Error
 }
 
-func (r *Repository) CreateChainTunnelTx(tx *gorm.DB, tunnelID int64, chainType string, nodeID int64, port sql.NullInt64, strategy string, inx int, protocol string, connectIp string) error {
+func (r *Repository) CreateChainTunnelTx(tx *gorm.DB, tunnelID int64, chainType string, nodeID int64, port sql.NullInt64, strategy string, inx int, protocol string, connectIp string, connectIpType string) error {
 	if tx == nil {
 		return errors.New("database unavailable")
 	}
 	ct := model.ChainTunnel{
-		TunnelID:  tunnelID,
-		ChainType: chainType,
-		NodeID:    nodeID,
-		Port:      port,
-		Strategy:  nullStringFromInterface(strategy),
-		Inx:       nullInt64FromInterface(inx),
-		Protocol:  nullStringFromInterface(protocol),
-		ConnectIP: sql.NullString{String: connectIp, Valid: connectIp != ""},
+		TunnelID:      tunnelID,
+		ChainType:     chainType,
+		NodeID:        nodeID,
+		Port:          port,
+		Strategy:      nullStringFromInterface(strategy),
+		Inx:           nullInt64FromInterface(inx),
+		Protocol:      nullStringFromInterface(protocol),
+		ConnectIP:     sql.NullString{String: connectIp, Valid: connectIp != ""},
+		ConnectIPType: sql.NullString{String: connectIpType, Valid: true},
 	}
 	return tx.Create(&ct).Error
+}
+
+func (r *Repository) UpdateChainTunnelConnectIpTypeTx(tx *gorm.DB, tunnelID int64, chainType string, nodeID int64, connectIpType string) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	return tx.Model(&model.ChainTunnel{}).
+		Where("tunnel_id = ? AND chain_type = ? AND node_id = ?", tunnelID, chainType, nodeID).
+		Update("connect_ip_type", connectIpType).Error
 }
 
 func (r *Repository) IsRemoteNodeTx(tx *gorm.DB, nodeID int64) (bool, error) {
@@ -453,6 +570,14 @@ func (r *Repository) IsRemoteNodeTx(tx *gorm.DB, nodeID int64) (bool, error) {
 }
 
 func (r *Repository) PickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64) (int, error) {
+	return r.pickNodePortTx(tx, nodeID, allocated, excludeTunnelID, false)
+}
+
+func (r *Repository) PickRandomNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64) (int, error) {
+	return r.pickNodePortTx(tx, nodeID, allocated, excludeTunnelID, true)
+}
+
+func (r *Repository) pickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64, randomPick bool) (int, error) {
 	if tx == nil {
 		return 0, errors.New("database unavailable")
 	}
@@ -505,6 +630,7 @@ func (r *Repository) PickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 		}
 	}
 
+	var available []int
 	for _, candidate := range candidates {
 		if candidate <= 0 {
 			continue
@@ -512,11 +638,25 @@ func (r *Repository) PickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 		if _, ok := used[candidate]; ok {
 			continue
 		}
-		allocated[nodeID] = candidate
-		return candidate, nil
+		available = append(available, candidate)
 	}
 
-	return 0, errors.New("节点端口已满，无可用端口")
+	if len(available) == 0 {
+		return 0, errors.New("节点端口已满，无可用端口")
+	}
+	if !randomPick {
+		allocated[nodeID] = available[0]
+		return available[0], nil
+	}
+
+	idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(available))))
+	if err != nil {
+		allocated[nodeID] = available[0]
+		return available[0], nil
+	}
+	port := available[idx.Int64()]
+	allocated[nodeID] = port
+	return port, nil
 }
 
 func (r *Repository) GetTunnelIPPreference(tunnelID int64) string {
@@ -666,19 +806,24 @@ func (r *Repository) GetMinForwardPort(forwardID int64) sql.NullInt64 {
 	return p
 }
 
-func (r *Repository) UpdateForward(id int64, name string, tunnelID int64, remoteAddr, strategy string, now int64, speedID interface{}) error {
+func (r *Repository) UpdateForward(id int64, name string, tunnelID int64, remoteAddr, strategy string, now int64, speedID interface{}, maxConnections int, trafficLimit int64, expiryTime interface{}, speedLimitEnabled bool, speedLimit int) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
 	return r.db.Model(&model.Forward{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"name":         name,
-			"tunnel_id":    tunnelID,
-			"remote_addr":  remoteAddr,
-			"strategy":     strategy,
-			"speed_id":     nullInt64FromInterface(speedID),
-			"updated_time": now,
+			"name":                name,
+			"tunnel_id":           tunnelID,
+			"remote_addr":         remoteAddr,
+			"strategy":            strategy,
+			"speed_id":            nullInt64FromInterface(speedID),
+			"max_connections":     maxConnections,
+			"traffic_limit":       trafficLimit,
+			"expiry_time":         nullInt64FromInterface(expiryTime),
+			"speed_limit_enabled": speedLimitEnabled,
+			"speed_limit":         speedLimit,
+			"updated_time":        now,
 		}).Error
 }
 
@@ -997,9 +1142,16 @@ func (r *Repository) DeleteGroupPermissionByIDTx(tx *gorm.DB, id int64) error {
 	return tx.Where("id = ?", id).Delete(&model.GroupPermission{}).Error
 }
 
-func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID int64, previousUserIDs, currentUserIDs []int64) error {
+// RevokedUserTunnelPair holds the (userID, tunnelID) of a deleted user_tunnel row,
+// so the handler layer can clean up associated forwarding rules.
+type RevokedUserTunnelPair struct {
+	UserID   int64
+	TunnelID int64
+}
+
+func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID int64, previousUserIDs, currentUserIDs []int64) ([]RevokedUserTunnelPair, error) {
 	if tx == nil {
-		return errors.New("database unavailable")
+		return nil, errors.New("database unavailable")
 	}
 	currentSet := make(map[int64]struct{}, len(currentUserIDs))
 	for _, uid := range currentUserIDs {
@@ -1018,13 +1170,15 @@ func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID
 		}
 	}
 	if len(removedUserIDs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	type grantRow struct {
 		UserTunnelID   int64
 		CreatedByGroup int
 	}
+
+	var revoked []RevokedUserTunnelPair
 
 	for _, userID := range removedUserIDs {
 		var rows []grantRow
@@ -1033,7 +1187,7 @@ func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID
 			Joins("JOIN user_tunnel ON user_tunnel.id = group_permission_grant.user_tunnel_id").
 			Where("group_permission_grant.user_group_id = ? AND user_tunnel.user_id = ?", userGroupID, userID).
 			Find(&rows).Error; err != nil {
-			return err
+			return revoked, err
 		}
 
 		groupCreatedTunnelIDs := make(map[int64]struct{})
@@ -1046,28 +1200,32 @@ func (r *Repository) RevokeGroupGrantsForRemovedUsersTx(tx *gorm.DB, userGroupID
 		userTunnelIDs := tx.Model(&model.UserTunnel{}).Select("id").Where("user_id = ?", userID)
 		if err := tx.Where("user_group_id = ? AND user_tunnel_id IN (?)", userGroupID, userTunnelIDs).
 			Delete(&model.GroupPermissionGrant{}).Error; err != nil {
-			return err
+			return revoked, err
 		}
 
 		for userTunnelID := range groupCreatedTunnelIDs {
 			var remaining int64
 			if err := tx.Model(&model.GroupPermissionGrant{}).Where("user_tunnel_id = ?", userTunnelID).Count(&remaining).Error; err != nil {
-				return err
+				return revoked, err
 			}
 			if remaining == 0 {
+				var ut model.UserTunnel
+				if lookupErr := tx.Select("user_id", "tunnel_id").Where("id = ?", userTunnelID).First(&ut).Error; lookupErr == nil {
+					revoked = append(revoked, RevokedUserTunnelPair{UserID: ut.UserID, TunnelID: ut.TunnelID})
+				}
 				if err := tx.Where("id = ?", userTunnelID).Delete(&model.UserTunnel{}).Error; err != nil {
-					return err
+					return revoked, err
 				}
 			}
 		}
 	}
 
-	return nil
+	return revoked, nil
 }
 
-func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunnelGroupID int64) error {
+func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunnelGroupID int64) ([]RevokedUserTunnelPair, error) {
 	if tx == nil {
-		return errors.New("database unavailable")
+		return nil, errors.New("database unavailable")
 	}
 
 	type grantRow struct {
@@ -1080,7 +1238,7 @@ func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunne
 		Select("user_tunnel_id, created_by_group").
 		Where("user_group_id = ? AND tunnel_group_id = ?", userGroupID, tunnelGroupID).
 		Find(&rows).Error; err != nil {
-		return err
+		return nil, err
 	}
 
 	groupCreatedTunnelIDs := make(map[int64]struct{})
@@ -1092,22 +1250,28 @@ func (r *Repository) RevokeGroupPermissionPairTx(tx *gorm.DB, userGroupID, tunne
 
 	if err := tx.Where("user_group_id = ? AND tunnel_group_id = ?", userGroupID, tunnelGroupID).
 		Delete(&model.GroupPermissionGrant{}).Error; err != nil {
-		return err
+		return nil, err
 	}
+
+	var revoked []RevokedUserTunnelPair
 
 	for userTunnelID := range groupCreatedTunnelIDs {
 		var remaining int64
 		if err := tx.Model(&model.GroupPermissionGrant{}).Where("user_tunnel_id = ?", userTunnelID).Count(&remaining).Error; err != nil {
-			return err
+			return revoked, err
 		}
 		if remaining == 0 {
+			var ut model.UserTunnel
+			if lookupErr := tx.Select("user_id", "tunnel_id").Where("id = ?", userTunnelID).First(&ut).Error; lookupErr == nil {
+				revoked = append(revoked, RevokedUserTunnelPair{UserID: ut.UserID, TunnelID: ut.TunnelID})
+			}
 			if err := tx.Where("id = ?", userTunnelID).Delete(&model.UserTunnel{}).Error; err != nil {
-				return err
+				return revoked, err
 			}
 		}
 	}
 
-	return nil
+	return revoked, nil
 }
 
 func (r *Repository) ReplaceFederationTunnelBindingsTx(tx *gorm.DB, tunnelID int64, bindings []FederationTunnelBinding) error {
@@ -1209,26 +1373,31 @@ func (r *Repository) EnsureUserTunnelGrant(userID, tunnelID int64) (int64, bool,
 	return ut.ID, true, nil
 }
 
-func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, now int64, inx int, entryNodeIDs []int64, port int, inIp string, speedID interface{}) (int64, error) {
+func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, now int64, inx int, entryNodeIDs []int64, port int, inIp string, speedID interface{}, maxConnections int, trafficLimit int64, expiryTime interface{}, speedLimitEnabled bool, speedLimit int) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("repository not initialized")
 	}
 	var forwardID int64
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		fwd := model.Forward{
-			UserID:      userID,
-			UserName:    userName,
-			Name:        name,
-			TunnelID:    tunnelID,
-			RemoteAddr:  remoteAddr,
-			Strategy:    strategy,
-			InFlow:      0,
-			OutFlow:     0,
-			CreatedTime: now,
-			UpdatedTime: now,
-			Status:      1,
-			Inx:         inx,
-			SpeedID:     nullInt64FromInterface(speedID),
+			UserID:            userID,
+			UserName:          userName,
+			Name:              name,
+			TunnelID:          tunnelID,
+			RemoteAddr:        remoteAddr,
+			Strategy:          strategy,
+			InFlow:            0,
+			OutFlow:           0,
+			CreatedTime:       now,
+			UpdatedTime:       now,
+			Status:            1,
+			Inx:               inx,
+			SpeedID:           nullInt64FromInterface(speedID),
+			MaxConnections:    maxConnections,
+			TrafficLimit:      trafficLimit,
+			ExpiryTime:        nullInt64FromInterface(expiryTime),
+			SpeedLimitEnabled: speedLimitEnabled,
+			SpeedLimit:        speedLimit,
 		}
 		if err := tx.Create(&fwd).Error; err != nil {
 			return err
@@ -1552,4 +1721,142 @@ func advanceByMonths(timestamp int64, months int) int64 {
 	t := time.Unix(timestamp/1000, 0)
 	next := t.AddDate(0, months, 0)
 	return next.UnixMilli()
+}
+
+// ─── Tunnel List Grouping ────────────────────────────────────────────
+
+// ListTunnelLists returns all tunnel lists ordered by inx.
+func (r *Repository) ListTunnelLists() ([]model.TunnelList, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var lists []model.TunnelList
+	err := r.db.Order("inx ASC, id ASC").Find(&lists).Error
+	return lists, err
+}
+
+// CreateTunnelList creates a new tunnel list.
+func (r *Repository) CreateTunnelList(name string, status int, inx int) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("repository not initialized")
+	}
+	now := time.Now().UnixMilli()
+	list := model.TunnelList{
+		Name:        name,
+		Status:      status,
+		Inx:         inx,
+		CreatedTime: now,
+		UpdatedTime: now,
+	}
+	if err := r.db.Create(&list).Error; err != nil {
+		return 0, err
+	}
+	return list.ID, nil
+}
+
+// UpdateTunnelList updates an existing tunnel list.
+func (r *Repository) UpdateTunnelList(id int64, name string, status int, inx int) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	now := time.Now().UnixMilli()
+	return r.db.Model(&model.TunnelList{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"name":         name,
+		"status":       status,
+		"inx":          inx,
+		"updated_time": now,
+	}).Error
+}
+
+// DeleteTunnelList deletes a tunnel list and its associations (cascade).
+func (r *Repository) DeleteTunnelList(id int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Delete associations first (cascade should handle this, but be explicit)
+		if err := tx.Where("tunnel_list_id = ?", id).Delete(&model.TunnelListTunnel{}).Error; err != nil {
+			return err
+		}
+		// Delete the list
+		return tx.Where("id = ?", id).Delete(&model.TunnelList{}).Error
+	})
+}
+
+// ReplaceTunnelListMembersTx replaces all tunnels in a list (delete + insert).
+func (r *Repository) ReplaceTunnelListMembersTx(tx *gorm.DB, listID int64, tunnelIDs []int64, now int64) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	// Delete existing associations
+	if err := tx.Where("tunnel_list_id = ?", listID).Delete(&model.TunnelListTunnel{}).Error; err != nil {
+		return err
+	}
+	// Insert new associations
+	if len(tunnelIDs) == 0 {
+		return nil
+	}
+	rows := make([]model.TunnelListTunnel, 0, len(tunnelIDs))
+	for i, tunnelID := range tunnelIDs {
+		if tunnelID <= 0 {
+			continue
+		}
+		rows = append(rows, model.TunnelListTunnel{
+			TunnelListID: listID,
+			TunnelID:     tunnelID,
+			Inx:          i,
+			CreatedTime:  now,
+		})
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error
+}
+
+// UpdateTunnelListOrderTx updates the order of tunnel lists.
+func (r *Repository) UpdateTunnelListOrderTx(tx *gorm.DB, orders []struct {
+	ID  int64 `json:"id"`
+	Inx int   `json:"inx"`
+}) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	for _, order := range orders {
+		if err := tx.Model(&model.TunnelList{}).Where("id = ?", order.ID).Update("inx", order.Inx).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// UpdateTunnelListTunnelOrderTx updates the order of tunnels within a list.
+func (r *Repository) UpdateTunnelListTunnelOrderTx(tx *gorm.DB, listID int64, orders []struct {
+	TunnelID int64 `json:"tunnelId"`
+	Inx      int   `json:"inx"`
+}) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	for _, order := range orders {
+		if err := tx.Model(&model.TunnelListTunnel{}).
+			Where("tunnel_list_id = ? AND tunnel_id = ?", listID, order.TunnelID).
+			Update("inx", order.Inx).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GetTunnelIDsByTunnelList returns all tunnel IDs in a list.
+func (r *Repository) GetTunnelIDsByTunnelList(listID int64) ([]int64, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var tunnelIDs []int64
+	err := r.db.Model(&model.TunnelListTunnel{}).
+		Where("tunnel_list_id = ?", listID).
+		Order("inx ASC, id ASC").
+		Pluck("tunnel_id", &tunnelIDs).Error
+	return tunnelIDs, err
 }

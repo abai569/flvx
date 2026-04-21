@@ -227,6 +227,7 @@ func (c *conn) SetIdle(idle bool) {
 func (c *conn) WriteQueue(b []byte) error {
 	select {
 	case c.rc <- b:
+		c.SetIdle(false) // ✅ 修复 4: 标记连接为非空闲，防止被 TTL 机制误清理
 		return nil
 
 	case <-c.closed:

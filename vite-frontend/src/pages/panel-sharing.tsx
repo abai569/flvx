@@ -23,13 +23,11 @@ import {
   importRemoteNode,
   updatePeerShare,
 } from "@/api";
-
 interface Node {
   id: number;
   name: string;
   isRemote?: number;
 }
-
 interface PeerShare {
   id: number;
   name: string;
@@ -54,7 +52,6 @@ interface PeerShare {
   }>;
   activeRuntimeNum?: number;
 }
-
 interface RemoteUsageBinding {
   bindingId: number;
   tunnelId: number;
@@ -66,7 +63,6 @@ interface RemoteUsageBinding {
   remoteBindingId: string;
   updatedTime: number;
 }
-
 interface RemoteUsageNode {
   nodeId: number;
   nodeName: string;
@@ -81,7 +77,6 @@ interface RemoteUsageNode {
   activeBindingNum: number;
   syncError?: string;
 }
-
 export default function PanelSharingPage() {
   const [selectedTab, setSelectedTab] = useState("my-shares");
   const [shares, setShares] = useState<PeerShare[]>([]);
@@ -91,12 +86,10 @@ export default function PanelSharingPage() {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [loading, setLoading] = useState(false);
   const [remoteUsageLoading, setRemoteUsageLoading] = useState(false);
-
   // Modals
   const [createShareOpen, setCreateShareOpen] = useState(false);
   const [editShareOpen, setEditShareOpen] = useState(false);
   const [importNodeOpen, setImportNodeOpen] = useState(false);
-
   // Forms
   const [shareForm, setShareForm] = useState({
     name: "",
@@ -108,12 +101,10 @@ export default function PanelSharingPage() {
     allowedDomains: "",
     allowedIps: "",
   });
-
   const [importForm, setImportForm] = useState({
     remoteUrl: "",
     token: "",
   });
-
   const [editForm, setEditForm] = useState({
     id: 0,
     name: "",
@@ -124,7 +115,6 @@ export default function PanelSharingPage() {
     allowedDomains: "",
     allowedIps: "",
   });
-
   const loadShares = useCallback(async () => {
     setLoading(true);
     try {
@@ -141,7 +131,6 @@ export default function PanelSharingPage() {
       setLoading(false);
     }
   }, []);
-
   const loadNodes = useCallback(async () => {
     try {
       const res = await getNodeList();
@@ -167,7 +156,6 @@ export default function PanelSharingPage() {
       // ignore
     }
   }, []);
-
   const loadRemoteUsage = useCallback(async () => {
     setRemoteUsageLoading(true);
     try {
@@ -198,7 +186,6 @@ export default function PanelSharingPage() {
       loadRemoteUsage();
     }
   }, [selectedTab, loadShares, loadNodes, loadRemoteUsage]);
-
   const handleCreateShare = async () => {
     if (!shareForm.name || !shareForm.nodeId) {
       toast.error("请填写必要信息");
@@ -242,7 +229,6 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const handleDeleteShare = async (id: number) => {
     try {
       const res = await deletePeerShare(id);
@@ -257,7 +243,6 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const handleResetShareFlow = async (id: number) => {
     try {
       const res = await resetPeerShareFlow(id);
@@ -272,7 +257,6 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const openEditShare = (share: PeerShare) => {
     setEditForm({
       id: share.id,
@@ -289,7 +273,6 @@ export default function PanelSharingPage() {
     });
     setEditShareOpen(true);
   };
-
   const handleEditShare = async () => {
     if (!editForm.name) {
       toast.error("名称不能为空");
@@ -324,7 +307,6 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const handleImportNode = async () => {
     if (!importForm.remoteUrl || !importForm.token) {
       toast.error("请填写完整信息");
@@ -338,7 +320,6 @@ export default function PanelSharingPage() {
       if (!url.startsWith("http")) {
         url = "http://" + url;
       }
-
       const res = await importRemoteNode({
         remoteUrl: url,
         token: importForm.token.trim(),
@@ -356,12 +337,10 @@ export default function PanelSharingPage() {
       toast.error("网络错误");
     }
   };
-
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token);
     toast.success("Token已复制");
   };
-
   const formatFlowGB = (bytes: number) => {
     if (!Number.isFinite(bytes) || bytes <= 0) {
       return "0 B";
@@ -373,7 +352,6 @@ export default function PanelSharingPage() {
 
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   };
-
   const formatChainType = (chainType: number, hopInx: number) => {
     if (chainType === 1) {
       return "入口节点";
@@ -393,7 +371,6 @@ export default function PanelSharingPage() {
       {/* <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">面板共享 (Panel Peering)</h1>
       </div> */}
-
       <Tabs
         disableCursorAnimation
         aria-label="Options"
@@ -431,7 +408,6 @@ export default function PanelSharingPage() {
                   创建分享
                 </Button>
               </div>
-
               {loading ? (
                 <div className="text-center py-12 text-default-500">
                   加载中...
@@ -578,7 +554,6 @@ export default function PanelSharingPage() {
                   导入节点
                 </Button>
               </div>
-
               {remoteUsageLoading ? (
                 <div className="text-center py-12 text-default-500">
                   加载中...
@@ -675,9 +650,12 @@ export default function PanelSharingPage() {
           </Card>
         </Tab>
       </Tabs>
-
       {/* Create Share Modal */}
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={createShareOpen}
         scrollBehavior="inside"
         onClose={() => setCreateShareOpen(false)}
@@ -782,9 +760,12 @@ export default function PanelSharingPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* Edit Share Modal */}
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
         isOpen={editShareOpen}
         scrollBehavior="inside"
         onClose={() => setEditShareOpen(false)}
@@ -881,9 +862,15 @@ export default function PanelSharingPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* Import Node Modal */}
-      <Modal backdrop="blur" classNames={{ base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden" }} isOpen={importNodeOpen} onClose={() => setImportNodeOpen(false)}>
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={importNodeOpen}
+        onClose={() => setImportNodeOpen(false)}
+      >
         <ModalContent>
           <ModalHeader>导入远程节点</ModalHeader>
           <ModalBody>
