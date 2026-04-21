@@ -265,12 +265,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/announcement/get", h.getAnnouncement)
 	mux.HandleFunc("/api/v1/announcement/update", h.updateAnnouncement)
 
-	// License System
-	mux.HandleFunc("/api/v1/license/activate", h.activateLicense)
-	mux.HandleFunc("/api/v1/license/status", h.getLicenseStatus)
-	mux.HandleFunc("/api/v1/license/verify", h.verifyLicense)
-	mux.HandleFunc("/api/v1/license/deactivate", h.deactivateLicense)
-	mux.HandleFunc("/api/v1/license/history", h.getLicenseHistory)
+
 
 	mux.HandleFunc("/api/v1/monitor/access", h.monitorAccessHandler)
 	mux.HandleFunc("/api/v1/monitor/nodes/", h.monitorNodeMetricsHandler)
