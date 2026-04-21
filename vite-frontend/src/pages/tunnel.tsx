@@ -1917,27 +1917,6 @@ export default function TunnelPage() {
           <>
             {/* 视图模式切换按钮 */}
             <Button
-<<<<<<< HEAD
-              color={viewMode === "card" ? "warning" : "primary"}
-              size="sm"
-              variant="flat"
-              onPress={() =>
-                handleViewModeToggle(viewMode === "card" ? "list" : "card")
-              }
-            >
-              {viewMode === "card" ? "列表" : "卡片"}
-            </Button>
-            <Button
-              className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
-              size="sm"
-              variant="flat"
-              onPress={() => setGroupManagerOpen(true)}
-            >
-              分组
-            </Button>
-            <Button
-=======
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
               className="whitespace-nowrap bg-red-100"
               color={
                 tunnelFilterMode !== "all" || filterGroupId !== null
@@ -1965,9 +1944,6 @@ export default function TunnelPage() {
               >
                 重置
               </Button>
-<<<<<<< HEAD
-            ) : null}            
-=======
             ) : null}
             <Button
               color={viewMode === "card" ? "warning" : "primary"}
@@ -1979,7 +1955,6 @@ export default function TunnelPage() {
             >
               {viewMode === "card" ? "列表" : "卡片"}
             </Button>
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
             <Button
               color="primary"
               size="sm"
@@ -1987,9 +1962,6 @@ export default function TunnelPage() {
               onPress={handleAdd}
             >
               新增
-<<<<<<< HEAD
-            </Button>           
-=======
             </Button>
             <Button
               className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
@@ -1999,7 +1971,6 @@ export default function TunnelPage() {
             >
               分组
             </Button>
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
           </>
         )}
       </div>

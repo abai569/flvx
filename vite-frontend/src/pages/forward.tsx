@@ -663,8 +663,6 @@ const SortableForwardCard = ({ forward, renderCard }: any) => {
 };
 // 可拖拽的表格行组件
 const SortableTableRow = ({
-<<<<<<< HEAD
-=======
   copyToClipboard,
   forward,
   selectedIds,
@@ -975,7 +973,6 @@ const SortableTableRow = ({
   );
 };
 const SortableCompactTableRow = ({
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
   copyToClipboard,
   forward,
   selectedIds,
@@ -984,6 +981,7 @@ const SortableCompactTableRow = ({
   handleEdit,
   handleDelete,
   handleDiagnose,
+  handleSetSpeedLimit,
   getSpeedLimitName,
   formatFlow,
   isAdmin,
@@ -1008,28 +1006,17 @@ const SortableCompactTableRow = ({
   const rowBg = selectedIds.has(forward.id)
     ? "bg-primary-50/70 dark:bg-primary-900/40"
     : "";
-<<<<<<< HEAD
-  const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, "") : "默认 IP";
-  const inAddrNoPorts =
-    rawInIp === "默认 IP"
-=======
   const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, "") : "默认IP";
   const inAddrNoPorts =
     rawInIp === "默认IP"
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
       ? rawInIp
       : rawInIp
         .split(",")
         .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
         .join(",");
   const inAddrWithPorts =
-<<<<<<< HEAD
-    rawInIp === "默认 IP"
-      ? `默认 IP:${forward.inPort}`
-=======
     rawInIp === "默认IP"
       ? `默认IP:${forward.inPort}`
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
       : rawInIp
         .split(",")
         .map(
@@ -1085,89 +1072,6 @@ const SortableCompactTableRow = ({
         >
           {forward.name}
         </span>
-<<<<<<< HEAD
-      </TableCell>
-      {isAdmin && (
-        <TableCell className={rowBg}>
-          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
-            {" "}
-            {getSpeedLimitName(forward.speedId ?? null)}
-          </div>
-        </TableCell>
-      )}
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg
-            className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            viewBox="0 0 24 24"
-            onClick={(e) => {
-              e.stopPropagation();
-              copyToClipboard(
-                inAddrWithPorts.split(",").join("\n"),
-                "完整入口",
-              );
-            }}
-          >
-            <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-          </svg>
-          <span
-            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
-            title={inAddrNoPorts}
-            onClick={() =>
-              copyToClipboard(inAddrNoPorts.split(",").join("\n"), "入口地址")
-            }
-          >
-            {inAddrNoPorts}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <span
-          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
-          onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}
-        >
-          {forward.inPort}
-        </span>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg
-            className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            viewBox="0 0 24 24"
-            onClick={(e) => {
-              e.stopPropagation();
-              copyToClipboard(forward.remoteAddr.split(",")[0], "完整落地");
-            }}
-          >
-            <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-          </svg>
-          <span
-            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
-            title={remoteAddrOnly}
-            onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}
-          >
-            {remoteAddrOnly}
-          </span>
-          {forward.remoteAddr.includes(",") && (
-            <span className="text-primary-400 ml-0.5">...</span>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <span
-          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
-          onClick={() => copyToClipboard(remotePortOnly, "落地端口")}
-        >
-          {remotePortOnly}
-        </span>
-=======
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
       </TableCell>
       {isAdmin && (
         <TableCell className={rowBg}>
@@ -1177,27 +1081,6 @@ const SortableCompactTableRow = ({
         </TableCell>
       )}
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-<<<<<<< HEAD
-        <span className="text-sm font-medium text-black">
-          {formatFlow(getForwardDisplayFlow(forward))}
-        </span>
-      </TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <ConnectionCountCell
-          current={forward.currentConnections ?? 0}
-          max={forward.maxConnections ?? 0}
-        />
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-2.5 whitespace-nowrap">
-          <div
-            className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${forward.serviceRunning ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-warning-500/10 text-warning-600 dark:text-warning-400"}`}
-          >
-            {forward.serviceRunning ? "正常" : "暂停"}
-          </div>
-        </div>
-      </TableCell>
-=======
         <div className="flex items-center">
           <span className="font-medium text-black text-sm">
             {forward.tunnelName}
@@ -1300,7 +1183,6 @@ const SortableCompactTableRow = ({
           </div>
         </div>
       </TableCell>
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
       <TableCell className={rowBg}>
         <div className="flex justify-start gap-2 pl-2">
           <Button
@@ -1362,8 +1244,6 @@ const SortableCompactTableRow = ({
               />
             </svg>
           </Button>
-<<<<<<< HEAD
-=======
           {isAdmin && (
             <Button
               isIconOnly
@@ -1388,7 +1268,6 @@ const SortableCompactTableRow = ({
               </svg>
             </Button>
           )}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
           <Button
             isIconOnly
             className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
@@ -1413,304 +1292,6 @@ const SortableCompactTableRow = ({
     </TableRow>
   );
 };
-<<<<<<< HEAD
-const SortableCompactTableRow = ({
-  copyToClipboard,
-  forward,
-  selectedIds,
-  toggleSelect,
-  handleServiceToggle,
-  handleEdit,
-  handleDelete,
-  handleDiagnose,
-  getSpeedLimitName,
-  formatFlow,
-  isAdmin,
-}: any) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: forward.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: isDragging ? "none" : transition,
-    opacity: isDragging ? 0.6 : 1,
-    zIndex: isDragging ? 50 : undefined,
-    position: isDragging ? ("relative" as const) : undefined,
-    willChange: "transform",
-    backgroundColor: isDragging ? "var(--nextui-default-100)" : undefined,
-  };
-  const rowBg = selectedIds.has(forward.id)
-    ? "bg-primary-50/70 dark:bg-primary-900/40"
-    : "";
-  const rawInIp = forward.inIp ? forward.inIp.replace(/\s/g, "") : "默认IP";
-  const inAddrNoPorts =
-    rawInIp === "默认IP"
-      ? rawInIp
-      : rawInIp
-        .split(",")
-        .map((ip: string) => ip.trim().replace(/:\d+$/, ""))
-        .join(",");
-  const inAddrWithPorts =
-    rawInIp === "默认IP"
-      ? `默认IP:${forward.inPort}`
-      : rawInIp
-        .split(",")
-        .map(
-          (ip: string) =>
-            `${ip.trim().replace(/:\d+$/, "")}:${forward.inPort}`,
-        )
-        .join(",");
-  const remoteAddrOnly = (forward.remoteAddr.split(",")[0] || "").replace(
-    /:\d+$/,
-    "",
-  );
-  const remotePortOnly =
-    forward.remoteAddr.split(",")[0].match(/:(\d+)$/)?.[1] || "-";
-
-  return (
-    <TableRow key={forward.id} ref={setNodeRef} style={style as any}>
-      <TableCell className={rowBg}>
-        <div className="flex items-center justify-center h-full">
-          <Checkbox
-            isSelected={selectedIds.has(forward.id)}
-            onValueChange={() => toggleSelect(forward.id)}
-          />
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div
-          className="cursor-grab active:cursor-grabbing p-1 text-default-400 flex-shrink-0 hover:text-default-600 transition-colors flex-shrink-0"
-          {...attributes}
-          {...listeners}
-        >
-          <svg
-            aria-hidden="true"
-            className="w-4 h-4"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
-          </svg>
-        </div>
-      </TableCell>
-      {/* 添加用户名单元格 */}
-      {isAdmin && (
-        <TableCell className={`whitespace-nowrap ${rowBg}`}>
-          <span className="text-sm text-foreground">
-            {forward.userName || "-"}
-          </span>
-        </TableCell>
-      )}
-      <TableCell className={`whitespace-nowrap text-black ${rowBg}`}>
-        <span
-          className="cursor-pointer hover:text-primary transition-colors text-black"
-          onClick={() => copyToClipboard(forward.name, "规则名")}
-        >
-          {forward.name}
-        </span>
-      </TableCell>
-      {isAdmin && (
-        <TableCell className={rowBg}>
-          <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
-            {getSpeedLimitName(forward.speedId ?? null)}
-          </div>
-        </TableCell>
-      )}
-      <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="flex items-center">
-          <span className="font-medium text-black text-sm">
-            {forward.tunnelName}
-          </span>
-          {/* 隧道倍率标识 - 统一 10px 字体 */}
-          <span className="text-primary-600 font-bold text-[10px] ml-1.5">
-            ^{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg
-            className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            viewBox="0 0 24 24"
-            onClick={(e) => {
-              e.stopPropagation();
-              copyToClipboard(
-                inAddrWithPorts.split(",").join("\n"),
-                "完整入口",
-              );
-            }}
-          >
-            <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-          </svg>
-          <span
-            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
-            title={inAddrNoPorts}
-            onClick={() =>
-              copyToClipboard(inAddrNoPorts.split(",").join("\n"), "入口地址")
-            }
-          >
-            {inAddrNoPorts}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <span
-          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
-          onClick={() => copyToClipboard(forward.inPort.toString(), "入口端口")}
-        >
-          {forward.inPort}
-        </span>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <svg
-            className="w-3.5 h-3.5 text-primary hover:text-primary-600 cursor-pointer shrink-0 transition-colors"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            viewBox="0 0 24 24"
-            onClick={(e) => {
-              e.stopPropagation();
-              copyToClipboard(forward.remoteAddr.split(",")[0], "完整落地");
-            }}
-          >
-            <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-          </svg>
-          <span
-            className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate max-w-[100px] inline-block"
-            title={remoteAddrOnly}
-            onClick={() => copyToClipboard(remoteAddrOnly, "落地地址")}
-          >
-            {remoteAddrOnly}
-          </span>
-          {forward.remoteAddr.includes(",") && (
-            <span className="text-primary-400 ml-0.5">...</span>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <span
-          className="text-sm font-medium text-black cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors"
-          onClick={() => copyToClipboard(remotePortOnly, "落地端口")}
-        >
-          {remotePortOnly}
-        </span>
-      </TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <span className="text-sm font-medium text-black">
-          {formatFlow(getForwardDisplayFlow(forward))}
-        </span>
-      </TableCell>
-      <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <ConnectionCountCell
-          current={forward.currentConnections ?? 0}
-          max={forward.maxConnections ?? 0}
-        />
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex items-center gap-2.5 whitespace-nowrap">
-          <div
-            className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${forward.serviceRunning ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-warning-500/10 text-warning-600 dark:text-warning-400"}`}
-          >
-            {forward.serviceRunning ? "正常" : "暂停"}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell className={rowBg}>
-        <div className="flex justify-start gap-2 pl-2">
-          <Button
-            isIconOnly
-            className={
-              forward.serviceRunning
-                ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]"
-                : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
-            }
-            size="sm"
-            title={forward.serviceRunning ? "暂停" : "启用"}
-            onPress={() => handleServiceToggle(forward)}
-          >
-            {forward.serviceRunning ? (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            )}
-          </Button>
-          <Button
-            isIconOnly
-            className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]"
-            size="sm"
-            title="编辑"
-            onPress={() => handleEdit(forward)}
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                strokeWidth={2}
-              />
-            </svg>
-          </Button>
-          <Button
-            isIconOnly
-            className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
-            size="sm"
-            title="诊断"
-            onPress={() => handleDiagnose(forward)}
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                strokeWidth={2}
-              />
-            </svg>
-          </Button>
-          <Button
-            isIconOnly
-            className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
-            size="sm"
-            title="删除"
-            onPress={() => handleDelete(forward)}
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                strokeWidth={2}
-              />
-            </svg>
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-};
-=======
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
 const getForwardDisplayFlow = (forward: Forward): number => {
   const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
 
@@ -4405,8 +3986,6 @@ export default function ForwardPage() {
             >
               诊断
             </Button>
-<<<<<<< HEAD
-=======
             {isAdmin && (
               <Button
                 className="flex-1 min-h-8 font-bold flex-shrink-0 bg-secondary/10 text-secondary hover:bg-secondary/20"
@@ -4417,7 +3996,6 @@ export default function ForwardPage() {
                 限速
               </Button>
             )}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
             <Button
               className="flex-1 min-h-8 font-bold flex-shrink-0"
               color="danger"

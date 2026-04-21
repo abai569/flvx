@@ -36,3 +36,10 @@ func splitHostPort(hostport string) (string, string, error) {
 	}
 	return hostport, "", nil
 }
+
+// NormalizeDomain normalizes a domain string by trimming whitespace and converting to lowercase
+func NormalizeDomain(domain string) string {
+	domain = strings.TrimSpace(domain)
+	domain = strings.ToLower(domain)
+	return domain
+}

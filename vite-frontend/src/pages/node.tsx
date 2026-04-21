@@ -760,11 +760,7 @@ export default function NodePage() {
             });
           }
         }
-<<<<<<< HEAD
-      } catch { }
-=======
       } catch {}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
     } else if (type === "metric") {
       clearOfflineTimer(nodeId);
       const metric =
@@ -777,17 +773,6 @@ export default function NodePage() {
             ...prev[nodeId],
             uploadTraffic: Number(
               metric.netOutBytes ??
-<<<<<<< HEAD
-              metric.bytes_transmitted ??
-              prev[nodeId]?.uploadTraffic ??
-              0,
-            ),
-            downloadTraffic: Number(
-              metric.netInBytes ??
-              metric.bytes_received ??
-              prev[nodeId]?.downloadTraffic ??
-              0,
-=======
                 metric.bytes_transmitted ??
                 prev[nodeId]?.uploadTraffic ??
                 0,
@@ -797,21 +782,10 @@ export default function NodePage() {
                 metric.bytes_received ??
                 prev[nodeId]?.downloadTraffic ??
                 0,
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
             ),
             // 周期流量（新字段）
             periodTraffic:
               metric.period_bytes_received !== undefined ||
-<<<<<<< HEAD
-                metric.period_bytes_transmitted !== undefined
-                ? {
-                  rx: Number(metric.period_bytes_received ?? 0),
-                  tx: Number(metric.period_bytes_transmitted ?? 0),
-                  since: metric.baseline_recorded_at || 0,
-                  nextReset: metric.next_reset_at || 0,
-                  cycle: metric.renewal_cycle || "",
-                }
-=======
               metric.period_bytes_transmitted !== undefined
                 ? {
                     rx: Number(metric.period_bytes_received ?? 0),
@@ -820,7 +794,6 @@ export default function NodePage() {
                     nextReset: metric.next_reset_at || 0,
                     cycle: metric.renewal_cycle || "",
                   }
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                 : prev[nodeId]?.periodTraffic,
           },
         };
@@ -1487,28 +1460,6 @@ export default function NodePage() {
             prev.map((n) =>
               n.id === form.id
                 ? ({
-<<<<<<< HEAD
-                  ...n,
-                  name: form.name,
-                  remark: form.remark.trim(),
-                  expiryTime: form.expiryTime,
-                  renewalCycle: form.renewalCycle,
-                  groupId: form.groupId,
-                  intranetIp: form.intranetIp?.trim(),
-                  serverIpV4: form.serverIpV4,
-                  serverIpV6: form.serverIpV6,
-                  port: form.port,
-                  tcpListenAddr: form.tcpListenAddr,
-                  udpListenAddr: form.udpListenAddr,
-                  interfaceName: form.interfaceName,
-                  http: form.http,
-                  tls: form.tls,
-                  socks: form.socks,
-                  expiryReminderDismissed: n.expiryReminderDismissed ?? 0,
-                  expiryReminderDismissedUntil:
-                    n.expiryReminderDismissedUntil ?? null,
-                } as Node)
-=======
                     ...n,
                     name: form.name,
                     remark: form.remark.trim(),
@@ -1529,7 +1480,6 @@ export default function NodePage() {
                     expiryReminderDismissedUntil:
                       n.expiryReminderDismissedUntil ?? null,
                   } as Node)
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                 : n,
             ),
           );
@@ -1778,21 +1728,12 @@ export default function NodePage() {
     const groupFiltered =
       filterGroupId !== null
         ? keywordFiltered.filter((node) => {
-<<<<<<< HEAD
-          if (filterGroupId === -1) {
-            return !node.groupId || node.groupId === 0;
-          }
-
-          return node.groupId === filterGroupId;
-        })
-=======
             if (filterGroupId === -1) {
               return !node.groupId || node.groupId === 0;
             }
 
             return node.groupId === filterGroupId;
           })
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
         : keywordFiltered;
 
     if (nodeFilterMode === "all") {
@@ -1873,19 +1814,11 @@ export default function NodePage() {
     const hasRemark = Boolean(node.remark?.trim());
     const hasExpiryInfo = Boolean(
       node.expiryTime &&
-<<<<<<< HEAD
-      node.expiryTime > 0 &&
-      node.renewalCycle &&
-      (node.expiryReminderDismissed !== 1 ||
-        (node.expiryReminderDismissedUntil &&
-          node.expiryReminderDismissedUntil * 1000 < Date.now())),
-=======
         node.expiryTime > 0 &&
         node.renewalCycle &&
         (node.expiryReminderDismissed !== 1 ||
           (node.expiryReminderDismissedUntil &&
             node.expiryReminderDismissedUntil * 1000 < Date.now())),
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
     );
     const hasInfoTrigger = hasRemark || hasExpiryInfo;
     const infoCount = Number(hasExpiryInfo) + Number(hasRemark);
@@ -1894,14 +1827,9 @@ export default function NodePage() {
     return (
       <Card
         key={node.id}
-<<<<<<< HEAD
-        className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName
-          }`}
-=======
         className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${
           node.expiryReminderDismissed ? "" : expiryMeta.accentClassName
         }`}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
         data-node-card="true"
       >
         <CardHeader className="pb-3 md:pb-3">
@@ -1960,18 +1888,11 @@ export default function NodePage() {
                   <div className="relative">
                     <button
                       aria-label={`查看节点信息，共 ${infoCount} 项`}
-<<<<<<< HEAD
-                      className={`relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none ${infoPopoverOpenId === node.id
-                          ? "border-default-300 text-foreground"
-                          : ""
-                        }`}
-=======
                       className={`relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none ${
                         infoPopoverOpenId === node.id
                           ? "border-default-300 text-foreground"
                           : ""
                       }`}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2006,15 +1927,6 @@ export default function NodePage() {
                       )}
                     </button>
                     <div
-<<<<<<< HEAD
-                      className={`absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur transition-all duration-150 ${infoPopoverOpenId === node.id
-                          ? "visible opacity-100 pointer-events-auto"
-                          : "invisible opacity-0 pointer-events-none"
-                        } ${infoPlacement === "bottom"
-                          ? "right-0 top-[calc(100%+0.75rem)] translate-y-1"
-                          : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1"
-                        }`}
-=======
                       className={`absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur transition-all duration-150 ${
                         infoPopoverOpenId === node.id
                           ? "visible opacity-100 pointer-events-auto"
@@ -2024,7 +1936,6 @@ export default function NodePage() {
                           ? "right-0 top-[calc(100%+0.75rem)] translate-y-1"
                           : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1"
                       }`}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                       onClick={(e) => {
                         e.stopPropagation();
                         e.nativeEvent.stopImmediatePropagation();
@@ -2067,18 +1978,11 @@ export default function NodePage() {
             </div>
             <div className="flex items-center gap-2">
               <span
-<<<<<<< HEAD
-                className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success"
-                    ? "bg-emerald-500"
-                    : "bg-rose-500"
-                  }`}
-=======
                 className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
                   connectionStatusMeta.color === "success"
                     ? "bg-emerald-500"
                     : "bg-rose-500"
                 }`}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                 title={connectionStatusMeta.text}
               />
               {/* 这里加上 title 属性 */}
@@ -2170,15 +2074,6 @@ export default function NodePage() {
                   <span className="text-default-600">周期流量</span>
                   <span className="font-medium text-sm text-danger-600 dark:text-danger-400">
                     {node.connectionStatus === "online" &&
-<<<<<<< HEAD
-                      realtimeNodeMetrics[node.id]
-                      ? formatTraffic(
-                        (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ??
-                          0) +
-                        (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ??
-                          0),
-                      )
-=======
                     realtimeNodeMetrics[node.id]
                       ? formatTraffic(
                           (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ??
@@ -2186,7 +2081,6 @@ export default function NodePage() {
                             (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ??
                               0),
                         )
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                       : "-"}
                   </span>
                 </div>
@@ -2198,11 +2092,7 @@ export default function NodePage() {
                         <span className="font-medium">
                           {formatTraffic(
                             realtimeNodeMetrics[node.id]?.periodTraffic?.rx ??
-<<<<<<< HEAD
-                            0,
-=======
                               0,
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                           )}
                         </span>
                       </div>
@@ -2211,11 +2101,7 @@ export default function NodePage() {
                         <span className="font-medium">
                           {formatTraffic(
                             realtimeNodeMetrics[node.id]?.periodTraffic?.tx ??
-<<<<<<< HEAD
-                            0,
-=======
                               0,
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                           )}
                         </span>
                       </div>
@@ -2232,18 +2118,6 @@ export default function NodePage() {
                       )}
                       {realtimeNodeMetrics[node.id]?.periodTraffic
                         ?.nextReset && (
-<<<<<<< HEAD
-                          <div className="flex justify-between">
-                            <span>下次重置</span>
-                            <span className="font-medium text-primary">
-                              {formatDate(
-                                realtimeNodeMetrics[node.id]!.periodTraffic!
-                                  .nextReset!,
-                              )}
-                            </span>
-                          </div>
-                        )}
-=======
                         <div className="flex justify-between">
                           <span>下次重置</span>
                           <span className="font-medium text-primary">
@@ -2254,7 +2128,6 @@ export default function NodePage() {
                           </span>
                         </div>
                       )}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                     </div>
                   )}
                 {upgradeProgress[node.id] &&
@@ -2315,13 +2188,8 @@ export default function NodePage() {
                         {remoteUsage.usedPorts.length}/
                         {Math.max(
                           remoteUsage.portRangeEnd -
-<<<<<<< HEAD
-                          remoteUsage.portRangeStart +
-                          1,
-=======
                             remoteUsage.portRangeStart +
                             1,
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                           0,
                         )}
                       </span>
@@ -2403,17 +2271,10 @@ export default function NodePage() {
                   </div>
                   <div className="font-medium text-sm text-primary-700 dark:text-primary-300">
                     {node.connectionStatus === "online" &&
-<<<<<<< HEAD
-                      realtimeNodeMetrics[node.id]
-                      ? formatTraffic(
-                        realtimeNodeMetrics[node.id]?.uploadTraffic ?? 0,
-                      )
-=======
                     realtimeNodeMetrics[node.id]
                       ? formatTraffic(
                           realtimeNodeMetrics[node.id]?.uploadTraffic ?? 0,
                         )
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                       : "-"}
                   </div>
                 </div>
@@ -2423,17 +2284,10 @@ export default function NodePage() {
                   </div>
                   <div className="font-medium text-sm text-success-700 dark:text-success-300">
                     {node.connectionStatus === "online" &&
-<<<<<<< HEAD
-                      realtimeNodeMetrics[node.id]
-                      ? formatTraffic(
-                        realtimeNodeMetrics[node.id]?.downloadTraffic ?? 0,
-                      )
-=======
                     realtimeNodeMetrics[node.id]
                       ? formatTraffic(
                           realtimeNodeMetrics[node.id]?.downloadTraffic ?? 0,
                         )
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                       : "-"}
                   </div>
                 </div>
@@ -2590,11 +2444,7 @@ export default function NodePage() {
           <div className="flex h-8 items-center gap-2 whitespace-nowrap shrink-0">
             {selectMode ? (
               <>
-<<<<<<< HEAD
-
-=======
                 
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                 <Button
                   color="primary"
                   size="sm"
@@ -2646,53 +2496,11 @@ export default function NodePage() {
             ) : (
               <>
                 <div className="flex items-center gap-2">
-<<<<<<< HEAD
-                  {/* 视图模式切换按钮 */}
-                  <Button
-                    color={
-                      viewMode === "grid"
-                        ? "warning"
-                        : viewMode === "list"
-                          ? "primary"
-                          : "secondary"
-                    }
-                    size="sm"
-                    variant="flat"
-                    onPress={() => {
-                      // 当前是分组(grouped) -> 切换到列表(list)
-                      // 当前是列表(list) -> 切换到卡片(grid)
-                      // 当前是卡片(grid) -> 切换到分组(grouped)
-                      if (viewMode === "grouped") setViewMode("list");
-                      else if (viewMode === "list") setViewMode("grid");
-                      else setViewMode("grouped");
-                    }}
-                  >
-                    {/* 按钮显示的是"下一个要切换到的视图"的名称 */}
-                    {viewMode === "grouped"
-                      ? "列表"
-                      : viewMode === "list"
-                        ? "卡片"
-                        : "默认"}
-                  </Button>
-                  <Button
-                    className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/45"
-                    size="sm"
-                    variant="flat"
-                    onPress={() => setGroupManagerOpen(true)}
-                  >
-                    分组
-                  </Button>
-=======
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                   <Button
                     className="whitespace-nowrap bg-red-100"
                     color={
                       (canUseExpiryFilter && nodeFilterMode !== "all") ||
-<<<<<<< HEAD
-                        filterGroupId !== null
-=======
                       filterGroupId !== null
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                         ? "secondary"
                         : "danger"
                     }
@@ -2713,22 +2521,6 @@ export default function NodePage() {
                   </Button>
                   {((canUseExpiryFilter && nodeFilterMode !== "all") ||
                     filterGroupId !== null) && (
-<<<<<<< HEAD
-                      <Button
-                        color="warning"
-                        size="sm"
-                        variant="flat"
-                        onPress={() => {
-                          resetNodeFilterMode();
-                          setFilterGroupId(null);
-                        }}
-                      >
-                        重置
-                      </Button>
-                    )}
-                </div>
-
-=======
                     <Button
                       color="warning"
                       size="sm"
@@ -2768,7 +2560,6 @@ export default function NodePage() {
                       ? "卡片"
                       : "默认"}
                 </Button>
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                 <Button
                   color="primary"
                   size="sm"
@@ -3305,14 +3096,9 @@ export default function NodePage() {
                         />
                       )}
                       <div
-<<<<<<< HEAD
-                        className={`grid grid-cols-1 sm:grid-cols-3 gap-3 bg-default-50 dark:bg-default-100 p-3 rounded-md border border-default-200 dark:border-default-100/30 ${protocolDisabled ? "opacity-70" : ""
-                          }`}
-=======
                         className={`grid grid-cols-1 sm:grid-cols-3 gap-3 bg-default-50 dark:bg-default-100 p-3 rounded-md border border-default-200 dark:border-default-100/30 ${
                           protocolDisabled ? "opacity-70" : ""
                         }`}
->>>>>>> 6e3defc16878809680db0e2b5d9298812d7a1580
                       >
                         <div className="px-3 py-3 rounded-lg bg-white dark:bg-default-50 border border-default-200 dark:border-default-100/30 hover:border-primary-200 transition-colors">
                           <div className="flex items-center gap-2 mb-2">
