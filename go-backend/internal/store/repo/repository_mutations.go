@@ -537,7 +537,7 @@ func (r *Repository) CreateChainTunnelTx(tx *gorm.DB, tunnelID int64, chainType 
 		Inx:           nullInt64FromInterface(inx),
 		Protocol:      nullStringFromInterface(protocol),
 		ConnectIP:     sql.NullString{String: connectIp, Valid: connectIp != ""},
-		ConnectIPType: sql.NullString{String: connectIpType, Valid: true},
+		ConnectIPType: sql.NullString{String: connectIpType, Valid: connectIpType != ""},
 	}
 	return tx.Create(&ct).Error
 }
