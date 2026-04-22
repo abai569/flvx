@@ -21,7 +21,7 @@ export function SearchBar({
   onOpen,
   onClose,
   onChange,
-  width = "120px", // 新增：默认宽度 200px
+  width = "120px", // 新增：默认宽度 120px
 }: SearchBarProps) {
   return (
     // Fixed h-8 so the container never changes height — eliminates the vertical jitter
@@ -57,6 +57,7 @@ export function SearchBar({
             transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <Input
+              autoFocus // 组件出现时自动获取光标
               classNames={{
                 base: "bg-default-100",
                 input:

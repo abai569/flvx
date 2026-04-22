@@ -1859,15 +1859,53 @@ export default function ForwardPage() {
     },
     [],
   );
-  // 切换显示模式并保存到localStorage
-  const handleViewModeChange = () => {
-    const newMode = viewMode === "grouped" ? "direct" : "grouped";
+  // 4形态模式切换（分组列表 -> 分组卡片 -> 精简列表 -> 精简卡片）
+  const handleModeCycle = async () => {
+    let nextCompact = compactMode;
+    let nextView: "grouped" | "direct" = viewMode;
 
-    setViewMode(newMode);
+    if (!compactMode && viewMode === "grouped") {
+      nextView = "direct"; // 1. 分组列表 -> 分组卡片
+    } else if (!compactMode && viewMode === "direct") {
+      nextCompact = true;  // 2. 分组卡片 -> 精简列表
+      nextView = "grouped";
+    } else if (compactMode && viewMode === "grouped") {
+      nextView = "direct"; // 3. 精简列表 -> 精简卡片
+    } else {
+      nextCompact = false; // 4. 精简卡片 -> 分组列表
+      nextView = "grouped";
+    }
+
+    // 保存列表/卡片状态
+    setViewMode(nextView);
     try {
-      localStorage.setItem("forward-view-mode", newMode);
+      localStorage.setItem("forward-view-mode", nextView);
     } catch { }
+
+    // 保存精简/分组状态
+    if (nextCompact !== compactMode) {
+      setCompactMode(nextCompact);
+      try {
+        await updateConfig(FORWARD_COMPACT_MODE_CONFIG_KEY, nextCompact ? "true" : "false");
+        window.dispatchEvent(
+          new CustomEvent(FORWARD_COMPACT_MODE_EVENT, {
+            detail: { enabled: nextCompact },
+          })
+        );
+      } catch (e) {
+        // 非管理员或网络错误忽略
+      }
+    }
   };
+
+  // 根据当前状态推断按钮文本和颜色
+  const getModeButtonConfig = () => {
+    if (!compactMode && viewMode === "grouped") return { text: "分组列表", color: "primary" };
+    if (!compactMode && viewMode === "direct") return { text: "分组卡片", color: "warning" };
+    if (compactMode && viewMode === "grouped") return { text: "精简列表", color: "success" };
+    return { text: "精简卡片", color: "secondary" };
+  };
+  const modeBtnConfig = getModeButtonConfig();
   // 切换精简模式
   const applyForwardList = useCallback(
     async (items: Forward[]) => {
@@ -1981,11 +2019,6 @@ export default function ForwardPage() {
   const speedLimitIds = useMemo(() => {
     return new Set(speedLimits.map((speedLimit) => speedLimit.id));
   }, [speedLimits]);
-  const availableSpeedLimits = useMemo(() => {
-    return speedLimits.filter(
-      (speedLimit) => !noLimitSpeedLimitIds.has(speedLimit.id),
-    );
-  }, [speedLimits, noLimitSpeedLimitIds]);
   const normalizeSpeedId = (speedId?: number | null): number | null => {
     if (speedId === null || speedId === undefined) {
       return null;
@@ -3955,13 +3988,14 @@ export default function ForwardPage() {
                 onOpen={() => setIsSearchVisible(true)}
               />
               {/* 显示模式切换按钮 */}
+              {/* 显示模式4形态切换按钮 */}
               <Button
-                color={viewMode === "grouped" ? "warning" : "primary"}
+                color={modeBtnConfig.color as any}
                 size="sm"
                 variant="flat"
-                onPress={handleViewModeChange}
+                onPress={handleModeCycle}
               >
-                {viewMode === "grouped" ? "卡片" : "列表"}
+                {modeBtnConfig.text}
               </Button>
               {/* 导入按钮 */}
               <Button
@@ -4018,7 +4052,7 @@ export default function ForwardPage() {
                 >
                   重置
                 </Button>
-              )}              
+              )}
             </>
           )}
         </div>
@@ -4046,7 +4080,7 @@ export default function ForwardPage() {
             <>
               <div className="flex items-center justify-start px-1 mb-3">
                 <span className="text-sm font-semibold text-foreground">
-                  全部规则 
+                  全部规则
                 </span>
                 <span className="text-xs text-default-600">
                   _{sortedForwards.length}个
@@ -4484,70 +4518,6 @@ export default function ForwardPage() {
                                           规则名
                                         </TableColumn>
                                         {/* {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>} */}
-                                        {isAdmin && (
-                                          <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                                            <Select
-                                              aria-label="按限速规则筛选"
-                                              classNames={{
-                                                trigger: "bg-transparent border-none shadow-none p-0 min-h-0 h-auto gap-1.5 hover:bg-default-100/50 transition-colors flex flex-row items-center justify-start",
-                                                value: "text-sm text-default-600 font-semibold uppercase tracking-wider p-0 order-last",
-                                                selectorIcon: "text-default-400 w-3.5 h-3.5 static order-first m-0",
-                                                innerWrapper: "w-fit flex-none",
-                                                // 🎯 修复2：必须加上 placeholder 的样式！不然默认的 placeholder 会缩水变形
-                                                placeholder: "text-sm text-default-600 font-semibold uppercase tracking-wider",
-                                              }}
-                                              variant="flat"
-                                              onSelectionChange={(keys) => {
-                                                const key = Array.from(keys)[0] as string | undefined;
-                                                setSearchParams?.((prev: any) => ({
-                                                  ...prev,
-                                                  // 保持你后端的处理习惯，全选传 undefined，其它透传
-                                                  speedLimitId: (!key || key === "all") ? undefined : (key === "unlimited" ? "unlimited" : Number(key)),
-                                                }));
-                                              }}
-                                              placeholder="限速规则"
-                                              // 🎯 修复3：逻辑对齐。当没有选、或者选了 "all" 时，传入空数组 []，从而触发上面的 placeholder 显示
-                                              selectedKeys={!searchParams?.speedLimitId ? [] : [String(searchParams.speedLimitId)]}
-                                              size="sm"
-                                              // 🎯 修复1：加上 min-w 撑开基础宽度，防止挤压
-                                              className="w-full min-w-[100px]"
-                                            >
-                                              <SelectItem
-                                                key="all"
-                                                textValue="全部规则"
-                                              >
-                                                全部规则
-                                              </SelectItem>
-                                              <SelectItem
-                                                key="unlimited"
-                                                textValue="不限速"
-                                              >
-                                                不限速
-                                              </SelectItem>
-                                              {(availableSpeedLimits || []).map(
-                                                (speedLimit: any) => (
-                                                  <SelectItem
-                                                    key={speedLimit.id.toString()}
-                                                    textValue={
-                                                      speedLimit.name ||
-                                                      `限速${speedLimit.speed}M`
-                                                    }
-                                                  >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                      <span>
-                                                        {speedLimit.name ||
-                                                          `限速${speedLimit.speed}`}
-                                                      </span>
-                                                      <span className="text-default-400 text-xs">
-                                                        ({speedLimit.speed}M)
-                                                      </span>
-                                                    </div>
-                                                  </SelectItem>
-                                                ),
-                                              )}
-                                            </Select>
-                                          </TableColumn>
-                                        )}
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
                                           入口地址
                                         </TableColumn>

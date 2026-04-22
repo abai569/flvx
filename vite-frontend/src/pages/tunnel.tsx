@@ -1922,7 +1922,7 @@ export default function TunnelPage() {
               variant="flat"
               onPress={() => handleViewModeToggle()}
             >
-              {viewMode === "card" ? "列表" : "卡片"}
+              {viewMode === "card" ? "卡片" : "列表"}
             </Button>
             {/* 分组管理按钮 */}
             <Button

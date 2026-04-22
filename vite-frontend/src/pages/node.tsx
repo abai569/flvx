@@ -2538,10 +2538,10 @@ export default function NodePage() {
                 >
                   {/* 按钮显示的是"下一个要切换到的视图"的名称 */}
                   {viewMode === "grouped"
-                    ? "列表"
+                    ? "默认"
                     : viewMode === "list"
-                      ? "卡片"
-                      : "默认"}
+                      ? "列表"
+                      : "卡片"}
                 </Button>
                 {/* 分组管理按钮 */}
                 <Button

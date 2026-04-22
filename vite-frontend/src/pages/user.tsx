@@ -1309,7 +1309,7 @@ export default function UserPage() {
                   handleViewModeToggle(viewMode === "card" ? "list" : "card")
                 }
               >
-                {viewMode === "card" ? "列表" : "卡片"}
+                {viewMode === "card" ? "卡片" : "列表"}
               </Button>
               <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
                 新增
