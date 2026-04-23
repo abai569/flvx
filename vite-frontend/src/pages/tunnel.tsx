@@ -770,14 +770,13 @@ export default function TunnelPage() {
 
     if (!nodes || nodes.length === 0) return "";
     const ports = nodes.map((n: any) =>
-      (n.port || n.allocatedPort || n.allocated_port) > 0
-        ? (n.port || n.allocatedPort || n.allocated_port).toString()
+      n.port > 0
+        ? n.port.toString()
         : "",
     );
 
     if (ports.every((p) => p === "")) return "";
 
-    // 如果所有端口相同且只有一个唯一值，只显示一个（不加逗号）
     const uniquePorts = ports.filter(p => p !== "").filter((p, i, arr) => arr.indexOf(p) === i);
     if (uniquePorts.length === 1 && ports.filter(p => p !== "").length === nodes.length) {
       return uniquePorts[0];
@@ -805,14 +804,13 @@ export default function TunnelPage() {
   const formatChainPortsToDisplay = (chainGroup: ChainTunnel[]): string => {
     if (!chainGroup || chainGroup.length === 0) return "";
     const ports = chainGroup.map((n: any) =>
-      (n.port || n.allocatedPort || n.allocated_port) > 0
-        ? (n.port || n.allocatedPort || n.allocated_port).toString()
+      n.port > 0
+        ? n.port.toString()
         : "",
     );
 
     if (ports.every((p) => p === "")) return "";
 
-    // 如果所有端口相同且只有一个唯一值，只显示一个（不加逗号）
     const uniquePorts = ports.filter(p => p !== "").filter((p, i, arr) => arr.indexOf(p) === i);
     if (uniquePorts.length === 1 && ports.filter(p => p !== "").length === chainGroup.length) {
       return uniquePorts[0];
@@ -843,12 +841,6 @@ export default function TunnelPage() {
       (n: any) =>
         n.connectIpType ||
         n.connect_ip_type ||
-        n.allocatedIpType ||
-        n.allocated_ip_type ||
-        n.allocatedConnectIpType ||
-        n.allocated_connect_ip_type ||
-        n.ipType ||
-        n.ip_type ||
         "",
     );
 
@@ -882,12 +874,6 @@ export default function TunnelPage() {
       (n: any) =>
         n.connectIpType ||
         n.connect_ip_type ||
-        n.allocatedIpType ||
-        n.allocated_ip_type ||
-        n.allocatedConnectIpType ||
-        n.allocated_connect_ip_type ||
-        n.ipType ||
-        n.ip_type ||
         "",
     );
 
@@ -3210,21 +3196,35 @@ export default function TunnelPage() {
                                     onBlur={() => {
                                       const finalValue = focusedInputs[`chain_port_${groupIndex}`] ?? formatChainPortsToDisplay(groupNodes);
                                       setFocusedInputs(prev => { const next = { ...prev }; delete next[`chain_port_${groupIndex}`]; return next; });
-                                      if (finalValue) applyPortsToChainGroup(groupIndex, finalValue);
+                                      if (finalValue) {
+                                        applyPortsToChainGroup(groupIndex, finalValue);
+                                      } else {
+                                        applyPortsToChainGroup(groupIndex, '');
+                                      }
                                     }}
                                     onChange={(e) => {
                                       setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: e.target.value }));
                                     }}
-                                    onFocus={() => setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: formatChainPortsToDisplay(groupNodes) }))}
+                                    onFocus={() => {
+                                      const displayValue = formatChainPortsToDisplay(groupNodes);
+                                      if (displayValue) {
+                                        setFocusedInputs(prev => ({ ...prev, [`chain_port_${groupIndex}`]: displayValue }));
+                                      }
+                                    }}
                                   />
                                   <Input
                                     description="多节点可用逗号分隔，按选择节点顺序匹配，v4 对应公网 v4 地址，v6 对应公网 v6 地址，lan 对应内网地址，留空自动匹配"
-                                    label="连接IP类型"
+                                    label="连接 IP 类型"
                                     placeholder="例：lan,v4,v6"
                                     size="sm"
                                     type="text"
                                     value={focusedInputs[`chain_ipType_${groupIndex}`] ?? formatConnectIpTypesToDisplay(groupNodes)}
-                                    onFocus={() => setFocusedInputs(prev => ({ ...prev, [`chain_ipType_${groupIndex}`]: formatConnectIpTypesToDisplay(groupNodes) }))}
+                                    onFocus={() => {
+                                      const displayValue = formatConnectIpTypesToDisplay(groupNodes);
+                                      if (displayValue) {
+                                        setFocusedInputs(prev => ({ ...prev, [`chain_ipType_${groupIndex}`]: displayValue }));
+                                      }
+                                    }}
                                     onBlur={(e) => {
                                       setFocusedInputs(prev => { const next = { ...prev }; delete next[`chain_ipType_${groupIndex}`]; return next; });
                                       applyConnectIpTypesToChainGroup(groupIndex, e.target.value);
@@ -3593,18 +3593,27 @@ export default function TunnelPage() {
                                 onBlur={() => {
                                   const finalValue = focusedInputs[`out_port`] ?? formatOutNodePortsToDisplay();
                                   setFocusedInputs(prev => { const next = { ...prev }; delete next[`out_port`]; return next; });
-                                  if (finalValue) applyPortsToOutNodes(finalValue);
+                                  if (finalValue) {
+                                    applyPortsToOutNodes(finalValue);
+                                  } else {
+                                    applyPortsToOutNodes('');
+                                  }
                                 }}
                                 onChange={(e) => {
                                   setFocusedInputs(prev => ({ ...prev, [`out_port`]: e.target.value }));
                                 }}
-                                onFocus={() => setFocusedInputs(prev => ({ ...prev, [`out_port`]: formatOutNodePortsToDisplay() }))}
+                                onFocus={() => {
+                                  const displayValue = formatOutNodePortsToDisplay();
+                                  if (displayValue) {
+                                    setFocusedInputs(prev => ({ ...prev, [`out_port`]: displayValue }));
+                                  }
+                                }}
                                 type="text"
                                 value={focusedInputs[`out_port`] ?? formatOutNodePortsToDisplay()}
                               />
                               <Input
-                                description="多节点可用逗号分隔，按选择节点顺序匹配，v4对应公网v4，v6对应公网v6，lan对应内网，留空自动匹配"
-                                label="连接IP类型"
+                                description="多节点可用逗号分隔，按选择节点顺序匹配，v4 对应公网 v4，v6 对应公网 v6，lan 对应内网，留空自动匹配"
+                                label="连接 IP 类型"
                                 placeholder="例：v4,v6,lan"
                                 size="sm"
                                 variant="bordered"
@@ -3613,9 +3622,13 @@ export default function TunnelPage() {
                                   setFocusedInputs(prev => ({ ...prev, [`out_ipType`]: e.target.value }));
                                   applyOutNodeConnectIpTypes(e.target.value);
                                 }}
-                                onFocus={() => setFocusedInputs(prev => ({ ...prev, [`out_ipType`]: formatOutNodeConnectIpTypes() }))}
+                                onFocus={() => {
+                                  const displayValue = formatOutNodeConnectIpTypes();
+                                  if (displayValue) {
+                                    setFocusedInputs(prev => ({ ...prev, [`out_ipType`]: displayValue }));
+                                  }
+                                }}
                                 type="text"
-                                // 👇 替换这部分
                                 value={focusedInputs[`out_ipType`] ?? formatOutNodeConnectIpTypes()}
                               />
                             </div>
