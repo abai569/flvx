@@ -1001,7 +1001,7 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 			description := fmt.Sprintf("出口(%s)->外网", outNode.NodeName)
 			workItems = append(workItems, diagnosisWorkItem{
 				fromNodeID:  outNode.NodeID,
-				targetIP:    "www.bing.com",
+				targetIP:    "www.google.com",
 				targetPort:  443,
 				description: description,
 				metadata: map[string]interface{}{

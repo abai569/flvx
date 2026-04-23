@@ -1076,6 +1076,9 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	if typeVal == 2 {
+		_ = h.updateTunnelChainConnectIpType(tx, tunnelID, runtimeState.Nodes, runtimeState.IPPreference)
+	}
 	if err := tx.Commit().Error; err != nil {
 		h.releaseFederationRuntimeRefs(federationReleaseRefs)
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -1095,8 +1098,6 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.ErrDefault(applyErr.Error()))
 			return
 		}
-
-		_ = h.updateTunnelChainConnectIpType(tx, tunnelID, runtimeState.Nodes, runtimeState.IPPreference)
 	}
 	response.WriteJSON(w, response.OKEmpty())
 }
@@ -1298,6 +1299,9 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if typeVal == 2 {
+		_ = h.updateTunnelChainConnectIpType(tx, id, runtimeState.Nodes, runtimeState.IPPreference)
+	}
 	if err := tx.Commit().Error; err != nil {
 		h.releaseFederationRuntimeRefs(federationReleaseRefs)
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -1323,8 +1327,6 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.ErrDefault(applyErr.Error()))
 			return
 		}
-
-		_ = h.updateTunnelChainConnectIpType(tx, id, runtimeState.Nodes, runtimeState.IPPreference)
 	}
 
 	if forwards, fwdErr := h.listForwardsByTunnel(id); fwdErr == nil {
