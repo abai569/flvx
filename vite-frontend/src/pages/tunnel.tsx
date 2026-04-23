@@ -1052,21 +1052,29 @@ export default function TunnelPage() {
         .map((group) =>
           group
             .filter((node) => node.nodeId !== -1)
-            .map((n) => ({
-              ...n,
-              connectIpType: n.connectIpType || '',
-              connect_ip_type: n.connectIpType || '',
-            })),
+            .map((n) => {
+              const { port, allocatedPort, allocated_port, ...rest } = n as any;
+              return {
+                ...rest,
+                port: n.port, // 保留用户设置的端口（undefined 或 0 表示自动分配）
+                connectIpType: n.connectIpType || '',
+                connect_ip_type: n.connectIpType || '',
+              };
+            }),
         )
         .filter((group) => group.length > 0); // 移除空组
       // 过滤掉出口节点中的占位节点
       const cleanedOutNodeId = (form.outNodeId || [])
         .filter((node) => node.nodeId !== -1)
-        .map((n) => ({
-          ...n,
-          connectIpType: n.connectIpType || '',
-          connect_ip_type: n.connectIpType || '',
-        }));
+        .map((n) => {
+          const { port, allocatedPort, allocated_port, ...rest } = n as any;
+          return {
+            ...rest,
+            port: n.port, // 保留用户设置的端口（undefined 或 0 表示自动分配）
+            connectIpType: n.connectIpType || '',
+            connect_ip_type: n.connectIpType || '',
+          };
+        });
       // 将换行符分隔的 IP 转换为逗号分隔
       let inIpString = form.inIp
         .split("\n")
