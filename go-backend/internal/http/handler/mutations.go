@@ -1335,7 +1335,24 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	response.WriteJSON(w, response.OKEmpty())
+	items, err := h.repo.ListTunnels()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	var updatedTunnel map[string]interface{}
+	for _, it := range items {
+		if asInt64(it["id"], 0) == id {
+			updatedTunnel = it
+			break
+		}
+	}
+	if updatedTunnel == nil {
+		response.WriteJSON(w, response.Err(-2, "tunnel not found after update"))
+		return
+	}
+
+	response.WriteJSON(w, response.OK(updatedTunnel))
 }
 
 func sameInt64Set(a, b []int64) bool {

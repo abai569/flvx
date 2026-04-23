@@ -1129,27 +1129,18 @@ export default function TunnelPage() {
         toast.success(isEdit ? "更新成功" : "创建成功");
         setModalOpen(false);
         if (isEdit) {
-          // 乐观更新：直接修改本地状态，不触发整个列表的重绘
-          setTunnels((prev) =>
-            prev.map((t) =>
-              t.id === form.id
-                ? {
-                  ...t,
-                  name: form.name,
-                  type: form.type,
-                  inNodeId: form.inNodeId,
-                  outNodeId: cleanedOutNodeId,
-                  chainNodes: cleanedChainNodes,
-                  flow: form.flow,
-                  trafficRatio: form.trafficRatio,
-                  inIp: inIpString,
-                  ipPreference: form.ipPreference,
-                  tunnelGroupId: form.tunnelGroupId,
-                  remark: form.remark,
-                }
-                : t,
-            ),
-          );
+          // 后端返回更新后的完整隧道数据，直接使用
+          if (response.data) {
+            const updatedTunnel = mapTunnelApiItems([response.data])[0];
+            setTunnels((prev) =>
+              prev.map((t) =>
+                t.id === form.id ? updatedTunnel : t,
+              ),
+            );
+          } else {
+            // 兜底：如果后端没有返回数据，刷新列表
+            refreshTunnelList(false);
+          }
         } else {
           // 新增时才需要刷新以获取新分配的 ID
           refreshTunnelList(false);
