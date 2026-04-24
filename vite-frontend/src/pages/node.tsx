@@ -3290,7 +3290,7 @@ export default function NodePage() {
               isLoading={submitLoading}
               onPress={handleSubmit}
             >
-              {submitLoading ? "提交中..." : "确定"}
+              {isEdit ? "保存" : "创建"}
             </Button>
           </ModalFooter>
         </ModalContent>

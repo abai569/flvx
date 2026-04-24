@@ -3689,7 +3689,7 @@ export default function TunnelPage() {
                       ? "更新中..."
                       : "创建中..."
                     : isEdit
-                      ? "更新"
+                      ? "保存"
                       : "创建"}
                 </Button>
               </ModalFooter>

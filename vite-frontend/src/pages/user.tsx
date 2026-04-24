@@ -2002,7 +2002,7 @@ export default function UserPage() {
               isLoading={userFormLoading}
               onPress={handleSubmitUser}
             >
-              保存
+              {isEdit ? "保存" : "创建"}
             </Button>
           </ModalFooter>
         </ModalContent>

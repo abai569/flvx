@@ -203,7 +203,7 @@ export default function LimitPage() {
         res = await createSpeedLimit(createData);
       }
       if (res.code === 0) {
-        toast.success(isEdit ? "修改成功" : "创建成功");
+        toast.success(isEdit ? "更新成功" : "创建成功");
         setModalOpen(false);
         loadData(false);
       } else {
@@ -550,7 +550,7 @@ export default function LimitPage() {
                   isLoading={submitLoading}
                   onPress={handleSubmit}
                 >
-                  {isEdit ? "保存修改" : "创建规则"}
+                  {isEdit ? "保存" : "创建"}
                 </Button>
               </ModalFooter>
             </>

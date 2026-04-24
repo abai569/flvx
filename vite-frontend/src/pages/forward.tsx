@@ -5045,7 +5045,7 @@ export default function ForwardPage() {
                   isLoading={submitLoading}
                   onPress={handleSubmit}
                 >
-                  {isEdit ? "更新规则" : "创建规则"}
+                  {isEdit ? "保存" : "创建"}
                 </Button>
               </ModalFooter>
             </>
