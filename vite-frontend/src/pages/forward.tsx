@@ -60,7 +60,6 @@ import {
   deleteForward,
   forceDeleteForward,
   userTunnel,
-  getTunnelList,
   getNodeList,
   pauseForwardService,
   resumeForwardService,
@@ -1199,6 +1198,25 @@ export default function ForwardPage() {
   // searchKeyword removed
   // isSearchVisible removed
   const [compactMode, setCompactMode] = useState(false);
+  // 用户切换时重置筛选条件
+  useEffect(() => {
+    const currentUserId = tokenUserId ? tokenUserId.toString() : null;
+    const prevUserId = localStorage.getItem('forward-last-user-id');
+    
+    // 只有用户真正切换时才重置（不是页面刷新）
+    if (prevUserId !== null && prevUserId !== currentUserId) {
+      setSearchParams({
+        name: '',
+        userId: currentUserId || 'all',
+        tunnelId: 'all',
+        speedLimitId: undefined,
+        inPort: '',
+        remoteAddr: '',
+      });
+    }
+    // 保存当前用户 ID 到 localStorage
+    localStorage.setItem('forward-last-user-id', currentUserId || '');
+  }, [tokenUserId, setSearchParams]);
   // 显示模式状态 - 从localStorage读取，默认为平铺显示
   const [viewMode, setViewMode] = useState<"grouped" | "direct">(() => {
     try {
@@ -1874,45 +1892,43 @@ export default function ForwardPage() {
     },
     [applyForwardList],
   );
-  // 加载所有数据
-  const loadData = useCallback(
-    async (lod = true) => {
-      setLoading(lod);
-      try {
-        const [tunnelsRes, speedLimitsRes] = await Promise.all([
-          userTunnel(),
-          getSpeedLimitList(),
-        ]);
-        const [allTunnelsRes, nodesRes] = await Promise.allSettled([
-          getTunnelList(),
-          getNodeList(),
-        ]);
+    // 加载所有数据
+    const loadData = useCallback(
+      async (lod = true) => {
+        setLoading(lod);
+        try {
+          const [tunnelsRes, forwardsRes, speedLimitsRes] = await Promise.all([
+            userTunnel(),
+            getForwardList(),
+            getSpeedLimitList(),
+          ]);
 
-        await refreshForwardList(false);
-        if (tunnelsRes.code === 0) {
-          setTunnels(tunnelsRes.data || []);
-        } else {
+          if (tunnelsRes.code === 0) {
+            setTunnels(tunnelsRes.data || []);
+            // 普通用户直接使用 userTunnel 返回的数据作为 allTunnels
+            setAllTunnels((tunnelsRes.data || []) as Tunnel[]);
+          }
+          if (forwardsRes.code === 0) {
+            await applyForwardList(mapForwardApiItems(forwardsRes.data || []));
+          }
+          if (speedLimitsRes.code === 0) {
+            setSpeedLimits(speedLimitsRes.data || []);
+          }
+          // 管理员额外加载节点列表
+          if (isAdmin) {
+            const nodesRes = await getNodeList();
+            if (nodesRes.code === 0) {
+              setNodes((nodesRes.data || []) as Node[]);
+            }
+          }
+        } catch {
+          toast.error("加载数据失败");
+        } finally {
+          setLoading(false);
         }
-        if (
-          allTunnelsRes.status === "fulfilled" &&
-          allTunnelsRes.value.code === 0
-        ) {
-          setAllTunnels((allTunnelsRes.value.data || []) as Tunnel[]);
-        }
-        if (nodesRes.status === "fulfilled" && nodesRes.value.code === 0) {
-          setNodes((nodesRes.value.data || []) as Node[]);
-        }
-        if (speedLimitsRes.code === 0) {
-          setSpeedLimits(speedLimitsRes.data || []);
-        }
-      } catch {
-        toast.error("加载数据失败");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [refreshForwardList],
-  );
+      },
+      [isAdmin, applyForwardList],
+    );
 
   useEffect(() => {
     loadData();

@@ -8,6 +8,14 @@ export interface ForwardOrderItem {
 
 export const FORWARD_ORDER_KEY = "forward-order";
 
+// 构建用户独立的存储 key
+export const buildForwardOrderKey = (userId: number | null): string => {
+  if (userId === null) {
+    return FORWARD_ORDER_KEY;
+  }
+  return `${FORWARD_ORDER_KEY}:u:${userId}`;
+};
+
 export const getUserScopedForwards = <T extends ForwardOrderItem>(
   forwards: T[],
   currentUserId: number | null,
@@ -37,9 +45,11 @@ export const buildForwardOrder = <T extends ForwardOrderItem>(
     return { order: dbOrder, fromDatabase: true };
   }
 
+  // 使用用户独立的存储 key
+  const orderKey = buildForwardOrderKey(currentUserId);
   return {
     order: loadStoredOrder(
-      FORWARD_ORDER_KEY,
+      orderKey,
       userForwards.map((item) => item.id),
     ),
     fromDatabase: false,

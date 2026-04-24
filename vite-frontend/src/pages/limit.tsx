@@ -93,8 +93,8 @@ export default function LimitPage() {
     loadData();
   }, []);
   // 加载所有数据
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const rulesRes = await getSpeedLimitList();
 
@@ -106,7 +106,7 @@ export default function LimitPage() {
     } catch {
       toast.error("加载数据失败");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
   // 视图模式切换
@@ -168,7 +168,7 @@ export default function LimitPage() {
       if (res.code === 0) {
         toast.success("删除成功");
         setDeleteModalOpen(false);
-        loadData();
+        loadData(false);
       } else {
         toast.error(res.msg || "删除失败");
       }
@@ -205,7 +205,7 @@ export default function LimitPage() {
       if (res.code === 0) {
         toast.success(isEdit ? "修改成功" : "创建成功");
         setModalOpen(false);
-        loadData();
+        loadData(false);
       } else {
         toast.error(res.msg || "操作失败");
       }

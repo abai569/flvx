@@ -504,8 +504,8 @@ export default function UserPage() {
   }, [batchMode]);
   // 数据加载函数
   const loadUsers = useCallback(
-    async (keywordOverride?: string) => {
-      setLoading(true);
+    async (keywordOverride?: string, showLoading = true) => {
+      if (showLoading) setLoading(true);
       try {
         const keyword = keywordOverride ?? searchKeyword;
         const response = await getAllUsers({
@@ -527,7 +527,7 @@ export default function UserPage() {
       } catch {
         toast.error("获取用户列表失败");
       } finally {
-        setLoading(false);
+        if (showLoading) setLoading(false); // 👈 3. 对应解除 loading
       }
     },
     [pagination.current, pagination.size],
@@ -601,7 +601,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
-    } catch {}
+    } catch { }
   }, []);
   const loadSpeedLimits = useCallback(async () => {
     try {
@@ -610,15 +610,15 @@ export default function UserPage() {
       if (response.code === 0) {
         const speedLimitList = Array.isArray(response.data)
           ? response.data.map((item) => ({
-              ...item,
-              uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
-              downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
-            }))
+            ...item,
+            uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
+            downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
+          }))
           : [];
 
         setSpeedLimits(speedLimitList);
       }
-    } catch {}
+    } catch { }
   }, []);
   const loadUserGroups = useCallback(async () => {
     try {
@@ -627,7 +627,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
-    } catch {}
+    } catch { }
   }, []);
   const loadUserTunnels = useCallback(async (userId: number) => {
     setTunnelListLoading(true);
@@ -711,7 +711,7 @@ export default function UserPage() {
       if (groupRes.code === 0) {
         currentGroupIds = groupRes.data || [];
       }
-    } catch {}
+    } catch { }
     setUserForm({
       id: user.id,
       name: user.name || "",
@@ -799,7 +799,7 @@ export default function UserPage() {
           setUsers((prev) => [responseUser, ...prev].slice(0, pagination.size));
           setPagination((prev) => ({ ...prev, total: prev.total + 1 }));
         } else {
-          await loadUsers();
+          await loadUsers(undefined, false);
         }
       } else {
         toast.error(response.msg || (isEdit ? "更新失败" : "创建失败"));
@@ -909,10 +909,10 @@ export default function UserPage() {
             speedLimitName:
               normalizeSpeedId(editTunnelForm.speedId) !== null
                 ? speedLimits.find(
-                    (speedLimit) =>
-                      speedLimit.id ===
-                      normalizeSpeedId(editTunnelForm.speedId),
-                  )?.name
+                  (speedLimit) =>
+                    speedLimit.id ===
+                    normalizeSpeedId(editTunnelForm.speedId),
+                )?.name
                 : undefined,
           });
 
@@ -1083,7 +1083,7 @@ export default function UserPage() {
         const successCount =
           (response.data as any)?.successCount || selectedUserIds.size;
         toast.success(`成功重置 ${successCount} 个用户流量`);
-        await loadUsers();
+        await loadUsers(undefined, false);
         setSelectedUserIds(new Set());
       } else {
         toast.error(response.msg || "重置失败");
@@ -1117,7 +1117,7 @@ export default function UserPage() {
             `删除完成：成功 ${successCount} 个，失败 ${failCount} 个`,
           );
         }
-        await loadUsers();
+        await loadUsers(undefined, false);
         onBatchDeleteModalClose();
         setSelectedUserIds(new Set());
       } else {
@@ -1184,13 +1184,12 @@ export default function UserPage() {
       <TableRow
         ref={setNodeRef}
         style={style}
-        className={`cursor-default transition-colors ${
-          selectedUserIds.has(user.id)
+        className={`cursor-default transition-colors ${selectedUserIds.has(user.id)
             ? "bg-primary-50 dark:bg-primary-900/30"
             : selectedUserId === user.id
               ? "bg-primary-50 dark:bg-primary-900/30"
               : "hover:bg-default-50/50"
-        }`}
+          }`}
         onClick={() => {
           if (!batchMode) {
             setSelectedUserId(user.id);
@@ -1247,7 +1246,7 @@ export default function UserPage() {
         <div className="flex items-center gap-2">
           {batchMode ? (
             <>
-              
+
               <Button
                 color="primary"
                 size="sm"
@@ -1381,7 +1380,7 @@ export default function UserPage() {
                     重置日期
                   </TableColumn>
                   <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
-                    过期时间
+                    到期时间
                   </TableColumn>
                   <TableColumn className="whitespace-nowrap flex-shrink-0 w-[240px] text-left">
                     操作
@@ -1425,167 +1424,166 @@ export default function UserPage() {
                             </svg>
                           </div>
                         </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground truncate">
-                          {user.name || user.user}
-                        </span>
-                        <span className="text-xs text-default-500 truncate">
-                          @{user.user}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <div
-                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${userStatus.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
-                      >
-                        {userStatus.text}
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <div
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-                          monitorPermissionUserIds.has(user.id)
-                            ? "bg-success-500/10 text-success-600 dark:text-success-400"
-                            : "bg-default-500/10 text-default-500"
-                        }`}
-                      >
-                        {monitorPermissionUserIds.has(user.id) ? (
-                          <>
-                            <EyeIcon className="w-3 h-3" />
-                            已打开
-                          </>
-                        ) : (
-                          <>
-                            <EyeOffIcon className="w-3 h-3" />
-                            已关闭
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <span
-                        className={`text-sm ${user.flow === 99999 ? "text-success font-medium" : "text-foreground"}`}
-                      >
-                        {user.flow === 99999
-                          ? "不限"
-                          : formatFlow(user.flow, "gb")}
-                      </span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-primary">
-                          {formatFlow(usedFlow)}
-                        </span>
-                        {user.flow !== 99999 && (
-                          <Progress
-                            aria-label="已用流量比例"
-                            className="w-24"
-                            color={
-                              usedFlow / (user.flow * 1024 * 1024 * 1024) > 0.8
-                                ? "danger"
-                                : "primary"
-                            }
-                            size="sm"
-                            value={Math.min(
-                              (usedFlow / (user.flow * 1024 * 1024 * 1024)) *
-                                100,
-                              100,
-                            )}
-                          />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <span className="text-sm text-foreground">
-                        {user.num}
-                      </span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <span className="text-sm text-default-600">
-                        {user.flowResetTime === 0
-                          ? "不重置"
-                          : `每月${user.flowResetTime}号`}
-                      </span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {user.expTime ? (
-                        expStatus && expStatus.color === "success" ? (
-                          <span className="text-sm text-default-600">
-                            {formatDate(user.expTime)}
-                          </span>
-                        ) : (
-                          <div
-                            className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${((expStatus?.color as string) || "default") === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : expStatus?.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : expStatus?.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"}`}
-                          >
-                            {expStatus?.text || "未知"}
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground truncate">
+                              {user.name || user.user}
+                            </span>
+                            <span className="text-xs text-default-500 truncate">
+                              @{user.user}
+                            </span>
                           </div>
-                        )
-                      ) : (
-                        <span className="text-sm text-default-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <div className="flex gap-1.5">
-                        <Button
-                          className="min-h-7 min-w-[50px]"
-                          color="primary"
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleEdit(user)}
-                        >
-                          编辑
-                        </Button>
-                        <Button
-                          className="min-h-7 min-w-[50px]"
-                          color="secondary"
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleManageTunnels(user)}
-                        >
-                          隧道
-                        </Button>
-                        <Button
-                          className="min-h-7 min-w-[50px]"
-                          color={
-                            monitorPermissionUserIds.has(user.id)
-                              ? "success"
-                              : "default"
-                          }
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleOpenMonitorModal(user)}
-                        >
-                          {monitorPermissionUserIds.has(user.id)
-                            ? "监控"
-                            : "监控"}
-                        </Button>
-                        <Button
-                          className="min-h-7 min-w-[50px]"
-                          color="warning"
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleResetFlow(user)}
-                        >
-                          重置
-                        </Button>
-                        <Button
-                          className="min-h-7 min-w-[50px]"
-                          color="danger"
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleDelete(user)}
-                        >
-                          删除
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </SortableTableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div
+                            className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${userStatus.color === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : "bg-danger-500/10 text-danger-600 dark:text-danger-400"}`}
+                          >
+                            {userStatus.text}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${monitorPermissionUserIds.has(user.id)
+                                ? "bg-success-500/10 text-success-600 dark:text-success-400"
+                                : "bg-default-500/10 text-default-500"
+                              }`}
+                          >
+                            {monitorPermissionUserIds.has(user.id) ? (
+                              <>
+                                <EyeIcon className="w-3 h-3" />
+                                已打开
+                              </>
+                            ) : (
+                              <>
+                                <EyeOffIcon className="w-3 h-3" />
+                                已关闭
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span
+                            className={`text-sm ${user.flow === 99999 ? "text-success font-medium" : "text-foreground"}`}
+                          >
+                            {user.flow === 99999
+                              ? "不限"
+                              : formatFlow(user.flow, "gb")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-medium text-primary">
+                              {formatFlow(usedFlow)}
+                            </span>
+                            {user.flow !== 99999 && (
+                              <Progress
+                                aria-label="已用流量比例"
+                                className="w-24"
+                                color={
+                                  usedFlow / (user.flow * 1024 * 1024 * 1024) > 0.8
+                                    ? "danger"
+                                    : "primary"
+                                }
+                                size="sm"
+                                value={Math.min(
+                                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) *
+                                  100,
+                                  100,
+                                )}
+                              />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-sm text-foreground">
+                            {user.num}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-sm text-default-600">
+                            {user.flowResetTime === 0
+                              ? "不重置"
+                              : `每月${user.flowResetTime}号`}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {user.expTime ? (
+                            expStatus && expStatus.color === "success" ? (
+                              <span className="text-sm text-default-600">
+                                {formatDate(user.expTime)}
+                              </span>
+                            ) : (
+                              <div
+                                className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${((expStatus?.color as string) || "default") === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : expStatus?.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : expStatus?.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"}`}
+                              >
+                                {expStatus?.text || "未知"}
+                              </div>
+                            )
+                          ) : (
+                            <span className="text-sm text-default-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex gap-1.5">
+                            <Button
+                              className="min-h-7 min-w-[50px]"
+                              color="primary"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleEdit(user)}
+                            >
+                              编辑
+                            </Button>
+                            <Button
+                              className="min-h-7 min-w-[50px]"
+                              color="secondary"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleManageTunnels(user)}
+                            >
+                              隧道
+                            </Button>
+                            <Button
+                              className="min-h-7 min-w-[50px]"
+                              color={
+                                monitorPermissionUserIds.has(user.id)
+                                  ? "success"
+                                  : "default"
+                              }
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleOpenMonitorModal(user)}
+                            >
+                              {monitorPermissionUserIds.has(user.id)
+                                ? "监控"
+                                : "监控"}
+                            </Button>
+                            <Button
+                              className="min-h-7 min-w-[50px]"
+                              color="warning"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleResetFlow(user)}
+                            >
+                              重置
+                            </Button>
+                            <Button
+                              className="min-h-7 min-w-[50px]"
+                              color="danger"
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleDelete(user)}
+                            >
+                              删除
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </SortableTableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </SortableContext>
         </DndContext>
       ) : (
@@ -1599,19 +1597,18 @@ export default function UserPage() {
             const flowPercent =
               user.flow > 0
                 ? Math.min(
-                    (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
-                    100,
-                  )
+                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
+                  100,
+                )
                 : 0;
 
             return (
               <StaggerItem key={user.id}>
                 <div
-                  className={`shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full rounded-xl cursor-default ${
-                    selectedUserIds.has(user.id)
+                  className={`shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full rounded-xl cursor-default ${selectedUserIds.has(user.id)
                       ? "bg-primary-50 dark:bg-primary-900/30 border-primary-300 dark:border-primary-700"
                       : ""
-                  }`}
+                    }`}
                   onClick={() => toggleUserSelection(user.id)}
                 >
                   <Card className="shadow-none border-0">
@@ -1645,168 +1642,182 @@ export default function UserPage() {
                         </p>
                       </div>
                     </CardHeader>
-                  <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-default-600">流量限制</span>
-                        <span
-                          className={`font-medium text-xs ${user.flow === 99999 ? "text-success" : ""}`}
-                        >
-                          {user.flow === 99999
-                            ? "不限"
-                            : formatFlow(user.flow, "gb")}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-default-600">已用流量</span>
-                        <span className="font-medium text-xs text-primary">
-                          {formatFlow(usedFlow)}
-                        </span>
-                      </div>
-                      {user.flow !== 99999 && (
-                        <Progress
-                          aria-label={`已用流量 ${flowPercent.toFixed(1)}%`}
-                          className="mt-1"
-                          color={flowPercent > 80 ? "danger" : "primary"}
-                          size="sm"
-                          value={flowPercent}
-                        />
-                      )}
-                      {/* 其他信息 */}
-                      <div className="space-y-1.5 pt-2 border-t border-divider">
+                    <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
+                      <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-default-600">规则数量</span>
-                          <span className="font-medium text-xs">
-                            {user.num}
+                          <span className="text-default-600">流量限制</span>
+                          <span
+                            className={`font-medium text-xs ${user.flow === 99999 ? "text-success" : ""}`}
+                          >
+                            {user.flow === 99999
+                              ? "不限"
+                              : formatFlow(user.flow, "gb")}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-default-600">重置日期</span>
-                          <span className="text-xs">
-                            {user.flowResetTime === 0
-                              ? "不重置"
-                              : `每月${user.flowResetTime}号`}
+                          <span className="text-default-600">已用流量</span>
+                          <span className="font-medium text-xs text-primary">
+                            {formatFlow(usedFlow)}
                           </span>
                         </div>
-                        {user.expTime && (
+                        {user.flow !== 99999 && (
+                          <Progress
+                            aria-label={`已用流量 ${flowPercent.toFixed(1)}%`}
+                            className="mt-1"
+                            color={flowPercent > 80 ? "danger" : "primary"}
+                            size="sm"
+                            value={flowPercent}
+                          />
+                        )}
+                        {/* 其他信息 */}
+                        <div className="space-y-1.5 pt-2 border-t border-divider">
                           <div className="flex justify-between text-sm">
-                            <span className="text-default-600">过期时间</span>
-                            <div className="text-right">
-                              {expStatus && expStatus.color === "success" ? (
-                                <div className="text-xs">
-                                  {formatDate(user.expTime)}
-                                </div>
+                            <span className="text-default-600">规则数量</span>
+                            <span className="font-medium text-xs">
+                              {user.num}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">重置日期</span>
+                            <span className="text-xs">
+                              {user.flowResetTime === 0
+                                ? "不重置"
+                                : `每月${user.flowResetTime}号`}
+                            </span>
+                          </div>
+                          {user.expTime && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-default-600">过期时间</span>
+                              <div className="text-right">
+                                {expStatus && expStatus.color === "success" ? (
+                                  <div className="text-xs">
+                                    {formatDate(user.expTime)}
+                                  </div>
+                                ) : (
+                                  <div
+                                    className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${((expStatus?.color as string) || "default") === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : expStatus?.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : expStatus?.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"}`}
+                                  >
+                                    {expStatus?.text || "未知状态"}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">监控权限</span>
+                            <div
+                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${monitorPermissionUserIds.has(user.id)
+                                  ? "bg-success-500/10 text-success-600 dark:text-success-400"
+                                  : "bg-default-500/10 text-default-500"
+                                }`}
+                            >
+                              {monitorPermissionUserIds.has(user.id) ? (
+                                <>
+                                  <EyeIcon className="w-3 h-3" />
+                                  已打开
+                                </>
                               ) : (
-                                <div
-                                  className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${((expStatus?.color as string) || "default") === "success" ? "bg-success-500/10 text-success-600 dark:text-success-400" : expStatus?.color === "warning" ? "bg-warning-500/10 text-warning-600 dark:text-warning-400" : expStatus?.color === "danger" ? "bg-danger-500/10 text-danger-600 dark:text-danger-400" : "bg-default-500/10 text-default-500"}`}
-                                >
-                                  {expStatus?.text || "未知状态"}
-                                </div>
+                                <>
+                                  <EyeOffIcon className="w-3 h-3" />
+                                  已关闭
+                                </>
                               )}
                             </div>
                           </div>
-                        )}
-                        <div className="flex justify-between text-sm">
-                          <span className="text-default-600">监控权限</span>
-                          <div
-                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-                              monitorPermissionUserIds.has(user.id)
-                                ? "bg-success-500/10 text-success-600 dark:text-success-400"
-                                : "bg-default-500/10 text-default-500"
-                            }`}
-                          >
-                            {monitorPermissionUserIds.has(user.id) ? (
-                              <>
-                                <EyeIcon className="w-3 h-3" />
-                                已打开
-                              </>
-                            ) : (
-                              <>
-                                <EyeOffIcon className="w-3 h-3" />
-                                已关闭
-                              </>
-                            )}
-                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="space-y-1.5 mt-3">
-                      {/* 第一行：编辑和重置 */}
-                      <div className="flex gap-1.5">
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="primary"
-                          size="sm"
-                          startContent={<EditIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleEdit(user)}
-                        >
-                          编辑
-                        </Button>
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="warning"
-                          size="sm"
-                          startContent={
-                            <svg
-                              aria-hidden="true"
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                clipRule="evenodd"
-                                d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                                fillRule="evenodd"
-                              />
-                            </svg>
-                          }
-                          variant="flat"
-                          onPress={() => handleResetFlow(user)}
-                        >
-                          重置
-                        </Button>
+                      <div className="space-y-1.5 mt-3">
+                        {/* 第一行：编辑和重置 */}
+                        <div className="flex gap-1.5">
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="primary"
+                            size="sm"
+                            startContent={<EditIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={(e) => {
+                              e?.stopPropagation();
+                              handleEdit(user);
+                            }}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="warning"
+                            size="sm"
+                            startContent={
+                              <svg
+                                aria-hidden="true"
+                                className="w-3 h-3"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  clipRule="evenodd"
+                                  d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                  fillRule="evenodd"
+                                />
+                              </svg>
+                            }
+                            variant="flat"
+                            onPress={(e) => {
+                              e?.stopPropagation();
+                              handleResetFlow(user);
+                            }}
+                          >
+                            重置
+                          </Button>
+                        </div>
+                        {/* 第二行：权限、监控和删除 */}
+                        <div className="flex gap-1.5">
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="secondary"
+                            size="sm"
+                            startContent={<SettingsIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={(e) => {
+                              e?.stopPropagation();
+                              handleManageTunnels(user);
+                            }}
+                          >
+                            隧道
+                          </Button>
+                          <Button
+                            className="flex-1 min-h-8"
+                            color={
+                              monitorPermissionUserIds.has(user.id)
+                                ? "success"
+                                : "default"
+                            }
+                            size="sm"
+                            variant="flat"
+                            onPress={(e) => {
+                              e?.stopPropagation();
+                              handleOpenMonitorModal(user);
+                            }}
+                          >
+                            {monitorPermissionUserIds.has(user.id)
+                              ? "监控"
+                              : "监控"}
+                          </Button>
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="danger"
+                            size="sm"
+                            startContent={<DeleteIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={(e) => {
+                              e?.stopPropagation();
+                              handleDelete(user);
+                            }}
+                          >
+                            删除
+                          </Button>
+                        </div>
                       </div>
-                      {/* 第二行：权限、监控和删除 */}
-                      <div className="flex gap-1.5">
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="secondary"
-                          size="sm"
-                          startContent={<SettingsIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleManageTunnels(user)}
-                        >
-                          隧道
-                        </Button>
-                        <Button
-                          className="flex-1 min-h-8"
-                          color={
-                            monitorPermissionUserIds.has(user.id)
-                              ? "success"
-                              : "default"
-                          }
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleOpenMonitorModal(user)}
-                        >
-                          {monitorPermissionUserIds.has(user.id)
-                            ? "监控"
-                            : "监控"}
-                        </Button>
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="danger"
-                          size="sm"
-                          startContent={<DeleteIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleDelete(user)}
-                        >
-                          删除
-                        </Button>
-                      </div>
-                    </div>
-                  </CardBody>
+                    </CardBody>
                   </Card>
                 </div>
               </StaggerItem>
@@ -1944,8 +1955,8 @@ export default function UserPage() {
                 value={
                   userForm.expTime
                     ? (parseDate(
-                        userForm.expTime.toISOString().split("T")[0],
-                      ) as any)
+                      userForm.expTime.toISOString().split("T")[0],
+                    ) as any)
                     : null
                 }
                 onChange={(date) => {
@@ -2025,11 +2036,10 @@ export default function UserPage() {
                   {/* 👇 核心修复 2：分配按钮必须和选择框放在同一行！用 flex-1 min-w-0 压制选择框宽度 */}
                   <div className="flex flex-row items-center gap-2 sm:gap-3 w-full">
                     <div
-                      className={`group flex items-center px-3 sm:px-4 h-10 rounded-xl border-2 transition-all cursor-pointer shadow-sm overflow-hidden flex-1 min-w-0 ${
-                        isTunnelListExpanded
+                      className={`group flex items-center px-3 sm:px-4 h-10 rounded-xl border-2 transition-all cursor-pointer shadow-sm overflow-hidden flex-1 min-w-0 ${isTunnelListExpanded
                           ? "border-primary bg-primary-50/20 ring-4 ring-primary/10"
                           : "border-default-200 bg-default-50 hover:border-primary-300"
-                      }`}
+                        }`}
                       onClick={() =>
                         setIsTunnelListExpanded(!isTunnelListExpanded)
                       }
@@ -2039,12 +2049,12 @@ export default function UserPage() {
                       >
                         {batchTunnelSelections.size > 0
                           ? `已选 ${batchTunnelSelections.size} 项：` +
-                            Array.from(batchTunnelSelections.keys())
-                              .map(
-                                (id) => tunnels.find((t) => t.id === id)?.name,
-                              )
-                              .filter(Boolean)
-                              .join("、")
+                          Array.from(batchTunnelSelections.keys())
+                            .map(
+                              (id) => tunnels.find((t) => t.id === id)?.name,
+                            )
+                            .filter(Boolean)
+                            .join("、")
                           : "请选择隧道（勾选后配置）"}
                       </span>
                       <svg
@@ -2092,9 +2102,9 @@ export default function UserPage() {
                                   tunnels.filter((t) => !isTunnelAssigned(t.id))
                                     .length > 0 &&
                                   batchTunnelSelections.size ===
-                                    tunnels.filter(
-                                      (t) => !isTunnelAssigned(t.id),
-                                    ).length
+                                  tunnels.filter(
+                                    (t) => !isTunnelAssigned(t.id),
+                                  ).length
                                 }
                                 size="sm"
                                 onValueChange={(isSelected) => {
@@ -2343,9 +2353,9 @@ export default function UserPage() {
                               <span className="text-xs sm:text-sm text-default-600 bg-default-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded">
                                 {userTunnel.speedLimitName
                                   ? userTunnel.speedLimitName.replace(
-                                      /^限速\s*/,
-                                      "",
-                                    )
+                                    /^限速\s*/,
+                                    "",
+                                  )
                                   : "不限速"}
                               </span>
                             </TableCell>
@@ -2443,7 +2453,7 @@ export default function UserPage() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {monitorPermissionLoading ||
-                monitorPermissionMutatingUserId === monitorModalUser?.id ? (
+                  monitorPermissionMutatingUserId === monitorModalUser?.id ? (
                   <Spinner size="sm" />
                 ) : null}
                 <Switch
@@ -2506,9 +2516,9 @@ export default function UserPage() {
                     setEditTunnelForm((prev) =>
                       prev
                         ? {
-                            ...prev,
-                            speedId: selectedKey ? Number(selectedKey) : null,
-                          }
+                          ...prev,
+                          speedId: selectedKey ? Number(selectedKey) : null,
+                        }
                         : null,
                     );
                   }}
@@ -2910,11 +2920,10 @@ export default function UserPage() {
                     </span>
                   </div>
                   <div
-                    className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${
-                      user.status === 1
+                    className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${user.status === 1
                         ? "bg-success-500/10 text-success-600 dark:text-success-400"
                         : "bg-danger-500/10 text-danger-600 dark:text-danger-400"
-                    }`}
+                      }`}
                   >
                     {user.status === 1 ? "正常" : "禁用"}
                   </div>
