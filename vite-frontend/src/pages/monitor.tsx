@@ -2,7 +2,6 @@ import type { MonitorNodeApiItem } from "@/api/types";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Server, ArrowRightLeft } from "lucide-react";
 
 import { AnimatedPage } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -10,13 +9,16 @@ import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { getMonitorNodes } from "@/api";
 import { MonitorView } from "@/pages/node/monitor-view";
 import { TunnelMonitorView } from "@/pages/node/tunnel-monitor-view";
+
 type MonitorNode = {
   id: number;
   name: string;
   connectionStatus: "online" | "offline";
   version?: string;
 };
+
 type MonitorTab = "nodes" | "tunnels";
+
 export default function MonitorPage() {
   const [nodes, setNodes] = useState<MonitorNodeApiItem[]>([]);
   const [nodesLoading, setNodesLoading] = useState(false);
@@ -25,6 +27,7 @@ export default function MonitorPage() {
   const [activeTab, setActiveTab] = useState<MonitorTab>("nodes");
   const [tunnelsLoading, setTunnelsLoading] = useState(false);
   const [tunnelRefreshTrigger, setTunnelRefreshTrigger] = useState(0);
+
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
 
@@ -55,6 +58,7 @@ export default function MonitorPage() {
   useEffect(() => {
     void loadNodes();
   }, [loadNodes]);
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       void loadNodes({ silent: true });
@@ -62,6 +66,7 @@ export default function MonitorPage() {
 
     return () => window.clearInterval(timer);
   }, [loadNodes]);
+
   const nodeMap = useMemo(() => {
     const list: MonitorNode[] = nodes
       .filter((n) => Number(n.id) > 0)
@@ -78,60 +83,55 @@ export default function MonitorPage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="mb-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-default-500 truncate">
-            实时节点状态+隧道质量检测+历史指标图表+服务监控(TCP/ICMP)
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              color={viewMode === "grid" ? "primary" : "warning"}
-              size="sm"
-              variant="flat"
-              onPress={() => setViewMode(viewMode === "list" ? "grid" : "list")}
-            >
-              {viewMode === "grid" ? "列表" : "卡片"}
-            </Button>
-            <Button
-              color="primary"
-              isLoading={activeTab === "nodes" ? nodesLoading : tunnelsLoading}
-              size="sm"
-              variant="flat"
-              onPress={() => {
-                if (activeTab === "nodes") {
-                  loadNodes();
-                } else {
-                  setTunnelRefreshTrigger((prev) => prev + 1);
-                }
-              }}
-            >
-              刷新
-            </Button>
-          </div>
-        </div>
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 dark:bg-default-50/10 w-fit">
-          <button
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              activeTab === "nodes"
-                ? "bg-background shadow-sm text-foreground"
-                : "text-default-500 hover:text-foreground"
-            }`}
-            onClick={() => setActiveTab("nodes")}
+        {/* 第一行：左侧按钮组 */}
+        <div className="flex items-center gap-1">
+          {/* 卡片/列表切换 - 黄色 */}
+          <Button
+            color="warning"
+            size="sm"
+            variant="flat"
+            onPress={() => setViewMode(viewMode === "list" ? "grid" : "list")}
           >
-            <Server className="w-4 h-4" />
+            {viewMode === "grid" ? "列表" : "卡片"}
+          </Button>
+          {/* 节点按钮 - 蓝色 */}
+          <Button
+            color="primary"
+            size="sm"
+            variant="flat"
+            onPress={() => setActiveTab("nodes")}
+          >
             节点
-          </button>
-          <button
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              activeTab === "tunnels"
-                ? "bg-background shadow-sm text-foreground"
-                : "text-default-500 hover:text-foreground"
-            }`}
-            onClick={() => setActiveTab("tunnels")}
+          </Button>
+          {/* 隧道按钮 - 绿色 */}
+          <Button
+            color="success"
+            size="sm"
+            variant="flat"
+            onPress={() => setActiveTab("tunnels")}
           >
-            <ArrowRightLeft className="w-4 h-4" />
             隧道
-          </button>
+          </Button>
+          {/* 刷新按钮 - 紫色 */}
+          <Button
+            color="secondary"
+            isLoading={activeTab === "nodes" ? nodesLoading : tunnelsLoading}
+            size="sm"
+            variant="flat"
+            onPress={() => {
+              if (activeTab === "nodes") {
+                loadNodes();
+              } else {
+                setTunnelRefreshTrigger((prev) => prev + 1);
+              }
+            }}
+          >
+            刷新
+          </Button>
+        </div>
+        {/* 第二行：副标题 */}
+        <div className="text-xs text-default-500 truncate">
+          实时节点状态 + 隧道质量检测 + 历史指标图表 + 服务监控 (TCP/ICMP)
         </div>
         {nodesError && activeTab === "nodes" ? (
           <Card>
