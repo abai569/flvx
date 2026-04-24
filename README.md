@@ -1,6 +1,6 @@
 # FLVX
 
-> **联系我们**: [Telegram 群组](https://t.me/flvxpanel) | [文档](https://docs.yourdomain.com)
+> **联系我们**: [Telegram 群组](https://t.me/+nnLcm9qDxC9lN2M1) | [文档](https://docs.yourdomain.com)
 
 ## 特性
 
