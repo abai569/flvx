@@ -38,11 +38,10 @@ export function isPermanentDate(value: number | null | undefined): boolean {
 
 export function getDefaultDatePresets(): DatePreset[] {
   return [
-    { label: "1 周后", offsetDays: 7 },
     { label: "1 月后", offsetDays: 30 },
-    { label: "半年后", offsetDays: 180 },
+    { label: "3 月后", offsetDays: 90 },
+    { label: "6 月后", offsetDays: 180 },
     { label: "1 年后", offsetDays: 365 },
-    { label: "3 年后", offsetDays: 1095 },
     { label: "永久", value: 0 },
   ];
 }

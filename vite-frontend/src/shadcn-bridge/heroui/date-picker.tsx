@@ -4,7 +4,6 @@ import { FieldContainer, type FieldMetaProps } from "./shared";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Button } from "./button";
 
 export interface CalendarDateLike {
   day: number;
@@ -75,8 +74,8 @@ function parseDateText(value: string) {
 }
 
 export interface DatePickerProps extends FieldMetaProps {
+  children?: React.ReactNode;
   className?: string;
-  isClearable?: boolean;
   isDisabled?: boolean;
   isRequired?: boolean;
   onChange?: (value: CalendarDateLike | null) => void;
@@ -96,10 +95,10 @@ function formatDateValue(value: CalendarDateLike | null | undefined) {
 }
 
 export function DatePicker({
+  children,
   className,
   description,
   errorMessage,
-  isClearable = false,
   isDisabled,
   isInvalid,
   isRequired,
@@ -182,15 +181,10 @@ export function DatePicker({
     setTextValue(formattedValue);
   };
 
-  const handleClear = () => {
-    setTextValue("");
-    onChange?.(null);
-  };
-
   return (
     <FieldContainer
       description={
-        isPermanent && isClearable
+        isPermanent
           ? permanentLabel
           : description
       }
@@ -207,8 +201,8 @@ export function DatePicker({
           disabled={isDisabled}
           id={id}
           inputMode={shouldUseTextInput ? "numeric" : undefined}
-          placeholder={shouldUseTextInput ? "YYYY-MM-DD" : undefined}
-          required={isRequired && !isClearable}
+          placeholder={shouldUseTextInput ? "例: 20281001" : undefined}
+          required={isRequired}
           type={shouldUseTextInput ? "text" : "date"}
           value={shouldUseTextInput ? textValue : formattedValue}
           onBlur={shouldUseTextInput ? commitTextInput : undefined}
@@ -235,17 +229,7 @@ export function DatePicker({
               : undefined
           }
         />
-        {isClearable && (
-          <Button
-            className="shrink-0"
-            color="danger"
-            size="sm"
-            variant="flat"
-            onPress={handleClear}
-          >
-            清除
-          </Button>
-        )}
+        {children}
       </div>
     </FieldContainer>
   );

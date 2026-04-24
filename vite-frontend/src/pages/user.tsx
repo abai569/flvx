@@ -543,7 +543,8 @@ export default function UserPage() {
         const remainingIds = users
           .map((u) => u.id)
           .filter((id) => !userOrder.includes(id));
-        setSortableUserIds([...userOrder.filter(id => orderedIds.includes(id)), ...remainingIds]);
+        // 新用户（未排序的）在前，已排序的用户在后
+        setSortableUserIds([...remainingIds, ...userOrder.filter(id => orderedIds.includes(id))]);
       } else {
         setSortableUserIds(users.map((u) => u.id));
       }
@@ -759,7 +760,7 @@ export default function UserPage() {
     }
   };
   const handleSubmitUser = async () => {
-    if (!userForm.user || (!userForm.pwd && !isEdit) || !userForm.expTime) {
+    if (!userForm.user || (!userForm.pwd && !isEdit)) {
       toast.error("请填写完整信息");
 
       return;
@@ -768,7 +769,7 @@ export default function UserPage() {
     try {
       const submitData: any = {
         ...userForm,
-        expTime: userForm.expTime.getTime(),
+        expTime: userForm.expTime?.getTime() ?? 0,
         groupIds: userForm.groupIds ?? [],
       };
 
@@ -797,7 +798,7 @@ export default function UserPage() {
           pagination.current === 1 &&
           !searchKeyword.trim()
         ) {
-          setUsers((prev) => [responseUser, ...prev].slice(0, pagination.size));
+          setUsers((prev) => [responseUser, ...prev]);
           setPagination((prev) => ({ ...prev, total: prev.total + 1 }));
         } else {
           await loadUsers(undefined, false);
@@ -1508,7 +1509,7 @@ export default function UserPage() {
                           </span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {user.expTime ? (
+                          {user.expTime && user.expTime > 0 ? (
                             expStatus && expStatus.color === "success" ? (
                               <span className="text-sm text-default-600">
                                 {formatDate(user.expTime)}
@@ -1521,7 +1522,7 @@ export default function UserPage() {
                               </div>
                             )
                           ) : (
-                            <span className="text-sm text-default-400">-</span>
+                            <span className="text-sm text-default-600">永久</span>
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
@@ -1686,7 +1687,7 @@ export default function UserPage() {
                                 : `每月${user.flowResetTime}号`}
                             </span>
                           </div>
-                          {user.expTime && (
+                          {user.expTime && user.expTime > 0 ? (
                             <div className="flex justify-between text-sm">
                               <span className="text-default-600">过期时间</span>
                               <div className="text-right">
@@ -1702,6 +1703,11 @@ export default function UserPage() {
                                   </div>
                                 )}
                               </div>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-default-600">过期时间</span>
+                              <span className="text-sm text-default-600">永久</span>
                             </div>
                           )}
                           <div className="flex justify-between text-sm">
@@ -1950,21 +1956,22 @@ export default function UserPage() {
                 </>
               </Select>
               <DatePicker
-                isRequired
+                // 删除必填项 isRequired
                 showMonthAndYearPickers
-                label="过期时间"
+                description="留空表示永不过期"
+                label="到期时间"
                 value={timestampToCalendarDate(userForm.expTime?.getTime() || null)}
                 onChange={(date) => {
                   const jsDate = calendarDateToTimestamp(date) || null;
                   setUserForm((prev) => ({ ...prev, expTime: jsDate ? new Date(jsDate) : null }));
                 }}
-              />
-              <DatePresets
-                className="mt-2"
-                onChange={(timestamp) => {
-                  setUserForm((prev) => ({ ...prev, expTime: timestamp ? new Date(timestamp) : null }));
-                }}
-              />
+              >
+                <DatePresets
+                  onChange={(timestamp) => {
+                    setUserForm((prev) => ({ ...prev, expTime: timestamp ? new Date(timestamp) : null }));
+                  }}
+                />
+              </DatePicker>
             </div>
             {/* 配额状态保持原样 */}
             {isEdit &&
@@ -1995,7 +2002,7 @@ export default function UserPage() {
               isLoading={userFormLoading}
               onPress={handleSubmitUser}
             >
-              确定
+              保存
             </Button>
           </ModalFooter>
         </ModalContent>

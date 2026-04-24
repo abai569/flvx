@@ -192,7 +192,7 @@ const FORWARD_GROUP_COLLAPSED_CONFIG_KEY = "forward_group_collapsed_map";
 const FORWARD_GROUP_ORDER_LOCAL_STORAGE_PREFIX = "forward-group-order";
 const FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX = "forward-group-collapsed";
 const FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX = "forward-tunnel-group";
-const FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS = "min-w-[1320px]";
+const FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS = "min-w-[1370px]";
 const FORWARD_GROUPED_TABLE_COLUMN_CLASS = {
   select: "w-14",
   drag: "w-14 pl-2",
@@ -269,6 +269,30 @@ const formatTunnelTrafficRatio = (value?: number): string => {
   }
 
   return `${parseFloat(ratio.toFixed(2))}x`;
+};
+const formatExpiryTime = (expiryTime: number | null | undefined): string => {
+  if (!expiryTime || expiryTime <= 0) {
+    return "永久";
+  }
+  const date = new Date(expiryTime);
+  const now = new Date();
+  const diffDays = Math.ceil((expiryTime - now.getTime()) / (1000 * 60 * 60 * 24));
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  const dateStr = `${month}/${day}`;
+
+  if (diffDays <= 0) {
+    return `${dateStr} (已过期)`;
+  }
+  if (diffDays <= 7) {
+    return `${dateStr} (剩余${diffDays}天)`;
+  }
+  return dateStr;
+};
+const isExpirySoon = (expiryTime: number): boolean => {
+  const now = new Date().getTime();
+  const diffDays = Math.ceil((expiryTime - now) / (1000 * 60 * 60 * 24));
+  return diffDays <= 7;
 };
 const buildForwardGroupOrderLocalKey = (tokenUserId: number): string => {
   return `${FORWARD_GROUP_ORDER_LOCAL_STORAGE_PREFIX}:u:${tokenUserId}`;
@@ -847,6 +871,11 @@ const SortableTableRow = ({
           max={forward.maxConnections ?? 0}
         />
       </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <span className={`text-sm font-medium ${forward.expiryTime && forward.expiryTime > 0 && isExpirySoon(forward.expiryTime) ? "text-danger-600 dark:text-danger-400 font-bold" : "text-foreground"}`}>
+          {formatExpiryTime(forward.expiryTime)}
+        </span>
+      </TableCell>
       <TableCell className={rowBg}>
         <div className="flex items-center gap-2.5 whitespace-nowrap">
           <div
@@ -1095,6 +1124,11 @@ const SortableCompactTableRow = ({
           current={forward.currentConnections ?? 0}
           max={forward.maxConnections ?? 0}
         />
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <span className={`text-sm font-medium ${forward.expiryTime && forward.expiryTime > 0 && isExpirySoon(forward.expiryTime) ? "text-danger-600 dark:text-danger-400 font-bold" : "text-foreground"}`}>
+          {formatExpiryTime(forward.expiryTime)}
+        </span>
       </TableCell>
       <TableCell className={rowBg}>
         <div className="flex items-center gap-2.5 whitespace-nowrap">
@@ -3779,6 +3813,13 @@ export default function ForwardPage() {
               </div>
             </div>
           </div>
+          {/* 到期时间横条 - 方案 C */}
+          <div className={`flex items-center justify-between px-2 py-1.5 rounded-md mt-2 ${forward.expiryTime && forward.expiryTime > 0 && isExpirySoon(forward.expiryTime) ? "bg-danger-500/10 dark:bg-danger-900/20" : "bg-default-100/50 dark:bg-default-50/10"}`}>
+            <span className="text-xs text-default-500 font-medium">到期时间</span>
+            <span className={`text-xs font-bold ${forward.expiryTime && forward.expiryTime > 0 && isExpirySoon(forward.expiryTime) ? "text-danger-600 dark:text-danger-400" : "text-foreground"}`}>
+              {formatExpiryTime(forward.expiryTime)}
+            </span>
+          </div>
           {/* 底部 Chip 区 */}
           <div className="flex flex-wrap items-center justify-start pt-2 border-t border-divider gap-1">
             <div className="flex items-center gap-1">
@@ -4166,16 +4207,16 @@ export default function ForwardPage() {
                             ))}
                           </Select>
                         </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">
                           入口地址
                         </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[65px] text-left">
                           端口
                         </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">
                           落地地址
                         </TableColumn>
-                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[65px] text-left">
                           端口
                         </TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
@@ -4183,6 +4224,9 @@ export default function ForwardPage() {
                         </TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">
                           连接数
+                        </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                          到期时间
                         </TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
                           状态
@@ -4461,16 +4505,16 @@ export default function ForwardPage() {
                                           规则名
                                         </TableColumn>
                                         {/* {isAdmin && <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">速度限制</TableColumn>} */}
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[150px] text-left">
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">
                                           入口地址
                                         </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[65px] text-left">
                                           端口
                                         </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-left">
                                           落地地址
                                         </TableColumn>
-                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[80px] text-left">
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[65px] text-left">
                                           端口
                                         </TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
@@ -4478,6 +4522,9 @@ export default function ForwardPage() {
                                         </TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">
                                           连接数
+                                        </TableColumn>
+                                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
+                                          到期时间
                                         </TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
                                           状态
@@ -6353,25 +6400,21 @@ function ExpiryTimeField({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">到期时间</span>
-      </div>
       <DatePicker
         description="留空表示永不过期"
-        label=""
-        isClearable
+        label="到期时间"
         showMonthAndYearPickers
         value={timestampToCalendarDate(value)}
         onChange={(date) => {
           onChange(calendarDateToTimestamp(date));
         }}
-      />
-      <DatePresets
-        className="mt-2"
-        onChange={(timestamp) => {
-          onChange(timestamp === 0 ? null : timestamp);
-        }}
-      />
+      >
+        <DatePresets
+          onChange={(timestamp) => {
+            onChange(timestamp === 0 ? null : timestamp);
+          }}
+        />
+      </DatePicker>
     </div>
   );
 }

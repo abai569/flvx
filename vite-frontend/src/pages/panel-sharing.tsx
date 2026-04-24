@@ -823,7 +823,6 @@ export default function PanelSharingPage() {
             <DatePicker
               description="留空表示永久有效"
               label="过期时间"
-              isClearable
               permanentLabel="永久有效"
               showMonthAndYearPickers
               value={timestampToCalendarDate(editForm.expiryTime > 0 ? editForm.expiryTime : null)}
@@ -834,16 +833,16 @@ export default function PanelSharingPage() {
                   expiryTime: timestamp,
                 });
               }}
-            />
-            <DatePresets
-              className="mt-2"
-              onChange={(timestamp) => {
-                setEditForm({
-                  ...editForm,
-                  expiryTime: timestamp,
-                });
-              }}
-            />
+            >
+              <DatePresets
+                onChange={(timestamp) => {
+                  setEditForm({
+                    ...editForm,
+                    expiryTime: timestamp,
+                  });
+                }}
+              />
+            </DatePicker>
             <Input
               description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
               label="允许的域名 (可选)"

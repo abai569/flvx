@@ -74,8 +74,7 @@ export function DropdownItem({
         color === "danger" ? "text-danger focus:text-danger" : "",
         className,
       )}
-      onSelect={(event) => {
-        event.preventDefault();
+      onSelect={() => {
         onPress?.();
       }}
     >

@@ -2971,16 +2971,16 @@ export default function NodePage() {
                       expiryTime: timestamp,
                     }));
                   }}
-                />
-                <DatePresets
-                  className="md:col-span-2 mt-2"
-                  onChange={(timestamp) => {
-                    setForm((prev) => ({
-                      ...prev,
-                      expiryTime: timestamp,
-                    }));
-                  }}
-                />
+                >
+                  <DatePresets
+                    onChange={(timestamp) => {
+                      setForm((prev) => ({
+                        ...prev,
+                        expiryTime: timestamp,
+                      }));
+                    }}
+                  />
+                </DatePicker>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
