@@ -1,4 +1,4 @@
-export type NodeRenewalCycle = "" | "month" | "quarter" | "year";
+export type NodeRenewalCycle = "" | "month" | "quarter" | "halfYear" | "year";
 
 export interface NodeRenewalSnapshot {
   cycle: NodeRenewalCycle;
@@ -24,6 +24,8 @@ const cycleToMonths = (cycle: NodeRenewalCycle): number => {
       return 1;
     case "quarter":
       return 3;
+    case "halfYear":
+      return 6;
     case "year":
       return 12;
     default:
@@ -37,6 +39,8 @@ export const getNodeRenewalCycleLabel = (cycle?: string): string => {
       return "月付";
     case "quarter":
       return "季付";
+    case "halfYear":
+      return "半年付";
     case "year":
       return "年付";
     default:
@@ -50,7 +54,7 @@ export const getNodeRenewalSnapshot = (
   warningDays = 7,
 ): NodeRenewalSnapshot => {
   const normalizedCycle =
-    cycle === "month" || cycle === "quarter" || cycle === "year" ? cycle : "";
+    cycle === "month" || cycle === "quarter" || cycle === "halfYear" || cycle === "year" ? cycle : "";
 
   if (!anchorTime || anchorTime <= 0 || !normalizedCycle) {
     return {

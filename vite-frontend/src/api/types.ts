@@ -5,7 +5,7 @@ export interface NodeApiItem {
   inx?: number;
   remark?: string;
   expiryTime?: number;
-  renewalCycle?: "month" | "quarter" | "year" | "";
+  renewalCycle?: "month" | "quarter" | "halfYear" | "" | "year";
   expiryReminderDismissed?: number;
   syncError?: string;
   // 周期流量统计
@@ -355,7 +355,7 @@ export interface NodeMutationPayload {
   inx?: number;
   remark?: string;
   expiryTime?: number;
-  renewalCycle?: "month" | "quarter" | "year" | "";
+  renewalCycle?: "month" | "quarter" | "halfYear" | "" | "year";
   groupId?: number | null;
   serverIp?: string;
   intranetIp?: string;

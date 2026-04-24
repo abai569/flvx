@@ -2931,7 +2931,7 @@ export default function NodePage() {
               </Select>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
-                  description="支持月、季、年三种周期"
+                  description="支持月、季、半年、年四种周期"
                   label="续费周期"
                   placeholder="选择续费周期"
                   selectedKeys={form.renewalCycle ? [form.renewalCycle] : []}
@@ -2953,6 +2953,9 @@ export default function NodePage() {
                   <SelectItem key="quarter" textValue="季">
                     季付
                   </SelectItem>
+                  <SelectItem key="halfYear" textValue="半年">
+                    半年付
+                  </SelectItem>
                   <SelectItem key="year" textValue="年">
                     年付
                   </SelectItem>
@@ -2962,6 +2965,7 @@ export default function NodePage() {
                   errorMessage={errors.expiryTime}
                   isInvalid={!!errors.expiryTime}
                   label="续费基准时间"
+                  permanentLabel="系统会自动按周期同日推算下次续费时间"
                   showMonthAndYearPickers
                   value={timestampToCalendarDate(form.expiryTime > 0 ? form.expiryTime : null)}
                   onChange={(date) => {
