@@ -3267,11 +3267,7 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 				}
 				if !isRemote {
 					var err error
-					if excludeTunnelID > 0 {
-						port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
-					} else {
-						port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
-					}
+					port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
 					if err != nil {
 						return nil, err
 					}
@@ -3306,11 +3302,7 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 					}
 					if !isRemote {
 						var err error
-						if excludeTunnelID > 0 {
-							port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
-						} else {
-							port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
-						}
+						port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
 						if err != nil {
 							return nil, err
 						}

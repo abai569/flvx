@@ -816,6 +816,7 @@ export default function TunnelPage() {
       return uniquePorts[0];
     }
 
+    // 只连接有值的端口，忽略尾随的空值
     return ports.join(",");
   };
   // 🎯 多端口支持：将端口应用到转发链节点
@@ -852,6 +853,22 @@ export default function TunnelPage() {
     groupIndex: number,
     value: string,
   ) => {
+    // 如果输入为空或只包含逗号/空格，清空该跳所有节点的 IP 类型
+    if (!value || value.split(",").every(s => !s.trim())) {
+      setForm((prev) => {
+        const chainNodes = [...(prev.chainNodes || [])];
+        const currentGroup = chainNodes[groupIndex] || [];
+
+        chainNodes[groupIndex] = currentGroup.map((node) => ({
+          ...node,
+          connectIpType: '',
+        }));
+
+        return { ...prev, chainNodes };
+      });
+      return;
+    }
+
     const types = value.split(",").map((s) => s.trim());
 
     setForm((prev) => {
@@ -860,7 +877,7 @@ export default function TunnelPage() {
 
       chainNodes[groupIndex] = currentGroup.map((node, idx) => ({
         ...node,
-        connectIpType: idx < types.length ? types[idx] : (node.connectIpType || ''),
+        connectIpType: idx < types.length ? types[idx] : '',
       }));
 
       return { ...prev, chainNodes };
@@ -882,12 +899,24 @@ export default function TunnelPage() {
     return types.join(",");
   };
   const applyOutNodeConnectIpTypes = (value: string) => {
+    // 如果输入为空或只包含逗号/空格，清空所有节点的 IP 类型
+    if (!value || value.split(",").every(s => !s.trim())) {
+      setForm((prev) => ({
+        ...prev,
+        outNodeId: (prev.outNodeId || []).map((node) => ({
+          ...node,
+          connectIpType: '',
+        })),
+      }));
+      return;
+    }
+
     const types = value.split(",").map((s) => s.trim());
     setForm((prev) => ({
       ...prev,
       outNodeId: (prev.outNodeId || []).map((node, idx) => ({
         ...node,
-        connectIpType: idx < types.length ? types[idx] : (node.connectIpType || ''),
+        connectIpType: idx < types.length ? types[idx] : '',
       })),
     }));
   };
@@ -954,18 +983,20 @@ export default function TunnelPage() {
     if (parts.length !== nodeCount)
       return `节点数为 ${nodeCount}，需要输入 ${nodeCount} 个端口（用逗号分隔）`;
     for (const part of parts) {
-      if (!part || part.trim() === "")
-        return "❌ 不允许部分留空！必须全部填写完整，或者全部清空留给系统自动分配";
-      if (part.includes("-")) {
-        const [start, end] = part.split("-").map(Number);
+      if (part && part.trim() !== "") {
+        // 只验证非空值
+        if (part.includes("-")) {
+          const [start, end] = part.split("-").map(Number);
 
-        if (start < 1 || end > 65535 || start > end)
-          return "端口范围无效（1-65535）";
-      } else {
-        const port = Number(part);
+          if (start < 1 || end > 65535 || start > end)
+            return "端口范围无效（1-65535）";
+        } else {
+          const port = Number(part);
 
-        if (port < 1 || port > 65535) return "端口无效（1-65535）";
+          if (port < 1 || port > 65535) return "端口无效（1-65535）";
+        }
       }
+      // 空值表示由后端自动分配，允许
     }
 
     return null;
@@ -981,10 +1012,12 @@ export default function TunnelPage() {
     const validTypes = ["v4", "v6", "lan", "auto"];
 
     for (const type of parts) {
-      if (!type || type === "")
-        return "❌ 不允许部分留空！必须全部填写完整，或者全部清空留给系统自动分配";
-      if (!validTypes.includes(type.toLowerCase()))
-        return `无效的 IP 类型 "${type}"，只允许：${validTypes.join(", ")}`;
+      if (type && type !== "") {
+        // 只验证非空值
+        if (!validTypes.includes(type.toLowerCase()))
+          return `无效的 IP 类型 "${type}"，只允许：${validTypes.join(", ")}`;
+      }
+      // 空值表示由后端自动分配，允许
     }
 
     return null;
@@ -3229,9 +3262,10 @@ export default function TunnelPage() {
                                       applyConnectIpTypesToChainGroup(groupIndex, e.target.value);
                                     }}
                                     variant="bordered"
-                                    onChange={(e) =>
-                                      setFocusedInputs(prev => ({ ...prev, [`chain_ipType_${groupIndex}`]: e.target.value }))
-                                    }
+                                    onChange={(e) => {
+                                      setFocusedInputs(prev => ({ ...prev, [`chain_ipType_${groupIndex}`]: e.target.value }));
+                                      applyConnectIpTypesToChainGroup(groupIndex, e.target.value);
+                                    }}
                                   />
                                 </div>
                                 <div className="mt-2 flex justify-end">
@@ -3616,7 +3650,10 @@ export default function TunnelPage() {
                                 placeholder="例：v4,v6,lan"
                                 size="sm"
                                 variant="bordered"
-                                onBlur={() => setFocusedInputs(prev => { const next = { ...prev }; delete next[`out_ipType`]; return next; })}
+                                onBlur={(e) => {
+                                  setFocusedInputs(prev => { const next = { ...prev }; delete next[`out_ipType`]; return next; });
+                                  applyOutNodeConnectIpTypes(e.target.value);
+                                }}
                                 onChange={(e) => {
                                   setFocusedInputs(prev => ({ ...prev, [`out_ipType`]: e.target.value }));
                                   applyOutNodeConnectIpTypes(e.target.value);
