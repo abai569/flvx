@@ -4,8 +4,9 @@ import { FieldContainer, type FieldMetaProps } from "./shared";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Button } from "./button";
 
-interface CalendarDateLike {
+export interface CalendarDateLike {
   day: number;
   month: number;
   year: number;
@@ -75,9 +76,11 @@ function parseDateText(value: string) {
 
 export interface DatePickerProps extends FieldMetaProps {
   className?: string;
+  isClearable?: boolean;
   isDisabled?: boolean;
   isRequired?: boolean;
   onChange?: (value: CalendarDateLike | null) => void;
+  permanentLabel?: string;
   showMonthAndYearPickers?: boolean;
   value?: CalendarDateLike | null;
 }
@@ -96,17 +99,20 @@ export function DatePicker({
   className,
   description,
   errorMessage,
+  isClearable = false,
   isDisabled,
   isInvalid,
   isRequired,
   label,
   onChange,
+  permanentLabel = "永久有效",
   showMonthAndYearPickers,
   value,
 }: DatePickerProps) {
   const id = React.useId();
   const formattedValue = React.useMemo(() => formatDateValue(value), [value]);
   const [textValue, setTextValue] = React.useState(formattedValue);
+  const isPermanent = !value;
 
   React.useEffect(() => {
     setTextValue(formattedValue);
@@ -176,49 +182,71 @@ export function DatePicker({
     setTextValue(formattedValue);
   };
 
+  const handleClear = () => {
+    setTextValue("");
+    onChange?.(null);
+  };
+
   return (
     <FieldContainer
-      description={description}
+      description={
+        isPermanent && isClearable
+          ? permanentLabel
+          : description
+      }
       errorMessage={errorMessage}
       id={id}
       isInvalid={isInvalid}
       isRequired={isRequired}
       label={label}
     >
-      <Input
-        aria-invalid={isInvalid}
-        className={cn(className)}
-        disabled={isDisabled}
-        id={id}
-        inputMode={shouldUseTextInput ? "numeric" : undefined}
-        placeholder={shouldUseTextInput ? "YYYY-MM-DD" : undefined}
-        required={isRequired}
-        type={shouldUseTextInput ? "text" : "date"}
-        value={shouldUseTextInput ? textValue : formattedValue}
-        onBlur={shouldUseTextInput ? commitTextInput : undefined}
-        onChange={(event) => {
-          const nextValue = event.target.value;
+      <div className="flex gap-2">
+        <Input
+          aria-invalid={isInvalid}
+          className={cn(className, "flex-1")}
+          disabled={isDisabled}
+          id={id}
+          inputMode={shouldUseTextInput ? "numeric" : undefined}
+          placeholder={shouldUseTextInput ? "YYYY-MM-DD" : undefined}
+          required={isRequired && !isClearable}
+          type={shouldUseTextInput ? "text" : "date"}
+          value={shouldUseTextInput ? textValue : formattedValue}
+          onBlur={shouldUseTextInput ? commitTextInput : undefined}
+          onChange={(event) => {
+            const nextValue = event.target.value;
 
-          if (shouldUseTextInput) {
-            setTextValue(nextValue);
-            notifyTextDateChange(nextValue);
+            if (shouldUseTextInput) {
+              setTextValue(nextValue);
+              notifyTextDateChange(nextValue);
 
-            return;
-          }
+              return;
+            }
 
-          notifyNativeDateChange(nextValue);
-        }}
-        onKeyDown={
-          shouldUseTextInput
-            ? (event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitTextInput();
+            notifyNativeDateChange(nextValue);
+          }}
+          onKeyDown={
+            shouldUseTextInput
+              ? (event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitTextInput();
+                  }
                 }
-              }
-            : undefined
-        }
-      />
+              : undefined
+          }
+        />
+        {isClearable && (
+          <Button
+            className="shrink-0"
+            color="danger"
+            size="sm"
+            variant="flat"
+            onPress={handleClear}
+          >
+            清除
+          </Button>
+        )}
+      </div>
     </FieldContainer>
   );
 }

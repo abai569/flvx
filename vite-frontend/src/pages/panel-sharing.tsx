@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Tabs, Tab } from "@/shadcn-bridge/heroui/tabs";
 import { Input } from "@/shadcn-bridge/heroui/input";
+import { DatePicker } from "@/shadcn-bridge/heroui/date-picker";
+import { DatePresets } from "@/shadcn-bridge/heroui/date-presets";
 import {
   Modal,
   ModalContent,
@@ -817,23 +820,29 @@ export default function PanelSharingPage() {
                 })
               }
             />
-            <Input
-              description="留空或清除表示永久有效"
+            <DatePicker
+              description="留空表示永久有效"
               label="过期时间"
-              type="datetime-local"
-              value={
-                editForm.expiryTime > 0
-                  ? new Date(editForm.expiryTime).toISOString().slice(0, 16)
-                  : ""
-              }
-              onChange={(e) =>
+              isClearable
+              permanentLabel="永久有效"
+              showMonthAndYearPickers
+              value={timestampToCalendarDate(editForm.expiryTime > 0 ? editForm.expiryTime : null)}
+              onChange={(date) => {
+                const timestamp = calendarDateToTimestamp(date) || 0;
                 setEditForm({
                   ...editForm,
-                  expiryTime: e.target.value
-                    ? new Date(e.target.value).getTime()
-                    : 0,
-                })
-              }
+                  expiryTime: timestamp,
+                });
+              }}
+            />
+            <DatePresets
+              className="mt-2"
+              onChange={(timestamp) => {
+                setEditForm({
+                  ...editForm,
+                  expiryTime: timestamp,
+                });
+              }}
             />
             <Input
               description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"

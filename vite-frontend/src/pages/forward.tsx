@@ -29,6 +29,8 @@ import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { Textarea } from "@/shadcn-bridge/heroui/input";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
+import { DatePicker } from "@/shadcn-bridge/heroui/date-picker";
+import { DatePresets } from "@/shadcn-bridge/heroui/date-presets";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import {
   Table,
@@ -96,6 +98,7 @@ import { PageLoadingState } from "@/components/page-state";
 // import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
 import { saveOrder } from "@/utils/order-storage";
 import { JwtUtil } from "@/utils/jwt";
+import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 interface Forward {
   id: number;
   name: string;
@@ -6348,38 +6351,25 @@ function ExpiryTimeField({
   value: number | null;
   onChange: (val: number | null) => void;
 }) {
-  const formatDateToInput = (timestamp: number | null): string => {
-    if (!timestamp || timestamp <= 0) return "";
-
-    return new Date(timestamp).toISOString().slice(0, 10);
-  };
-  const parseDateInputToTimestamp = (dateStr: string): number | null => {
-    if (!dateStr) return null;
-
-    return new Date(dateStr).getTime();
-  };
-
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-foreground">到期时间</span>
       </div>
-      <Input
+      <DatePicker
         description="留空表示永不过期"
         label=""
-        max="9999-12-31"
-        placeholder="年 - 月 - 日"
-        type="date"
-        value={formatDateToInput(value)}
-        variant="bordered"
-        onChange={(e) => {
-          const val = e.target.value;
-
-          if (val) {
-            onChange(parseDateInputToTimestamp(val));
-          } else {
-            onChange(null);
-          }
+        isClearable
+        showMonthAndYearPickers
+        value={timestampToCalendarDate(value)}
+        onChange={(date) => {
+          onChange(calendarDateToTimestamp(date));
+        }}
+      />
+      <DatePresets
+        className="mt-2"
+        onChange={(timestamp) => {
+          onChange(timestamp === 0 ? null : timestamp);
         }}
       />
     </div>

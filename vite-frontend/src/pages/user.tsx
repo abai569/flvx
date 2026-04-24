@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
-import { parseDate } from "@internationalized/date";
+import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 import {
   DndContext,
   KeyboardSensor,
@@ -49,6 +49,7 @@ import { RadioGroup, Radio } from "@/shadcn-bridge/heroui/radio";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { DatePicker } from "@/shadcn-bridge/heroui/date-picker";
+import { DatePresets } from "@/shadcn-bridge/heroui/date-presets";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
@@ -1952,28 +1953,16 @@ export default function UserPage() {
                 isRequired
                 showMonthAndYearPickers
                 label="过期时间"
-                value={
-                  userForm.expTime
-                    ? (parseDate(
-                      userForm.expTime.toISOString().split("T")[0],
-                    ) as any)
-                    : null
-                }
+                value={timestampToCalendarDate(userForm.expTime?.getTime() || null)}
                 onChange={(date) => {
-                  if (date) {
-                    const jsDate = new Date(
-                      date.year,
-                      date.month - 1,
-                      date.day,
-                      23,
-                      59,
-                      59,
-                    );
-
-                    setUserForm((prev) => ({ ...prev, expTime: jsDate }));
-                  } else {
-                    setUserForm((prev) => ({ ...prev, expTime: null }));
-                  }
+                  const jsDate = calendarDateToTimestamp(date) || null;
+                  setUserForm((prev) => ({ ...prev, expTime: jsDate ? new Date(jsDate) : null }));
+                }}
+              />
+              <DatePresets
+                className="mt-2"
+                onChange={(timestamp) => {
+                  setUserForm((prev) => ({ ...prev, expTime: timestamp ? new Date(timestamp) : null }));
                 }}
               />
             </div>

@@ -50,6 +50,8 @@ import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
+import { DatePicker } from "@/shadcn-bridge/heroui/date-picker";
+import { DatePresets } from "@/shadcn-bridge/heroui/date-presets";
 import {
   Dropdown,
   DropdownTrigger,
@@ -82,6 +84,7 @@ import {
 } from "@/api";
 import { compareVersions } from "@/utils/version-update";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
+import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 import {
   getConnectionStatusMeta,
   getRemoteSyncErrorMessage,
@@ -2954,27 +2957,29 @@ export default function NodePage() {
                     年付
                   </SelectItem>
                 </Select>
-                <Input
+                <DatePicker
                   description="系统会自动按周期同日推算下次续费时间"
                   errorMessage={errors.expiryTime}
                   isInvalid={!!errors.expiryTime}
                   label="续费基准时间"
-                  max="9999-12-31"
-                  type="date"
-                  value={
-                    form.expiryTime > 0
-                      ? new Date(form.expiryTime).toISOString().slice(0, 10)
-                      : ""
-                  }
-                  variant="bordered"
-                  onChange={(e) =>
+                  showMonthAndYearPickers
+                  value={timestampToCalendarDate(form.expiryTime > 0 ? form.expiryTime : null)}
+                  onChange={(date) => {
+                    const timestamp = calendarDateToTimestamp(date, false) || 0;
                     setForm((prev) => ({
                       ...prev,
-                      expiryTime: e.target.value
-                        ? new Date(e.target.value).getTime()
-                        : 0,
-                    }))
-                  }
+                      expiryTime: timestamp,
+                    }));
+                  }}
+                />
+                <DatePresets
+                  className="md:col-span-2 mt-2"
+                  onChange={(timestamp) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      expiryTime: timestamp,
+                    }));
+                  }}
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
