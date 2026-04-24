@@ -855,84 +855,46 @@ const SortableTableRow = ({
         </div>
       </TableCell>
       <TableCell className={rowBg}>
-        <div className="flex justify-start gap-2 pl-2">
+        <div className="flex justify-start gap-1.5 pl-2">
           <Button
-            isIconOnly
-            className={
-              forward.serviceRunning
-                ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]"
-                : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
-            }
+            className="min-h-7 min-w-[64px]"
+            color={forward.serviceRunning ? "success" : "warning"}
             size="sm"
+            variant="flat"
             title={forward.serviceRunning ? "暂停" : "启用"}
             onPress={() => handleServiceToggle(forward)}
           >
-            {forward.serviceRunning ? (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            )}
+            {forward.serviceRunning ? "暂停" : "启用"}
           </Button>
           <Button
-            isIconOnly
-            className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]"
+            className="min-h-7 min-w-[64px]"
+            color="primary"
             size="sm"
+            variant="flat"
             title="编辑"
             onPress={() => handleEdit(forward)}
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                strokeWidth={2}
-              />
-            </svg>
+            编辑
           </Button>
           <Button
-            isIconOnly
-            className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
+            className="min-h-7 min-w-[64px]"
+            color="secondary"
             size="sm"
+            variant="flat"
             title="诊断"
             onPress={() => handleDiagnose(forward)}
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                strokeWidth={2}
-              />
-            </svg>
+            诊断
           </Button>
           <Button
-            isIconOnly
-            className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
+            className="min-h-7 min-w-[64px]"
+            color="danger"
             size="sm"
+            variant="flat"
             title="删除"
             onPress={() => handleDelete(forward)}
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                strokeWidth={2}
-              />
-            </svg>
+            删除
           </Button>
         </div>
       </TableCell>
@@ -1142,84 +1104,46 @@ const SortableCompactTableRow = ({
         </div>
       </TableCell>
       <TableCell className={rowBg}>
-        <div className="flex justify-start gap-2 pl-2">
+        <div className="flex justify-start gap-1.5 pl-2">
           <Button
-            isIconOnly
-            className={
-              forward.serviceRunning
-                ? "bg-success/10 text-success hover:bg-success/20 flex-shrink-0 min-w-[32px]"
-                : "bg-warning/10 text-danger hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
-            }
+            className="min-h-7 min-w-[64px]"
+            color={forward.serviceRunning ? "success" : "warning"}
             size="sm"
+            variant="flat"
             title={forward.serviceRunning ? "暂停" : "启用"}
             onPress={() => handleServiceToggle(forward)}
           >
-            {forward.serviceRunning ? (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            )}
+            {forward.serviceRunning ? "暂停" : "启用"}
           </Button>
           <Button
-            isIconOnly
-            className="bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0 min-w-[32px]"
+            className="min-h-7 min-w-[64px]"
+            color="primary"
             size="sm"
+            variant="flat"
             title="编辑"
             onPress={() => handleEdit(forward)}
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                strokeWidth={2}
-              />
-            </svg>
+            编辑
           </Button>
           <Button
-            isIconOnly
-            className="bg-warning/10 text-warning hover:bg-warning/20 flex-shrink-0 min-w-[32px]"
+            className="min-h-7 min-w-[64px]"
+            color="secondary"
             size="sm"
+            variant="flat"
             title="诊断"
             onPress={() => handleDiagnose(forward)}
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                strokeWidth={2}
-              />
-            </svg>
+            诊断
           </Button>
           <Button
-            isIconOnly
-            className="bg-danger/10 text-danger hover:bg-danger/20 flex-shrink-0 min-w-[32px]"
+            className="min-h-7 min-w-[64px]"
+            color="danger"
             size="sm"
+            variant="flat"
             title="删除"
             onPress={() => handleDelete(forward)}
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                strokeWidth={2}
-              />
-            </svg>
+            删除
           </Button>
         </div>
       </TableCell>

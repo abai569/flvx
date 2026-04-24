@@ -715,8 +715,9 @@ func (h *Handler) nodeInstallOverseas(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 使用全局加速地址下载
-	cmd := fmt.Sprintf("curl -L %s/https://github.com/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s",
-		globalURL, githubRepo, version, version, processServerAddress(panelAddr), secret)
+	// install.sh 从 main 分支下载（保证是最新的），二进制文件从 Releases 下载指定版本
+	cmd := fmt.Sprintf("curl -L %s/https://raw.githubusercontent.com/%s/main/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s",
+		globalURL, githubRepo, version, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 
@@ -768,8 +769,9 @@ func (h *Handler) nodeInstallAlternative(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 使用全局加速地址下载
-	cmd := fmt.Sprintf("curl -L %s/https://github.com/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s",
-		globalURL, githubRepo, version, version, processServerAddress(panelAddr), secret)
+	// install.sh 从 main 分支下载（保证是最新的），二进制文件从 Releases 下载指定版本
+	cmd := fmt.Sprintf("curl -L %s/https://raw.githubusercontent.com/%s/main/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s",
+		globalURL, githubRepo, version, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 

@@ -201,6 +201,12 @@ build_download_url() {
         return
     fi
     
+    # 从仓库 main 分支下载（新增支持）
+    if [[ "$RESOLVED_VERSION" == "main" ]] || [[ "$RESOLVED_VERSION" == "dev" ]]; then
+        echo "https://raw.githubusercontent.com/${REPO}/main/go-gost/flux_agent"
+        return
+    fi
+    
     # GitHub 或其他源需要版本号
     local actual_version="$RESOLVED_VERSION"
     # 只有当用户没有显式指定版本时，才从 GitHub API 获取最新版本号

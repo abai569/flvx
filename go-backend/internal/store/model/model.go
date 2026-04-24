@@ -672,21 +672,22 @@ type ExpiredUserTunnel struct {
 
 // UserTunnelDetail is a joined view of user_tunnel + tunnel + speed_limit.
 type UserTunnelDetail struct {
-	ID            int64
-	UserID        int64
-	TunnelID      int64
-	TunnelName    string
-	Status        int
-	TunnelFlow    int
-	Flow          int64
-	InFlow        int64
-	OutFlow       int64
-	Num           int
-	FlowResetTime int64
-	ExpTime       int64
-	SpeedID       sql.NullInt64
-	SpeedLimit    sql.NullString
-	Speed         sql.NullInt64
+	ID                 int64
+	UserID             int64
+	TunnelID           int64
+	TunnelName         string
+	Status             int
+	TunnelFlow         int
+	TunnelTrafficRatio float64
+	Flow               int64
+	InFlow             int64
+	OutFlow            int64
+	Num                int
+	FlowResetTime      int64
+	ExpTime            int64
+	SpeedID            sql.NullInt64
+	SpeedLimit         sql.NullString
+	Speed              sql.NullInt64
 }
 
 // UserForwardDetail is a joined view of forward + tunnel.

@@ -717,6 +717,7 @@ func (h *Handler) userTunnelList(w http.ResponseWriter, r *http.Request) {
 			"inFlow":         t.InFlow,
 			"outFlow":        t.OutFlow,
 			"tunnelFlow":     t.TunnelFlow,
+			"trafficRatio":   t.TunnelTrafficRatio,
 			"speedId":        nil,
 			"speedLimitName": nil,
 		}
