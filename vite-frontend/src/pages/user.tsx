@@ -86,7 +86,6 @@ import {
 import {
   EditIcon,
   DeleteIcon,
-  SettingsIcon,
   EyeIcon,
   EyeOffIcon,
 } from "@/components/icons";
@@ -1528,7 +1527,7 @@ export default function UserPage() {
                         <TableCell className="whitespace-nowrap">
                           <div className="flex gap-1.5">
                             <Button
-                              className="min-h-7 min-w-[50px]"
+                              className="min-h-7 px-2"
                               color="primary"
                               size="sm"
                               variant="flat"
@@ -1537,7 +1536,7 @@ export default function UserPage() {
                               编辑
                             </Button>
                             <Button
-                              className="min-h-7 min-w-[50px]"
+                              className="min-h-7 px-2"
                               color="secondary"
                               size="sm"
                               variant="flat"
@@ -1546,7 +1545,7 @@ export default function UserPage() {
                               隧道
                             </Button>
                             <Button
-                              className="min-h-7 min-w-[50px]"
+                              className="min-h-7 px-2"
                               color={
                                 monitorPermissionUserIds.has(user.id)
                                   ? "success"
@@ -1561,7 +1560,7 @@ export default function UserPage() {
                                 : "监控"}
                             </Button>
                             <Button
-                              className="min-h-7 min-w-[50px]"
+                              className="min-h-7 px-2"
                               color="warning"
                               size="sm"
                               variant="flat"
@@ -1570,7 +1569,7 @@ export default function UserPage() {
                               重置
                             </Button>
                             <Button
-                              className="min-h-7 min-w-[50px]"
+                              className="min-h-7 px-2"
                               color="danger"
                               size="sm"
                               variant="flat"
@@ -1740,7 +1739,6 @@ export default function UserPage() {
                             className="flex-1 min-h-8"
                             color="primary"
                             size="sm"
-                            startContent={<EditIcon className="w-3 h-3" />}
                             variant="flat"
                             onPress={(e) => {
                               e?.stopPropagation();
@@ -1753,20 +1751,6 @@ export default function UserPage() {
                             className="flex-1 min-h-8"
                             color="warning"
                             size="sm"
-                            startContent={
-                              <svg
-                                aria-hidden="true"
-                                className="w-3 h-3"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  clipRule="evenodd"
-                                  d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                                  fillRule="evenodd"
-                                />
-                              </svg>
-                            }
                             variant="flat"
                             onPress={(e) => {
                               e?.stopPropagation();
@@ -1782,7 +1766,6 @@ export default function UserPage() {
                             className="flex-1 min-h-8"
                             color="secondary"
                             size="sm"
-                            startContent={<SettingsIcon className="w-3 h-3" />}
                             variant="flat"
                             onPress={(e) => {
                               e?.stopPropagation();
@@ -1813,7 +1796,6 @@ export default function UserPage() {
                             className="flex-1 min-h-8"
                             color="danger"
                             size="sm"
-                            startContent={<DeleteIcon className="w-3 h-3" />}
                             variant="flat"
                             onPress={(e) => {
                               e?.stopPropagation();

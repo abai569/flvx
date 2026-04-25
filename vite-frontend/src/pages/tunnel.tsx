@@ -2258,7 +2258,7 @@ export default function TunnelPage() {
                               <td className="py-3 px-4 align-middle">
                                 <div className="flex gap-1.5">
                                   <Button
-                                    className="min-h-7 min-w-[64px]"
+                                    className="min-h-7 px-2"
                                     color="primary"
                                     size="sm"
                                     variant="flat"
@@ -2267,7 +2267,7 @@ export default function TunnelPage() {
                                     编辑
                                   </Button>
                                   <Button
-                                    className="min-h-7 min-w-[64px]"
+                                    className="min-h-7 px-2"
                                     color="secondary"
                                     size="sm"
                                     variant="flat"
@@ -2276,7 +2276,7 @@ export default function TunnelPage() {
                                     诊断
                                   </Button>
                                   <Button
-                                    className="min-h-7 min-w-[64px]"
+                                    className="min-h-7 px-2"
                                     color="danger"
                                     size="sm"
                                     variant="flat"
@@ -2509,16 +2509,6 @@ export default function TunnelPage() {
                                 className="flex-1 min-h-8"
                                 color="primary"
                                 size="sm"
-                                startContent={
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-3 h-3"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                  </svg>
-                                }
                                 variant="flat"
                                 onPress={() => handleEdit(tunnel)}
                               >
@@ -2528,20 +2518,6 @@ export default function TunnelPage() {
                                 className="flex-1 min-h-8"
                                 color="warning"
                                 size="sm"
-                                startContent={
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-3 h-3"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      clipRule="evenodd"
-                                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                      fillRule="evenodd"
-                                    />
-                                  </svg>
-                                }
                                 variant="flat"
                                 onPress={() => handleDiagnose(tunnel)}
                               >
@@ -2551,25 +2527,6 @@ export default function TunnelPage() {
                                 className="flex-1 min-h-8"
                                 color="danger"
                                 size="sm"
-                                startContent={
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-3 h-3"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      clipRule="evenodd"
-                                      d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"
-                                      fillRule="evenodd"
-                                    />
-                                    <path
-                                      clipRule="evenodd"
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z"
-                                      fillRule="evenodd"
-                                    />
-                                  </svg>
-                                }
                                 variant="flat"
                                 onPress={() => handleDelete(tunnel)}
                               >

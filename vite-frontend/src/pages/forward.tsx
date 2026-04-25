@@ -888,7 +888,7 @@ const SortableTableRow = ({
       <TableCell className={rowBg}>
         <div className="flex justify-start gap-1.5 pl-2">
           <Button
-            className="min-h-7 min-w-[64px]"
+            className="min-h-7 px-2"
             color={forward.serviceRunning ? "success" : "warning"}
             size="sm"
             variant="flat"
@@ -898,7 +898,7 @@ const SortableTableRow = ({
             {forward.serviceRunning ? "暂停" : "启用"}
           </Button>
           <Button
-            className="min-h-7 min-w-[64px]"
+            className="min-h-7 px-2"
             color="primary"
             size="sm"
             variant="flat"
@@ -908,7 +908,7 @@ const SortableTableRow = ({
             编辑
           </Button>
           <Button
-            className="min-h-7 min-w-[64px]"
+            className="min-h-7 px-2"
             color="secondary"
             size="sm"
             variant="flat"
@@ -918,7 +918,7 @@ const SortableTableRow = ({
             诊断
           </Button>
           <Button
-            className="min-h-7 min-w-[64px]"
+            className="min-h-7 px-2"
             color="danger"
             size="sm"
             variant="flat"
@@ -1142,7 +1142,7 @@ const SortableCompactTableRow = ({
       <TableCell className={rowBg}>
         <div className="flex justify-start gap-1.5 pl-2">
           <Button
-            className="min-h-7 min-w-[64px]"
+            className="min-h-7 px-2"
             color={forward.serviceRunning ? "success" : "warning"}
             size="sm"
             variant="flat"
@@ -1152,7 +1152,7 @@ const SortableCompactTableRow = ({
             {forward.serviceRunning ? "暂停" : "启用"}
           </Button>
           <Button
-            className="min-h-7 min-w-[64px]"
+            className="min-h-7 px-2"
             color="primary"
             size="sm"
             variant="flat"
@@ -1162,7 +1162,7 @@ const SortableCompactTableRow = ({
             编辑
           </Button>
           <Button
-            className="min-h-7 min-w-[64px]"
+            className="min-h-7 px-2"
             color="secondary"
             size="sm"
             variant="flat"
@@ -1172,7 +1172,7 @@ const SortableCompactTableRow = ({
             诊断
           </Button>
           <Button
-            className="min-h-7 min-w-[64px]"
+            className="min-h-7 px-2"
             color="danger"
             size="sm"
             variant="flat"
@@ -3851,7 +3851,7 @@ export default function ForwardPage() {
           </div>
           <div className="flex gap-1.5 mt-3">
             <Button
-              className="flex-1 min-h-8 font-bold flex-shrink-0"
+              className="flex-1 min-h-8 flex-shrink-0"
               color="primary"
               size="sm"
               variant="flat"
@@ -3860,7 +3860,7 @@ export default function ForwardPage() {
               编辑
             </Button>
             <Button
-              className="flex-1 min-h-8 font-bold flex-shrink-0"
+              className="flex-1 min-h-8 flex-shrink-0"
               color="warning"
               size="sm"
               variant="flat"
@@ -3869,7 +3869,7 @@ export default function ForwardPage() {
               诊断
             </Button>
             <Button
-              className="flex-1 min-h-8 font-bold flex-shrink-0"
+              className="flex-1 min-h-8 flex-shrink-0"
               color="danger"
               size="sm"
               variant="flat"
