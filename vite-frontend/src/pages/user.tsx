@@ -1328,7 +1328,7 @@ export default function UserPage() {
               暂无用户数据
             </h3>
             <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-              还没有创建任何用户，点击上方按钮开始创建
+              还没有任何用户使用，点击新增按钮开始创建
             </p>
           </CardBody>
         </Card>

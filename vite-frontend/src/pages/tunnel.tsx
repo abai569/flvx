@@ -1444,7 +1444,7 @@ export default function TunnelPage() {
     [],
   );
   const handleOpenBatchDeleteModal = async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedTunnelIdList.length === 0) return;
     setBatchDeleteModalOpen(true);
     setBatchDeletePreviewLoading(true);
     setBatchDeletePreview(null);
@@ -2563,7 +2563,7 @@ export default function TunnelPage() {
               暂无隧道配置
             </h3>
             <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-              还没有创建任何隧道配置，点击上方按钮开始创建
+              还没有任何隧道配置，点击新增按钮开始创建
             </p>
           </CardBody>
         </Card>

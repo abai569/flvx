@@ -74,7 +74,6 @@ import {
   upgradeNode,
   batchUpgradeNodes,
   getNodeReleases,
-  getPeerRemoteUsageList,
   dismissNodeExpiryReminder,
   getNodeGroupList,
   assignNodeToGroup,
@@ -83,11 +82,10 @@ import {
   type ReleaseChannel,
 } from "@/api";
 import { compareVersions } from "@/utils/version-update";
-import { PageEmptyState, PageLoadingState } from "@/components/page-state";
+import { PageLoadingState } from "@/components/page-state";
 import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 import {
   getConnectionStatusMeta,
-  getRemoteSyncErrorMessage,
 } from "@/pages/node/display";
 import {
   getNodeRenewalSnapshot,
@@ -133,9 +131,6 @@ interface Node {
   tls?: number;
   socks?: number;
   status: number;
-  isRemote?: number;
-  remoteUrl?: string;
-  syncError?: string;
   connectionStatus: "online" | "offline";
   systemInfo?: NodeSystemInfo | null;
   copyLoading?: boolean;
@@ -162,33 +157,7 @@ interface NodeForm {
   tls: number;
   socks: number;
 }
-type NodeTab = "local" | "remote";
 type NodeViewMode = "grid" | "list" | "grouped";
-interface RemoteUsageBinding {
-  bindingId: number;
-  tunnelId: number;
-  tunnelName: string;
-  chainType: number;
-  hopInx: number;
-  allocatedPort: number;
-  resourceKey: string;
-  remoteBindingId: string;
-  updatedTime: number;
-}
-interface RemoteUsageNode {
-  nodeId: number;
-  nodeName: string;
-  remoteUrl: string;
-  shareId: number;
-  portRangeStart: number;
-  portRangeEnd: number;
-  maxBandwidth: number;
-  currentFlow: number;
-  usedPorts: number[];
-  bindings: RemoteUsageBinding[];
-  activeBindingNum: number;
-  syncError?: string;
-}
 const EXPIRING_SOON_DAYS = 7;
 
 type NodeExpiryState = "permanent" | "healthy" | "expiringSoon" | "expired";
@@ -354,23 +323,6 @@ export default function NodePage() {
     "node-search-keyword-local",
     "",
   );
-  const [remoteSearchKeyword, setRemoteSearchKeyword] = useLocalStorageState(
-    "node-search-keyword-remote",
-    "",
-  );
-  const [activeTab, setActiveTab] = useLocalStorageState<NodeTab>(
-    "node-active-tab",
-    "local",
-  );
-
-  useEffect(() => {
-    if (activeTab !== "local" && activeTab !== "remote") {
-      setActiveTab("local");
-    }
-  }, [activeTab, setActiveTab]);
-  const [remoteUsageMap, setRemoteUsageMap] = useState<
-    Record<number, RemoteUsageNode>
-  >({});
   const [nodeFilterMode, setNodeFilterMode, resetNodeFilterMode] =
     useLocalStorageState<NodeFilterMode>("node-expiry-filter-mode", "all");
   const [filterGroupId, setFilterGroupId] = useLocalStorageState<number | null>(
@@ -559,23 +511,6 @@ export default function NodePage() {
   useEffect(() => {
     loadNodeGroups();
   }, [loadNodeGroups]);
-  const loadRemoteUsage = useCallback(async () => {
-    try {
-      const res = await getPeerRemoteUsageList();
-
-      if (res.code === 0 && Array.isArray(res.data)) {
-        const nextMap: Record<number, RemoteUsageNode> = {};
-
-        (res.data as unknown as RemoteUsageNode[]).forEach((item) => {
-          if (!item || typeof item.nodeId !== "number") return;
-          nextMap[item.nodeId] = item;
-        });
-        setRemoteUsageMap(nextMap);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
 
@@ -819,11 +754,7 @@ export default function NodePage() {
 
   useEffect(() => {
     loadNodes();
-    loadRemoteUsage();
-  }, [loadNodes, loadRemoteUsage]);
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [activeTab]);
+  }, [loadNodes]);
   useEffect(() => {
     if (!usingPollingFallback) {
       return;
@@ -837,16 +768,6 @@ export default function NodePage() {
       window.clearInterval(interval);
     };
   }, [loadNodes, usingPollingFallback]);
-  const formatSpeed = (bytesPerSecond: number): string => {
-    if (bytesPerSecond === 0) return "0 B/s";
-    const k = 1024;
-    const sizes = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"];
-    const i = Math.floor(Math.log(bytesPerSecond) / Math.log(k));
-
-    return (
-      parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-    );
-  };
   const formatTraffic = (bytes: number): string => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -854,24 +775,6 @@ export default function NodePage() {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-  const formatFlow = (bytes: number): string => {
-    if (!Number.isFinite(bytes) || bytes <= 0) {
-      return "0 B";
-    }
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    if (bytes < 1024 * 1024 * 1024)
-      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  };
-  const formatChainType = (chainType: number, hopInx: number) => {
-    if (chainType === 1) return "入口节点";
-    if (chainType === 2) return `中继跳点 #${hopInx}`;
-    if (chainType === 3) return "出口节点";
-
-    return "未知链路";
   };
   const ipv4Regex =
     /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -1360,19 +1263,15 @@ export default function NodePage() {
           ),
         );
       }
-    } else if (upgradeTarget === "batch") {
-      const selectedLocalIds = Array.from(selectedIds).filter((id) => {
-        const matchedNode = nodeList.find((node) => node.id === id);
+      } else if (upgradeTarget === "batch") {
+        const selectedLocalIds = Array.from(selectedIds);
 
-        return matchedNode?.isRemote !== 1;
-      });
+        if (selectedLocalIds.length === 0) {
+          toast.error("请选择节点进行升级");
+          setUpgradeModalOpen(false);
 
-      if (selectedLocalIds.length === 0) {
-        toast.error("请选择本地节点进行升级");
-        setUpgradeModalOpen(false);
-
-        return;
-      }
+          return;
+        }
       setBatchUpgradeLoading(true);
       setUpgradeModalOpen(false);
       try {
@@ -1396,14 +1295,11 @@ export default function NodePage() {
       }
     }
   };
-  // 批量重置流量
   const handleBatchResetTraffic = async () => {
-    const selectedLocalIds = Array.from(selectedIds).filter((id) =>
-      localNodes.some((n) => n.id === id),
-    );
+    const selectedLocalIds = Array.from(selectedIds);
 
     if (selectedLocalIds.length === 0) {
-      toast.error("请选择本地节点进行重置");
+      toast.error("请选择节点进行重置");
       setBatchResetTrafficModalOpen(false);
 
       return;
@@ -1696,17 +1592,9 @@ export default function NodePage() {
           node.serverIpV6.toLowerCase().includes(normalizedKeyword)),
     );
   }, []);
-  const localNodes = useMemo(
-    () => sortedNodes.filter((node) => node.isRemote !== 1),
-    [sortedNodes],
-  );
-  const remoteNodes = useMemo(
-    () => sortedNodes.filter((node) => node.isRemote === 1),
-    [sortedNodes],
-  );
-  const filteredLocalNodes = useMemo(() => {
+  const filteredNodes = useMemo(() => {
     const keywordFiltered = filterNodesByKeyword(
-      localNodes,
+      sortedNodes,
       localSearchKeyword,
     );
     const groupFiltered =
@@ -1740,23 +1628,12 @@ export default function NodePage() {
     });
   }, [
     filterNodesByKeyword,
-    localNodes,
+    sortedNodes,
     localSearchKeyword,
     nodeFilterMode,
     filterGroupId,
   ]);
-  const filteredRemoteNodes = useMemo(
-    () => filterNodesByKeyword(remoteNodes, remoteSearchKeyword),
-    [filterNodesByKeyword, remoteNodes, remoteSearchKeyword],
-  );
-  const currentSearchKeyword =
-    activeTab === "remote" ? remoteSearchKeyword : localSearchKeyword;
-  const setCurrentSearchKeyword =
-    activeTab === "remote" ? setRemoteSearchKeyword : setLocalSearchKeyword;
-  const displayNodes = useMemo(
-    () => (activeTab === "remote" ? filteredRemoteNodes : filteredLocalNodes),
-    [activeTab, filteredLocalNodes, filteredRemoteNodes],
-  );
+  const displayNodes = filteredNodes;
   const nodeExpiryStats = useMemo(() => {
     return displayNodes.reduce(
       (acc, node) => {
@@ -1773,12 +1650,6 @@ export default function NodePage() {
       { expired: 0, expiringSoon: 0, withExpiry: 0 },
     );
   }, [displayNodes]);
-  const canBatchUpgrade = activeTab === "local";
-  const canUseExpiryFilter = activeTab === "local";
-  const hasKeywordSearch = currentSearchKeyword.trim().length > 0;
-  const hasActiveFilters = nodeFilterMode !== "all" || filterGroupId !== null;
-  const isDisplayFiltered =
-    hasKeywordSearch || (canUseExpiryFilter && hasActiveFilters);
   const sortableNodeIds = useMemo(
     () => displayNodes.map((n) => n.id),
     [displayNodes],
@@ -1807,8 +1678,6 @@ export default function NodePage() {
     return Array.from(groupsMap.values()).filter((g) => g.nodes.length > 0);
   }, [displayNodes, nodeGroups]);
   const renderNodeCard = (node: Node, listeners: any) => {
-    const isRemoteNode = node.isRemote === 1;
-    const remoteUsage = isRemoteNode ? remoteUsageMap[node.id] : null;
     const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
     const connectionStatusMeta = getConnectionStatusMeta(node.connectionStatus);
     const hasRemark = Boolean(node.remark?.trim());
@@ -1996,11 +1865,6 @@ export default function NodePage() {
           </div>
         </CardHeader>
         <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
-          {isRemoteNode && node.syncError && (
-            <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
-              {getRemoteSyncErrorMessage(node.syncError)}
-            </div>
-          )}
           <div className="space-y-2 mb-4">
             {node.expiryTime && node.expiryTime > 0 && node.renewalCycle && (
               <div className="hidden" />
@@ -2049,41 +1913,37 @@ export default function NodePage() {
                 )}
               </div>
             </div>
-            {!isRemoteNode && (
-              <>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-default-600">版本</span>
-                  <div className="flex items-center gap-1.5">
-                    {node.version && (
-                      <DistroIcon
-                        className="w-4 h-4 shrink-0"
-                        distro={parseDistroFromVersion(node.version)}
-                        style={{
-                          color: getDistroColor(
-                            parseDistroFromVersion(node.version),
-                          ),
-                        }}
-                      />
-                    )}
-                    <span className="font-medium text-sm text-default-600">
-                      {node.version ? node.version.split(" ")[0] : "未知"}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-default-600">周期流量</span>
-                  <span className="font-medium text-sm text-danger-600 dark:text-danger-400">
-                    {node.connectionStatus === "online" &&
-                    realtimeNodeMetrics[node.id]
-                      ? formatTraffic(
-                          (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ??
-                            0) +
-                            (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ??
-                              0),
-                        )
-                      : "-"}
-                  </span>
-                </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-default-600">版本</span>
+              <div className="flex items-center gap-1.5">
+                {node.version && (
+                  <DistroIcon
+                    className="w-4 h-4 shrink-0"
+                    distro={parseDistroFromVersion(node.version)}
+                    style={{
+                      color: getDistroColor(
+                        parseDistroFromVersion(node.version),
+                      ),
+                    }}
+                  />
+                )}
+                <span className="font-medium text-sm text-default-600">
+                  {node.version ? node.version.split(" ")[0] : "未知"}
+                </span>
+              </div>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-default-600">周期流量</span>
+              <span className="font-medium text-sm text-danger-600 dark:text-danger-400">
+                {node.connectionStatus === "online" &&
+                realtimeNodeMetrics[node.id]
+                  ? formatTraffic(
+                      (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0) +
+                        (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0),
+                    )
+                  : "-"}
+              </span>
+            </div>
                 {node.connectionStatus === "online" &&
                   realtimeNodeMetrics[node.id]?.periodTraffic && (
                     <div className="text-xs text-default-500 space-y-0.5 mt-1">
@@ -2143,127 +2003,7 @@ export default function NodePage() {
                       />
                     </div>
                   )}
-              </>
-            )}
-          </div>
-          {isRemoteNode && (
-            <div className="space-y-3 mb-4">
-              {remoteUsage ? (
-                <>
-                  <div className="text-xs rounded-md border border-default-200 dark:border-default-100/30 bg-default-50 dark:bg-default-100/20 p-2.5 space-y-2">
-                    <div className="flex justify-between gap-2">
-                      <span className="text-default-500">远程地址</span>
-                      <span
-                        className="font-medium text-right truncate"
-                        title={remoteUsage.remoteUrl || node.remoteUrl || "-"}
-                      >
-                        {remoteUsage.remoteUrl || node.remoteUrl || "-"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-default-500">共享ID</span>
-                      <span className="font-medium">
-                        #{remoteUsage.shareId}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-default-500">流量</span>
-                      <span className="font-medium">
-                        {formatFlow(remoteUsage.currentFlow)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-default-500">带宽上限</span>
-                      <span className="font-medium">
-                        {remoteUsage.maxBandwidth > 0
-                          ? formatSpeed(remoteUsage.maxBandwidth)
-                          : "不限"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-xs rounded-md border border-default-200 dark:border-default-100/30 bg-default-50 dark:bg-default-100/20 p-2.5">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-default-500">占用端口</span>
-                      <span className="font-medium text-default-700 dark:text-default-300">
-                        {remoteUsage.usedPorts.length}/
-                        {Math.max(
-                          remoteUsage.portRangeEnd -
-                            remoteUsage.portRangeStart +
-                            1,
-                          0,
-                        )}
-                      </span>
-                    </div>
-                    <div className="max-h-20 overflow-y-auto rounded bg-white/70 dark:bg-black/20 p-1.5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1">
-                      {remoteUsage.usedPorts.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {remoteUsage.usedPorts.map((port) => (
-                            <div
-                              key={`${node.id}-port-${port}`}
-                              className="inline-flex items-center justify-center bg-default-500/10 text-default-500 px-1.5 py-0.5 rounded text-[11px] font-medium shrink-0 whitespace-nowrap"
-                            >
-                              {port}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-default-400">暂无占用端口</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-xs rounded-md border border-default-200 dark:border-default-100/30 bg-default-50 dark:bg-default-100/20 p-2.5">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-default-500">绑定明细</span>
-                      <span className="font-medium text-default-700 dark:text-default-300">
-                        {remoteUsage.activeBindingNum}
-                      </span>
-                    </div>
-                    <div className="max-h-32 overflow-y-auto space-y-1.5 pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1">
-                      {remoteUsage.bindings.length > 0 ? (
-                        remoteUsage.bindings.map((binding) => (
-                          <div
-                            key={binding.bindingId}
-                            className="rounded border border-default-200 dark:border-default-100/30 bg-white/70 dark:bg-black/20 p-2"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span
-                                className="font-medium truncate"
-                                title={binding.tunnelName}
-                              >
-                                {binding.tunnelName}
-                              </span>
-                              <span className="font-medium text-[11px]">
-                                #{binding.tunnelId}
-                              </span>
-                            </div>
-                            <div className="mt-1 text-[11px] text-default-500 flex items-center justify-between gap-2">
-                              <span>
-                                {formatChainType(
-                                  binding.chainType,
-                                  binding.hopInx,
-                                )}
-                              </span>
-                              <span className="font-medium">
-                                端口 {binding.allocatedPort}
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-default-400">暂无绑定明细</div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-xs rounded-md border border-default-200 dark:border-default-100/30 bg-default-50 dark:bg-default-100/20 p-2.5 text-default-500">
-                  暂未获取到远程占用数据
-                </div>
-              )}
-            </div>
-          )}
-          {!isRemoteNode && (
-            <>
+              </div>
               <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                 <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
                   <div className="text-primary-600 dark:text-primary-400 mb-0.5">
@@ -2292,76 +2032,64 @@ export default function NodePage() {
                   </div>
                 </div>
               </div>
-            </>
-          )}
           <div className="space-y-3">
-            {/* 核心修改：统一使用一个两列的 grid，它会自动把里面的 4 个元素排成 2 行 2 列 */}
-            <div
-              className={`grid gap-2 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}
-            >
-              {!isRemoteNode && (
-                <>
-                  {/* 第 1 个格子：对接 */}
-                  <div className="w-full">
-                    <Dropdown>
-                      <DropdownTrigger>
-                        <Button
-                          className="min-h-8 w-full"
-                          color="success"
-                          isLoading={node.copyLoading}
-                          size="sm"
-                          variant="flat"
-                        >
-                          对接
-                        </Button>
-                      </DropdownTrigger>
-                      <DropdownMenu aria-label="对接方式">
-                        <DropdownItem
-                          key="auto"
-                          onPress={() => handleCopyAutoInstallCommand(node)}
-                        >
-                          🔘 自动探测线路
-                        </DropdownItem>
-                        <DropdownItem
-                          key="overseas"
-                          onPress={() => handleCopyOverseasInstallCommand(node)}
-                        >
-                          🌏 国外机主线路
-                        </DropdownItem>
-                        <DropdownMenuSeparator />
-                        <DropdownItem
-                          key="offline"
-                          onPress={() => handleCopyOfflineInstallCommand(node)}
-                        >
-                          📦 离线部署
-                        </DropdownItem>
-                      </DropdownMenu>
-                    </Dropdown>
-                  </div>
-                  {/* 第 2 个格子：更新 */}
-                  <Button
-                    className="min-h-8 w-full"
-                    color="warning"
-                    isDisabled={node.connectionStatus !== "online"}
-                    isLoading={node.upgradeLoading}
-                    size="sm"
-                    variant="flat"
-                    onPress={() => openUpgradeModal("single", node.id)}
-                  >
-                    更新
-                  </Button>
-                  {/* 第 3 个格子：编辑 */}
-                  <Button
-                    className="min-h-8 w-full"
-                    color="primary"
-                    size="sm"
-                    variant="flat"
-                    onPress={() => handleEdit(node)}
-                  >
-                    编辑
-                  </Button>
-                </>
-              )}
+            <div className="grid gap-2 grid-cols-2">
+              <div className="w-full">
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      className="min-h-8 w-full"
+                      color="success"
+                      isLoading={node.copyLoading}
+                      size="sm"
+                      variant="flat"
+                    >
+                      对接
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu aria-label="对接方式">
+                    <DropdownItem
+                      key="auto"
+                      onPress={() => handleCopyAutoInstallCommand(node)}
+                    >
+                      🔘 自动探测线路
+                    </DropdownItem>
+                    <DropdownItem
+                      key="overseas"
+                      onPress={() => handleCopyOverseasInstallCommand(node)}
+                    >
+                      🌏 国外机主线路
+                    </DropdownItem>
+                    <DropdownMenuSeparator />
+                    <DropdownItem
+                      key="offline"
+                      onPress={() => handleCopyOfflineInstallCommand(node)}
+                    >
+                      📦 离线部署
+                    </DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+              </div>
+              <Button
+                className="min-h-8 w-full"
+                color="warning"
+                isDisabled={node.connectionStatus !== "online"}
+                isLoading={node.upgradeLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => openUpgradeModal("single", node.id)}
+              >
+                更新
+              </Button>
+              <Button
+                className="min-h-8 w-full"
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={() => handleEdit(node)}
+              >
+                编辑
+              </Button>
               <Button
                 className="min-h-8 w-full"
                 color="danger"
@@ -2419,39 +2147,13 @@ export default function NodePage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       <div className="mb-6 space-y-3">
-        {/* <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <Button
-            className={`shrink-0 text-white font-medium ${activeTab === "local" ? "" : "bg-default-400 hover:bg-default-500"}`}
-            color={activeTab === "local" ? "primary" : "default"}
-            size="sm"
-            variant={activeTab === "local" ? "solid" : "flat"}
-            onPress={() => setActiveTab("local")}
-          >
-            本地节点
-            <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-black/10 dark:bg-white/20 px-1.5 py-0.5 rounded text-[11px] font-medium">{localNodes.length}</div>
-          </Button>
-          <Button
-            className={`shrink-0 text-white font-medium ${activeTab === "remote" ? "" : "bg-default-400 hover:bg-default-500"}`}
-            color={activeTab === "remote" ? "primary" : "default"}
-            size="sm"
-            variant={activeTab === "remote" ? "solid" : "flat"}
-            onPress={() => setActiveTab("remote")}
-          >
-            远程节点
-            <div className="ml-1 shrink-0 whitespace-nowrap inline-flex items-center justify-center bg-black/10 dark:bg-white/20 px-1.5 py-0.5 rounded text-[11px] font-medium">{remoteNodes.length}</div>
-          </Button>
-        </div> */}
         <div className="flex flex-row items-center gap-3 overflow-x-auto pb-1">
           <div className="flex items-center gap-2">
             <SearchBar
               isVisible={isSearchVisible}
-              placeholder={
-                activeTab === "remote"
-                  ? "节点名称或 IP"
-                  : "节点名称或 IP"
-              }
-              value={currentSearchKeyword}
-              onChange={setCurrentSearchKeyword}
+              placeholder="节点名称或 IP"
+              value={localSearchKeyword}
+              onChange={setLocalSearchKeyword}
               onClose={() => setIsSearchVisible(false)}
               onOpen={() => {
                 setIsSearchVisible(true);
@@ -2487,7 +2189,7 @@ export default function NodePage() {
                 </Button>
                 <Button
                   color="warning"
-                  isDisabled={selectedIds.size === 0 || !canBatchUpgrade}
+                  isDisabled={selectedIds.size === 0}
                   isLoading={batchUpgradeLoading}
                   size="sm"
                   variant="flat"
@@ -2566,18 +2268,18 @@ export default function NodePage() {
                 </Button>
                 {/* 筛选按钮 */}
                 <div className="flex items-center gap-2">
-                  {/* <Button
+                  <Button
                     className="whitespace-nowrap bg-red-100"
                     color={
-                      (canUseExpiryFilter && nodeFilterMode !== "all") ||
+                      nodeFilterMode !== "all" ||
                       filterGroupId !== null
                         ? "secondary"
                         : "danger"
                     }
-                    isDisabled={!canUseExpiryFilter && filterGroupId === null}
+                    isDisabled={filterGroupId === null}
                     size="sm"
                     title={
-                      canUseExpiryFilter || filterGroupId !== null
+                      nodeFilterMode !== "all" || filterGroupId !== null
                         ? "筛选条件"
                         : "远程节点不支持到期筛选"
                     }
@@ -2585,11 +2287,14 @@ export default function NodePage() {
                     onPress={() => setIsFilterModalOpen(true)}
                   >
                     筛选{" "}
-                    {((canUseExpiryFilter && nodeFilterMode !== "all") ||
-                      filterGroupId !== null) &&
-                      `(${[canUseExpiryFilter && nodeFilterMode !== "all", filterGroupId !== null].filter(Boolean).length})`}
-                  </Button> */}
-                  {((canUseExpiryFilter && nodeFilterMode !== "all") ||
+                    {(nodeFilterMode !== "all" ||
+                      filterGroupId !== null) && (
+                      <span className="text-[10px] bg-default-500/10 text-default-600 px-1 rounded">
+                        {([nodeFilterMode !== "all", filterGroupId !== null].filter(Boolean).length)}
+                      </span>
+                    )}
+                  </Button>
+                  {(nodeFilterMode !== "all" ||
                     filterGroupId !== null) && (
                     <Button
                       color="warning"
@@ -2603,7 +2308,7 @@ export default function NodePage() {
                       重置
                     </Button>
                   )}
-                </div>                
+                </div>
               </>
             )}
           </div>
@@ -2634,23 +2339,27 @@ export default function NodePage() {
       {loading ? (
         <PageLoadingState message="正在加载..." />
       ) : nodeList.length === 0 ? (
-        <PageEmptyState
-          className="h-64"
-          message="暂无节点配置，点击上方按钮开始创建"
-        />
+        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+          <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
+            <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
+              暂无节点配置
+            </h3>
+            <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
+              还没有任何节点配置，点击新增按钮开始创建
+            </p>
+          </CardBody>
+        </Card>
       ) : displayNodes.length === 0 ? (
-        <PageEmptyState
-          className="h-64"
-          message={
-            isDisplayFiltered
-              ? activeTab === "remote"
-                ? "未找到匹配的远程节点"
-                : "未找到匹配的本地节点"
-              : activeTab === "remote"
-                ? "暂无远程节点"
-                : "暂无本地节点，点击上方按钮开始创建"
-          }
-        />
+        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+          <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
+            <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
+              未找到匹配的节点
+            </h3>
+            <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
+              没有符合条件的节点配置，请调整筛选条件
+            </p>
+          </CardBody>
+        </Card>
       ) : (
         <>
           {viewMode === "grid" && (
@@ -3617,12 +3326,7 @@ export default function NodePage() {
                 <p>
                   确定要重置以下{" "}
                   <strong>
-                    {
-                      Array.from(selectedIds).filter(
-                        (id) =>
-                          nodeList.find((n) => n.id === id)?.isRemote !== 1,
-                      ).length
-                    }
+                    {Array.from(selectedIds).length}
                   </strong>{" "}
                   个节点的流量统计吗？
                 </p>
@@ -3631,9 +3335,6 @@ export default function NodePage() {
                 </p>
                 <ul className="text-small text-default-500 mt-2 space-y-1">
                   {Array.from(selectedIds)
-                    .filter(
-                      (id) => nodeList.find((n) => n.id === id)?.isRemote !== 1,
-                    )
                     .slice(0, 5)
                     .map((id) => {
                       const node = nodeList.find((n) => n.id === id);

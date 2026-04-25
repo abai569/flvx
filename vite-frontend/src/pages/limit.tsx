@@ -447,7 +447,7 @@ export default function LimitPage() {
               暂无限速规则
             </h3>
             <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-              还没有创建任何限速规则，点击上方按钮开始创建
+              还没有任何限速规则，点击新增按钮开始创建
             </p>
           </CardBody>
         </Card>
