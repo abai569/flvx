@@ -516,10 +516,11 @@ export default function AdminLayout({
             >
               {licenseInfo.valid ? (
                 <span className="text-green-600 dark:text-green-400">
-                  授权有效期至{" "}
+                  授权剩余{" "}
                   {licenseInfo.expire_time
-                    ? new Date(licenseInfo.expire_time).toLocaleDateString("zh-CN")
-                    : "-"}
+                    ? Math.max(0, Math.floor((licenseInfo.expire_time - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : 0}
+                  天
                 </span>
               ) : (
                 <span className="text-red-600 dark:text-red-400">
