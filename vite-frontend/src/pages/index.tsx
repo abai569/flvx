@@ -72,24 +72,16 @@ export default function IndexPage() {
       if (response.code !== 0) {
         toast.error(response.msg || "登录失败");
         if (showCaptcha) {
-          setForm((prev) => ({ ...prev, captchaId: "" }));
-        }
+      setForm((prev) => ({ ...prev, captchaId: "" }));
+    }
 
-        return;
-      }
-      // 检查是否需要强制修改密码
-      if (response.data.requirePasswordChange) {
-        writeLoginSession(response.data);
-        toast.success("检测到默认密码，即将跳转到修改密码页面");
-        navigate("/change-password");
-
-        return;
-      }
-      // 保存登录信息
-      writeLoginSession(response.data);
-      // 登录成功
-      toast.success("登录成功");
-      navigate("/dashboard");
+    return;
+  }
+  // 保存登录信息
+  writeLoginSession(response.data);
+  // 登录成功
+  toast.success("登录成功");
+  navigate("/dashboard");
     } catch {
       toast.error("网络错误，请稍后重试");
     } finally {

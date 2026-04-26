@@ -455,18 +455,32 @@ get_config_params() {
   # 生成 JWT 密钥
   JWT_SECRET=$(generate_random)
   
-  # 管理员配置
-  ADMIN_USERNAME="admin"
-  echo ""
-  echo "🔐 管理员配置："
-  echo "用户名：admin（固定）"
-  read -p "管理员密码：" ADMIN_PASSWORD
-  
   # 授权服务配置
   echo ""
   echo "🔐 授权服务配置："
   echo "授权服务地址：https://sq.abai.eu.org（固定）"
+  
+  # 授权码 UUID（必填）
   read -p "授权码 UUID: " LICENSE_KEY
+  while [[ -z "$LICENSE_KEY" ]]; do
+    echo "❌ 授权码 UUID 不能为空，请重新输入"
+    read -p "授权码 UUID: " LICENSE_KEY
+  done
+  
+  # 面板域名（必填，自动去除 http/https 前缀）
+  read -p "面板域名（必填，用于授权验证）: " SERVER_DOMAIN
+  while [[ -z "$SERVER_DOMAIN" ]]; do
+    echo "❌ 面板域名不能为空，请重新输入"
+    read -p "面板域名（必填，用于授权验证）: " SERVER_DOMAIN
+  done
+  
+  # 自动去除 http:// 或 https:// 前缀和路径
+  SERVER_DOMAIN=$(echo "$SERVER_DOMAIN" | sed -e 's|^[[:space:]]*||' -e 's|[[:space:]]*$||' -e 's|^https\?://||' -e 's|/.*||')
+  
+  echo "✅ 授权配置完成"
+  echo "   授权服务地址：https://sq.abai.eu.org"
+  echo "   授权码 UUID: $LICENSE_KEY"
+  echo "   面板域名：$SERVER_DOMAIN"
 }
 
 # 安装功能
@@ -510,10 +524,7 @@ POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 # 授权服务配置
 LICENSE_SERVER_URL=https://sq.abai.eu.org
 LICENSE_KEY=$LICENSE_KEY
-
-# 管理员配置
-ADMIN_USERNAME=$ADMIN_USERNAME
-ADMIN_PASSWORD=$ADMIN_PASSWORD
+SERVER_DOMAIN=$SERVER_DOMAIN
 EOF
 
   echo "🚀 启动 docker 服务..."
@@ -529,11 +540,11 @@ EOF
   echo ""
   echo "📋 登录信息："
   echo "   访问地址：http://服务器 IP:$FRONTEND_PORT"
-  echo "   用户名：$ADMIN_USERNAME"
-  echo "   密码：$ADMIN_PASSWORD"
+  echo "   用户名：admin"
+  echo "   密码：admin"
   echo ""
+  echo "⚠️  安全提示：首次登录后请立即修改默认密码！"
   echo "📚 文档地址：https://tes.cc/guide.html"
-  echo "⚠️  请妥善保管管理员密码！"
 
 
 }

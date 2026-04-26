@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"os"
 
 	"go-backend/internal/http/response"
 	"go-backend/internal/middleware"
@@ -16,14 +17,8 @@ func (h *Handler) licenseInfo(w http.ResponseWriter, r *http.Request) {
 
 	valid, expireTime, reason := middleware.GetLicenseState()
 
-	// Check if license is configured
-	configured := false
-	if cfg, _ := h.repo.GetConfigByName("license_server_url"); cfg != nil {
-		configured = true
-	}
-	if cfg, _ := h.repo.GetConfigByName("license_key"); cfg != nil {
-		configured = true
-	}
+	// Check if license is configured via environment variables
+	configured := os.Getenv("LICENSE_SERVER_URL") != "" && os.Getenv("LICENSE_KEY") != ""
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
 		"valid":       valid,

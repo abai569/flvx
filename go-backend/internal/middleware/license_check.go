@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -59,6 +60,8 @@ func (v *LicenseVerifier) Verify(ctx context.Context) (*VerifyResponse, error) {
 		return &VerifyResponse{Valid: false, Reason: "未配置授权服务"}, nil
 	}
 
+	log.Printf("🔐 授权验证请求：server=%s, key=%s, domain=%s", v.serverURL, v.licenseKey, v.domain)
+
 	reqBody := VerifyRequest{
 		LicenseKey: v.licenseKey,
 		Domain:     v.domain,
@@ -85,6 +88,8 @@ func (v *LicenseVerifier) Verify(ctx context.Context) (*VerifyResponse, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
+
+	log.Printf("🔐 授权验证响应：valid=%v, reason=%s", result.Valid, result.Reason)
 
 	return &result, nil
 }
