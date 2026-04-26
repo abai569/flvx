@@ -452,8 +452,21 @@ get_config_params() {
     DATABASE_URL=""
   fi
 
-  # 生成JWT密钥
+  # 生成 JWT 密钥
   JWT_SECRET=$(generate_random)
+  
+  # 管理员配置
+  ADMIN_USERNAME="admin"
+  echo ""
+  echo "🔐 管理员配置："
+  echo "用户名：admin（固定）"
+  read -p "管理员密码：" ADMIN_PASSWORD
+  
+  # 授权服务配置
+  echo ""
+  echo "🔐 授权服务配置："
+  echo "授权服务地址：https://sq.abai.eu.org（固定）"
+  read -p "授权码 UUID: " LICENSE_KEY
 }
 
 # 安装功能
@@ -493,6 +506,14 @@ DATABASE_URL=$DATABASE_URL
 POSTGRES_DB=$POSTGRES_DB
 POSTGRES_USER=$POSTGRES_USER
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+
+# 授权服务配置
+LICENSE_SERVER_URL=https://sq.abai.eu.org
+LICENSE_KEY=$LICENSE_KEY
+
+# 管理员配置
+ADMIN_USERNAME=$ADMIN_USERNAME
+ADMIN_PASSWORD=$ADMIN_PASSWORD
 EOF
 
   echo "🚀 启动 docker 服务..."
@@ -505,11 +526,14 @@ EOF
   fi
 
   echo "🎉 部署完成"
-  echo "🌐 访问地址: http://服务器IP:$FRONTEND_PORT"
-  echo "📖 部署完成后请阅读下使用文档，求求了啊，不要上去就是一顿操作"
-  echo "📚 文档地址: https://tes.cc/guide.html"
-  echo "💡 默认管理员账号: admin_user / admin_user"
-  echo "⚠️  登录后请立即修改默认密码！"
+  echo ""
+  echo "📋 登录信息："
+  echo "   访问地址：http://服务器 IP:$FRONTEND_PORT"
+  echo "   用户名：$ADMIN_USERNAME"
+  echo "   密码：$ADMIN_PASSWORD"
+  echo ""
+  echo "📚 文档地址：https://tes.cc/guide.html"
+  echo "⚠️  请妥善保管管理员密码！"
 
 
 }
