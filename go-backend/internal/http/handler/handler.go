@@ -377,12 +377,12 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requirePasswordChange := req.Username == "admin_user" || req.Password == "admin_user"
+	// 不再强制修改密码
 	response.WriteJSON(w, response.OK(map[string]interface{}{
 		"token":                 token,
 		"name":                  user.User,
 		"role_id":               user.RoleID,
-		"requirePasswordChange": requirePasswordChange,
+		"requirePasswordChange": false,
 	}))
 }
 
