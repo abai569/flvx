@@ -21,7 +21,7 @@ import {
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { BrandLogo } from "@/components/brand-logo";
 import { VersionFooter } from "@/components/version-footer";
-import { getMonitorAccess, updatePassword } from "@/api";
+import { getLicenseInfo, getMonitorAccess, updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";
 import { siteConfig } from "@/config/site";
 import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
@@ -67,6 +67,12 @@ export default function AdminLayout({
     newPassword: "",
     confirmPassword: "",
   });
+  const [licenseInfo, setLicenseInfo] = useState<{
+    valid: boolean;
+    expire_time?: number;
+    reason?: string;
+    configured: boolean;
+  } | null>(null);
   const isMobile = useMobileBreakpoint();
 
   // 菜单项配置
@@ -201,6 +207,13 @@ export default function AdminLayout({
 
     setUsername(name);
     setIsAdmin(adminFlag);
+
+    // 获取授权信息
+    getLicenseInfo().then((res) => {
+      if (res.code === 0) {
+        setLicenseInfo(res.data);
+      }
+    });
 
     // Monitor permission is not strictly role-based; non-admin users may be
     // granted access explicitly. Fetch a lightweight capability flag so we can
@@ -483,8 +496,8 @@ export default function AdminLayout({
           </ul>
         </nav>
 
-        {/* 底部版权信息和折叠按钮 */}
-        <div className="px-5 py-2 pb-4 mt-auto flex-shrink-0 flex items-center justify-between overflow-hidden whitespace-nowrap box-border">
+        {/* 底部版权信息和授权状态 */}
+        <div className="px-5 py-2 pb-4 mt-auto flex-shrink-0 flex flex-col gap-1 overflow-hidden whitespace-nowrap box-border">
           <div
             className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}
           >
@@ -495,6 +508,26 @@ export default function AdminLayout({
               versionClassName="text-xs text-gray-400 dark:text-gray-500"
             />
           </div>
+          
+          {/* 授权状态显示 */}
+          {licenseInfo && licenseInfo.configured && (
+            <div
+              className={`transition-all duration-300 overflow-hidden text-xs ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}
+            >
+              {licenseInfo.valid ? (
+                <span className="text-green-600 dark:text-green-400">
+                  授权有效期至{" "}
+                  {licenseInfo.expire_time
+                    ? new Date(licenseInfo.expire_time).toLocaleDateString("zh-CN")
+                    : "-"}
+                </span>
+              ) : (
+                <span className="text-red-600 dark:text-red-400">
+                  {licenseInfo.reason || "授权无效"}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* 桌面端折叠按钮 */}
           {!isMobile && (

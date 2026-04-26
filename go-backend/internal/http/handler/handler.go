@@ -264,6 +264,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/federation/node/import", h.nodeImport)
 	mux.HandleFunc("/api/v1/announcement/get", h.getAnnouncement)
 	mux.HandleFunc("/api/v1/announcement/update", h.updateAnnouncement)
+	mux.HandleFunc("/api/v1/license/info", h.licenseInfo)
 
 
 

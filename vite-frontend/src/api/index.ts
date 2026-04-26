@@ -480,6 +480,17 @@ export const getAnnouncement = () =>
 export const updateAnnouncement = (data: AnnouncementData) =>
   Network.post("/announcement/update", data);
 
+// License API
+export interface LicenseInfo {
+  valid: boolean;
+  expire_time?: number;
+  reason?: string;
+  configured: boolean;
+}
+
+export const getLicenseInfo = () =>
+  Network.post<LicenseInfo>("/license/info");
+
 export const getNodeMetrics = (
   nodeId: number,
   start?: number,

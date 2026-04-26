@@ -1,0 +1,145 @@
+package middleware
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"sync"
+	"time"
+)
+
+// LicenseVerifier handles license verification with remote server
+type LicenseVerifier struct {
+	serverURL  string
+	licenseKey string
+	domain     string
+	httpClient *http.Client
+}
+
+// VerifyRequest is the request body for license verification
+type VerifyRequest struct {
+	LicenseKey string `json:"license_key"`
+	Domain     string `json:"domain"`
+}
+
+// VerifyResponse is the response body for license verification
+type VerifyResponse struct {
+	Valid      bool   `json:"valid"`
+	ExpireTime int64  `json:"expire_time,omitempty"`
+	Username   string `json:"username,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// licenseState stores the current license state
+type licenseState struct {
+	valid      bool
+	expireTime int64
+	reason     string
+	mu         sync.RWMutex
+}
+
+var globalLicenseState = &licenseState{}
+
+// NewLicenseVerifier creates a new LicenseVerifier instance
+func NewLicenseVerifier(serverURL, licenseKey, domain string) *LicenseVerifier {
+	return &LicenseVerifier{
+		serverURL:  serverURL,
+		licenseKey: licenseKey,
+		domain:     domain,
+		httpClient: &http.Client{Timeout: 10 * time.Second},
+	}
+}
+
+// Verify performs license verification
+func (v *LicenseVerifier) Verify(ctx context.Context) (*VerifyResponse, error) {
+	if v.serverURL == "" || v.licenseKey == "" {
+		return &VerifyResponse{Valid: false, Reason: "未配置授权服务"}, nil
+	}
+
+	reqBody := VerifyRequest{
+		LicenseKey: v.licenseKey,
+		Domain:     v.domain,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, v.serverURL+"/api/verify", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := v.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("verify request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result VerifyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// GetServerDomain extracts domain from environment or hostname
+func GetServerDomain() string {
+	domain := os.Getenv("SERVER_DOMAIN")
+	if domain != "" {
+		return domain
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return hostname
+}
+
+// StartLicenseVerification starts license verification and stores the result
+func StartLicenseVerification(serverURL, licenseKey, domain string) error {
+	verifier := NewLicenseVerifier(serverURL, licenseKey, domain)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := verifier.Verify(ctx)
+	if err != nil {
+		globalLicenseState.mu.Lock()
+		globalLicenseState.valid = false
+		globalLicenseState.reason = fmt.Sprintf("验证服务不可达：%v", err)
+		globalLicenseState.mu.Unlock()
+		return err
+	}
+
+	globalLicenseState.mu.Lock()
+	globalLicenseState.valid = resp.Valid
+	globalLicenseState.expireTime = resp.ExpireTime
+	globalLicenseState.reason = resp.Reason
+	globalLicenseState.mu.Unlock()
+
+	return nil
+}
+
+// GetLicenseState returns the current license state
+func GetLicenseState() (valid bool, expireTime int64, reason string) {
+	globalLicenseState.mu.RLock()
+	defer globalLicenseState.mu.RUnlock()
+	return globalLicenseState.valid, globalLicenseState.expireTime, globalLicenseState.reason
+}
+
+// SetLicenseState sets the license state (for testing)
+func SetLicenseState(valid bool, expireTime int64, reason string) {
+	globalLicenseState.mu.Lock()
+	defer globalLicenseState.mu.Unlock()
+	globalLicenseState.valid = valid
+	globalLicenseState.expireTime = expireTime
+	globalLicenseState.reason = reason
+}
