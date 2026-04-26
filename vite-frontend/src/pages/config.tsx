@@ -21,7 +21,6 @@ import {
   type AnnouncementData,
 } from "@/api";
 // 主题设置暂时放在这里，后续可以独立成一个页面或者组件
-// import { ThemeSettings } from "@/components/theme-settings";
 import { isAdmin } from "@/utils/auth";
 import { getCachedConfigs, configCache, updateSiteConfig } from "@/config/site";
 import {
