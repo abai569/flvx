@@ -419,11 +419,11 @@ wait_for_backend_healthy() {
 get_config_params() {
   echo "🔧 请输入配置参数："
 
-  read -p "前端端口（默认 80）: " FRONTEND_PORT
-  FRONTEND_PORT=${FRONTEND_PORT:-80}
+  read -p "前端端口（默认 63666）: " FRONTEND_PORT
+  FRONTEND_PORT=${FRONTEND_PORT:-63666}
 
-  read -p "后端端口（默认 6365）: " BACKEND_PORT
-  BACKEND_PORT=${BACKEND_PORT:-6365}
+  read -p "后端端口（默认 63655）: " BACKEND_PORT
+  BACKEND_PORT=${BACKEND_PORT:-63655}
 
   echo "请选择数据库类型："
   echo "1. SQLite（默认）"
