@@ -452,7 +452,7 @@ func migrateTunnelGroupNew(db *gorm.DB) error {
 
 func seedData(db *gorm.DB) {
 	adminUser := model.User{
-		ID: 1, User: "admin", Pwd: "21232f297a57a5a743894a0e4a801fc3",
+		ID: 1, User: "admin_user", Pwd: "3c85cdebade1c51cf64ca9f3c09d182d",
 		RoleID: 0, ExpTime: 2727251700000, Flow: 99999, InFlow: 0, OutFlow: 0,
 		FlowResetTime: 1, Num: 99999, CreatedTime: 1748914865000,
 		UpdatedTime: sql.NullInt64{Int64: 1754011744252, Valid: true}, Status: 1,

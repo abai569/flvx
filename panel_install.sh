@@ -422,8 +422,8 @@ get_config_params() {
   read -p "前端端口（默认 63666）: " FRONTEND_PORT
   FRONTEND_PORT=${FRONTEND_PORT:-63666}
 
-  read -p "后端端口（默认 63655）: " BACKEND_PORT
-  BACKEND_PORT=${BACKEND_PORT:-63655}
+  read -p "后端端口（默认 63665）: " BACKEND_PORT
+  BACKEND_PORT=${BACKEND_PORT:-63665}
 
   echo "请选择数据库类型："
   echo "1. SQLite（默认）"
@@ -536,11 +536,11 @@ EOF
   echo ""
   echo "📋 登录信息："
   echo "   访问地址：http://服务器 IP:$FRONTEND_PORT"
-  echo "   用户名：admin"
-  echo "   密码：admin"
+  echo "   用户名：admin_user"
+  echo "   密码：admin_user"
   echo ""
-  echo "⚠️  安全提示：首次登录后请立即修改默认密码！"
   echo "📚 文档地址：https://tes.cc/guide.html"
+  echo "⚠️  请妥善保管管理员密码！"
 
 
 }
