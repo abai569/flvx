@@ -419,8 +419,8 @@ wait_for_backend_healthy() {
 get_config_params() {
   echo "🔧 请输入配置参数："
 
-  read -p "前端端口（默认 6366）: " FRONTEND_PORT
-  FRONTEND_PORT=${FRONTEND_PORT:-6366}
+  read -p "前端端口（默认 80）: " FRONTEND_PORT
+  FRONTEND_PORT=${FRONTEND_PORT:-80}
 
   read -p "后端端口（默认 6365）: " BACKEND_PORT
   BACKEND_PORT=${BACKEND_PORT:-6365}
@@ -458,7 +458,6 @@ get_config_params() {
   # 授权服务配置
   echo ""
   echo "🔐 授权服务配置："
-  echo "授权服务地址：https://sq.abai.eu.org（固定）"
   
   # 授权码 UUID（必填）
   read -p "授权码 UUID: " LICENSE_KEY
@@ -478,9 +477,6 @@ get_config_params() {
   SERVER_DOMAIN=$(echo "$SERVER_DOMAIN" | sed -e 's|^[[:space:]]*||' -e 's|[[:space:]]*$||' -e 's|^https\?://||' -e 's|/.*||')
   
   echo "✅ 授权配置完成"
-  echo "   授权服务地址：https://sq.abai.eu.org"
-  echo "   授权码 UUID: $LICENSE_KEY"
-  echo "   面板域名：$SERVER_DOMAIN"
 }
 
 # 安装功能
