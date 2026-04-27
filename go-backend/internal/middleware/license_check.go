@@ -110,6 +110,50 @@ func GetServerDomain() string {
 
 // StartLicenseVerification starts license verification and stores the result
 func StartLicenseVerification(serverURL, licenseKey, domain string) error {
+	if serverURL == "" || licenseKey == "" {
+		globalLicenseState.mu.Lock()
+		globalLicenseState.valid = false
+		globalLicenseState.reason = "未配置授权服务"
+		globalLicenseState.mu.Unlock()
+		return nil
+	}
+
+	// 立即执行一次验证
+	if err := doVerify(serverURL, licenseKey, domain); err != nil {
+		return err
+	}
+
+	// 启动后台定时验证任务
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			lockedReason := getLockedReason()
+			// 如果当前是锁定状态，提高验证频率（3 分钟）
+			if lockedReason != "" {
+				ticker.Reset(3 * time.Minute)
+			} else {
+				ticker.Reset(10 * time.Minute)
+			}
+			
+			log.Printf("🔄 后台自动验证授权...")
+			if err := doVerify(serverURL, licenseKey, domain); err != nil {
+				log.Printf("⚠️ 后台验证失败：%v", err)
+			}
+		}
+	}()
+
+	return nil
+}
+
+func getLockedReason() string {
+	globalLicenseState.mu.RLock()
+	defer globalLicenseState.mu.RUnlock()
+	return globalLicenseState.reason
+}
+
+func doVerify(serverURL, licenseKey, domain string) error {
 	verifier := NewLicenseVerifier(serverURL, licenseKey, domain)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

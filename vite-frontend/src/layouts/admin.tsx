@@ -208,12 +208,16 @@ export default function AdminLayout({
     setUsername(name);
     setIsAdmin(adminFlag);
 
-    // 获取授权信息
-    getLicenseInfo().then((res) => {
-      if (res.code === 0) {
-        setLicenseInfo(res.data);
-      }
-    });
+    // 获取并定时刷新授权信息
+    const fetchLicense = () => {
+      getLicenseInfo().then((res) => {
+        if (res.code === 0) {
+          setLicenseInfo(res.data);
+        }
+      });
+    };
+    fetchLicense();
+    const licenseInterval = setInterval(fetchLicense, 5 * 60 * 1000); // 每 5 分钟刷新一次
 
     // Monitor permission is not strictly role-based; non-admin users may be
     // granted access explicitly. Fetch a lightweight capability flag so we can
@@ -222,7 +226,10 @@ export default function AdminLayout({
       setMonitorAllowed(true);
       setMonitorAccessReason(null);
 
-      return;
+      return () => {
+        cancelled = true;
+        clearInterval(licenseInterval);
+      };
     }
 
     let cancelled = false;
@@ -252,6 +259,7 @@ export default function AdminLayout({
 
     return () => {
       cancelled = true;
+      clearInterval(licenseInterval);
     };
   }, []);
 
@@ -515,13 +523,26 @@ export default function AdminLayout({
               className={`transition-all duration-300 overflow-hidden text-xs ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}
             >
               {licenseInfo.valid ? (
-                <span className="text-green-600 dark:text-green-400">
-                  授权剩余{" "}
-                  {licenseInfo.expire_time
+                (() => {
+                  // 1. 计算剩余天数
+                  const daysLeft = licenseInfo.expire_time
                     ? Math.max(0, Math.floor((licenseInfo.expire_time - Date.now()) / (1000 * 60 * 60 * 24)))
-                    : 0}
-                  天
-                </span>
+                    : 0;
+                  
+                  // 2. 判断是否少于 5 天
+                  const isExpiringSoon = daysLeft < 5;
+                  
+                  // 3. 动态决定颜色类
+                  const textColorClass = isExpiringSoon 
+                    ? "text-red-500 font-bold dark:text-red-400" 
+                    : "text-green-600 dark:text-green-400";
+
+                  return (
+                    <span className={textColorClass}>
+                      授权剩余 {daysLeft} 天{isExpiringSoon ? " (即将过期)" : ""}
+                    </span>
+                  );
+                })()
               ) : (
                 <span className="text-red-600 dark:text-red-400">
                   {licenseInfo.reason || "授权无效"}
@@ -579,6 +600,28 @@ export default function AdminLayout({
       <div
         className={`flex flex-col flex-1 ${isMobile ? "min-h-0" : "h-full overflow-hidden"}`}
       >
+        {/* 授权失效警告横幅 */}
+        {licenseInfo && !licenseInfo.valid && (
+          <div className="bg-red-600 text-white text-center text-sm py-2 font-medium flex items-center justify-center gap-2 z-20 shadow-md">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <span>
+              服务受限：{licenseInfo.reason || "授权无效"}，请立即联系管理员续费。
+            </span>
+          </div>
+        )}
+
         {/* 顶部导航栏 */}
         <header className="bg-white dark:bg-black shadow-md border-b border-gray-200 dark:border-gray-600 h-14 flex items-center justify-between px-4 lg:px-6 relative z-10">
           <div className="flex items-center gap-4">
