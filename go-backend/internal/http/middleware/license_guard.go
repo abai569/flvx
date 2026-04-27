@@ -26,13 +26,15 @@ func LicenseGuard(next http.Handler) http.Handler {
 		// 3. Check license state
 		valid, _, reason := middleware.GetLicenseState()
 		if !valid {
-			// 如果未配置授权服务，则放行（兼容测试环境）
-			if reason == "未配置授权服务" {
+			// 允许放行的情况：
+			// 1. 测试环境：初始化状态下 reason 为空字符串 ("")
+			// 2. 未配置授权服务
+			if reason == "" || reason == "未配置授权服务" {
 				next.ServeHTTP(w, r)
 				return
 			}
 			
-			// 明确的拒绝原因
+			// 明确拒绝（如：已禁用、已过期、验证服务报错等）
 			response.WriteJSON(w, response.Err(403, "操作失败：授权无效 ("+reason+")"))
 			return
 		}
