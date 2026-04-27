@@ -2266,49 +2266,20 @@ export default function NodePage() {
                 >
                   新增
                 </Button>
-                {/* 筛选按钮 */}
-                <div className="flex items-center gap-2">
+                {(nodeFilterMode !== "all" ||
+                  filterGroupId !== null) && (
                   <Button
-                    className="whitespace-nowrap bg-red-100"
-                    color={
-                      nodeFilterMode !== "all" ||
-                      filterGroupId !== null
-                        ? "secondary"
-                        : "danger"
-                    }
-                    isDisabled={filterGroupId === null}
+                    color="warning"
                     size="sm"
-                    title={
-                      nodeFilterMode !== "all" || filterGroupId !== null
-                        ? "筛选条件"
-                        : "远程节点不支持到期筛选"
-                    }
                     variant="flat"
-                    onPress={() => setIsFilterModalOpen(true)}
+                    onPress={() => {
+                      resetNodeFilterMode();
+                      setFilterGroupId(null);
+                    }}
                   >
-                    筛选{" "}
-                    {(nodeFilterMode !== "all" ||
-                      filterGroupId !== null) && (
-                      <span className="text-[10px] bg-default-500/10 text-default-600 px-1 rounded">
-                        {([nodeFilterMode !== "all", filterGroupId !== null].filter(Boolean).length)}
-                      </span>
-                    )}
+                    重置
                   </Button>
-                  {(nodeFilterMode !== "all" ||
-                    filterGroupId !== null) && (
-                    <Button
-                      color="warning"
-                      size="sm"
-                      variant="flat"
-                      onPress={() => {
-                        resetNodeFilterMode();
-                        setFilterGroupId(null);
-                      }}
-                    >
-                      重置
-                    </Button>
-                  )}
-                </div>
+                )}
               </>
             )}
           </div>

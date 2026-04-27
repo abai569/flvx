@@ -20,8 +20,10 @@ func (h *Handler) licenseInfo(w http.ResponseWriter, r *http.Request) {
 	valid, expireTime, reason := middleware.GetLicenseState()
 
 	// Always trigger background check on page refresh to get latest status
-	// This runs asynchronously and does not block the current response
-	middleware.TriggerAsyncCheck()
+	// We use synchronous check here to ensure the state is updated *before* the handler returns.
+	// This prevents a race condition where the user sees "Valid" but the LicenseGuard still thinks it's "Invalid"
+	// immediately after a refresh.
+	middleware.ForceSyncCheck()
 
 	// Check if license is configured
 	// 1. Prioritize Environment Variables (used by StartLicenseVerification)

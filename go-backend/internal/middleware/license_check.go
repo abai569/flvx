@@ -165,6 +165,49 @@ func TriggerAsyncCheck() {
 	}()
 }
 
+// ForceSyncCheck performs synchronous verification and updates global state
+// This is used during page refresh to ensure state is strictly up-to-date
+func ForceSyncCheck() {
+	checkParams.mu.Lock()
+	serverURL := checkParams.serverURL
+	licenseKey := checkParams.licenseKey
+	domain := checkParams.domain
+	checkParams.mu.Unlock()
+
+	if serverURL == "" || licenseKey == "" {
+		globalLicenseState.mu.Lock()
+		globalLicenseState.valid = false
+		globalLicenseState.reason = "未配置授权服务"
+		globalLicenseState.LastCheck = time.Now()
+		globalLicenseState.mu.Unlock()
+		return
+	}
+
+	verifier := NewLicenseVerifier(serverURL, licenseKey, domain)
+
+	// Use a shorter timeout for page refresh to avoid long UI blocking
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := verifier.Verify(ctx)
+	if err != nil {
+		globalLicenseState.mu.Lock()
+		globalLicenseState.valid = false
+		globalLicenseState.reason = fmt.Sprintf("同步验证失败: %v", err)
+		globalLicenseState.LastCheck = time.Now()
+		globalLicenseState.mu.Unlock()
+		return
+	}
+
+	globalLicenseState.mu.Lock()
+	globalLicenseState.valid = resp.Valid
+	globalLicenseState.expireTime = resp.ExpireTime
+	globalLicenseState.reason = resp.Reason
+	globalLicenseState.LastCheck = time.Now()
+	globalLicenseState.mu.Unlock()
+
+}
+
 func getLockedReason() string {
 	globalLicenseState.mu.RLock()
 	defer globalLicenseState.mu.RUnlock()
