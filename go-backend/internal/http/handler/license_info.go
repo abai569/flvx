@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"os"
 
 	"go-backend/internal/http/response"
 	"go-backend/internal/middleware"
@@ -22,10 +23,19 @@ func (h *Handler) licenseInfo(w http.ResponseWriter, r *http.Request) {
 	// This runs asynchronously and does not block the current response
 	middleware.TriggerAsyncCheck()
 
-	// Check if license is configured via environment variables
-	cfg1, _ := h.repo.GetConfigByName("license_server_url")
-	cfg2, _ := h.repo.GetConfigByName("license_key")
-	configured := cfg1 != nil || cfg2 != nil
+	// Check if license is configured
+	// 1. Prioritize Environment Variables (used by StartLicenseVerification)
+	serverUrl := os.Getenv("LICENSE_SERVER_URL")
+	licenseKey := os.Getenv("LICENSE_KEY")
+	
+	configured := serverUrl != "" || licenseKey != ""
+
+	// 2. Fallback to DB if not in ENV
+	if !configured {
+		cfg1, _ := h.repo.GetConfigByName("license_server_url")
+		cfg2, _ := h.repo.GetConfigByName("license_key")
+		configured = cfg1 != nil || cfg2 != nil
+	}
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
 		"valid":       valid,
