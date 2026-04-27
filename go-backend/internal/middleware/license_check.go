@@ -161,13 +161,15 @@ func StartLicenseVerification(serverURL, licenseKey, domain string) error {
 func TriggerAsyncCheck() {
 	// 异步执行，避免阻塞当前请求
 	go func() {
+		// log.Println("🔄 触发异步授权验证...")
 		doVerify()
 	}()
 }
 
 // ForceSyncCheck performs synchronous verification and updates global state
-// This is used during page refresh to ensure state is strictly up-to-date
+// This is used during page refresh to ensure state is strictly up-to-date.
 func ForceSyncCheck() {
+	
 	checkParams.mu.Lock()
 	serverURL := checkParams.serverURL
 	licenseKey := checkParams.licenseKey
@@ -185,27 +187,25 @@ func ForceSyncCheck() {
 
 	verifier := NewLicenseVerifier(serverURL, licenseKey, domain)
 
-	// Use a shorter timeout for page refresh to avoid long UI blocking
+	// Use a shorter timeout for page refresh to avoid long UI blocking (3 seconds)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	resp, err := verifier.Verify(ctx)
+	
+	globalLicenseState.mu.Lock()
 	if err != nil {
-		globalLicenseState.mu.Lock()
 		globalLicenseState.valid = false
 		globalLicenseState.reason = fmt.Sprintf("同步验证失败: %v", err)
-		globalLicenseState.LastCheck = time.Now()
-		globalLicenseState.mu.Unlock()
-		return
+		// log.Printf("⚠️ 授权同步验证失败: %v", err)
+	} else {
+		globalLicenseState.valid = resp.Valid
+		globalLicenseState.expireTime = resp.ExpireTime
+		globalLicenseState.reason = resp.Reason
+		// log.Printf("✅ 授权同步验证成功: valid=%v", resp.Valid)
 	}
-
-	globalLicenseState.mu.Lock()
-	globalLicenseState.valid = resp.Valid
-	globalLicenseState.expireTime = resp.ExpireTime
-	globalLicenseState.reason = resp.Reason
 	globalLicenseState.LastCheck = time.Now()
 	globalLicenseState.mu.Unlock()
-
 }
 
 func getLockedReason() string {
