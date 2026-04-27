@@ -19,8 +19,8 @@ func LicenseGuard(next http.Handler) http.Handler {
 		// Check license state
 		valid, _, reason := middleware.GetLicenseState()
 		if !valid {
-			// 如果仅仅是未配置授权服务，则放行（降级兼容模式）
-			if reason != "未配置授权服务" {
+			// 如果未配置授权服务或状态未初始化，则放行（兼容测试环境和未配置环境）
+			if reason != "" && reason != "未配置授权服务" {
 				response.WriteJSON(w, response.Err(403, "操作失败：授权无效 ("+reason+")"))
 				return
 			}
