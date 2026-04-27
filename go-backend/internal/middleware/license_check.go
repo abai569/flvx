@@ -108,18 +108,33 @@ func GetServerDomain() string {
 	return hostname
 }
 
+var checkParams struct {
+	serverURL  string
+	licenseKey string
+	domain     string
+	mu         sync.Mutex
+}
+
 // StartLicenseVerification starts license verification and stores the result
 func StartLicenseVerification(serverURL, licenseKey, domain string) error {
 	if serverURL == "" || licenseKey == "" {
 		globalLicenseState.mu.Lock()
 		globalLicenseState.valid = false
 		globalLicenseState.reason = "未配置授权服务"
+		globalLicenseState.LastCheck = time.Now() // 标记为已检查（无配置）
 		globalLicenseState.mu.Unlock()
 		return nil
 	}
 
+	// 保存参数以便后续手动触发
+	checkParams.mu.Lock()
+	checkParams.serverURL = serverURL
+	checkParams.licenseKey = licenseKey
+	checkParams.domain = domain
+	checkParams.mu.Unlock()
+
 	// 立即执行一次验证
-	if err := doVerify(serverURL, licenseKey, domain); err != nil {
+	if err := doVerify(); err != nil {
 		return err
 	}
 
@@ -138,7 +153,7 @@ func StartLicenseVerification(serverURL, licenseKey, domain string) error {
 			}
 			
 			log.Printf("🔄 后台自动验证授权...")
-			if err := doVerify(serverURL, licenseKey, domain); err != nil {
+			if err := doVerify(); err != nil {
 				log.Printf("⚠️ 后台验证失败：%v", err)
 			}
 		}
@@ -147,13 +162,47 @@ func StartLicenseVerification(serverURL, licenseKey, domain string) error {
 	return nil
 }
 
+// TriggerAsyncCheck triggers a background verification immediately
+func TriggerAsyncCheck() {
+	checkParams.mu.Lock()
+	url := checkParams.serverURL
+	key := checkParams.licenseKey
+	domain := checkParams.domain
+	checkParams.mu.Unlock()
+
+	if url == "" || key == "" {
+		return
+	}
+
+	// 异步执行，避免阻塞当前请求
+	go func() {
+		log.Printf("🔄 强制触发授权验证...")
+		doVerify()
+	}()
+}
+
 func getLockedReason() string {
 	globalLicenseState.mu.RLock()
 	defer globalLicenseState.mu.RUnlock()
 	return globalLicenseState.reason
 }
 
-func doVerify(serverURL, licenseKey, domain string) error {
+func doVerify() error {
+	checkParams.mu.Lock()
+	serverURL := checkParams.serverURL
+	licenseKey := checkParams.licenseKey
+	domain := checkParams.domain
+	checkParams.mu.Unlock()
+
+	if serverURL == "" || licenseKey == "" {
+		globalLicenseState.mu.Lock()
+		globalLicenseState.valid = false
+		globalLicenseState.reason = "未配置授权服务"
+		globalLicenseState.LastCheck = time.Now()
+		globalLicenseState.mu.Unlock()
+		return nil
+	}
+
 	verifier := NewLicenseVerifier(serverURL, licenseKey, domain)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -164,7 +213,9 @@ func doVerify(serverURL, licenseKey, domain string) error {
 		globalLicenseState.mu.Lock()
 		globalLicenseState.valid = false
 		globalLicenseState.reason = fmt.Sprintf("验证服务不可达：%v", err)
+		globalLicenseState.LastCheck = time.Now()
 		globalLicenseState.mu.Unlock()
+		log.Printf("⚠️ 后台验证失败：%v", err)
 		return err
 	}
 
@@ -172,16 +223,10 @@ func doVerify(serverURL, licenseKey, domain string) error {
 	globalLicenseState.valid = resp.Valid
 	globalLicenseState.expireTime = resp.ExpireTime
 	globalLicenseState.reason = resp.Reason
+	globalLicenseState.LastCheck = time.Now()
 	globalLicenseState.mu.Unlock()
 
 	return nil
-}
-
-// GetLicenseState returns the current license state
-func GetLicenseState() (valid bool, expireTime int64, reason string) {
-	globalLicenseState.mu.RLock()
-	defer globalLicenseState.mu.RUnlock()
-	return globalLicenseState.valid, globalLicenseState.expireTime, globalLicenseState.reason
 }
 
 // SetLicenseState sets the license state (for testing)

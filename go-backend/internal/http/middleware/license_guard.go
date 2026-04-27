@@ -19,8 +19,11 @@ func LicenseGuard(next http.Handler) http.Handler {
 		// Check license state
 		valid, _, reason := middleware.GetLicenseState()
 		if !valid {
-			response.WriteJSON(w, response.Err(403, "操作失败：授权无效 ("+reason+")"))
-			return
+			// 如果仅仅是未配置授权服务，则放行（降级兼容模式）
+			if reason != "未配置授权服务" {
+				response.WriteJSON(w, response.Err(403, "操作失败：授权无效 ("+reason+")"))
+				return
+			}
 		}
 
 		next.ServeHTTP(w, r)
