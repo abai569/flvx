@@ -23,7 +23,9 @@ func (h *Handler) licenseInfo(w http.ResponseWriter, r *http.Request) {
 	middleware.TriggerAsyncCheck()
 
 	// Check if license is configured via environment variables
-	configured := h.repo.GetConfigByName("license_server_url") != nil || h.repo.GetConfigByName("license_key") != nil
+	cfg1, _ := h.repo.GetConfigByName("license_server_url")
+	cfg2, _ := h.repo.GetConfigByName("license_key")
+	configured := cfg1 != nil || cfg2 != nil
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
 		"valid":       valid,
