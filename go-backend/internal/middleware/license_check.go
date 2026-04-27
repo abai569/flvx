@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -39,6 +38,7 @@ type licenseState struct {
 	valid      bool
 	expireTime int64
 	reason     string
+	LastCheck  time.Time
 	mu         sync.RWMutex
 }
 
@@ -59,8 +59,6 @@ func (v *LicenseVerifier) Verify(ctx context.Context) (*VerifyResponse, error) {
 	if v.serverURL == "" || v.licenseKey == "" {
 		return &VerifyResponse{Valid: false, Reason: "未配置授权服务"}, nil
 	}
-
-	log.Printf("🔐 授权验证请求：server=%s, key=%s, domain=%s", v.serverURL, v.licenseKey, v.domain)
 
 	reqBody := VerifyRequest{
 		LicenseKey: v.licenseKey,
@@ -88,8 +86,6 @@ func (v *LicenseVerifier) Verify(ctx context.Context) (*VerifyResponse, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
-
-	log.Printf("🔐 授权验证响应：valid=%v, reason=%s", result.Valid, result.Reason)
 
 	return &result, nil
 }
@@ -152,9 +148,8 @@ func StartLicenseVerification(serverURL, licenseKey, domain string) error {
 				ticker.Reset(10 * time.Minute)
 			}
 			
-			log.Printf("🔄 后台自动验证授权...")
 			if err := doVerify(); err != nil {
-				log.Printf("⚠️ 后台验证失败：%v", err)
+				// log.Printf("⚠️ 后台验证失败：%v", err)
 			}
 		}
 	}()
@@ -164,19 +159,8 @@ func StartLicenseVerification(serverURL, licenseKey, domain string) error {
 
 // TriggerAsyncCheck triggers a background verification immediately
 func TriggerAsyncCheck() {
-	checkParams.mu.Lock()
-	url := checkParams.serverURL
-	key := checkParams.licenseKey
-	domain := checkParams.domain
-	checkParams.mu.Unlock()
-
-	if url == "" || key == "" {
-		return
-	}
-
 	// 异步执行，避免阻塞当前请求
 	go func() {
-		log.Printf("🔄 强制触发授权验证...")
 		doVerify()
 	}()
 }
@@ -215,7 +199,6 @@ func doVerify() error {
 		globalLicenseState.reason = fmt.Sprintf("验证服务不可达：%v", err)
 		globalLicenseState.LastCheck = time.Now()
 		globalLicenseState.mu.Unlock()
-		log.Printf("⚠️ 后台验证失败：%v", err)
 		return err
 	}
 
@@ -227,6 +210,13 @@ func doVerify() error {
 	globalLicenseState.mu.Unlock()
 
 	return nil
+}
+
+// GetLicenseState returns the current license state
+func GetLicenseState() (valid bool, expireTime int64, reason string) {
+	globalLicenseState.mu.RLock()
+	defer globalLicenseState.mu.RUnlock()
+	return globalLicenseState.valid, globalLicenseState.expireTime, globalLicenseState.reason
 }
 
 // SetLicenseState sets the license state (for testing)
