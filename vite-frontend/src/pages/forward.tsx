@@ -1214,7 +1214,10 @@ export default function ForwardPage() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   // 工具栏搜索框状态
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchKeyword, setSearchKeyword] = useLocalStorageState(
+    "forward-search-keyword",
+    "",
+  );
   const activeFilterCount =
     (searchParams.name ? 1 : 0) +
     (searchParams.userId !== "all" &&
