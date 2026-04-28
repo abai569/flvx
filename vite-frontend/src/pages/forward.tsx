@@ -1227,7 +1227,8 @@ export default function ForwardPage() {
     (searchParams.tunnelId !== "all" ? 1 : 0) +
     (searchParams.speedLimitId !== undefined ? 1 : 0) +
     (searchParams.inPort ? 1 : 0) +
-    (searchParams.remoteAddr ? 1 : 0);
+    (searchParams.remoteAddr ? 1 : 0) +
+    (searchKeyword.trim() ? 1 : 0);
   const [loading, setLoading] = useState(true);
   const [forwards, setForwards] = useState<Forward[]>([]);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
@@ -4035,6 +4036,7 @@ export default function ForwardPage() {
                       inPort: "",
                       remoteAddr: "",
                     });
+                    setSearchKeyword("");
                   }}
                 >
                   重置

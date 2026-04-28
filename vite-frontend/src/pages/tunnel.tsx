@@ -365,6 +365,8 @@ export default function TunnelPage() {
     "tunnel-filter-group-id",
     null,
   );
+  const activeFilterCount = (filterGroupId !== null ? 1 : 0) +
+    (searchKeyword.trim() ? 1 : 0);
   // 列表模式选中行
   const [selectedTunnelIds, setSelectedTunnelIds] = useState<Set<number>>(
     new Set(),
@@ -1960,13 +1962,14 @@ export default function TunnelPage() {
             >
               新增
             </Button>
-            {filterGroupId !== null && (
+            {activeFilterCount > 0 && (
               <Button
                 color="warning"
                 size="sm"
                 variant="flat"
                 onPress={() => {
                   setFilterGroupId(null);
+                  setSearchKeyword("");
                 }}
               >
                 重置

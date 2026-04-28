@@ -56,6 +56,7 @@ export default function LimitPage() {
     "limit-search-keyword",
     "",
   );
+  const activeFilterCount = (searchKeyword.trim() ? 1 : 0);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {
@@ -257,6 +258,16 @@ export default function LimitPage() {
           <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
             新增
           </Button>
+          {activeFilterCount > 0 && (
+            <Button
+              color="warning"
+              size="sm"
+              variant="flat"
+              onPress={() => setSearchKeyword("")}
+            >
+              重置
+            </Button>
+          )}
         </div>
       </div>
       {/* 限速规则列表 */}

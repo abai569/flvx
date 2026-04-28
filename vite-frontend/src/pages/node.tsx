@@ -2267,7 +2267,8 @@ export default function NodePage() {
                   新增
                 </Button>
                 {(nodeFilterMode !== "all" ||
-                  filterGroupId !== null) && (
+                  filterGroupId !== null ||
+                  localSearchKeyword.trim()) && (
                   <Button
                     color="warning"
                     size="sm"
@@ -2275,6 +2276,7 @@ export default function NodePage() {
                     onPress={() => {
                       resetNodeFilterMode();
                       setFilterGroupId(null);
+                      setLocalSearchKeyword("");
                     }}
                   >
                     重置

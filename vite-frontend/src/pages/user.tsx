@@ -199,6 +199,7 @@ export default function UserPage() {
     "user-search-keyword",
     "",
   );
+  const activeFilterCount = (searchKeyword.trim() ? 1 : 0);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [pagination, setPagination] = useState<PaginationType>({
     current: 1,
@@ -1314,6 +1315,16 @@ export default function UserPage() {
               <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
                 新增
               </Button>
+              {activeFilterCount > 0 && (
+                <Button
+                  color="warning"
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setSearchKeyword("")}
+                >
+                  重置
+                </Button>
+              )}
             </>
           )}
         </div>
