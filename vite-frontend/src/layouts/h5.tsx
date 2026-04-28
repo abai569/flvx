@@ -20,7 +20,7 @@ import {
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { BrandLogo } from "@/components/brand-logo";
 import { VersionFooter } from "@/components/version-footer";
-import { updatePassword } from "@/api";
+import { getLicenseInfo, updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";
 import { siteConfig } from "@/config/site";
 import { getAdminFlag, getSessionName } from "@/utils/session";
@@ -49,6 +49,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [username, setUsername] = useState("");
   const [mobileMenuVisible, setMobileMenuVisible] = useState(false);
+  const [licenseInfo, setLicenseInfo] = useState<null | { valid: boolean; configured: boolean; reason?: string; expire_time?: number }>(null);
 
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordForm, setPasswordForm] = useState<PasswordForm>({
@@ -195,6 +196,20 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsAdmin(getAdminFlag());
     setUsername(getSessionName() || "Admin");
+
+    const fetchLicense = () => {
+      getLicenseInfo().then((res) => {
+        if (res.code === 0) {
+          setLicenseInfo(res.data);
+        }
+      });
+    };
+    fetchLicense();
+    const licenseInterval = setInterval(fetchLicense, 5 * 60 * 1000);
+
+    return () => {
+      clearInterval(licenseInterval);
+    };
   }, []);
 
   const toggleMobileMenu = () => setMobileMenuVisible(!mobileMenuVisible);
@@ -311,6 +326,35 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
               {siteConfig.name}
             </h1>
           </div>
+        </div>
+
+        {/* 授权信息居左显示 */}
+        <div className="flex-1 flex justify-start items-center h-full mx-2 overflow-hidden">
+          {licenseInfo && licenseInfo.configured && (
+            <div className="flex items-center justify-start h-full overflow-hidden whitespace-nowrap">
+              {licenseInfo.valid ? (
+                (() => {
+                  const daysLeft = licenseInfo.expire_time
+                    ? Math.max(0, Math.floor((licenseInfo.expire_time - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : 0;
+                  const isExpiringSoon = daysLeft < 5;
+                  const textColorClass = isExpiringSoon
+                    ? "text-red-500 font-bold dark:text-red-400"
+                    : "text-green-600 dark:text-green-400";
+
+                  return (
+                    <span className={`${textColorClass} text-xs truncate`}>
+                      授权剩余 {daysLeft} 天{isExpiringSoon ? " (即将过期)" : ""}
+                    </span>
+                  );
+                })()
+              ) : (
+                <span className="text-red-600 dark:text-red-400 text-xs font-bold truncate">
+                  {licenseInfo.reason || "授权无效"}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 顶部右侧 - 用户名下拉菜单 */}

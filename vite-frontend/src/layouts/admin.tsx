@@ -517,40 +517,6 @@ export default function AdminLayout({
             />
           </div>
           
-          {/* 授权状态显示 */}
-          {licenseInfo && licenseInfo.configured && (
-            <div
-              className={`transition-all duration-300 overflow-hidden text-xs ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}
-            >
-              {licenseInfo.valid ? (
-                (() => {
-                  // 1. 计算剩余天数
-                  const daysLeft = licenseInfo.expire_time
-                    ? Math.max(0, Math.floor((licenseInfo.expire_time - Date.now()) / (1000 * 60 * 60 * 24)))
-                    : 0;
-                  
-                  // 2. 判断是否少于 5 天
-                  const isExpiringSoon = daysLeft < 5;
-                  
-                  // 3. 动态决定颜色类
-                  const textColorClass = isExpiringSoon 
-                    ? "text-red-500 font-bold dark:text-red-400" 
-                    : "text-green-600 dark:text-green-400";
-
-                  return (
-                    <span className={textColorClass}>
-                      授权剩余 {daysLeft} 天{isExpiringSoon ? " (即将过期)" : ""}
-                    </span>
-                  );
-                })()
-              ) : (
-                <span className="text-red-600 dark:text-red-400">
-                  {licenseInfo.reason || "授权无效"}
-                </span>
-              )}
-            </div>
-          )}
-
           {/* 桌面端折叠按钮 */}
           {!isMobile && (
             <Button
@@ -623,9 +589,9 @@ export default function AdminLayout({
         )}
 
         {/* 顶部导航栏 */}
-        <header className="bg-white dark:bg-black shadow-md border-b border-gray-200 dark:border-gray-600 h-14 flex items-center justify-between px-4 lg:px-6 relative z-10">
+        <header className="bg-white dark:bg-black shadow-md border-b border-gray-200 dark:border-gray-600 h-14 flex items-center px-4 lg:px-6 relative z-10">
+          {/* 左侧：菜单按钮 */}
           <div className="flex items-center gap-4">
-            {/* 移动端菜单按钮 */}
             {isMobile && (
               <Button
                 isIconOnly
@@ -650,6 +616,36 @@ export default function AdminLayout({
             )}
           </div>
 
+          {/* 中间：授权信息 (全局可见) */}
+          <div className="flex-1 flex justify-start items-center h-full mx-4 overflow-hidden">
+            {licenseInfo && licenseInfo.configured && (
+              <div className="flex items-center justify-start h-full overflow-hidden whitespace-nowrap">
+                {licenseInfo.valid ? (
+                  (() => {
+                    const daysLeft = licenseInfo.expire_time
+                      ? Math.max(0, Math.floor((licenseInfo.expire_time - Date.now()) / (1000 * 60 * 60 * 24)))
+                      : 0;
+                    const isExpiringSoon = daysLeft < 5;
+                    const textColorClass = isExpiringSoon 
+                      ? "text-red-500 font-bold dark:text-red-400" 
+                      : "text-green-600 dark:text-green-400";
+
+                    return (
+                      <span className={`${textColorClass} text-sm md:text-base truncate`}>
+                        授权剩余 {daysLeft} 天{isExpiringSoon ? " (即将过期)" : ""}
+                      </span>
+                    );
+                  })()
+                ) : (
+                  <span className="text-red-600 dark:text-red-400 text-sm md:text-base font-bold truncate">
+                    {licenseInfo.reason || "授权无效"}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 右侧：用户菜单 */}
           <div className="flex items-center gap-3">
             {/* 用户菜单 */}
             <Dropdown placement="bottom-end">
