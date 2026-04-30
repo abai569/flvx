@@ -298,25 +298,29 @@ func (h *forwardHandler) checkRateLimit(addr net.Addr) bool {
 }
 
 // parseServiceName 从服务名解析 forwardID、userID、tunnelID
-// 服务名格式：forward 的名称（由后端传递）
+// 服务名格式：{forwardID}_{userID}_{tunnelID}_tcp 或 {forwardID}_{userID}_{tunnelID}_udp
 func parseServiceName(serviceName string) (forwardID, userID, tunnelID int64) {
-	// 简单解析，实际格式可能需要调整
-	// 例如：forward-12-1-5
 	if serviceName == "" {
 		return 0, 0, 0
 	}
 	
-	// 尝试解析 forward-{id}-{user}-{tunnel} 格式
-	parts := strings.Split(serviceName, "-")
-	if len(parts) >= 4 && parts[0] == "forward" {
-		forwardID, _ = strconv.ParseInt(parts[1], 10, 64)
-		userID, _ = strconv.ParseInt(parts[2], 10, 64)
-		tunnelID, _ = strconv.ParseInt(parts[3], 10, 64)
-		if forwardID > 0 {
-			return forwardID, userID, tunnelID
-		}
+	// 去除 _tcp 或 _udp 后缀
+	name := strings.TrimSuffix(serviceName, "_tcp")
+	name = strings.TrimSuffix(name, "_udp")
+	
+	// 按 _ 分割
+	parts := strings.Split(name, "_")
+	if len(parts) < 3 {
+		return 0, 0, 0
 	}
 	
-	// 无法解析，返回 0
+	forwardID, _ = strconv.ParseInt(parts[0], 10, 64)
+	userID, _ = strconv.ParseInt(parts[1], 10, 64)
+	tunnelID, _ = strconv.ParseInt(parts[2], 10, 64)
+	
+	if forwardID > 0 {
+		return forwardID, userID, tunnelID
+	}
+	
 	return 0, 0, 0
 }
