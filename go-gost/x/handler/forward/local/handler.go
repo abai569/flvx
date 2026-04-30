@@ -125,7 +125,7 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 		// 上报流量统计到 stats 包
 		if h.options.Service != "" {
 			// 从服务名解析 forwardID、userID、tunnelID
-			// 服务名格式：forward-{forwardID}-{userID}-{tunnelID}
+			// 服务名格式：{forwardID}_{userID}_{tunnelID}_tcp 或 {forwardID}_{userID}_{tunnelID}_udp
 			forwardID, userID, tunnelID := parseServiceName(h.options.Service)
 			if forwardID > 0 {
 				forwardStats.AddForwardTraffic(forwardID, userID, tunnelID, h.options.Service, true, inputBytes)
