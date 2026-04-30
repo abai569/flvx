@@ -4285,6 +4285,9 @@ export default function ForwardPage() {
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
                           用量
                         </TableColumn>
+                        <TableColumn className="whitespace-nowrap flex-shrink-0 w-[140px] text-left">
+                          实时带宽
+                        </TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[90px] text-left">
                           连接数
                         </TableColumn>
