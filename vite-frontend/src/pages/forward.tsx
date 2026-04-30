@@ -701,6 +701,7 @@ const SortableTableRow = ({
   handleDelete,
   handleDiagnose,
   formatFlow,
+  formatSpeed,
   isAdmin,
 }: any) => {
   const {
@@ -868,6 +869,23 @@ const SortableTableRow = ({
         </span>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <div className="flex items-center gap-1">
+          {(forward.inSpeed || 0) > 0 && (
+            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400" title="上行带宽">
+              ↑{formatSpeed(forward.inSpeed || 0)}
+            </span>
+          )}
+          {(forward.outSpeed || 0) > 0 && (
+            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400" title="下行带宽">
+              ↓{formatSpeed(forward.outSpeed || 0)}
+            </span>
+          )}
+          {(forward.inSpeed || 0) === 0 && (forward.outSpeed || 0) === 0 && (
+            <span className="text-xs text-default-400">-</span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <ConnectionCountCell
           current={forward.currentConnections ?? 0}
           max={forward.maxConnections ?? 0}
@@ -944,6 +962,7 @@ const SortableCompactTableRow = ({
   handleDelete,
   handleDiagnose,
   formatFlow,
+  formatSpeed,
   isAdmin,
 }: any) => {
   const {
@@ -1120,6 +1139,23 @@ const SortableCompactTableRow = ({
         <span className="text-sm font-medium text-black">
           {formatFlow(getForwardDisplayFlow(forward))}
         </span>
+      </TableCell>
+      <TableCell className={`whitespace-nowrap ${rowBg}`}>
+        <div className="flex items-center gap-1">
+          {(forward.inSpeed || 0) > 0 && (
+            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400" title="上行带宽">
+              ↑{formatSpeed(forward.inSpeed || 0)}
+            </span>
+          )}
+          {(forward.outSpeed || 0) > 0 && (
+            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400" title="下行带宽">
+              ↓{formatSpeed(forward.outSpeed || 0)}
+            </span>
+          )}
+          {(forward.inSpeed || 0) === 0 && (forward.outSpeed || 0) === 0 && (
+            <span className="text-xs text-default-400">-</span>
+          )}
+        </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <ConnectionCountCell
@@ -4273,6 +4309,7 @@ export default function ForwardPage() {
                           <SortableCompactTableRow
                             copyToClipboard={copyToClipboard}
                             formatFlow={formatFlow}
+                            formatSpeed={formatSpeed}
                             formatInAddress={formatInAddress}
                             formatRemoteAddress={formatRemoteAddress}
                             forward={forward}
@@ -4581,6 +4618,7 @@ export default function ForwardPage() {
                                             <SortableTableRow
                                               copyToClipboard={copyToClipboard}
                                               formatFlow={formatFlow}
+                                              formatSpeed={formatSpeed}
                                               forward={forward}
                                               getStrategyDisplay={
                                                 getStrategyDisplay
