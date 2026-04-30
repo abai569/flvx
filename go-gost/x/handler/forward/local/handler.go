@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-gost/core/chain"
@@ -296,7 +298,7 @@ func (h *forwardHandler) checkRateLimit(addr net.Addr) bool {
 }
 
 // parseServiceName 从服务名解析 forwardID、userID、tunnelID
-// 服务名格式：forward-{forwardID}-{userID}-{tunnelID}
+// 服务名格式：forward 的名称（由后端传递）
 func parseServiceName(serviceName string) (forwardID, userID, tunnelID int64) {
 	// 简单解析，实际格式可能需要调整
 	// 例如：forward-12-1-5
@@ -304,7 +306,17 @@ func parseServiceName(serviceName string) (forwardID, userID, tunnelID int64) {
 		return 0, 0, 0
 	}
 	
-	// 这里需要根据实际的服务名格式来解析
-	// 暂时返回 0，等待后端传递正确的信息
+	// 尝试解析 forward-{id}-{user}-{tunnel} 格式
+	parts := strings.Split(serviceName, "-")
+	if len(parts) >= 4 && parts[0] == "forward" {
+		forwardID, _ = strconv.ParseInt(parts[1], 10, 64)
+		userID, _ = strconv.ParseInt(parts[2], 10, 64)
+		tunnelID, _ = strconv.ParseInt(parts[3], 10, 64)
+		if forwardID > 0 {
+			return forwardID, userID, tunnelID
+		}
+	}
+	
+	// 无法解析，返回 0
 	return 0, 0, 0
 }
