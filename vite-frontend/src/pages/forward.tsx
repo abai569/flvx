@@ -126,6 +126,8 @@ interface Forward {
   expiryTime?: number | null;
   speedLimitEnabled?: boolean;
   speedLimit?: number;
+  inSpeed?: number;      // 新增：实时上行速度 (bytes/s)
+  outSpeed?: number;     // 新增：实时下行速度 (bytes/s)
 }
 interface Tunnel {
   id: number;
@@ -2539,6 +2541,16 @@ export default function ForwardPage() {
 
     return (value / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   };
+  // 格式化带宽速度
+  const formatSpeed = (bytesPerSecond: number): string => {
+    if (bytesPerSecond === 0) return "0 B/s";
+    const k = 1024;
+    const sizes = ["B/s", "KB/s", "MB/s", "GB/s"];
+    const i = Math.floor(Math.log(bytesPerSecond) / Math.log(k));
+    return (
+      parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+    );
+  };
   // 显示地址列表弹窗
   const showAddressModal = (
     addressString: string,
@@ -3838,7 +3850,7 @@ export default function ForwardPage() {
                 {statusDisplay.text}
               </div>
             </div>
-            {(forward.inFlow || 0) + (forward.outFlow || 0) > 0 ? (
+            {(forward.inFlow || 0) + (forward.outFlow || 0) > 0 || (forward.inSpeed || 0) + (forward.outSpeed || 0) > 0 ? (
               <div className="flex items-center gap-1">
                 <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500/10 text-primary-600 dark:text-primary-400">
                   ↑{formatFlow(forward.inFlow || 0)}
@@ -3846,6 +3858,16 @@ export default function ForwardPage() {
                 <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-success-500/10 text-success-600 dark:text-success-400">
                   ↓{formatFlow(forward.outFlow || 0)}
                 </div>
+                {(forward.inSpeed || 0) > 0 && (
+                  <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    ↑{formatSpeed(forward.inSpeed || 0)}
+                  </div>
+                )}
+                {(forward.outSpeed || 0) > 0 && (
+                  <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                    ↓{formatSpeed(forward.outSpeed || 0)}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-default-500/10 text-default-500">

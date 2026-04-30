@@ -16,6 +16,7 @@ import (
 	xlogger "github.com/go-gost/x/logger"
 	"github.com/go-gost/x/service"
 	"github.com/go-gost/x/socket"
+	"github.com/go-gost/x/stats"
 	"github.com/go-gost/x/traffic"
 	"github.com/judwhite/go-svc"
 	psnet "github.com/shirou/gopsutil/v3/net"
@@ -120,6 +121,9 @@ func main() {
 
 	log := xlogger.NewLogger()
 	logger.SetDefault(log)
+
+	// 初始化流量统计系统
+	stats.Init()
 
 	// 根据 service_name 确定配置目录
 	configDir := "/etc/flux_agent"

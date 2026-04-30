@@ -82,6 +82,8 @@ type Server struct {
 	pending               map[string]pendingRequest
 	serviceConnections    map[int64]map[string]int // nodeID -> serviceName -> connections
 	serviceConnUpdateTime map[int64]int64          // nodeID -> last update time
+	forwardMetrics        map[int64]*ForwardMetric // forwardID -> metric
+	forwardMetricsMu      sync.RWMutex
 }
 
 type SystemInfo struct {
@@ -100,6 +102,18 @@ type SystemInfo struct {
 	NetOutSpeed        int64          `json:"net_out_speed"`
 	ServiceName        string         `json:"service_name,omitempty"`
 	ServiceConnections map[string]int `json:"serviceConnections"`
+	ForwardMetrics     []ForwardMetric `json:"forward_metrics,omitempty"`
+}
+
+// ForwardMetric 转发规则指标
+type ForwardMetric struct {
+	ForwardID   int64  `json:"forward_id"`
+	UserID      int64  `json:"user_id"`
+	TunnelID    int64  `json:"tunnel_id"`
+	ServiceName string `json:"service_name"`
+	InSpeed     uint64 `json:"in_speed"`
+	OutSpeed    uint64 `json:"out_speed"`
+	Connections int    `json:"connections"`
 }
 
 func (s *Server) SetNodeOnlineHook(fn func(nodeID int64)) {
@@ -147,6 +161,25 @@ func (s *Server) GetForwardCurrentConnections(nodeID int64, forwardID int64) int
 	}
 
 	total := 0
+	// 服务名格式：{forwardID}_{userID}_{userTunnelID}_tcp 或 _udp
+	// 遍历所有连接数，匹配以 "{forwardID}_" 开头的服务
+	prefix := fmt.Sprintf("%d_", forwardID)
+	for serviceName, count := range conns {
+		if strings.HasPrefix(serviceName, prefix) {
+			total += count
+		}
+	}
+	return total
+}
+
+// GetForwardMetric 获取指定 forward 的实时指标
+func (s *Server) GetForwardMetric(forwardID int64) *ForwardMetric {
+	s.forwardMetricsMu.RLock()
+	defer s.forwardMetricsMu.RUnlock()
+	return s.forwardMetrics[forwardID]
+}
+
+	total := 0
 	// 服务名格式: {forwardID}_{userID}_{userTunnelID}_tcp 或 _udp
 	// 遍历所有连接数，匹配以 "{forwardID}_" 开头的服务
 	prefix := fmt.Sprintf("%d_", forwardID)
@@ -171,6 +204,7 @@ func NewServer(repo *repo.Repository, jwtSecret string) *Server {
 		pending:               make(map[string]pendingRequest),
 		serviceConnections:    make(map[int64]map[string]int),
 		serviceConnUpdateTime: make(map[int64]int64),
+		forwardMetrics:        make(map[int64]*ForwardMetric),
 	}
 }
 
@@ -325,6 +359,14 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 						// 更新 service_name
 						if sysInfo.ServiceName != "" {
 							_ = s.repo.UpdateNodeServiceName(nodeID, sysInfo.ServiceName)
+						}
+						// 缓存 forward 指标
+						if len(sysInfo.ForwardMetrics) > 0 {
+							s.forwardMetricsMu.Lock()
+							for _, fm := range sysInfo.ForwardMetrics {
+								s.forwardMetrics[fm.ForwardID] = &fm
+							}
+							s.forwardMetricsMu.Unlock()
 						}
 						s.mu.Unlock()
 

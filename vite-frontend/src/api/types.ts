@@ -88,6 +88,8 @@ export interface ForwardApiItem {
   expiryTime?: number | null;
   speedLimitEnabled?: boolean;
   speedLimit?: number;
+  inSpeed?: number;      // 新增：实时上行速度 (bytes/s)
+  outSpeed?: number;     // 新增：实时下行速度 (bytes/s)
   [key: string]: unknown;
 }
 

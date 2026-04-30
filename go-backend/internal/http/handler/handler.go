@@ -540,7 +540,7 @@ func (h *Handler) forwardList(w http.ResponseWriter, r *http.Request) {
 		items = filtered
 	}
 
-	// 补充当前连接数
+	// 补充当前连接数和实时带宽
 	for i := range items {
 		forwardID := asInt64(items[i]["id"], 0)
 		if forwardID > 0 {
@@ -551,8 +551,19 @@ func (h *Handler) forwardList(w http.ResponseWriter, r *http.Request) {
 				nodeID := ports[0].NodeID
 				conns := h.GetForwardConnections(nodeID, forwardID)
 				items[i]["currentConnections"] = conns
+
+				// 获取实时带宽数据
+				if metric := h.wsServer.GetForwardMetric(forwardID); metric != nil {
+					items[i]["inSpeed"] = metric.InSpeed
+					items[i]["outSpeed"] = metric.OutSpeed
+				} else {
+					items[i]["inSpeed"] = 0
+					items[i]["outSpeed"] = 0
+				}
 			} else {
 				items[i]["currentConnections"] = 0
+				items[i]["inSpeed"] = 0
+				items[i]["outSpeed"] = 0
 			}
 		}
 	}

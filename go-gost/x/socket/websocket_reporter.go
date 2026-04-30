@@ -25,6 +25,7 @@ import (
 	"github.com/go-gost/x/internal/util/crypto"
 	"github.com/go-gost/x/registry"
 	"github.com/go-gost/x/service"
+	"github.com/go-gost/x/stats"
 	"github.com/go-gost/x/traffic"
 	"github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -58,8 +59,20 @@ type SystemInfo struct {
 	UDPConns               int64          `json:"udp_conns"`
 	NetInSpeed             int64          `json:"net_in_speed"`
 	NetOutSpeed            int64          `json:"net_out_speed"`
-	ServiceName            string         `json:"service_name,omitempty"` // 服务名
-	ServiceConnections     map[string]int `json:"serviceConnections"`
+	ServiceName            string                      `json:"service_name,omitempty"` // 服务名
+	ServiceConnections     map[string]int              `json:"serviceConnections"`
+	ForwardMetrics         []ForwardMetric             `json:"forward_metrics,omitempty"` // 转发规则指标
+}
+
+// ForwardMetric 转发规则指标（与 stats 包保持一致）
+type ForwardMetric struct {
+	ForwardID   int64  `json:"forward_id"`
+	UserID      int64  `json:"user_id"`
+	TunnelID    int64  `json:"tunnel_id"`
+	ServiceName string `json:"service_name"`
+	InSpeed     uint64 `json:"in_speed"`
+	OutSpeed    uint64 `json:"out_speed"`
+	Connections int    `json:"connections"`
 }
 
 // NetworkStats 网络统计信息
@@ -917,7 +930,37 @@ func (w *WebSocketReporter) collectSystemInfo() SystemInfo {
 		NetOutSpeed:            netOutSpeed,
 		ServiceName:            w.serviceName,
 		ServiceConnections:     collectServiceConnections(),
+		ForwardMetrics:         collectForwardMetrics(),
 	}
+}
+
+// collectForwardMetrics 收集所有转发规则的实时指标
+func collectForwardMetrics() []ForwardMetric {
+	manager := stats.GetForwardStatsManager()
+	if manager == nil {
+		return nil
+	}
+
+	internalMetrics := manager.GetForwardMetrics()
+	if len(internalMetrics) == 0 {
+		return nil
+	}
+
+	// 转换为 socket 包的 ForwardMetric 类型
+	metrics := make([]ForwardMetric, 0, len(internalMetrics))
+	for _, m := range internalMetrics {
+		metrics = append(metrics, ForwardMetric{
+			ForwardID:   m.ForwardID,
+			UserID:      m.UserID,
+			TunnelID:    m.TunnelID,
+			ServiceName: m.ServiceName,
+			InSpeed:     m.InSpeed,
+			OutSpeed:    m.OutSpeed,
+			Connections: m.Connections,
+		})
+	}
+
+	return metrics
 }
 
 // collectServiceConnections 收集每个服务的当前连接数

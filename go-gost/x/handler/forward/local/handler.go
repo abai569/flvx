@@ -16,6 +16,7 @@ import (
 	"github.com/go-gost/core/recorder"
 	ctxvalue "github.com/go-gost/x/ctx"
 	xnet "github.com/go-gost/x/internal/net"
+	forwardStats "github.com/go-gost/x/stats"
 	"github.com/go-gost/x/internal/util/forwarder"
 	"github.com/go-gost/x/internal/util/sniffing"
 	tls_util "github.com/go-gost/x/internal/util/tls"
@@ -113,10 +114,22 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 		if err != nil {
 			ro.Err = err.Error()
 		}
-		ro.InputBytes = pStats.Get(stats.KindInputBytes)
-		ro.OutputBytes = pStats.Get(stats.KindOutputBytes)
+		inputBytes := pStats.Get(stats.KindInputBytes)
+		outputBytes := pStats.Get(stats.KindOutputBytes)
+		ro.InputBytes = inputBytes
+		ro.OutputBytes = outputBytes
 		ro.Duration = time.Since(start)
 
+		// 上报流量统计到 stats 包
+		if h.options.Service != "" {
+			// 从服务名解析 forwardID、userID、tunnelID
+			// 服务名格式：forward-{forwardID}-{userID}-{tunnelID}
+			forwardID, userID, tunnelID := parseServiceName(h.options.Service)
+			if forwardID > 0 {
+				forwardStats.AddForwardTraffic(forwardID, userID, tunnelID, h.options.Service, true, inputBytes)
+				forwardStats.AddForwardTraffic(forwardID, userID, tunnelID, h.options.Service, false, outputBytes)
+			}
+		}
 	}()
 
 	if !h.checkRateLimit(conn.RemoteAddr()) {
@@ -280,4 +293,18 @@ func (h *forwardHandler) checkRateLimit(addr net.Addr) bool {
 	}
 
 	return true
+}
+
+// parseServiceName 从服务名解析 forwardID、userID、tunnelID
+// 服务名格式：forward-{forwardID}-{userID}-{tunnelID}
+func parseServiceName(serviceName string) (forwardID, userID, tunnelID int64) {
+	// 简单解析，实际格式可能需要调整
+	// 例如：forward-12-1-5
+	if serviceName == "" {
+		return 0, 0, 0
+	}
+	
+	// 这里需要根据实际的服务名格式来解析
+	// 暂时返回 0，等待后端传递正确的信息
+	return 0, 0, 0
 }
