@@ -179,18 +179,6 @@ func (s *Server) GetForwardMetric(forwardID int64) *ForwardMetric {
 	return s.forwardMetrics[forwardID]
 }
 
-	total := 0
-	// 服务名格式: {forwardID}_{userID}_{userTunnelID}_tcp 或 _udp
-	// 遍历所有连接数，匹配以 "{forwardID}_" 开头的服务
-	prefix := fmt.Sprintf("%d_", forwardID)
-	for serviceName, count := range conns {
-		if strings.HasPrefix(serviceName, prefix) {
-			total += count
-		}
-	}
-	return total
-}
-
 func NewServer(repo *repo.Repository, jwtSecret string) *Server {
 	return &Server{
 		repo:      repo,
