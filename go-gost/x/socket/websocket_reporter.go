@@ -960,6 +960,7 @@ func collectForwardMetrics() []ForwardMetric {
 		})
 	}
 
+	fmt.Printf("[forward.metrics] collected %d metrics\n", len(metrics))
 	return metrics
 }
 

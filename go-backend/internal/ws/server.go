@@ -350,6 +350,7 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 						}
 						// 缓存 forward 指标
 						if len(sysInfo.ForwardMetrics) > 0 {
+							fmt.Printf("[ws.forward] received %d forward metrics from node %d\n", len(sysInfo.ForwardMetrics), nodeID)
 							s.forwardMetricsMu.Lock()
 							for _, fm := range sysInfo.ForwardMetrics {
 								s.forwardMetrics[fm.ForwardID] = &fm

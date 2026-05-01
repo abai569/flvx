@@ -554,6 +554,7 @@ func (h *Handler) forwardList(w http.ResponseWriter, r *http.Request) {
 
 				// 获取实时带宽数据
 				if metric := h.wsServer.GetForwardMetric(forwardID); metric != nil {
+					fmt.Printf("[api.forward] forwardID=%d inSpeed=%d outSpeed=%d\n", forwardID, metric.InSpeed, metric.OutSpeed)
 					items[i]["inSpeed"] = metric.InSpeed
 					items[i]["outSpeed"] = metric.OutSpeed
 				} else {
