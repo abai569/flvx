@@ -80,9 +80,9 @@ type Server struct {
 	nodes                 map[int64]*nodeSession
 	byConn                map[*websocket.Conn]*nodeSession
 	pending               map[string]pendingRequest
-	serviceConnections    map[int64]map[string]int // nodeID -> serviceName -> connections
-	serviceConnUpdateTime map[int64]int64          // nodeID -> last update time
-	forwardMetrics        map[int64]*ForwardMetric // forwardID -> metric
+	serviceConnections    map[int64]map[string]int          // nodeID -> serviceName -> connections
+	serviceConnUpdateTime map[int64]int64                   // nodeID -> last update time
+	forwardMetrics        map[int64]map[int64]*ForwardMetric // forwardID -> nodeID -> metric
 	forwardMetricsMu      sync.RWMutex
 }
 
@@ -110,6 +110,8 @@ type ForwardMetric struct {
 	ForwardID   int64  `json:"forward_id"`
 	UserID      int64  `json:"user_id"`
 	TunnelID    int64  `json:"tunnel_id"`
+	NodeID      int64  `json:"node_id"`      // 新增：节点 ID
+	Port        int    `json:"port"`         // 新增：入口端口
 	ServiceName string `json:"service_name"`
 	InSpeed     uint64 `json:"in_speed"`
 	OutSpeed    uint64 `json:"out_speed"`
@@ -172,11 +174,47 @@ func (s *Server) GetForwardCurrentConnections(nodeID int64, forwardID int64) int
 	return total
 }
 
-// GetForwardMetric 获取指定 forward 的实时指标
+// GetForwardMetric 获取指定 forward 的实时指标（汇总所有节点）
 func (s *Server) GetForwardMetric(forwardID int64) *ForwardMetric {
 	s.forwardMetricsMu.RLock()
 	defer s.forwardMetricsMu.RUnlock()
-	return s.forwardMetrics[forwardID]
+	
+	nodeMetrics, ok := s.forwardMetrics[forwardID]
+	if !ok || len(nodeMetrics) == 0 {
+		return nil
+	}
+	
+	// 汇总所有节点的带宽
+	var totalInSpeed, totalOutSpeed, totalConnections uint64
+	var firstMetric *ForwardMetric
+	for _, fm := range nodeMetrics {
+		if firstMetric == nil {
+			// 保存第一个指标的元数据
+			firstMetric = &ForwardMetric{
+				ForwardID:   fm.ForwardID,
+				UserID:      fm.UserID,
+				TunnelID:    fm.TunnelID,
+				ServiceName: fm.ServiceName,
+			}
+		}
+		totalInSpeed += fm.InSpeed
+		totalOutSpeed += fm.OutSpeed
+		totalConnections += uint64(fm.Connections)
+	}
+	
+	if firstMetric == nil {
+		return nil
+	}
+	
+	return &ForwardMetric{
+		ForwardID:   firstMetric.ForwardID,
+		UserID:      firstMetric.UserID,
+		TunnelID:    firstMetric.TunnelID,
+		ServiceName: firstMetric.ServiceName,
+		InSpeed:     totalInSpeed,
+		OutSpeed:    totalOutSpeed,
+		Connections: int(totalConnections),
+	}
 }
 
 func NewServer(repo *repo.Repository, jwtSecret string) *Server {
@@ -192,7 +230,7 @@ func NewServer(repo *repo.Repository, jwtSecret string) *Server {
 		pending:               make(map[string]pendingRequest),
 		serviceConnections:    make(map[int64]map[string]int),
 		serviceConnUpdateTime: make(map[int64]int64),
-		forwardMetrics:        make(map[int64]*ForwardMetric),
+		forwardMetrics:        make(map[int64]map[int64]*ForwardMetric), // forwardID -> nodeID -> metric
 	}
 }
 
@@ -353,7 +391,12 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 							fmt.Printf("[ws.forward] received %d forward metrics from node %d\n", len(sysInfo.ForwardMetrics), nodeID)
 							s.forwardMetricsMu.Lock()
 							for _, fm := range sysInfo.ForwardMetrics {
-								s.forwardMetrics[fm.ForwardID] = &fm
+								// 初始化 forwardID 的 map（如果不存在）
+								if s.forwardMetrics[fm.ForwardID] == nil {
+									s.forwardMetrics[fm.ForwardID] = make(map[int64]*ForwardMetric)
+								}
+								// 按 nodeID 存储
+								s.forwardMetrics[fm.ForwardID][fm.NodeID] = &fm
 							}
 							s.forwardMetricsMu.Unlock()
 						}

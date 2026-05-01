@@ -69,6 +69,8 @@ type ForwardMetric struct {
 	ForwardID   int64  `json:"forward_id"`
 	UserID      int64  `json:"user_id"`
 	TunnelID    int64  `json:"tunnel_id"`
+	NodeID      int64  `json:"node_id"`      // 新增：节点 ID
+	Port        int    `json:"port"`         // 新增：入口端口
 	ServiceName string `json:"service_name"`
 	InSpeed     uint64 `json:"in_speed"`
 	OutSpeed    uint64 `json:"out_speed"`

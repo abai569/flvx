@@ -128,10 +128,15 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 			// 服务名格式：{forwardID}_{userID}_{tunnelID}_tcp 或 {forwardID}_{userID}_{tunnelID}_udp
 			forwardID, userID, tunnelID := parseServiceName(h.options.Service)
 			if forwardID > 0 {
-				h.options.Logger.Debugf("[forward.stats] service=%s forwardID=%d userID=%d tunnelID=%d inBytes=%d outBytes=%d",
-					h.options.Service, forwardID, userID, tunnelID, inputBytes, outputBytes)
-				forwardStats.AddForwardTraffic(forwardID, userID, tunnelID, h.options.Service, true, inputBytes)
-				forwardStats.AddForwardTraffic(forwardID, userID, tunnelID, h.options.Service, false, outputBytes)
+				// 获取本地监听地址（节点 ID 和端口）
+				localAddr := ro.LocalAddr
+				_, portStr, _ := net.SplitHostPort(localAddr)
+				port, _ := strconv.Atoi(portStr)
+				
+				h.options.Logger.Debugf("[forward.stats] service=%s forwardID=%d userID=%d tunnelID=%d port=%d inBytes=%d outBytes=%d",
+					h.options.Service, forwardID, userID, tunnelID, port, inputBytes, outputBytes)
+				forwardStats.AddForwardTraffic(forwardID, userID, tunnelID, h.options.Service, 0, port, true, inputBytes)
+				forwardStats.AddForwardTraffic(forwardID, userID, tunnelID, h.options.Service, 0, port, false, outputBytes)
 			} else {
 				h.options.Logger.Debugf("[forward.stats] parseServiceName failed: service=%s", h.options.Service)
 			}

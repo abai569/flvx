@@ -40,27 +40,27 @@ func GetForwardStatsManager() *ForwardStatsManager {
 }
 
 // AddForwardTraffic 添加转发流量（便捷函数）
-func AddForwardTraffic(forwardID, userID, tunnelID int64, serviceName string, isInbound bool, bytes uint64) {
+func AddForwardTraffic(forwardID, userID, tunnelID int64, serviceName string, nodeID int64, port int, isInbound bool, bytes uint64) {
 	if GlobalForwardStatsManager != nil {
-		GlobalForwardStatsManager.AddTraffic(forwardID, userID, tunnelID, serviceName, isInbound, bytes)
+		GlobalForwardStatsManager.AddTraffic(forwardID, userID, tunnelID, serviceName, nodeID, port, isInbound, bytes)
 	}
 }
 
 // AddForwardTrafficByService 通过服务名称添加转发流量（便捷函数）
-func AddForwardTrafficByService(serviceName string, forwardID, userID, tunnelID int64, isInbound bool, bytes uint64) {
-	AddForwardTraffic(forwardID, userID, tunnelID, serviceName, isInbound, bytes)
+func AddForwardTrafficByService(serviceName string, forwardID, userID, tunnelID int64, nodeID int64, port int, isInbound bool, bytes uint64) {
+	AddForwardTraffic(forwardID, userID, tunnelID, serviceName, nodeID, port, isInbound, bytes)
 }
 
 // AddForwardConnection 添加转发连接数（便捷函数）
-func AddForwardConnection(forwardID, userID, tunnelID int64, serviceName string, delta int) {
+func AddForwardConnection(forwardID, userID, tunnelID int64, serviceName string, nodeID int64, port int, delta int) {
 	if GlobalForwardStatsManager != nil {
-		GlobalForwardStatsManager.AddConnection(forwardID, userID, tunnelID, serviceName, delta)
+		GlobalForwardStatsManager.AddConnection(forwardID, userID, tunnelID, serviceName, nodeID, port, delta)
 	}
 }
 
 // AddForwardConnectionByService 通过服务名称添加转发连接数（便捷函数）
-func AddForwardConnectionByService(serviceName string, forwardID, userID, tunnelID int64, delta int) {
-	AddForwardConnection(forwardID, userID, tunnelID, serviceName, delta)
+func AddForwardConnectionByService(serviceName string, forwardID, userID, tunnelID int64, nodeID int64, port int, delta int) {
+	AddForwardConnection(forwardID, userID, tunnelID, serviceName, nodeID, port, delta)
 }
 
 // GetForwardMetrics 获取所有转发规则指标（便捷函数）

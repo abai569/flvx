@@ -10,7 +10,9 @@ type ForwardStats struct {
 	ForwardID   int64     `json:"forward_id"`
 	UserID      int64     `json:"user_id"`
 	TunnelID    int64     `json:"tunnel_id"`
-	ServiceName string    `json:"service_name"` // 服务名称
+	NodeID      int64     `json:"node_id"`      // 新增：节点 ID
+	Port        int       `json:"port"`         // 新增：入口端口
+	ServiceName string    `json:"service_name"`
 	InBytes     uint64    `json:"in_bytes"`     // 累计上行字节
 	OutBytes    uint64    `json:"out_bytes"`    // 累计下行字节
 	InSpeed     uint64    `json:"in_speed"`     // 实时上行速度 (bytes/s)
@@ -25,7 +27,9 @@ type ForwardMetric struct {
 	ForwardID   int64  `json:"forward_id"`
 	UserID      int64  `json:"user_id"`
 	TunnelID    int64  `json:"tunnel_id"`
-	ServiceName string `json:"service_name"` // 服务名称
+	NodeID      int64  `json:"node_id"`      // 新增：节点 ID
+	Port        int    `json:"port"`         // 新增：入口端口
+	ServiceName string `json:"service_name"`
 	InSpeed     uint64 `json:"in_speed"`
 	OutSpeed    uint64 `json:"out_speed"`
 	Connections int    `json:"connections"`
@@ -45,7 +49,7 @@ func NewForwardStatsManager() *ForwardStatsManager {
 }
 
 // GetOrCreate 获取或创建转发规则统计
-func (m *ForwardStatsManager) GetOrCreate(forwardID, userID, tunnelID int64, serviceName string) *ForwardStats {
+func (m *ForwardStatsManager) GetOrCreate(forwardID, userID, tunnelID int64, serviceName string, nodeID int64, port int) *ForwardStats {
 	m.mu.RLock()
 	stats, ok := m.stats[forwardID]
 	m.mu.RUnlock()
@@ -55,6 +59,8 @@ func (m *ForwardStatsManager) GetOrCreate(forwardID, userID, tunnelID int64, ser
 			ForwardID:   forwardID,
 			UserID:      userID,
 			TunnelID:    tunnelID,
+			NodeID:      nodeID,
+			Port:        port,
 			ServiceName: serviceName,
 			LastUpdate:  time.Now(),
 		}
@@ -67,13 +73,13 @@ func (m *ForwardStatsManager) GetOrCreate(forwardID, userID, tunnelID int64, ser
 }
 
 // GetOrCreateByServiceName 通过服务名称获取或创建统计
-func (m *ForwardStatsManager) GetOrCreateByServiceName(serviceName string, forwardID, userID, tunnelID int64) *ForwardStats {
-	return m.GetOrCreate(forwardID, userID, tunnelID, serviceName)
+func (m *ForwardStatsManager) GetOrCreateByServiceName(serviceName string, forwardID, userID, tunnelID int64, nodeID int64, port int) *ForwardStats {
+	return m.GetOrCreate(forwardID, userID, tunnelID, serviceName, nodeID, port)
 }
 
 // AddTraffic 添加流量统计
-func (m *ForwardStatsManager) AddTraffic(forwardID, userID, tunnelID int64, serviceName string, isInbound bool, bytes uint64) {
-	stats := m.GetOrCreate(forwardID, userID, tunnelID, serviceName)
+func (m *ForwardStatsManager) AddTraffic(forwardID, userID, tunnelID int64, serviceName string, nodeID int64, port int, isInbound bool, bytes uint64) {
+	stats := m.GetOrCreate(forwardID, userID, tunnelID, serviceName, nodeID, port)
 
 	stats.mu.Lock()
 	if isInbound {
@@ -86,13 +92,13 @@ func (m *ForwardStatsManager) AddTraffic(forwardID, userID, tunnelID int64, serv
 }
 
 // AddTrafficByServiceName 通过服务名称添加流量统计
-func (m *ForwardStatsManager) AddTrafficByServiceName(serviceName string, forwardID, userID, tunnelID int64, isInbound bool, bytes uint64) {
-	m.AddTraffic(forwardID, userID, tunnelID, serviceName, isInbound, bytes)
+func (m *ForwardStatsManager) AddTrafficByServiceName(serviceName string, forwardID, userID, tunnelID int64, nodeID int64, port int, isInbound bool, bytes uint64) {
+	m.AddTraffic(forwardID, userID, tunnelID, serviceName, nodeID, port, isInbound, bytes)
 }
 
 // AddConnection 添加连接数
-func (m *ForwardStatsManager) AddConnection(forwardID, userID, tunnelID int64, serviceName string, delta int) {
-	stats := m.GetOrCreate(forwardID, userID, tunnelID, serviceName)
+func (m *ForwardStatsManager) AddConnection(forwardID, userID, tunnelID int64, serviceName string, nodeID int64, port int, delta int) {
+	stats := m.GetOrCreate(forwardID, userID, tunnelID, serviceName, nodeID, port)
 
 	stats.mu.Lock()
 	stats.Connections += delta
@@ -104,8 +110,8 @@ func (m *ForwardStatsManager) AddConnection(forwardID, userID, tunnelID int64, s
 }
 
 // AddConnectionByServiceName 通过服务名称添加连接数
-func (m *ForwardStatsManager) AddConnectionByServiceName(serviceName string, forwardID, userID, tunnelID int64, delta int) {
-	m.AddConnection(forwardID, userID, tunnelID, serviceName, delta)
+func (m *ForwardStatsManager) AddConnectionByServiceName(serviceName string, forwardID, userID, tunnelID int64, nodeID int64, port int, delta int) {
+	m.AddConnection(forwardID, userID, tunnelID, serviceName, nodeID, port, delta)
 }
 
 // GetForwardMetrics 获取所有转发规则的指标（用于 WebSocket 推送）
@@ -120,6 +126,8 @@ func (m *ForwardStatsManager) GetForwardMetrics() []ForwardMetric {
 			ForwardID:   stats.ForwardID,
 			UserID:      stats.UserID,
 			TunnelID:    stats.TunnelID,
+			NodeID:      stats.NodeID,
+			Port:        stats.Port,
 			ServiceName: stats.ServiceName,
 			InSpeed:     stats.InSpeed,
 			OutSpeed:    stats.OutSpeed,
@@ -148,6 +156,8 @@ func (m *ForwardStatsManager) GetMetric(forwardID int64) *ForwardMetric {
 		ForwardID:   stats.ForwardID,
 		UserID:      stats.UserID,
 		TunnelID:    stats.TunnelID,
+		NodeID:      stats.NodeID,
+		Port:        stats.Port,
 		ServiceName: stats.ServiceName,
 		InSpeed:     stats.InSpeed,
 		OutSpeed:    stats.OutSpeed,
