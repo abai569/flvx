@@ -69,6 +69,8 @@ import {
   updateForwardOrder,
   getConfigByName,
   updateConfig,
+  batchResetForward,
+  getForwardTrafficResetLogs,
 } from "@/api";
 import {
   type ForwardAddressItem,
@@ -699,6 +701,7 @@ const SortableTableRow = ({
   handleServiceToggle,
   handleEdit,
   handleCopy,
+  handleViewTrafficResetLogs,
   handleDelete,
   handleDiagnose,
   formatFlow,
@@ -865,9 +868,33 @@ const SortableTableRow = ({
         </span>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <span className="text-sm font-medium text-black">
-          {formatFlow(getForwardDisplayFlow(forward))}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-sm font-medium text-black">
+            {formatFlow(getForwardDisplayFlow(forward))}
+          </span>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="light"
+            className="w-6 h-6 min-w-6"
+            onPress={() => handleViewTrafficResetLogs(forward)}
+          >
+            <svg
+              aria-hidden="true"
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </Button>
+        </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex items-center gap-1">
@@ -971,6 +998,7 @@ const SortableCompactTableRow = ({
   handleServiceToggle,
   handleEdit,
   handleCopy,
+  handleViewTrafficResetLogs,
   handleDelete,
   handleDiagnose,
   formatFlow,
@@ -1148,9 +1176,33 @@ const SortableCompactTableRow = ({
         </span>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <span className="text-sm font-medium text-black">
-          {formatFlow(getForwardDisplayFlow(forward))}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-sm font-medium text-black">
+            {formatFlow(getForwardDisplayFlow(forward))}
+          </span>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="light"
+            className="w-6 h-6 min-w-6"
+            onPress={() => handleViewTrafficResetLogs(forward)}
+          >
+            <svg
+              aria-hidden="true"
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </Button>
+        </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         <div className="flex items-center gap-1">
@@ -1416,6 +1468,14 @@ export default function ForwardPage() {
   const [batchResumeLoading, setBatchResumeLoading] = useState(false);
   const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
   const [batchChangeTunnelLoading, setBatchChangeTunnelLoading] = useState(false);
+  // 批量归零相关状态
+  const [batchResetTrafficLoading, setBatchResetTrafficLoading] = useState(false);
+  const [batchResetTrafficModalOpen, setBatchResetTrafficModalOpen] = useState(false);
+  // 流量归零日志相关状态
+  const [trafficResetLogModalOpen, setTrafficResetLogModalOpen] = useState(false);
+  const [trafficResetLogsLoading, setTrafficResetLogsLoading] = useState(false);
+  const [trafficResetLogs, setTrafficResetLogs] = useState<any[]>([]);
+  const [currentLogForward, setCurrentLogForward] = useState<Forward | null>(null);
   const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
     active: false,
     label: "",
@@ -2209,6 +2269,25 @@ export default function ForwardPage() {
     setErrors({});
     setModalOpen(true);
   };
+  // 查看流量归零日志
+  const handleViewTrafficResetLogs = async (forward: Forward) => {
+    setTrafficResetLogsLoading(true);
+    setCurrentLogForward(forward);
+    try {
+      const res = await getForwardTrafficResetLogs(forward.id, 30);
+
+      if (res.code === 0) {
+        setTrafficResetLogs((res.data as any)?.logs || []);
+        setTrafficResetLogModalOpen(true);
+      } else {
+        toast.error(res.msg || "获取日志失败");
+      }
+    } catch {
+      toast.error("网络错误，请重试");
+    } finally {
+      setTrafficResetLogsLoading(false);
+    }
+  };
   // 显示删除确认
   const handleDelete = (forward: Forward) => {
     setForwardToDelete(forward);
@@ -2631,6 +2710,18 @@ export default function ForwardPage() {
     return (
       parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
     );
+  };
+  // 格式化日期时间
+  const formatDateTime = (timestamp: number): string => {
+    if (!timestamp) return "-";
+    const date = new Date(timestamp);
+    return date.toLocaleString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
   // 显示地址列表弹窗
   const showAddressModal = (
@@ -3163,6 +3254,40 @@ export default function ForwardPage() {
       setBatchDeleteLoading(false);
     }
   };
+  const handleBatchResetTraffic = async () => {
+    const selectedLocalIds = Array.from(selectedIds);
+
+    if (selectedLocalIds.length === 0) {
+      toast.error("请选择规则进行重置");
+      setBatchResetTrafficModalOpen(false);
+
+      return;
+    }
+    setBatchResetTrafficLoading(true);
+    try {
+      const res = await batchResetForward(selectedLocalIds);
+
+      if (res.code === 0) {
+        const successCount =
+          (res.data as any)?.filter((r: { success: boolean }) => r.success)
+            .length || 0;
+
+        toast.success(
+          `已成功重置 ${successCount}/${selectedLocalIds.length} 个规则的流量统计`,
+        );
+        setBatchResetTrafficModalOpen(false);
+        setSelectMode(false);
+        setSelectedIds(new Set());
+        await refreshForwardList(false);
+      } else {
+        toast.error(res.msg || "批量重置失败");
+      }
+    } catch {
+      toast.error("网络错误，请重试");
+    } finally {
+      setBatchResetTrafficLoading(false);
+    }
+  };
   const handleBatchPause = async () => {
     if (selectedIds.size === 0) return;
     setBatchPauseLoading(true);
@@ -3673,23 +3798,34 @@ export default function ForwardPage() {
   };
   // 生成用作筛选项的用户和隧道列表
   const uniqueUsers = useMemo(() => {
-    const userMap = new Map<number, { id: number; name: string }>();
+    const userMap = new Map<number, { id: number; name: string; userName: string; userRemark: string }>();
 
     forwards.forEach((f) => {
       const uId = f.userId ?? 0;
-      const userName = normalizeForwardUserName(f.userName);
+      const displayUserName = normalizeForwardUserName(f.userName);
       const existingUser = userMap.get(uId);
 
       if (!existingUser) {
-        userMap.set(uId, { id: uId, name: userName });
+        userMap.set(uId, { 
+          id: uId, 
+          userName: displayUserName,
+          userRemark: (f as any).userRemark || '',
+          name: (f as any).userRemark && (f as any).userRemark !== '' 
+            ? (f as any).userRemark 
+            : displayUserName 
+        });
 
         return;
       }
       if (
         existingUser.name === UNKNOWN_FORWARD_USER_NAME &&
-        userName !== UNKNOWN_FORWARD_USER_NAME
+        displayUserName !== UNKNOWN_FORWARD_USER_NAME
       ) {
-        existingUser.name = userName;
+        existingUser.name = displayUserName;
+      }
+      if (!existingUser.userRemark && (f as any).userRemark) {
+        existingUser.userRemark = (f as any).userRemark;
+        existingUser.name = existingUser.userRemark;
       }
     });
     const users = Array.from(userMap.values());
@@ -4054,24 +4190,34 @@ export default function ForwardPage() {
               >
                 下发
               </Button>
-              <Button
-                color="success"
-                isLoading={batchChangeTunnelLoading}
-                size="sm"
-                variant="flat"
-                onPress={() => setBatchChangeTunnelModalOpen(true)}
-              >
-                隧道
-              </Button>
-              <Button
-                color="danger"
-                isLoading={batchDeleteLoading}
-                size="sm"
-                variant="flat"
-                onPress={() => setBatchDeleteModalOpen(true)}
-              >
-                删除
-              </Button>
+               <Button
+                 color="success"
+                 isLoading={batchChangeTunnelLoading}
+                 size="sm"
+                 variant="flat"
+                 onPress={() => setBatchChangeTunnelModalOpen(true)}
+               >
+                 隧道
+               </Button>
+               <Button
+                 color="primary"
+                 isDisabled={selectedIds.size === 0}
+                 isLoading={batchResetTrafficLoading}
+                 size="sm"
+                 variant="flat"
+                 onPress={() => setBatchResetTrafficModalOpen(true)}
+               >
+                 归零
+               </Button>
+               <Button
+                 color="danger"
+                 isLoading={batchDeleteLoading}
+                 size="sm"
+                 variant="flat"
+                 onPress={() => setBatchDeleteModalOpen(true)}
+               >
+                 删除
+               </Button>
               <span className="text-sm text-danger-400 shrink-0">
                 已选 {selectedIds.size} 项
               </span>
@@ -4363,26 +4509,27 @@ export default function ForwardPage() {
                         items={sortedForwards}
                       >
                         {(forward) => (
-                          <SortableCompactTableRow
-                            copyToClipboard={copyToClipboard}
-                            formatFlow={formatFlow}
-                            formatSpeed={formatSpeed}
-                            formatInAddress={formatInAddress}
-                            formatRemoteAddress={formatRemoteAddress}
-                            forward={forward}
-                            getStrategyDisplay={getStrategyDisplay}
-                            handleDelete={handleDelete}
-                            handleDiagnose={handleDiagnose}
-                            handleEdit={handleEdit}
-                            handleCopy={handleCopy}
-                            handleServiceToggle={handleServiceToggle}
-                            hasMultipleAddresses={hasMultipleAddresses}
-                            isAdmin={isAdmin}
-                            selectMode={selectMode}
-                            selectedIds={selectedIds}
-                            showAddressModal={showAddressModal}
-                            toggleSelect={toggleSelect}
-                          />
+                           <SortableCompactTableRow
+                             copyToClipboard={copyToClipboard}
+                             formatFlow={formatFlow}
+                             formatSpeed={formatSpeed}
+                             formatInAddress={formatInAddress}
+                             formatRemoteAddress={formatRemoteAddress}
+                             forward={forward}
+                             getStrategyDisplay={getStrategyDisplay}
+                             handleDelete={handleDelete}
+                             handleDiagnose={handleDiagnose}
+                             handleEdit={handleEdit}
+                             handleCopy={handleCopy}
+                             handleViewTrafficResetLogs={handleViewTrafficResetLogs}
+                             handleServiceToggle={handleServiceToggle}
+                             hasMultipleAddresses={hasMultipleAddresses}
+                             isAdmin={isAdmin}
+                             selectMode={selectMode}
+                             selectedIds={selectedIds}
+                             showAddressModal={showAddressModal}
+                             toggleSelect={toggleSelect}
+                           />
                         )}
                       </TableBody>
                     </Table>
@@ -4673,25 +4820,26 @@ export default function ForwardPage() {
                                               verticalListSortingStrategy
                                             }
                                           >
-                                            <SortableTableRow
-                                              copyToClipboard={copyToClipboard}
-                                              formatFlow={formatFlow}
-                                              formatSpeed={formatSpeed}
-                                              forward={forward}
-                                              getStrategyDisplay={
-                                                getStrategyDisplay
-                                              }
-                                              handleDelete={handleDelete}
-                                              handleDiagnose={handleDiagnose}
-                                              handleEdit={handleEdit}
-                                              handleCopy={handleCopy}
-                                              handleServiceToggle={
-                                                handleServiceToggle
-                                              }
-                                              isAdmin={isAdmin}
-                                              selectedIds={selectedIds}
-                                              toggleSelect={toggleSelect}
-                                            />
+                                             <SortableTableRow
+                                               copyToClipboard={copyToClipboard}
+                                               formatFlow={formatFlow}
+                                               formatSpeed={formatSpeed}
+                                               forward={forward}
+                                               getStrategyDisplay={
+                                                 getStrategyDisplay
+                                               }
+                                               handleDelete={handleDelete}
+                                               handleDiagnose={handleDiagnose}
+                                               handleEdit={handleEdit}
+                                               handleCopy={handleCopy}
+                                               handleViewTrafficResetLogs={handleViewTrafficResetLogs}
+                                               handleServiceToggle={
+                                                 handleServiceToggle
+                                               }
+                                               isAdmin={isAdmin}
+                                               selectedIds={selectedIds}
+                                               toggleSelect={toggleSelect}
+                                             />
                                           </SortableContext>
                                         )}
                                       </TableBody>
@@ -6182,6 +6330,130 @@ export default function ForwardPage() {
                     重新诊断
                   </Button>
                 )}
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+      {/* 批量归零流量确认模态框 */}
+      <Modal
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={batchResetTrafficModalOpen}
+        onOpenChange={setBatchResetTrafficModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">确认批量重置流量</h2>
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  确定要重置以下{" "}
+                  <strong>
+                    {Array.from(selectedIds).length}
+                  </strong>{" "}
+                  个规则的流量统计吗？
+                </p>
+                <p className="text-small text-default-500 mt-2">
+                  重置后，当前周期流量将归档到历史，新周期从 0 开始统计。
+                </p>
+                <ul className="text-small text-default-500 mt-2 space-y-1">
+                  {Array.from(selectedIds)
+                    .slice(0, 5)
+                    .map((id) => {
+                      const forward = forwards.find((f) => f.id === id);
+
+                      return forward ? (
+                        <li key={id} className="truncate">
+                          • {forward.name}
+                        </li>
+                      ) : null;
+                    })}
+                  {selectedIds.size > 5 && (
+                    <li>... 还有 {selectedIds.size - 5} 个规则</li>
+                  )}
+                </ul>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="primary"
+                  isLoading={batchResetTrafficLoading}
+                  onPress={handleBatchResetTraffic}
+                >
+                  确认重置
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+      {/* 流量归零日志模态框 */}
+      <Modal
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={trafficResetLogModalOpen}
+        onOpenChange={setTrafficResetLogModalOpen}
+        size="md"
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">
+                  流量归零日志 - {currentLogForward?.name}
+                </h2>
+              </ModalHeader>
+              <ModalBody>
+                {trafficResetLogsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Spinner size="md" />
+                  </div>
+                ) : trafficResetLogs.length === 0 ? (
+                  <div className="text-center text-default-500 py-8">
+                    暂无归零记录
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {trafficResetLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="p-3 rounded-lg border border-divider bg-default-50/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-foreground">
+                            {log.operatorName}
+                          </span>
+                          <span className="text-xs text-default-500">
+                            {formatDateTime(log.createdTime)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-default-500">归零前流量:</span>
+                            <span className="text-primary-600 dark:text-primary-400">
+                              ↑{formatFlow(log.inFlowBefore || 0)}
+                            </span>
+                            <span className="text-success-600 dark:text-success-400">
+                              ↓{formatFlow(log.outFlowBefore || 0)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  关闭
+                </Button>
               </ModalFooter>
             </>
           )}

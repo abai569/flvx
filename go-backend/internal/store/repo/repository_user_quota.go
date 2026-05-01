@@ -154,6 +154,19 @@ func applyUserQuotaWindowRoll(q *model.UserQuota, now time.Time) bool {
 	return changed
 }
 
+func createUserQuotaHistory(tx *gorm.DB, userID int64, periodType string, periodKey, usedBytes, resetTime int64, resetReason string) error {
+	history := &model.UserQuotaHistory{
+		UserID:      userID,
+		PeriodType:  periodType,
+		PeriodKey:   periodKey,
+		UsedBytes:   usedBytes,
+		ResetTime:   resetTime,
+		CreatedTime: resetTime,
+		ResetReason: resetReason,
+	}
+	return tx.Create(history).Error
+}
+
 func (r *Repository) SaveUserQuotaConfigTx(tx *gorm.DB, userID, dailyLimitGB, monthlyLimitGB int64, now int64) error {
 	if tx == nil {
 		return errors.New("database unavailable")
@@ -270,7 +283,7 @@ func (r *Repository) MarkUserQuotaDisabled(userID int64, pausedForwardIDs []int6
 	}).Error
 }
 
-func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Time) (*UserQuotaRelease, error) {
+func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Time, resetReason string) (*UserQuotaRelease, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
@@ -304,6 +317,7 @@ func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Ti
 					UsedBytes:   q.DailyUsedBytes,
 					ResetTime:   nowMs,
 					CreatedTime: nowMs,
+					ResetReason: resetReason,
 				}
 				if err := tx.Create(&history).Error; err != nil {
 					return err
@@ -319,6 +333,7 @@ func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Ti
 					UsedBytes:   q.MonthlyUsedBytes,
 					ResetTime:   nowMs,
 					CreatedTime: nowMs,
+					ResetReason: resetReason,
 				}
 				if err := tx.Create(&history).Error; err != nil {
 					return err
@@ -370,6 +385,7 @@ type UserQuotaHistoryItem struct {
 	UsedGB      string `json:"usedGB"`      // 格式化后的 GB 值
 	ResetTime   int64  `json:"resetTime"`
 	CreatedTime int64  `json:"createdTime"`
+	ResetReason string `json:"resetReason"`
 }
 
 // GetUserQuotaHistory 获取用户流量历史记录
@@ -406,13 +422,14 @@ func (r *Repository) GetUserQuotaHistory(userID int64, limit int) ([]UserQuotaHi
 			UsedGB:      usedGB,
 			ResetTime:   h.ResetTime,
 			CreatedTime: h.CreatedTime,
+			ResetReason: h.ResetReason,
 		})
 	}
 	
 	return items, nil
 }
 
-func (r *Repository) RollUserQuotaWindows(now time.Time) ([]UserQuotaRelease, error) {
+func (r *Repository) RollUserQuotaWindows(now time.Time, resetReason string) ([]UserQuotaRelease, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
@@ -425,7 +442,21 @@ func (r *Repository) RollUserQuotaWindows(now time.Time) ([]UserQuotaRelease, er
 		nowMs := now.UnixMilli()
 		for _, row := range rows {
 			q := row
+			oldDayKey := q.DayKey
+			oldMonthKey := q.MonthKey
+			oldDailyUsed := q.DailyUsedBytes
+			oldMonthlyUsed := q.MonthlyUsedBytes
+			
 			changed := applyUserQuotaWindowRoll(&q, now)
+			
+			// 记录流量历史
+			if oldDayKey != q.DayKey && oldDailyUsed > 0 {
+				createUserQuotaHistory(tx, q.UserID, "daily", oldDayKey, oldDailyUsed, nowMs, resetReason)
+			}
+			if oldMonthKey != q.MonthKey && oldMonthlyUsed > 0 {
+				createUserQuotaHistory(tx, q.UserID, "monthly", oldMonthKey, oldMonthlyUsed, nowMs, resetReason)
+			}
+			
 			release := UserQuotaRelease{UserID: q.UserID}
 			if q.DisabledByQuota == 1 && !userQuotaExceeded(cloneUserQuotaView(q)) {
 				release.UnblockUser = true

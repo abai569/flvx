@@ -316,10 +316,17 @@ export const batchDeleteTunnels = (ids: number[]) =>
   Network.post<BatchOperationResult>("/tunnel/batch-delete", { ids });
 export const batchDeleteNodes = (ids: number[]) =>
   Network.post<BatchOperationResult>("/node/batch-delete", { ids });
-export const batchResetNodeTraffic = (nodeIds: number[], reason?: string) =>
+export const batchResetNodeTraffic = (
+  nodeIds: number[],
+  reason?: string,
+  inFlowBefore?: number,
+  outFlowBefore?: number,
+) =>
   Network.post<BatchOperationResult>("/node/batch-reset-traffic", {
     nodeIds,
     reason,
+    inFlowBefore,
+    outFlowBefore,
   });
 export const batchResetForward = (forwardIds: number[]) =>
   Network.post<BatchOperationResult>("/forward/batch-reset-traffic", {
@@ -348,6 +355,8 @@ export const getNodeTrafficResetLogs = (nodeId: number, limit?: number) =>
     operatorId: number;
     operatorName: string;
     reason: string;
+    inFlowBefore: number;
+    outFlowBefore: number;
     createdTime: number;
   }[]>("/node/traffic-reset-logs", { nodeId, limit });
 export const batchRedeployForwards = (ids: number[]) =>

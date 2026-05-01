@@ -171,6 +171,7 @@ type UserQuotaHistory struct {
 	UsedBytes   int64  `gorm:"column:used_bytes;not null;default:0"`
 	ResetTime   int64  `gorm:"column:reset_time;not null"`
 	CreatedTime int64  `gorm:"column:created_time;not null"`
+	ResetReason string `gorm:"column:reset_reason;type:varchar(50)"` // 重置原因：管理员手动重置/自动周期重置
 }
 
 func (UserQuotaHistory) TableName() string { return "user_quota_history" }
@@ -871,14 +872,16 @@ type ForwardTrafficResetLog struct {
 func (ForwardTrafficResetLog) TableName() string { return "forward_traffic_reset_log" }
 
 type NodeTrafficResetLog struct {
-	ID           int64  `gorm:"primaryKey;autoIncrement"`
-	NodeID       int64  `gorm:"column:node_id;not null;index:idx_node_reset_time"`
-	NodeName     string `gorm:"type:varchar(100);not null"`
-	ResetTime    int64  `gorm:"column:reset_time;not null"`
-	OperatorID   int64  `gorm:"column:operator_id;not null"`
-	OperatorName string `gorm:"column:operator_name;type:varchar(100);not null"`
-	Reason       string `gorm:"column:reason;type:varchar(255)"`
-	CreatedTime  int64  `gorm:"column:created_time;not null"`
+	ID            int64  `gorm:"primaryKey;autoIncrement"`
+	NodeID        int64  `gorm:"column:node_id;not null;index:idx_node_reset_time"`
+	NodeName      string `gorm:"type:varchar(100);not null"`
+	ResetTime     int64  `gorm:"column:reset_time;not null"`
+	OperatorID    int64  `gorm:"column:operator_id;not null"`
+	OperatorName  string `gorm:"column:operator_name;type:varchar(100);not null"`
+	Reason        string `gorm:"column:reason;type:varchar(255)"`
+	InFlowBefore  int64  `gorm:"column:in_flow_before;not null;default:0"`
+	OutFlowBefore int64  `gorm:"column:out_flow_before;not null;default:0"`
+	CreatedTime   int64  `gorm:"column:created_time;not null"`
 }
 
 func (NodeTrafficResetLog) TableName() string { return "node_traffic_reset_log" }

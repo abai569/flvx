@@ -945,6 +945,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 		ID                int64
 		UserID            int64
 		UserName          string
+		UserRemark        string
 		Name              string
 		TunnelID          int64
 		TunnelName        string
@@ -966,8 +967,9 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 
 	var rows []fwdRow
 	err := r.db.Model(&model.Forward{}).
-		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id, COALESCE(forward.max_connections, 0) AS max_connections, COALESCE(forward.traffic_limit, 0) AS traffic_limit, forward.expiry_time, COALESCE(forward.speed_limit_enabled, false) AS speed_limit_enabled, COALESCE(forward.speed_limit, 0) AS speed_limit").
+		Select("forward.id, forward.user_id, forward.user_name, COALESCE(user.name, '') AS user_remark, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id, COALESCE(forward.max_connections, 0) AS max_connections, COALESCE(forward.traffic_limit, 0) AS traffic_limit, forward.expiry_time, COALESCE(forward.speed_limit_enabled, false) AS speed_limit_enabled, COALESCE(forward.speed_limit, 0) AS speed_limit").
 		Joins("LEFT JOIN tunnel ON tunnel.id = forward.tunnel_id").
+		Joins("LEFT JOIN user ON user.id = forward.user_id").
 		Order("forward.inx ASC, forward.id ASC").
 		Find(&rows).Error
 	if err != nil {
@@ -981,7 +983,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 			return nil, err
 		}
 		item := map[string]interface{}{
-			"id": row.ID, "userId": row.UserID, "userName": row.UserName,
+			"id": row.ID, "userId": row.UserID, "userName": row.UserName, "userRemark": row.UserRemark,
 			"name": row.Name, "tunnelId": row.TunnelID, "tunnelName": row.TunnelName,
 			"tunnelTrafficRatio": row.TrafficRatio,
 			"inIp":               nullableForwardIngress(inIP), "inPort": nullableInt64(inPort),

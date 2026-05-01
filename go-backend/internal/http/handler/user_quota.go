@@ -90,7 +90,7 @@ func (h *Handler) resetUserQuotaWindows(now time.Time) {
 	if h == nil || h.repo == nil {
 		return
 	}
-	releases, err := h.repo.RollUserQuotaWindows(now)
+	releases, err := h.repo.RollUserQuotaWindows(now, "自动周期重置")
 	if err != nil {
 		return
 	}
@@ -117,7 +117,7 @@ func (h *Handler) userQuotaReset(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("用户ID不能为空"))
 		return
 	}
-	release, err := h.repo.ResetUserQuotaUsage(req.UserID, req.Scope, time.Now())
+	release, err := h.repo.ResetUserQuotaUsage(req.UserID, req.Scope, time.Now(), "管理员手动重置")
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return

@@ -362,14 +362,16 @@ func (r *Repository) GetForwardTrafficResetLogs(forwardID int64, limit int) ([]F
 }
 
 type NodeTrafficResetLogItem struct {
-	ID           int64  `json:"id"`
-	NodeID       int64  `json:"nodeId"`
-	NodeName     string `json:"nodeName"`
-	ResetTime    int64  `json:"resetTime"`
-	OperatorID   int64  `json:"operatorId"`
-	OperatorName string `json:"operatorName"`
-	Reason       string `json:"reason"`
-	CreatedTime  int64  `json:"createdTime"`
+	ID            int64  `json:"id"`
+	NodeID        int64  `json:"nodeId"`
+	NodeName      string `json:"nodeName"`
+	ResetTime     int64  `json:"resetTime"`
+	OperatorID    int64  `json:"operatorId"`
+	OperatorName  string `json:"operatorName"`
+	Reason        string `json:"reason"`
+	InFlowBefore  int64  `json:"inFlowBefore"`
+	OutFlowBefore int64  `json:"outFlowBefore"`
+	CreatedTime   int64  `json:"createdTime"`
 }
 
 func (r *Repository) GetNodeTrafficResetLogs(nodeID int64, limit int) ([]NodeTrafficResetLogItem, error) {
@@ -395,14 +397,16 @@ func (r *Repository) GetNodeTrafficResetLogs(nodeID int64, limit int) ([]NodeTra
 	items := make([]NodeTrafficResetLogItem, 0, len(logs))
 	for _, log := range logs {
 		items = append(items, NodeTrafficResetLogItem{
-			ID:           log.ID,
-			NodeID:       log.NodeID,
-			NodeName:     log.NodeName,
-			ResetTime:    log.ResetTime,
-			OperatorID:   log.OperatorID,
-			OperatorName: log.OperatorName,
-			Reason:       log.Reason,
-			CreatedTime:  log.CreatedTime,
+			ID:            log.ID,
+			NodeID:        log.NodeID,
+			NodeName:      log.NodeName,
+			ResetTime:     log.ResetTime,
+			OperatorID:    log.OperatorID,
+			OperatorName:  log.OperatorName,
+			Reason:        log.Reason,
+			InFlowBefore:  log.InFlowBefore,
+			OutFlowBefore: log.OutFlowBefore,
+			CreatedTime:   log.CreatedTime,
 		})
 	}
 

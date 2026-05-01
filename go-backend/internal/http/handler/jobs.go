@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"time"
+
+	"go-backend/internal/store/repo"
 )
 
 func (h *Handler) StartBackgroundJobs() {
@@ -252,10 +254,41 @@ func (h *Handler) runNodeRenewalCycleJob(now time.Time) {
 		return
 	}
 
-	advanced, err := h.repo.AdvanceNodeRenewalCycles(now.UnixMilli())
+	results, err := h.repo.AdvanceNodeRenewalCycles(now.UnixMilli())
 	if err != nil {
 		return
 	}
 
-	_ = advanced
+	// 重置流量并记录日志
+	for _, result := range results {
+		// 获取节点当前流量（从实时数据）
+		// 由于这里无法直接获取实时流量，传入 0 作为归零前流量
+		// Agent 会在 ResetTraffic 命令中上报实际流量
+		if err := h.repo.CreateNodeTrafficResetLog(&repo.NodeTrafficResetLogCreateParams{
+			NodeID:        result.NodeID,
+			NodeName:      result.NodeName,
+			ResetTime:     now.UnixMilli(),
+			OperatorID:    0, // 系统自动
+			OperatorName:  "系统自动",
+			Reason:        "自动周期重置",
+			InFlowBefore:  0,
+			OutFlowBefore: 0,
+		}); err != nil {
+			// 日志记录失败不影响主流程
+			continue
+		}
+
+		// 发送重置命令到节点
+		_, _ = h.sendNodeCommandWithTimeout(
+			result.NodeID,
+			"ResetTraffic",
+			map[string]interface{}{
+				"reason": "自动周期重置",
+				"nodeId": result.NodeID,
+			},
+			10*time.Second,
+			false,
+			false,
+		)
+	}
 }

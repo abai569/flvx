@@ -616,6 +616,42 @@ export default function TunnelPage() {
 
     return Object.keys(newErrors).length === 0;
   };
+  const copyToClipboard = (text: string, label: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            toast.success(`${label}已复制到剪贴板`);
+          })
+          .catch(() => {
+            toast.error("复制失败，请手动选择文本复制");
+          });
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.top = "0";
+        textArea.style.left = "-9999px";
+        textArea.style.opacity = "0";
+        const modalElement = document.querySelector('[role="dialog"]');
+        const targetContainer = modalElement || document.body;
+        targetContainer.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        textArea.setSelectionRange(0, 99999);
+        const successful = document.execCommand("copy");
+        if (successful) {
+          toast.success(`${label}已复制到剪贴板`);
+        } else {
+          toast.error("复制失败，请手动选择文本复制");
+        }
+        targetContainer.removeChild(textArea);
+      }
+    } catch {
+      toast.error("复制失败，请手动选择文本复制");
+    }
+  };
   // 新增隧道
   const handleAdd = () => {
     setIsEdit(false);
@@ -2232,7 +2268,14 @@ export default function TunnelPage() {
                                 </div>
                               </td>
                               <td className="py-3 px-4 align-middle">
-                                <span className="font-medium text-foreground truncate">
+                                <span
+                                  className="font-medium text-foreground truncate cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit"
+                                  title={tunnel.name}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyToClipboard(tunnel.name, "隧道名称");
+                                  }}
+                                >
                                   {tunnel.name}
                                 </span>
                               </td>
@@ -2313,8 +2356,12 @@ export default function TunnelPage() {
                               <td className="py-3 px-4 align-middle">
                                 {tunnel.remark ? (
                                   <div
-                                    className="text-sm text-default-600 truncate max-w-[140px]"
+                                    className="text-sm text-default-600 truncate max-w-[140px] cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit inline-block"
                                     title={tunnel.remark}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(tunnel.remark!, "备注");
+                                    }}
                                   >
                                     {tunnel.remark}
                                   </div>
@@ -2412,7 +2459,14 @@ export default function TunnelPage() {
                             </div>
                             {/* 隧道名称和类型 */}
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-foreground truncate text-sm">
+                              <h3
+                                className="font-semibold text-foreground truncate text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit max-w-full"
+                                title={tunnel.name}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyToClipboard(tunnel.name, "隧道名称");
+                                }}
+                              >
                                 {tunnel.name}
                               </h3>
                               <div className="flex items-center gap-1.5 mt-1">
@@ -2612,7 +2666,14 @@ export default function TunnelPage() {
                                   <span className="font-medium text-red-500 flex-shrink-0">
                                     备注：
                                   </span>
-                                  <span className="truncate ml-1">
+                                  <span
+                                    className="truncate ml-1 cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit inline-block"
+                                    title={tunnel.remark}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(tunnel.remark!, "备注");
+                                    }}
+                                  >
                                     {tunnel.remark}
                                   </span>
                                 </div>

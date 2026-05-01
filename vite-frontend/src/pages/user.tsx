@@ -382,7 +382,7 @@ export default function UserPage() {
   >(new Set());
   const [batchDeleteTunnelLoading, setBatchDeleteTunnelLoading] =
     useState(false);
-  // 重置流量确认相关状态
+  // 归零流量确认相关状态
   const {
     isOpen: isResetFlowModalOpen,
     onOpen: onResetFlowModalOpen,
@@ -390,7 +390,7 @@ export default function UserPage() {
   } = useDisclosure();
   const [userToReset, setUserToReset] = useState<User | null>(null);
   const [resetFlowLoading, setResetFlowLoading] = useState(false);
-  // 重置隧道流量确认相关状态
+  // 归零隧道流量确认相关状态
   const {
     isOpen: isResetTunnelFlowModalOpen,
     onOpen: onResetTunnelFlowModalOpen,
@@ -1043,7 +1043,7 @@ export default function UserPage() {
       setBatchDeleteTunnelLoading(false);
     }
   };
-  // 重置流量相关函数
+  // 归零流量相关函数
   const handleResetFlow = (user: User) => {
     setUserToReset(user);
     onResetFlowModalOpen();
@@ -1054,11 +1054,11 @@ export default function UserPage() {
     try {
       const response = await resetUserFlow({
         id: userToReset.id,
-        type: 1, // 1表示重置用户流量
+        type: 1, // 1表示归零用户流量
       });
 
       if (response.code === 0) {
-        toast.success("流量重置成功");
+        toast.success("流量归零成功");
         onResetFlowModalClose();
         const targetUserId = userToReset.id;
 
@@ -1071,15 +1071,15 @@ export default function UserPage() {
         );
         setUserToReset(null);
       } else {
-        toast.error(response.msg || "重置失败");
+        toast.error(response.msg || "归零失败");
       }
     } catch {
-      toast.error("重置失败");
+      toast.error("归零失败");
     } finally {
       setResetFlowLoading(false);
     }
   };
-  // 隧道流量重置相关函数
+  // 隧道流量归零相关函数
   const handleResetTunnelFlow = (userTunnel: UserTunnel) => {
     setTunnelToReset(userTunnel);
     onResetTunnelFlowModalOpen();
@@ -1090,11 +1090,11 @@ export default function UserPage() {
     try {
       const response = await resetUserFlow({
         id: tunnelToReset.id,
-        type: 2, // 2 表示重置隧道流量
+        type: 2, // 2 表示归零隧道流量
       });
 
       if (response.code === 0) {
-        toast.success("隧道流量重置成功");
+        toast.success("隧道流量归零成功");
         onResetTunnelFlowModalClose();
         const targetTunnelId = tunnelToReset.id;
 
@@ -1107,10 +1107,10 @@ export default function UserPage() {
         );
         setTunnelToReset(null);
       } else {
-        toast.error(response.msg || "重置失败");
+        toast.error(response.msg || "归零失败");
       }
     } catch {
-      toast.error("重置失败");
+      toast.error("归零失败");
     } finally {
       setResetTunnelFlowLoading(false);
     }
@@ -1124,14 +1124,14 @@ export default function UserPage() {
       if (response.code === 0) {
         const successCount =
           (response.data as any)?.successCount || selectedUserIds.size;
-        toast.success(`成功重置 ${successCount} 个用户流量`);
+        toast.success(`成功归零 ${successCount} 个用户流量`);
         await loadUsers(undefined, false);
         setSelectedUserIds(new Set());
       } else {
-        toast.error(response.msg || "重置失败");
+        toast.error(response.msg || "归零失败");
       }
     } catch {
-      toast.error("重置失败");
+      toast.error("归零失败");
     } finally {
       setBatchOperationLoading((prev) => ({ ...prev, reset: false }));
     }
@@ -1323,7 +1323,7 @@ export default function UserPage() {
                 isLoading={batchOperationLoading.reset}
                 onPress={handleBatchResetFlow}
               >
-                重置
+                归零
               </Button>
               <Button
                 color="danger"
@@ -1362,7 +1362,7 @@ export default function UserPage() {
                   variant="flat"
                   onPress={() => setSearchKeyword("")}
                 >
-                  重置
+                  归零
                 </Button>
               )}
             </>
@@ -1429,7 +1429,7 @@ export default function UserPage() {
                     规则数
                   </TableColumn>
                   <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                    重置日期
+                  归零日期
                   </TableColumn>
                   <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
                     到期时间
@@ -1576,7 +1576,7 @@ export default function UserPage() {
                         <TableCell className="whitespace-nowrap">
                           <span className="text-sm text-default-600">
                             {user.flowResetTime === 0
-                              ? "不重置"
+                              ? "不归零"
                               : `每月${user.flowResetTime}号`}
                           </span>
                         </TableCell>
@@ -1639,7 +1639,7 @@ export default function UserPage() {
                               variant="flat"
                               onPress={() => handleResetFlow(user)}
                             >
-                              重置
+                              归零
                             </Button>
                             <Button
                               className="min-h-7 px-2"
@@ -1776,10 +1776,10 @@ export default function UserPage() {
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-default-600">重置日期</span>
+                            <span className="text-default-600">归零日期</span>
                             <span className="text-xs">
                               {user.flowResetTime === 0
-                                ? "不重置"
+                                ? "不归零"
                                 : `每月${user.flowResetTime}号`}
                             </span>
                           </div>
@@ -1830,7 +1830,7 @@ export default function UserPage() {
                         </div>
                       </div>
                       <div className="space-y-1.5 mt-3">
-                        {/* 第一行：编辑和重置 */}
+                        {/* 第一行：编辑和归零 */}
                         <div className="flex gap-1.5">
                           <Button
                             className="flex-1 min-h-8"
@@ -1854,7 +1854,7 @@ export default function UserPage() {
                               handleResetFlow(user);
                             }}
                           >
-                            重置
+                            归零
                           </Button>
                         </div>
                         {/* 第二行：权限、监控和删除 */}
@@ -2009,7 +2009,7 @@ export default function UserPage() {
                 }}
               />
               <Select
-                label="重置日期"
+                label="归零日期"
                 selectedKeys={[userForm.flowResetTime.toString()]}
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
@@ -2021,15 +2021,15 @@ export default function UserPage() {
                 }}
               >
                 <>
-                  <SelectItem key="0" textValue="不重置">
-                    不重置
+                  <SelectItem key="0" textValue="不归零">
+                    不归零
                   </SelectItem>
                   {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
                     <SelectItem
                       key={day.toString()}
-                      textValue={`每月${day}号（0点重置）`}
+                      textValue={`每月${day}号（0点归零）`}
                     >
-                      每月{day}号（0点重置）
+                      每月{day}号（0点归零）
                     </SelectItem>
                   ))}
                 </>
@@ -2776,7 +2776,7 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-      {/* 重置流量确认对话框 */}
+      {/* 归零流量确认对话框 */}
       <Modal
         backdrop="blur"
         classNames={{
@@ -2790,7 +2790,7 @@ export default function UserPage() {
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            确认重置流量
+            确认归零流量
           </ModalHeader>
           <ModalBody>
             <div className="flex items-center gap-4">
@@ -2810,14 +2810,14 @@ export default function UserPage() {
               </div>
               <div className="flex-1">
                 <p className="text-foreground">
-                  确定要重置用户{" "}
+                  确定要归零用户{" "}
                   <span className="font-semibold text-warning">
                     &quot;{userToReset?.user}&quot;
                   </span>{" "}
                   的流量吗？
                 </p>
                 <p className="text-small text-default-500 mt-1">
-                  该操作只会重置账号流量不会重置隧道权限流量，重置后该用户的上下行流量将归零，此操作不可撤销。
+                  该操作只会归零账号流量不会归零隧道权限流量，归零后该用户的上下行流量将归零，此操作不可撤销。
                 </p>
                 <div className="mt-2 p-2 bg-warning-50 dark:bg-warning-100/10 rounded text-xs">
                   <div className="text-warning-700 dark:text-warning-300">
@@ -2862,12 +2862,12 @@ export default function UserPage() {
               isLoading={resetFlowLoading}
               onPress={handleConfirmResetFlow}
             >
-              确认重置
+              确认归零
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-      {/* 重置隧道流量确认对话框 */}
+      {/* 归零隧道流量确认对话框 */}
       <Modal
         backdrop="blur"
         classNames={{
@@ -2881,7 +2881,7 @@ export default function UserPage() {
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            确认重置隧道流量
+            确认归零隧道流量
           </ModalHeader>
           <ModalBody>
             <div className="flex items-center gap-4">
@@ -2901,7 +2901,7 @@ export default function UserPage() {
               </div>
               <div className="flex-1">
                 <p className="text-foreground">
-                  确定要重置用户{" "}
+                  确定要归零用户{" "}
                   <span className="font-semibold">{currentUser?.user}</span>{" "}
                   对隧道{" "}
                   <span className="font-semibold text-warning">
@@ -2910,7 +2910,7 @@ export default function UserPage() {
                   的流量吗？
                 </p>
                 <p className="text-small text-default-500 mt-1">
-                  该操作只会重置隧道权限流量不会重置账号流量，重置后该隧道权限的上下行流量将归零，此操作不可撤销。
+                  该操作只会归零隧道权限流量不会归零账号流量，归零后该隧道权限的上下行流量将归零，此操作不可撤销。
                 </p>
                 <div className="mt-2 p-2 bg-warning-50 dark:bg-warning-100/10 rounded text-xs">
                   <div className="text-warning-700 dark:text-warning-300">
@@ -2955,7 +2955,7 @@ export default function UserPage() {
               isLoading={resetTunnelFlowLoading}
               onPress={handleConfirmResetTunnelFlow}
             >
-              确认重置
+              确认归零
             </Button>
           </ModalFooter>
         </ModalContent>
@@ -3039,7 +3039,7 @@ export default function UserPage() {
       >
         <ModalContent>
           <ModalHeader className="flex items-center justify-between">
-            <span className="text-base font-semibold">流量历史</span>
+            <span className="text-base font-semibold">流量历史 - {historyModalUser?.name || historyModalUser?.user}</span>
             <Button
               isIconOnly
               size="sm"
@@ -3088,8 +3088,11 @@ export default function UserPage() {
                       <div className="text-sm font-semibold text-primary">
                         {item.usedGB} GB
                       </div>
-                      <div className="text-xs text-default-500">
-                        {formatDate(item.resetTime)}
+                      <div className="flex items-center justify-end gap-2 text-xs text-default-500">
+                        {item.resetReason && (
+                          <span>原因：{item.resetReason}</span>
+                        )}
+                        <span>{formatDate(item.resetTime)}</span>
                       </div>
                     </div>
                   </div>

@@ -78,6 +78,7 @@ import {
   getNodeGroupList,
   assignNodeToGroup,
   batchResetNodeTraffic,
+  getNodeTrafficResetLogs,
   getConfigByName,
   type ReleaseChannel,
 } from "@/api";
@@ -424,6 +425,10 @@ export default function NodePage() {
     useState(false);
   const [batchResetTrafficModalOpen, setBatchResetTrafficModalOpen] =
     useState(false);
+  const [nodeTrafficLogModalOpen, setNodeTrafficLogModalOpen] = useState(false);
+  const [nodeTrafficLogsLoading, setNodeTrafficLogsLoading] = useState(false);
+  const [nodeTrafficLogs, setNodeTrafficLogs] = useState<any[]>([]);
+  const [currentLogNode, setCurrentLogNode] = useState<Node | null>(null);
   const [upgradeProgress, setUpgradeProgress] = useState<
     Record<number, { stage: string; percent: number; message: string }>
   >({});
@@ -983,6 +988,25 @@ export default function NodePage() {
       toast.error("操作失败");
     }
   };
+  // 查看节点流量归零日志
+  const handleViewNodeTrafficLogs = async (node: Node) => {
+    setNodeTrafficLogsLoading(true);
+    setCurrentLogNode(node);
+    try {
+      const res = await getNodeTrafficResetLogs(node.id, 30);
+
+      if (res.code === 0) {
+        setNodeTrafficLogs((res.data as any)?.logs || []);
+        setNodeTrafficLogModalOpen(true);
+      } else {
+        toast.error(res.msg || "获取日志失败");
+      }
+    } catch {
+      toast.error("网络错误，请重试");
+    } finally {
+      setNodeTrafficLogsLoading(false);
+    }
+  };
   const openInstallSelector = (node: Node) => {
     setInstallTargetNode(node);
     setInstallChannel("dev");
@@ -1306,9 +1330,22 @@ export default function NodePage() {
     }
     setBatchResetTrafficLoading(true);
     try {
+      // 计算选中节点的总流量
+      let totalInFlow = 0;
+      let totalOutFlow = 0;
+      selectedLocalIds.forEach((nodeId) => {
+        const metrics = realtimeNodeMetrics[nodeId];
+        if (metrics) {
+          totalInFlow += metrics.uploadTraffic || 0;
+          totalOutFlow += metrics.downloadTraffic || 0;
+        }
+      });
+
       const res = await batchResetNodeTraffic(
         selectedLocalIds,
         "管理员手动重置",
+        totalInFlow,
+        totalOutFlow,
       );
 
       if (res.code === 0) {
@@ -1856,8 +1893,12 @@ export default function NodePage() {
               />
               {/* 这里加上 title 属性 */}
               <h3
-                className="font-semibold text-foreground truncate text-sm flex-1"
+                className="font-semibold text-foreground truncate text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit max-w-full"
                 title={node.name}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyToClipboard(node.name, "节点名称");
+                }}
               >
                 {node.name}
               </h3>
@@ -2109,7 +2150,14 @@ export default function NodePage() {
                   <span className="font-medium text-red-500 flex-shrink-0">
                     备注：
                   </span>
-                  <span className="truncate ml-1" title={node.remark.trim()}>
+                  <span
+                    className="truncate ml-1 cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit inline-block"
+                    title={node.remark.trim()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      copyToClipboard(node.remark!.trim(), "备注");
+                    }}
+                  >
                     {node.remark.trim()}
                   </span>
                 </div>
@@ -2443,10 +2491,11 @@ export default function NodePage() {
                                 handleCopyOverseasInstallCommand={
                                   handleCopyOverseasInstallCommand
                                 }
-                                handleDelete={handleDelete}
-                                handleDismissExpiryReminder={handleDismissExpiryReminder}
-                                handleEdit={handleEdit}
-                                nodeExpiryStats={nodeExpiryStats}
+  handleDelete={handleDelete}
+  handleDismissExpiryReminder={handleDismissExpiryReminder}
+  handleEdit={handleEdit}
+  handleViewNodeTrafficLogs={handleViewNodeTrafficLogs}
+  nodeExpiryStats={nodeExpiryStats}
                                 nodeFilterMode={nodeFilterMode}
                                 nodeGroups={nodeGroups}
                                 openInstallSelector={openInstallSelector}
@@ -2512,6 +2561,7 @@ export default function NodePage() {
                   handleDelete={handleDelete}
                   handleDismissExpiryReminder={handleDismissExpiryReminder}
                   handleEdit={handleEdit}
+                  handleViewNodeTrafficLogs={handleViewNodeTrafficLogs}
                   nodeExpiryStats={nodeExpiryStats}
                   nodeFilterMode={nodeFilterMode}
                   nodeGroups={nodeGroups}
@@ -3333,6 +3383,80 @@ export default function NodePage() {
                   onPress={handleBatchResetTraffic}
                 >
                   确认重置
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+      {/* 节点流量归零日志模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={nodeTrafficLogModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onOpenChange={setNodeTrafficLogModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">
+                  流量归零日志 - {currentLogNode?.name}
+                </h2>
+              </ModalHeader>
+              <ModalBody>
+                {nodeTrafficLogsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Spinner size="md" />
+                  </div>
+                ) : nodeTrafficLogs.length === 0 ? (
+                  <div className="text-center text-default-500 py-8">
+                    暂无归零记录
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {nodeTrafficLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="p-3 rounded-lg border border-divider bg-default-50/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-foreground">
+                            {log.operatorName}
+                          </span>
+                          <span className="text-xs text-default-500">
+                            {formatDate(log.createdTime)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-default-500">归零前流量:</span>
+                            <span className="text-primary-600 dark:text-primary-400">
+                              ↑{formatTraffic(log.inFlowBefore || 0)}
+                            </span>
+                            <span className="text-success-600 dark:text-success-400">
+                              ↓{formatTraffic(log.outFlowBefore || 0)}
+                            </span>
+                          </div>
+                          {log.reason && (
+                            <span className="text-xs text-default-500">
+                              原因：{log.reason}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  关闭
                 </Button>
               </ModalFooter>
             </>

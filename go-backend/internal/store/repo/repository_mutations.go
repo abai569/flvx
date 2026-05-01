@@ -1667,17 +1667,22 @@ func (r *Repository) ReplaceUserGroupsByUserID(userID int64, newGroupIDs []int64
 	return affectedGroupIDs, nil
 }
 
-func (r *Repository) AdvanceNodeRenewalCycles(now int64) (int, error) {
+type NodeRenewalResult struct {
+	NodeID   int64
+	NodeName string
+}
+
+func (r *Repository) AdvanceNodeRenewalCycles(now int64) ([]NodeRenewalResult, error) {
 	if r == nil || r.db == nil {
-		return 0, nil
+		return nil, nil
 	}
 
 	var nodes []model.Node
 	if err := r.db.Where("renewal_cycle IS NOT NULL AND renewal_cycle != '' AND expiry_time IS NOT NULL").Find(&nodes).Error; err != nil {
-		return 0, fmt.Errorf("list nodes with renewal cycle: %w", err)
+		return nil, fmt.Errorf("list nodes with renewal cycle: %w", err)
 	}
 
-	advanced := 0
+	results := []NodeRenewalResult{}
 	for _, node := range nodes {
 		if !node.ExpiryTime.Valid || node.ExpiryTime.Int64 <= 0 {
 			continue
@@ -1711,10 +1716,13 @@ func (r *Repository) AdvanceNodeRenewalCycles(now int64) (int, error) {
 		if err := r.db.Model(&model.Node{}).Where("id = ?", node.ID).Update("expiry_time", anchorTime).Error; err != nil {
 			continue
 		}
-		advanced++
+		results = append(results, NodeRenewalResult{
+			NodeID:   node.ID,
+			NodeName: node.Name,
+		})
 	}
 
-	return advanced, nil
+	return results, nil
 }
 
 func advanceByMonths(timestamp int64, months int) int64 {
@@ -1940,12 +1948,14 @@ func (r *Repository) cleanupForwardTrafficResetLogs(forwardID int64) error {
 }
 
 type NodeTrafficResetLogCreateParams struct {
-	NodeID       int64
-	NodeName     string
-	ResetTime    int64
-	OperatorID   int64
-	OperatorName string
-	Reason       string
+	NodeID        int64
+	NodeName      string
+	ResetTime     int64
+	OperatorID    int64
+	OperatorName  string
+	Reason        string
+	InFlowBefore  int64
+	OutFlowBefore int64
 }
 
 func (r *Repository) CreateNodeTrafficResetLog(params *NodeTrafficResetLogCreateParams) error {
@@ -1957,13 +1967,15 @@ func (r *Repository) CreateNodeTrafficResetLog(params *NodeTrafficResetLogCreate
 	}
 
 	log := &model.NodeTrafficResetLog{
-		NodeID:       params.NodeID,
-		NodeName:     params.NodeName,
-		ResetTime:    params.ResetTime,
-		OperatorID:   params.OperatorID,
-		OperatorName: params.OperatorName,
-		Reason:       params.Reason,
-		CreatedTime:  time.Now().UnixMilli(),
+		NodeID:        params.NodeID,
+		NodeName:      params.NodeName,
+		ResetTime:     params.ResetTime,
+		OperatorID:    params.OperatorID,
+		OperatorName:  params.OperatorName,
+		Reason:        params.Reason,
+		InFlowBefore:  params.InFlowBefore,
+		OutFlowBefore: params.OutFlowBefore,
+		CreatedTime:   time.Now().UnixMilli(),
 	}
 
 	if err := r.db.Create(log).Error; err != nil {

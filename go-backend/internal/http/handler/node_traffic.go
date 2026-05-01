@@ -10,8 +10,10 @@ import (
 )
 
 type nodeBatchResetTrafficRequest struct {
-	NodeIDs []int64 `json:"nodeIds"`
-	Reason  string  `json:"reason"`
+	NodeIDs       []int64 `json:"nodeIds"`
+	Reason        string  `json:"reason"`
+	InFlowBefore  int64   `json:"inFlowBefore"`
+	OutFlowBefore int64   `json:"outFlowBefore"`
 }
 
 type nodeBatchResetTrafficResult struct {
@@ -86,12 +88,14 @@ func (h *Handler) nodeBatchResetTraffic(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if err := h.repo.CreateNodeTrafficResetLog(&repo.NodeTrafficResetLogCreateParams{
-			NodeID:       nodeID,
-			NodeName:     node.Name,
-			ResetTime:    time.Now().UnixMilli(),
-			OperatorID:   actorUserID,
-			OperatorName: actorUserName,
-			Reason:       req.Reason,
+			NodeID:        nodeID,
+			NodeName:      node.Name,
+			ResetTime:     time.Now().UnixMilli(),
+			OperatorID:    actorUserID,
+			OperatorName:  actorUserName,
+			Reason:        req.Reason,
+			InFlowBefore:  req.InFlowBefore,
+			OutFlowBefore: req.OutFlowBefore,
 		}); err != nil {
 			result.Error = "重置成功但记录日志失败：" + err.Error()
 			results = append(results, result)

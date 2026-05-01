@@ -93,7 +93,8 @@ interface NodeListViewProps {
   handleCopyOverseasInstallCommand?: (node: Node) => void;
   handleCopyOfflineInstallCommand?: (node: Node) => void;
   handleCopyAutoInstallCommand?: (node: Node) => void;
-  // 到期筛选相关
+  // 新增：点击流量图标查看流量记录
+  handleViewNodeTrafficLogs?: (node: Node) => void;
   nodeFilterMode?: any;
   setNodeFilterMode?: (mode: any) => void;
   nodeExpiryStats?: any;
@@ -114,6 +115,7 @@ function SortableTableRow({
   handleCopyOverseasInstallCommand,
   handleCopyOfflineInstallCommand,
   handleCopyAutoInstallCommand,
+  handleViewNodeTrafficLogs,
 }: any) {
   const [expiryPopoverOpen, setExpiryPopoverOpen] = useState(false);
   const {
@@ -202,14 +204,18 @@ function SortableTableRow({
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <span
             className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
             title={connectionStatusMeta.text}
           />
           <span
-            className="text-sm font-medium text-foreground truncate"
+            className="text-sm font-medium text-foreground truncate cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit max-w-full"
             title={node.name}
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(node.name, "节点名称");
+            }}
           >
             {node.name}
           </span>
@@ -328,7 +334,7 @@ function SortableTableRow({
         )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-1">
           <span className="text-sm text-danger-600 dark:text-danger-400">
             {node.connectionStatus === "online" &&
             realtimeNodeMetrics?.[node.id]
@@ -338,6 +344,27 @@ function SortableTableRow({
                 )
               : "-"}
           </span>
+          {handleViewNodeTrafficLogs && (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              className="w-6 h-6"
+              onPress={() => handleViewNodeTrafficLogs(node)}
+            >
+              <svg
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="w-4 h-4"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </Button>
+          )}
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
@@ -367,8 +394,12 @@ function SortableTableRow({
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
         {node.remark?.trim() ? (
           <span
-            className="text-sm truncate block max-w-[120px]"
+            className="text-sm max-w-[120px] cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit inline-block"
             title={node.remark.trim()}
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(node.remark!.trim(), "备注");
+            }}
           >
             {node.remark.trim()}
           </span>
@@ -541,6 +572,7 @@ export function NodeListView({
   nodeFilterMode,
   setNodeFilterMode,
   nodeExpiryStats,
+  handleViewNodeTrafficLogs,
 }: NodeListViewProps) {
   const isAllSelected =
     displayNodes.length > 0 &&
@@ -692,24 +724,25 @@ export function NodeListView({
         {displayNodes.map((node) => (
           <SortableTableRow
             key={node.id}
-            {...{
-              node,
-              realtimeNodeMetrics,
-              upgradeProgress,
-              selectedIds,
-              toggleSelect,
-              copyToClipboard,
-              openUpgradeModal,
-              handleEdit,
-              handleDelete,
-              formatTraffic,
-              nodeGroups,
-              handleDismissExpiryReminder,
-              handleCopyOverseasInstallCommand,
-              handleCopyOfflineInstallCommand,
-              handleCopyAutoInstallCommand,
-            }}
-          />
+          {...{
+            node,
+            realtimeNodeMetrics,
+            upgradeProgress,
+            selectedIds,
+            toggleSelect,
+            copyToClipboard,
+            openUpgradeModal,
+            handleEdit,
+            handleDelete,
+            formatTraffic,
+            nodeGroups,
+            handleDismissExpiryReminder,
+            handleCopyOverseasInstallCommand,
+            handleCopyOfflineInstallCommand,
+            handleCopyAutoInstallCommand,
+            handleViewNodeTrafficLogs,
+          }}
+        />
         ))}
       </TableBody>
     </Table>

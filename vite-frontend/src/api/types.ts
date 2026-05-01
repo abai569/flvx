@@ -625,4 +625,5 @@ export interface UserQuotaHistoryItem {
   usedGB: string;
   resetTime: number;
   createdTime: number;
+  resetReason?: string;
 }
