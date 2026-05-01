@@ -45,6 +45,7 @@ interface Node {
   expiryReminderDismissedUntil: number | null;
   ip: string;
   serverIp: string;
+  intranetIp?: string;
   serverIpV4?: string;
   serverIpV6?: string;
   port: string;
@@ -249,46 +250,47 @@ function SortableTableRow({
         )}
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
-        <div className="text-left text-xs min-w-0 flex-1 min-h-[2.125rem]">
-          {node.serverIpV4?.trim() || node.serverIpV6?.trim() ? (
-            <div className="space-y-0.5">
-              {node.serverIpV4?.trim() && (
-                <span
-                  className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit block"
-                  title={node.serverIpV4.trim()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyToClipboard(node.serverIpV4!.trim(), "IPv4 地址");
-                  }}
-                >
-                  {node.serverIpV4.trim()}
-                </span>
-              )}
-              {node.serverIpV6?.trim() && (
-                <span
-                  className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors block max-w-[150px] truncate w-fit"
-                  title={node.serverIpV6.trim()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyToClipboard(node.serverIpV6!.trim(), "IPv6 地址");
-                  }}
-                >
-                  {node.serverIpV6.trim()}
-                </span>
-              )}
-            </div>
-          ) : (
+        <div className="flex flex-col gap-1 min-w-[160px] py-1">
+          <div className="flex justify-between items-center min-w-0 gap-3">
+            <span className="text-default-500 text-[11px] flex-shrink-0">IPv4/域名</span>
             <span
-              className="text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors w-fit block truncate max-w-[150px]"
-              title={node.serverIp.trim()}
+              className="font-medium text-xs cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto text-right max-w-[130px]"
+              title={node.serverIpV4?.trim() || node.serverIp?.trim() || "暂无"}
               onClick={(e) => {
                 e.stopPropagation();
-                copyToClipboard(node.serverIp.trim(), "IP 地址");
+                const val = node.serverIpV4?.trim() || node.serverIp?.trim();
+                if (val) copyToClipboard(val, "IPv4/域名");
               }}
             >
-              {node.serverIp.trim()}
+              {node.serverIpV4?.trim() || node.serverIp?.trim() || "暂无"}
             </span>
-          )}
+          </div>
+          <div className="flex justify-between items-center min-w-0 gap-3">
+            <span className="text-default-500 text-[11px] flex-shrink-0">IPv6/域名</span>
+            <span
+              className={`font-medium text-xs cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto text-right max-w-[130px] ${!node.serverIpV6?.trim() ? "text-default-300" : ""}`}
+              title={node.serverIpV6?.trim() || "暂无"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (node.serverIpV6?.trim()) copyToClipboard(node.serverIpV6.trim(), "IPv6/域名");
+              }}
+            >
+              {node.serverIpV6?.trim() || "暂无"}
+            </span>
+          </div>
+          <div className="flex justify-between items-center min-w-0 gap-3">
+            <span className="text-default-500 text-[11px] flex-shrink-0">内网IP/域名</span>
+            <span
+              className={`font-medium text-xs cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto text-right max-w-[130px] ${!node.intranetIp?.trim() ? "text-default-300" : ""}`}
+              title={node.intranetIp?.trim() || "暂无"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (node.intranetIp?.trim()) copyToClipboard(node.intranetIp.trim(), "内网IP/域名");
+              }}
+            >
+              {node.intranetIp?.trim() || "暂无"}
+            </span>
+          </div>
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
@@ -671,7 +673,7 @@ export function NodeListView({
           版本
         </TableColumn>
         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
-          总流量
+          周期流量
         </TableColumn>
         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[110px] text-right">
           上行流量

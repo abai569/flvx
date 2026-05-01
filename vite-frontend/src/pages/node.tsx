@@ -1910,48 +1910,46 @@ export default function NodePage() {
             {node.expiryTime && node.expiryTime > 0 && node.renewalCycle && (
               <div className="hidden" />
             )}
-            <div className="flex justify-between items-center text-sm min-w-0">
-              <span className="text-default-600 flex-shrink-0">地址</span>
-              <div className="text-right text-xs min-w-0 flex-1 ml-2 min-h-[2.125rem] flex flex-col items-end gap-1 overflow-hidden">
-                {node.serverIpV4?.trim() || node.serverIpV6?.trim() ? (
-                  <>
-                    {node.serverIpV4?.trim() && (
-                      <span
-                        className="font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
-                        title={node.serverIpV4.trim()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyToClipboard(node.serverIpV4!.trim(), "IPv4 地址");
-                        }}
-                      >
-                        {node.serverIpV4.trim()}
-                      </span>
-                    )}
-                    {node.serverIpV6?.trim() && (
-                      <span
-                        className="font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate block max-w-[150px] text-right"
-                        title={node.serverIpV6.trim()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyToClipboard(node.serverIpV6!.trim(), "IPv6 地址");
-                        }}
-                      >
-                        {node.serverIpV6.trim()}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span
-                    className="font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate w-fit"
-                    title={node.serverIp.trim()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      copyToClipboard(node.serverIp.trim(), "IP 地址");
-                    }}
-                  >
-                    {node.serverIp.trim()}
-                  </span>
-                )}
+            <div className="space-y-1.5 border-b border-divider/50 pb-2 mb-2">
+              <div className="flex justify-between items-center min-w-0">
+                <span className="text-default-500 text-xs flex-shrink-0 mr-2">IPv4/域名</span>
+                <span
+                  className="font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto"
+                  title={node.serverIpV4?.trim() || node.serverIp?.trim() || "暂无"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const val = node.serverIpV4?.trim() || node.serverIp?.trim();
+                    if (val) copyToClipboard(val, "IPv4/域名");
+                  }}
+                >
+                  {node.serverIpV4?.trim() || node.serverIp?.trim() || "暂无"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center min-w-0">
+                <span className="text-default-500 text-xs flex-shrink-0 mr-2">IPv6/域名</span>
+                <span
+                  className={`font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto ${!node.serverIpV6?.trim() ? "text-default-300" : ""}`}
+                  title={node.serverIpV6?.trim() || "暂无"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (node.serverIpV6?.trim()) copyToClipboard(node.serverIpV6.trim(), "IPv6 地址");
+                  }}
+                >
+                  {node.serverIpV6?.trim() || "暂无"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center min-w-0">
+                <span className="text-default-500 text-xs flex-shrink-0 mr-2">内网IP/域名</span>
+                <span
+                  className={`font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto ${!node.intranetIp?.trim() ? "text-default-300" : ""}`}
+                  title={node.intranetIp?.trim() || "暂无"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (node.intranetIp?.trim()) copyToClipboard(node.intranetIp.trim(), "内网 IP");
+                  }}
+                >
+                  {node.intranetIp?.trim() || "暂无"}
+                </span>
               </div>
             </div>
             <div className="flex justify-between items-center text-sm">
@@ -1988,47 +1986,63 @@ export default function NodePage() {
                 {node.connectionStatus === "online" &&
                   realtimeNodeMetrics[node.id]?.periodTraffic && (
                     <div className="text-xs text-default-500 space-y-0.5 mt-1">
-                      <div className="flex justify-between">
-                        <span>↑ 上行</span>
-                        <span className="font-medium">
-                          {formatTraffic(
-                            realtimeNodeMetrics[node.id]?.periodTraffic?.rx ??
-                              0,
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>↓ 下行</span>
-                        <span className="font-medium">
-                          {formatTraffic(
-                            realtimeNodeMetrics[node.id]?.periodTraffic?.tx ??
-                              0,
-                          )}
-                        </span>
-                      </div>
-                      {realtimeNodeMetrics[node.id]?.periodTraffic?.since && (
-                        <div className="flex justify-between">
-                          <span>周期始于</span>
-                          <span className="font-medium">
-                            {formatDate(
-                              realtimeNodeMetrics[node.id]!.periodTraffic!
-                                .since,
-                            )}
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span>↑ 上行</span>
+                          <span className="font-medium text-success-600 dark:text-success-400">
+                            {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0)}
                           </span>
                         </div>
-                      )}
-                      {realtimeNodeMetrics[node.id]?.periodTraffic
-                        ?.nextReset && (
-                        <div className="flex justify-between">
-                          <span>下次重置</span>
-                          <span className="font-medium text-primary">
-                            {formatDate(
-                              realtimeNodeMetrics[node.id]!.periodTraffic!
-                                .nextReset!,
-                            )}
+                        <div className="flex items-center gap-2">
+                          <span>↓ 下行</span>
+                          <span className="font-medium text-primary-600 dark:text-primary-400">
+                            {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0)}
                           </span>
                         </div>
-                      )}
+                      </div>
+                      {(() => {
+                    const pt = realtimeNodeMetrics[node.id]?.periodTraffic;
+                    if (!pt) return null;
+                    
+                    // 智能解析后端时间
+                    const parseBackendTime = (ts: any) => {
+                      if (!ts) return 0;
+                      let num = Number(ts);
+                      if (isNaN(num)) return 0;
+                      if (Math.abs(num) < 100000000000) num *= 1000;
+                      return num > 0 && new Date(num).getFullYear() > 1970 ? num : 0;
+                    };
+                    
+                    const backendSince = parseBackendTime(pt.since);
+                    const backendNext = parseBackendTime(pt.nextReset);
+                    const displayNext = backendNext > 0 ? backendNext : expiryMeta?.nextDueTime;
+                    
+                    // 核心修改：精准干掉时分秒，只保留年月日 (YYYY/M/D)
+                    const formatDateOnly = (ts: any) => {
+                      if (!ts) return "-";
+                      const d = new Date(ts);
+                      return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate();
+                    };
+                    
+                    if (!backendSince && !displayNext) return null;
+                    
+                    return (
+                      <div className="flex justify-between items-center mt-1">
+                        {backendSince > 0 ? (
+                          <div className="flex items-center gap-1.5">
+                            <span>周期始于</span>
+                            <span className="font-medium text-foreground">{formatDateOnly(backendSince)}</span>
+                          </div>
+                        ) : <div />}
+                        {displayNext && displayNext > 0 ? (
+                          <div className="flex items-center gap-1.5">
+                            <span>下次重置</span>
+                            <span className="font-medium text-primary">{formatDateOnly(displayNext)}</span>
+                          </div>
+                        ) : <div />}
+                      </div>
+                    );
+                  })()}
                     </div>
                   )}
                 {upgradeProgress[node.id] &&
@@ -2045,35 +2059,7 @@ export default function NodePage() {
                     </div>
                   )}
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
-                  <div className="text-primary-600 dark:text-primary-400 mb-0.5">
-                    ↑ 上行流量
-                  </div>
-                  <div className="font-medium text-sm text-primary-700 dark:text-primary-300">
-                    {node.connectionStatus === "online" &&
-                    realtimeNodeMetrics[node.id]
-                      ? formatTraffic(
-                          realtimeNodeMetrics[node.id]?.uploadTraffic ?? 0,
-                        )
-                      : "-"}
-                  </div>
-                </div>
-                <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
-                  <div className="text-success-600 dark:text-success-400 mb-0.5">
-                    ↓ 下行流量
-                  </div>
-                  <div className="font-medium text-sm text-success-700 dark:text-success-300">
-                    {node.connectionStatus === "online" &&
-                    realtimeNodeMetrics[node.id]
-                      ? formatTraffic(
-                          realtimeNodeMetrics[node.id]?.downloadTraffic ?? 0,
-                        )
-                      : "-"}
-                  </div>
-                </div>
-              </div>
-          <div className="space-y-3">
+              <div className="space-y-3">
             <div className="grid gap-2 grid-cols-2">
               <div className="w-full">
                 <Dropdown>
