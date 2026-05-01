@@ -1860,3 +1860,140 @@ func (r *Repository) GetTunnelIDsByTunnelList(listID int64) ([]int64, error) {
 		Pluck("tunnel_id", &tunnelIDs).Error
 	return tunnelIDs, err
 }
+
+type ForwardTrafficResetLogCreateParams struct {
+	ForwardID     int64
+	ForwardName   string
+	UserID        int64
+	UserName      string
+	ResetTime     int64
+	InFlowBefore  int64
+	OutFlowBefore int64
+	OperatorID    int64
+	OperatorName  string
+}
+
+func (r *Repository) ResetForwardTraffic(id int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Model(&model.Forward{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"in_flow":      0,
+			"out_flow":     0,
+			"updated_time": time.Now().UnixMilli(),
+		}).Error
+}
+
+func (r *Repository) CreateForwardTrafficResetLog(params *ForwardTrafficResetLogCreateParams) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	if params == nil {
+		return errors.New("params is nil")
+	}
+
+	log := &model.ForwardTrafficResetLog{
+		ForwardID:     params.ForwardID,
+		ForwardName:   params.ForwardName,
+		UserID:        params.UserID,
+		UserName:      params.UserName,
+		ResetTime:     params.ResetTime,
+		InFlowBefore:  params.InFlowBefore,
+		OutFlowBefore: params.OutFlowBefore,
+		OperatorID:    params.OperatorID,
+		OperatorName:  params.OperatorName,
+		CreatedTime:   time.Now().UnixMilli(),
+	}
+
+	if err := r.db.Create(log).Error; err != nil {
+		return err
+	}
+
+	return r.cleanupForwardTrafficResetLogs(params.ForwardID)
+}
+
+func (r *Repository) cleanupForwardTrafficResetLogs(forwardID int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+
+	var count int64
+	if err := r.db.Model(&model.ForwardTrafficResetLog{}).Where("forward_id = ?", forwardID).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 30 {
+		var oldestLog model.ForwardTrafficResetLog
+		if err := r.db.Where("forward_id = ?", forwardID).
+			Order("created_time ASC").
+			First(&oldestLog).Error; err != nil {
+			return err
+		}
+
+		return r.db.Where("forward_id = ? AND created_time <= ?", forwardID, oldestLog.CreatedTime).
+			Delete(&model.ForwardTrafficResetLog{}).Error
+	}
+
+	return nil
+}
+
+type NodeTrafficResetLogCreateParams struct {
+	NodeID       int64
+	NodeName     string
+	ResetTime    int64
+	OperatorID   int64
+	OperatorName string
+	Reason       string
+}
+
+func (r *Repository) CreateNodeTrafficResetLog(params *NodeTrafficResetLogCreateParams) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	if params == nil {
+		return errors.New("params is nil")
+	}
+
+	log := &model.NodeTrafficResetLog{
+		NodeID:       params.NodeID,
+		NodeName:     params.NodeName,
+		ResetTime:    params.ResetTime,
+		OperatorID:   params.OperatorID,
+		OperatorName: params.OperatorName,
+		Reason:       params.Reason,
+		CreatedTime:  time.Now().UnixMilli(),
+	}
+
+	if err := r.db.Create(log).Error; err != nil {
+		return err
+	}
+
+	return r.cleanupNodeTrafficResetLogs(params.NodeID)
+}
+
+func (r *Repository) cleanupNodeTrafficResetLogs(nodeID int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+
+	var count int64
+	if err := r.db.Model(&model.NodeTrafficResetLog{}).Where("node_id = ?", nodeID).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 30 {
+		var oldestLog model.NodeTrafficResetLog
+		if err := r.db.Where("node_id = ?", nodeID).
+			Order("created_time ASC").
+			First(&oldestLog).Error; err != nil {
+			return err
+		}
+
+		return r.db.Where("node_id = ? AND created_time <= ?", nodeID, oldestLog.CreatedTime).
+			Delete(&model.NodeTrafficResetLog{}).Error
+	}
+
+	return nil
+}

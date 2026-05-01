@@ -8,17 +8,25 @@ import (
 	"go-backend/internal/http/response"
 )
 
-// nodeBatchResetTraffic 批量重置节点流量
+type nodeBatchResetTrafficRequest struct {
+	NodeIDs []int64 `json:"nodeIds"`
+	Reason  string  `json:"reason"`
+}
+
+type nodeBatchResetTrafficResult struct {
+	NodeID   int64  `json:"nodeId"`
+	NodeName string `json:"nodeName,omitempty"`
+	Success  bool   `json:"success"`
+	Error    string `json:"error,omitempty"`
+}
+
 func (h *Handler) nodeBatchResetTraffic(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
 
-	var req struct {
-		NodeIDs []int64 `json:"nodeIds"`
-		Reason  string  `json:"reason"`
-	}
+	var req nodeBatchResetTrafficRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.WriteJSON(w, response.Err(-1, "无效的请求数据"))
 		return
@@ -29,29 +37,35 @@ func (h *Handler) nodeBatchResetTraffic(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	results := make([]map[string]interface{}, 0, len(req.NodeIDs))
+	actorUserID, _, err := userRoleFromRequest(r)
+	if err != nil {
+		response.WriteJSON(w, response.Err(401, "无效的 token 或 token 已过期"))
+		return
+	}
+
+	actorUserName, _ := h.repo.GetUsernameByID(actorUserID)
+
+	results := make([]nodeBatchResetTrafficResult, 0, len(req.NodeIDs))
 
 	for _, nodeID := range req.NodeIDs {
-		result := map[string]interface{}{
-			"nodeId":  nodeID,
-			"success": false,
+		result := nodeBatchResetTrafficResult{
+			NodeID:  nodeID,
+			Success: false,
 		}
 
-		// 获取节点信息
 		node, err := h.repo.GetNodeByID(nodeID)
 		if err != nil {
-			result["error"] = "节点不存在"
+			result.Error = "节点不存在"
 			results = append(results, result)
 			continue
 		}
 
-		// 发送重置命令
 		cmdResult, err := h.sendNodeCommandWithTimeout(
 			nodeID,
 			"ResetTraffic",
 			map[string]interface{}{
 				"reason": req.Reason,
-				"nodeId": nodeID, // 传入节点 ID，用于首次初始化
+				"nodeId": nodeID,
 			},
 			10*time.Second,
 			false,
@@ -59,19 +73,32 @@ func (h *Handler) nodeBatchResetTraffic(w http.ResponseWriter, r *http.Request) 
 		)
 
 		if err != nil {
-			result["error"] = err.Error()
+			result.Error = err.Error()
 			results = append(results, result)
 			continue
 		}
 
 		if !cmdResult.Success {
-			result["error"] = cmdResult.Message
+			result.Error = cmdResult.Message
 			results = append(results, result)
 			continue
 		}
 
-		result["success"] = true
-		result["nodeName"] = node.Name
+		if err := h.repo.CreateNodeTrafficResetLog(&NodeTrafficResetLogCreateParams{
+			NodeID:       nodeID,
+			NodeName:     node.Name,
+			ResetTime:    time.Now().UnixMilli(),
+			OperatorID:   actorUserID,
+			OperatorName: actorUserName,
+			Reason:       req.Reason,
+		}); err != nil {
+			result.Error = "重置成功但记录日志失败：" + err.Error()
+			results = append(results, result)
+			continue
+		}
+
+		result.Success = true
+		result.NodeName = node.Name
 		results = append(results, result)
 	}
 

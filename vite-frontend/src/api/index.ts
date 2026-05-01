@@ -321,6 +321,35 @@ export const batchResetNodeTraffic = (nodeIds: number[], reason?: string) =>
     nodeIds,
     reason,
   });
+export const batchResetForward = (forwardIds: number[]) =>
+  Network.post<BatchOperationResult>("/forward/batch-reset-traffic", {
+    forwardIds,
+  });
+export const getForwardTrafficResetLogs = (forwardId: number, limit?: number) =>
+  Network.post<{
+    id: number;
+    forwardId: number;
+    forwardName: string;
+    userId: number;
+    userName: string;
+    resetTime: number;
+    inFlowBefore: number;
+    outFlowBefore: number;
+    operatorId: number;
+    operatorName: string;
+    createdTime: number;
+  }[]>("/forward/traffic-reset-logs", { forwardId, limit });
+export const getNodeTrafficResetLogs = (nodeId: number, limit?: number) =>
+  Network.post<{
+    id: number;
+    nodeId: number;
+    nodeName: string;
+    resetTime: number;
+    operatorId: number;
+    operatorName: string;
+    reason: string;
+    createdTime: number;
+  }[]>("/node/traffic-reset-logs", { nodeId, limit });
 export const batchRedeployForwards = (ids: number[]) =>
   Network.post<BatchOperationResult>("/forward/batch-redeploy", { ids });
 export const batchRedeployTunnels = (ids: number[]) =>

@@ -853,3 +853,32 @@ type NodeTagNode struct {
 }
 
 func (NodeTagNode) TableName() string { return "node_tag_node" }
+
+type ForwardTrafficResetLog struct {
+	ID           int64  `gorm:"primaryKey;autoIncrement"`
+	ForwardID    int64  `gorm:"column:forward_id;not null;index:idx_forward_reset_time"`
+	ForwardName  string `gorm:"type:varchar(100);not null"`
+	UserID       int64  `gorm:"column:user_id;not null"`
+	UserName     string `gorm:"column:user_name;type:varchar(100);not null"`
+	ResetTime    int64  `gorm:"column:reset_time;not null"`
+	InFlowBefore int64  `gorm:"column:in_flow_before;not null;default:0"`
+	OutFlowBefore int64 `gorm:"column:out_flow_before;not null;default:0"`
+	OperatorID   int64  `gorm:"column:operator_id;not null"`
+	OperatorName string `gorm:"column:operator_name;type:varchar(100);not null"`
+	CreatedTime  int64  `gorm:"column:created_time;not null"`
+}
+
+func (ForwardTrafficResetLog) TableName() string { return "forward_traffic_reset_log" }
+
+type NodeTrafficResetLog struct {
+	ID           int64  `gorm:"primaryKey;autoIncrement"`
+	NodeID       int64  `gorm:"column:node_id;not null;index:idx_node_reset_time"`
+	NodeName     string `gorm:"type:varchar(100);not null"`
+	ResetTime    int64  `gorm:"column:reset_time;not null"`
+	OperatorID   int64  `gorm:"column:operator_id;not null"`
+	OperatorName string `gorm:"column:operator_name;type:varchar(100);not null"`
+	Reason       string `gorm:"column:reason;type:varchar(255)"`
+	CreatedTime  int64  `gorm:"column:created_time;not null"`
+}
+
+func (NodeTrafficResetLog) TableName() string { return "node_traffic_reset_log" }

@@ -714,36 +714,34 @@ export default function UserPage() {
     onUserModalOpen();
   };
 
-  // 切换流量历史显示
-  const toggleHistory = useCallback(async (userId: number) => {
-    setUsers(prev => {
-      const user = prev.find(u => u.id === userId);
-      if (!user) return prev;
-      
-      const newShowHistory = !user.showHistory;
-      
-      // 如果是展开且没有历史数据，则加载
-      if (newShowHistory && (!user.quotaHistory || user.quotaHistory.length === 0)) {
-        // 异步加载，不阻塞 UI
-        (async () => {
-          try {
-            const res = await getUserQuotaHistory(userId, 50);
-            if (res.code === 0) {
-              setUsers(prev2 => prev2.map(u => 
-                u.id === userId ? { ...u, quotaHistory: res.data } : u
-              ));
-            }
-          } catch (error) {
-            toast.error('加载流量历史失败');
-          }
-        })();
+  // 流量历史弹窗状态
+  const {
+    isOpen: isHistoryModalOpen,
+    onOpen: onHistoryModalOpen,
+    onClose: onHistoryModalClose,
+  } = useDisclosure();
+  const [historyModalUser, setHistoryModalUser] = useState<UserWithHistory | null>(null);
+  
+  const openHistoryModal = useCallback(async (user: UserWithHistory) => {
+    // 如果没有历史数据，先加载
+    if (!user.quotaHistory || user.quotaHistory.length === 0) {
+      try {
+        const res = await getUserQuotaHistory(user.id, 50);
+        if (res.code === 0) {
+          setUsers(prev => prev.map(u => 
+            u.id === user.id ? { ...u, quotaHistory: res.data } : u
+          ));
+          setHistoryModalUser({ ...user, quotaHistory: res.data });
+          onHistoryModalOpen();
+        }
+      } catch (error) {
+        toast.error('加载流量历史失败');
       }
-      
-      return prev.map(u => 
-        u.id === userId ? { ...u, showHistory: newShowHistory } : u
-      );
-    });
-  }, []);
+    } else {
+      setHistoryModalUser(user);
+      onHistoryModalOpen();
+    }
+  }, [onHistoryModalOpen]);
 
   const handleEdit = async (user: User) => {
     setIsEdit(true);
@@ -1525,28 +1523,50 @@ export default function UserPage() {
                           </span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
                             <span className="text-sm font-medium text-primary">
                               {formatFlow(usedFlow)}
                             </span>
-                            {user.flow !== 99999 && (
-                              <Progress
-                                aria-label="已用流量比例"
-                                className="w-24"
-                                color={
-                                  usedFlow / (user.flow * 1024 * 1024 * 1024) > 0.8
-                                    ? "danger"
-                                    : "primary"
-                                }
-                                size="sm"
-                                value={Math.min(
-                                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) *
-                                  100,
-                                  100,
-                                )}
-                              />
-                            )}
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              className="w-6 h-6 min-w-6"
+                              onPress={() => openHistoryModal(user as UserWithHistory)}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  d="M19 9l-7 7-7-7"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </Button>
                           </div>
+                          {user.flow !== 99999 && (
+                            <Progress
+                              aria-label="已用流量比例"
+                              className="w-24 mt-1"
+                              color={
+                                usedFlow / (user.flow * 1024 * 1024 * 1024) > 0.8
+                                  ? "danger"
+                                  : "primary"
+                              }
+                              size="sm"
+                              value={Math.min(
+                                (usedFlow / (user.flow * 1024 * 1024 * 1024)) *
+                                100,
+                                100,
+                              )}
+                            />
+                          )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <span className="text-sm text-foreground">
@@ -1719,11 +1739,11 @@ export default function UserPage() {
                               size="sm"
                               variant="light"
                               className="w-6 h-6 min-w-6"
-                              onPress={() => toggleHistory(user.id)}
+                              onPress={() => openHistoryModal(user)}
                             >
                               <svg
                                 aria-hidden="true"
-                                className={`w-4 h-4 transition-transform ${user.showHistory ? "rotate-180" : ""}`}
+                                className="w-4 h-4"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth={2}
@@ -1883,68 +1903,6 @@ export default function UserPage() {
                           </Button>
                         </div>
                       </div>
-                      {/* 流量历史弹窗 */}
-                      {user.showHistory && (
-                        <div className="mt-3 p-3 bg-default-50/80 dark:bg-default-100/20 rounded-lg border border-default-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="text-sm font-semibold text-foreground">
-                              流量历史
-                            </div>
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              className="w-6 h-6 min-w-6"
-                              onPress={() => toggleHistory(user.id)}
-                            >
-                              <svg
-                                aria-hidden="true"
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  d="M6 18L18 6M6 6l12 12"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </Button>
-                          </div>
-                          <div className="space-y-1.5 max-h-64 overflow-y-auto text-xs">
-                            {user.quotaHistory && user.quotaHistory.length > 0 ? (
-                              user.quotaHistory.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-center justify-between p-2 bg-white/70 dark:bg-black/20 rounded border border-default-100"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={`w-2 h-2 rounded-full ${item.periodType === "daily" ? "bg-blue-500" : "bg-purple-500"}`}
-                                    />
-                                    <span className="text-default-600">
-                                      {item.periodType === "daily" ? "日" : "月"}
-                                      {item.periodKey}
-                                    </span>
-                                  </div>
-                                  <span className="font-medium text-primary">
-                                    {item.usedGB} GB
-                                  </span>
-                                  <span className="text-default-500">
-                                    {formatDate(item.resetTime)}
-                                  </span>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="text-center text-default-400 py-4">
-                                暂无历史记录
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </CardBody>
                   </Card>
                 </div>
@@ -3067,6 +3025,109 @@ export default function UserPage() {
               确认删除
             </Button>
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {/* 流量历史弹窗 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
+        isOpen={isHistoryModalOpen}
+        placement="center"
+        scrollBehavior="inside"
+        size="md"
+        onClose={onHistoryModalClose}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div className="flex items-center justify-between w-full">
+              <div>
+                <div className="text-base font-semibold text-foreground">
+                  流量历史
+                </div>
+                {historyModalUser && (
+                  <div className="text-xs text-default-500 mt-0.5">
+                    {historyModalUser.name || historyModalUser.user} (@{historyModalUser.user})
+                  </div>
+                )}
+              </div>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                className="w-8 h-8 min-w-8"
+                onPress={onHistoryModalClose}
+              >
+                <svg
+                  aria-hidden="true"
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M6 18L18 6M6 6l12 12"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Button>
+            </div>
+          </ModalHeader>
+          <ModalBody className="py-4">
+            {historyModalUser && historyModalUser.quotaHistory && historyModalUser.quotaHistory.length > 0 ? (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {historyModalUser.quotaHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 bg-default-50/80 dark:bg-default-100/20 rounded-lg border border-default-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-3 h-3 rounded-full ${item.periodType === "daily" ? "bg-blue-500" : "bg-purple-500"}`}
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          {item.periodType === "daily" ? "日流量" : "月流量"}
+                        </div>
+                        <div className="text-xs text-default-500">
+                          {item.periodKey}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-primary">
+                        {item.usedGB} GB
+                      </div>
+                      <div className="text-xs text-default-500">
+                        {formatDate(item.resetTime)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-default-400">
+                <svg
+                  aria-hidden="true"
+                  className="w-16 h-16 mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <div className="text-sm">暂无历史记录</div>
+              </div>
+            )}
+          </ModalBody>
         </ModalContent>
       </Modal>
     </AnimatedPage>
