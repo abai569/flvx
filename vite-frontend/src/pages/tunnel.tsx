@@ -3234,6 +3234,7 @@ export default function TunnelPage() {
                                     }}
                                   >
                                     <SelectItem key="fifo">主备</SelectItem>
+                                    <SelectItem key="best">最优</SelectItem>
                                     <SelectItem key="round">轮询</SelectItem>
                                     <SelectItem key="rand">随机</SelectItem>
                                   </Select>
@@ -3640,6 +3641,7 @@ export default function TunnelPage() {
                                 }}
                               >
                                 <SelectItem key="fifo">主备</SelectItem>
+                                <SelectItem key="best">最优</SelectItem>
                                 <SelectItem key="round">轮询</SelectItem>
                                 <SelectItem key="rand">随机</SelectItem>
                               </Select>
