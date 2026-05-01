@@ -119,6 +119,7 @@ interface Forward {
   federationShareFlow?: number;
   createdTime: string;
   userName?: string;
+  userRemark?: string;
   userId?: number;
   inx?: number;
   speedId?: number | null;
@@ -544,6 +545,8 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
       typeof forward.createdTime === "string" ? forward.createdTime : "",
     userName:
       typeof forward.userName === "string" ? forward.userName : undefined,
+    userRemark:
+      typeof (forward as any).userRemark === "string" ? (forward as any).userRemark : undefined,
     userId: typeof forward.userId === "number" ? forward.userId : undefined,
     inx: typeof forward.inx === "number" ? forward.inx : undefined,
     speedId:
@@ -557,6 +560,8 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
     expiryTime: forward.expiryTime ?? null,
     speedLimitEnabled: forward.speedLimitEnabled ?? false,
     speedLimit: forward.speedLimit ?? 0,
+    inSpeed: (forward as any).inSpeed ?? 0,
+    outSpeed: (forward as any).outSpeed ?? 0,
   }));
 };
 const SortableTunnelGroupContainer = ({
@@ -783,7 +788,7 @@ const SortableTableRow = ({
       {isAdmin && (
         <TableCell className={`whitespace-nowrap ${rowBg}`}>
           <span className="text-sm text-foreground">
-            {forward.userName || "-"}
+            {forward.userRemark && forward.userRemark.trim() ? forward.userRemark.trim() : (forward.userName || "-")}
           </span>
         </TableCell>
       )}
@@ -897,7 +902,7 @@ const SortableTableRow = ({
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-col gap-1 items-start">
           {(forward.inSpeed || 0) > 0 && (
             <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400" title="上行带宽">
               ↑{formatSpeed(forward.inSpeed || 0)}
@@ -1080,7 +1085,7 @@ const SortableCompactTableRow = ({
       {isAdmin && (
         <TableCell className={`whitespace-nowrap ${rowBg}`}>
           <span className="text-sm text-foreground">
-            {forward.userName || "-"}
+            {forward.userRemark && forward.userRemark.trim() ? forward.userRemark.trim() : (forward.userName || "-")}
           </span>
         </TableCell>
       )}
@@ -1205,7 +1210,7 @@ const SortableCompactTableRow = ({
         </div>
       </TableCell>
       <TableCell className={`whitespace-nowrap ${rowBg}`}>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-col gap-1 items-start">
           {(forward.inSpeed || 0) > 0 && (
             <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400" title="上行带宽">
               ↑{formatSpeed(forward.inSpeed || 0)}
@@ -3637,7 +3642,8 @@ export default function ForwardPage() {
 
     orderedForwards.forEach((forward) => {
       const userId = forward.userId ?? 0;
-      const userName = normalizeForwardUserName(forward.userName);
+      const rawUserName = normalizeForwardUserName(forward.userName);
+      const userName = (forward.userRemark && forward.userRemark.trim()) ? forward.userRemark.trim() : rawUserName;
       const tunnelName = normalizeForwardTunnelName(forward.tunnelName);
       const tunnelKey = buildForwardTunnelGroupKey(forward.tunnelName);
       let existingGroup = userGroupMap.get(userId);
@@ -3803,8 +3809,7 @@ export default function ForwardPage() {
     forwards.forEach((f) => {
       const uId = f.userId ?? 0;
       const userName = normalizeForwardUserName(f.userName);
-      const userRemark = (f as any).userRemark;
-      
+      const userRemark = f.userRemark;
       const displayName = (userRemark && userRemark.trim()) ? userRemark.trim() : userName;
       
       const existingUser = userMap.get(uId);
