@@ -3798,34 +3798,22 @@ export default function ForwardPage() {
   };
   // 生成用作筛选项的用户和隧道列表
   const uniqueUsers = useMemo(() => {
-    const userMap = new Map<number, { id: number; name: string; userName: string; userRemark: string }>();
+    const userMap = new Map<number, { id: number; name: string }>();
 
     forwards.forEach((f) => {
       const uId = f.userId ?? 0;
-      const displayUserName = normalizeForwardUserName(f.userName);
+      const userName = normalizeForwardUserName(f.userName);
+      const userRemark = (f as any).userRemark;
+      
+      const displayName = (userRemark && userRemark.trim()) ? userRemark.trim() : userName;
+      
       const existingUser = userMap.get(uId);
-
       if (!existingUser) {
-        userMap.set(uId, { 
-          id: uId, 
-          userName: displayUserName,
-          userRemark: (f as any).userRemark || '',
-          name: (f as any).userRemark && (f as any).userRemark !== '' 
-            ? (f as any).userRemark 
-            : displayUserName 
-        });
-
+        userMap.set(uId, { id: uId, name: displayName });
         return;
       }
-      if (
-        existingUser.name === UNKNOWN_FORWARD_USER_NAME &&
-        displayUserName !== UNKNOWN_FORWARD_USER_NAME
-      ) {
-        existingUser.name = displayUserName;
-      }
-      if (!existingUser.userRemark && (f as any).userRemark) {
-        existingUser.userRemark = (f as any).userRemark;
-        existingUser.name = existingUser.userRemark;
+      if (!existingUser.name || existingUser.name === UNKNOWN_FORWARD_USER_NAME) {
+        existingUser.name = displayName;
       }
     });
     const users = Array.from(userMap.values());

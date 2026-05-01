@@ -164,7 +164,6 @@ func (r *Repository) ResetUserFlowByUser(userID int64, now int64) {
 	if r == nil || r.db == nil {
 		return
 	}
-	// 查询归零前的流量用于记录
 	var userFlow struct {
 		InFlow  int64
 		OutFlow int64
@@ -179,15 +178,16 @@ func (r *Repository) ResetUserFlowByUser(userID int64, now int64) {
 			"updated_time": sql.NullInt64{Int64: now, Valid: true},
 		}).Error
 
-	// 记录用户流量重置历史
 	if userFlow.InFlow > 0 || userFlow.OutFlow > 0 {
 		var user model.User
 		if err := r.db.Select("user", "name").Where("id = ?", userID).First(&user).Error; err == nil {
 			totalBytes := userFlow.InFlow + userFlow.OutFlow
+			t := time.Unix(0, now*int64(time.Millisecond))
+			dayKey, _ := userQuotaWindowKeys(t)
 			history := &model.UserQuotaHistory{
 				UserID:      userID,
-				PeriodType:  "manual",
-				PeriodKey:   now / 1000,
+				PeriodType:  "daily",
+				PeriodKey:   dayKey,
 				UsedBytes:   totalBytes,
 				ResetTime:   now,
 				CreatedTime: now,
