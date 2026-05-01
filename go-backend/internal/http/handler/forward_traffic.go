@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go-backend/internal/http/response"
+	"go-backend/internal/store/repo"
 )
 
 type forwardBatchResetTrafficRequest struct {
@@ -42,7 +43,7 @@ func (h *Handler) forwardBatchResetTraffic(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	actorUserName, _ := h.repo.GetUsernameByID(actorUserID)
+	actorUserName := h.repo.GetUsernameByID(actorUserID)
 
 	results := make([]forwardBatchResetTrafficResult, 0, len(req.ForwardIDs))
 
@@ -68,7 +69,7 @@ func (h *Handler) forwardBatchResetTraffic(w http.ResponseWriter, r *http.Reques
 			continue
 		}
 
-		if err := h.repo.CreateForwardTrafficResetLog(&ForwardTrafficResetLogCreateParams{
+		if err := h.repo.CreateForwardTrafficResetLog(&repo.ForwardTrafficResetLogCreateParams{
 			ForwardID:     forwardID,
 			ForwardName:   forward.Name,
 			UserID:        forward.UserID,

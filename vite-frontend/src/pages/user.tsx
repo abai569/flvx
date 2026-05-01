@@ -3031,65 +3031,52 @@ export default function UserPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-[500px] rounded-xl",
         }}
         isOpen={isHistoryModalOpen}
         placement="center"
-        scrollBehavior="inside"
-        size="md"
         onClose={onHistoryModalClose}
       >
         <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            <div className="flex items-center justify-between w-full">
-              <div>
-                <div className="text-base font-semibold text-foreground">
-                  流量历史
-                </div>
-                {historyModalUser && (
-                  <div className="text-xs text-default-500 mt-0.5">
-                    {historyModalUser.name || historyModalUser.user} (@{historyModalUser.user})
-                  </div>
-                )}
-              </div>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                className="w-8 h-8 min-w-8"
-                onPress={onHistoryModalClose}
+          <ModalHeader className="flex items-center justify-between">
+            <span className="text-base font-semibold">流量历史</span>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              className="w-8 h-8 min-w-8"
+              onPress={onHistoryModalClose}
+            >
+              <svg
+                aria-hidden="true"
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
               >
-                <svg
-                  aria-hidden="true"
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M6 18L18 6M6 6l12 12"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </Button>
-            </div>
+                <path
+                  d="M6 18L18 6M6 6l12 12"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Button>
           </ModalHeader>
-          <ModalBody className="py-4">
+          <ModalBody className="py-6">
             {historyModalUser && historyModalUser.quotaHistory && historyModalUser.quotaHistory.length > 0 ? (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="space-y-2 max-h-80 overflow-y-auto">
                 {historyModalUser.quotaHistory.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-3 bg-default-50/80 dark:bg-default-100/20 rounded-lg border border-default-200"
+                    className="flex items-center justify-between p-3 bg-default-50/50 dark:bg-default-100/20 rounded-lg"
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-3 h-3 rounded-full ${item.periodType === "daily" ? "bg-blue-500" : "bg-purple-500"}`}
+                        className={`w-2.5 h-2.5 rounded-full ${item.periodType === "daily" ? "bg-blue-500" : "bg-purple-500"}`}
                       />
                       <div>
-                        <div className="text-sm font-medium text-foreground">
+                        <div className="text-sm font-medium">
                           {item.periodType === "daily" ? "日流量" : "月流量"}
                         </div>
                         <div className="text-xs text-default-500">
@@ -3109,25 +3096,14 @@ export default function UserPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-default-400">
-                <svg
-                  aria-hidden="true"
-                  className="w-16 h-16 mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <div className="text-sm">暂无历史记录</div>
+              <div className="flex flex-col items-center justify-center py-8 text-default-400">
+                <div className="text-sm">暂无记录</div>
               </div>
             )}
           </ModalBody>
+          <ModalFooter className="border-t border-default-200">
+            <Button onPress={onHistoryModalClose}>关闭</Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </AnimatedPage>

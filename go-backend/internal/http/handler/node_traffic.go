@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go-backend/internal/http/response"
+	"go-backend/internal/store/repo"
 )
 
 type nodeBatchResetTrafficRequest struct {
@@ -43,7 +44,7 @@ func (h *Handler) nodeBatchResetTraffic(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	actorUserName, _ := h.repo.GetUsernameByID(actorUserID)
+	actorUserName := h.repo.GetUsernameByID(actorUserID)
 
 	results := make([]nodeBatchResetTrafficResult, 0, len(req.NodeIDs))
 
@@ -84,7 +85,7 @@ func (h *Handler) nodeBatchResetTraffic(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
-		if err := h.repo.CreateNodeTrafficResetLog(&NodeTrafficResetLogCreateParams{
+		if err := h.repo.CreateNodeTrafficResetLog(&repo.NodeTrafficResetLogCreateParams{
 			NodeID:       nodeID,
 			NodeName:     node.Name,
 			ResetTime:    time.Now().UnixMilli(),
