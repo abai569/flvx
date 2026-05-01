@@ -945,7 +945,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 		ID                int64
 		UserID            int64
 		UserName          string
-		UserRemark        string
+		UserRemark        string `gorm:"column:user_remark"`
 		Name              string
 		TunnelID          int64
 		TunnelName        string
