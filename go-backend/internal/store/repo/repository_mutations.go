@@ -164,6 +164,13 @@ func (r *Repository) ResetUserFlowByUser(userID int64, now int64) {
 	if r == nil || r.db == nil {
 		return
 	}
+	// 查询归零前的流量用于记录
+	var userFlow struct {
+		InFlow  int64
+		OutFlow int64
+	}
+	r.db.Model(&model.User{}).Select("in_flow", "out_flow").Where("id = ?", userID).First(&userFlow)
+
 	_ = r.db.Model(&model.User{}).
 		Where("id = ?", userID).
 		Updates(map[string]interface{}{
@@ -171,6 +178,25 @@ func (r *Repository) ResetUserFlowByUser(userID int64, now int64) {
 			"out_flow":     0,
 			"updated_time": sql.NullInt64{Int64: now, Valid: true},
 		}).Error
+
+	// 记录用户流量重置历史
+	if userFlow.InFlow > 0 || userFlow.OutFlow > 0 {
+		var user model.User
+		if err := r.db.Select("user", "name").Where("id = ?", userID).First(&user).Error; err == nil {
+			totalBytes := userFlow.InFlow + userFlow.OutFlow
+			history := &model.UserQuotaHistory{
+				UserID:      userID,
+				PeriodType:  "manual",
+				PeriodKey:   now / 1000,
+				UsedBytes:   totalBytes,
+				ResetTime:   now,
+				CreatedTime: now,
+				ResetReason: "管理员手动重置",
+			}
+			r.db.Create(history)
+		}
+	}
+
 	_ = r.db.Model(&model.UserTunnel{}).
 		Where("user_id = ?", userID).
 		Updates(map[string]interface{}{"in_flow": 0, "out_flow": 0}).Error
@@ -180,9 +206,40 @@ func (r *Repository) ResetUserFlowByUserTunnel(userTunnelID int64) {
 	if r == nil || r.db == nil {
 		return
 	}
+	// 查询归零前的流量
+	var utFlow struct {
+		InFlow  int64
+		OutFlow int64
+		UserID  int64
+	}
+	r.db.Model(&model.UserTunnel{}).Select("in_flow", "out_flow", "user_id").Where("id = ?", userTunnelID).First(&utFlow)
+
 	_ = r.db.Model(&model.UserTunnel{}).
 		Where("id = ?", userTunnelID).
 		Updates(map[string]interface{}{"in_flow": 0, "out_flow": 0}).Error
+
+	// 记录隧道流量重置历史
+	if utFlow.InFlow > 0 || utFlow.OutFlow > 0 {
+		var user model.User
+		var tunnel model.Tunnel
+		r.db.Model(&model.User{}).Select("user", "name").Where("id = ?", utFlow.UserID).First(&user)
+		
+		var userTunnel model.UserTunnel
+		r.db.Model(&model.UserTunnel{}).Select("tunnel_id").Where("id = ?", userTunnelID).First(&userTunnel)
+		r.db.Model(&model.Tunnel{}).Select("name").Where("id = ?", userTunnel.TunnelID).First(&tunnel)
+
+		totalBytes := utFlow.InFlow + utFlow.OutFlow
+		history := model.UserQuotaHistory{
+			UserID:      utFlow.UserID,
+			PeriodType:  "tunnel",
+			PeriodKey:   userTunnel.TunnelID,
+			UsedBytes:   totalBytes,
+			ResetTime:   time.Now().UnixMilli(),
+			CreatedTime: time.Now().UnixMilli(),
+			ResetReason: "管理员手动重置",
+		}
+		r.db.Create(&history)
+	}
 }
 
 func (r *Repository) GetUsernameByID(userID int64) string {
