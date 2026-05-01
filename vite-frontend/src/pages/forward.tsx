@@ -698,6 +698,7 @@ const SortableTableRow = ({
   toggleSelect,
   handleServiceToggle,
   handleEdit,
+  handleCopy,
   handleDelete,
   handleDiagnose,
   formatFlow,
@@ -929,6 +930,16 @@ const SortableTableRow = ({
           </Button>
           <Button
             className="min-h-7 px-2"
+            color="warning"
+            size="sm"
+            variant="flat"
+            title="复制"
+            onPress={() => handleCopy(forward)}
+          >
+            复制
+          </Button>
+          <Button
+            className="min-h-7 px-2"
             color="secondary"
             size="sm"
             variant="flat"
@@ -959,6 +970,7 @@ const SortableCompactTableRow = ({
   toggleSelect,
   handleServiceToggle,
   handleEdit,
+  handleCopy,
   handleDelete,
   handleDiagnose,
   formatFlow,
@@ -1198,6 +1210,16 @@ const SortableCompactTableRow = ({
             onPress={() => handleEdit(forward)}
           >
             编辑
+          </Button>
+          <Button
+            className="min-h-7 px-2"
+            color="warning"
+            size="sm"
+            variant="flat"
+            title="复制"
+            onPress={() => handleCopy(forward)}
+          >
+            复制
           </Button>
           <Button
             className="min-h-7 px-2"
@@ -2150,6 +2172,29 @@ export default function ForwardPage() {
       name: forward.name,
       tunnelId: forward.tunnelId,
       inPort: forward.inPort,
+      inIp: forward.inIp || "",
+      remoteAddr: forward.remoteAddr.split(",").join("\n"),
+      interfaceName: forward.interfaceName || "",
+      strategy: forward.strategy || "fifo",
+      speedId: normalizeSpeedId(forward.speedId),
+      maxConnections: forward.maxConnections ?? 0,
+      trafficLimit: forward.trafficLimit ?? 0,
+      expiryTime: forward.expiryTime ?? null,
+      speedLimitEnabled: forward.speedLimitEnabled ?? false,
+      speedLimit: forward.speedLimit ?? 0,
+    });
+    setErrors({});
+    setModalOpen(true);
+  };
+  // 复制规则
+  const handleCopy = (forward: Forward) => {
+    setIsEdit(false);
+    setInIpTouched(false);
+    setForm({
+      userId: forward.userId,
+      name: forward.name + " (副本)",
+      tunnelId: forward.tunnelId,
+      inPort: null,
       inIp: forward.inIp || "",
       remoteAddr: forward.remoteAddr.split(",").join("\n"),
       interfaceName: forward.interfaceName || "",
@@ -3926,6 +3971,15 @@ export default function ForwardPage() {
               color="warning"
               size="sm"
               variant="flat"
+              onPress={() => handleCopy(forward)}
+            >
+              复制
+            </Button>
+            <Button
+              className="flex-1 min-h-8 flex-shrink-0"
+              color="warning"
+              size="sm"
+              variant="flat"
               onPress={() => handleDiagnose(forward)}
             >
               诊断
@@ -4320,6 +4374,7 @@ export default function ForwardPage() {
                             handleDelete={handleDelete}
                             handleDiagnose={handleDiagnose}
                             handleEdit={handleEdit}
+                            handleCopy={handleCopy}
                             handleServiceToggle={handleServiceToggle}
                             hasMultipleAddresses={hasMultipleAddresses}
                             isAdmin={isAdmin}
@@ -4629,6 +4684,7 @@ export default function ForwardPage() {
                                               handleDelete={handleDelete}
                                               handleDiagnose={handleDiagnose}
                                               handleEdit={handleEdit}
+                                              handleCopy={handleCopy}
                                               handleServiceToggle={
                                                 handleServiceToggle
                                               }
