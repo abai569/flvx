@@ -82,7 +82,9 @@ import {
   batchDeleteUsers,
   batchResetUserFlow,
   updateUserOrder,
+  getUserQuotaHistory,
 } from "@/api";
+import type { UserQuotaHistoryItem } from "@/api/types";
 import {
   EditIcon,
   DeleteIcon,
@@ -92,6 +94,12 @@ import {
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { removeItemsById, replaceItemById } from "@/utils/list-state";
+
+// 扩展 User 类型，添加流量历史相关字段
+type UserWithHistory = User & {
+  quotaHistory?: UserQuotaHistoryItem[];
+  showHistory?: boolean;
+};
 // 工具函数
 const formatFlow = (value: number, unit: string = "bytes"): string => {
   if (unit === "gb") {
@@ -143,7 +151,7 @@ const calculateTunnelUsedFlow = (tunnel: UserTunnel): number => {
 };
 const USER_SEARCH_DEBOUNCE_MS = 250;
 const USER_VIEW_MODE_KEY = "user_view_mode";
-const normalizeUserItem = (item: Partial<User>): User => {
+const normalizeUserItem = (item: Partial<User>): UserWithHistory => {
   return {
     id: Number(item.id ?? 0),
     name: item.name,
@@ -162,6 +170,8 @@ const normalizeUserItem = (item: Partial<User>): User => {
     monthlyUsedBytes: Number(item.monthlyUsedBytes ?? 0),
     disabledByQuota: Number(item.disabledByQuota ?? 0),
     quotaDisabledAt: Number(item.quotaDisabledAt ?? 0),
+    quotaHistory: [],
+    showHistory: false,
   };
 };
 const normalizeUserTunnelItem = (item: Partial<UserTunnel>): UserTunnel => {
@@ -193,7 +203,7 @@ export default function UserPage() {
   // 列表模式选中行
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   // 状态管理
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserWithHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useLocalStorageState(
     "user-search-keyword",
@@ -703,6 +713,38 @@ export default function UserPage() {
     });
     onUserModalOpen();
   };
+
+  // 切换流量历史显示
+  const toggleHistory = useCallback(async (userId: number) => {
+    setUsers(prev => {
+      const user = prev.find(u => u.id === userId);
+      if (!user) return prev;
+      
+      const newShowHistory = !user.showHistory;
+      
+      // 如果是展开且没有历史数据，则加载
+      if (newShowHistory && (!user.quotaHistory || user.quotaHistory.length === 0)) {
+        // 异步加载，不阻塞 UI
+        (async () => {
+          try {
+            const res = await getUserQuotaHistory(userId, 50);
+            if (res.code === 0) {
+              setUsers(prev2 => prev2.map(u => 
+                u.id === userId ? { ...u, quotaHistory: res.data } : u
+              ));
+            }
+          } catch (error) {
+            toast.error('加载流量历史失败');
+          }
+        })();
+      }
+      
+      return prev.map(u => 
+        u.id === userId ? { ...u, showHistory: newShowHistory } : u
+      );
+    });
+  }, []);
+
   const handleEdit = async (user: User) => {
     setIsEdit(true);
     let currentGroupIds: number[] = [];
@@ -1668,9 +1710,33 @@ export default function UserPage() {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">已用流量</span>
-                          <span className="font-medium text-xs text-primary">
-                            {formatFlow(usedFlow)}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-xs text-primary">
+                              {formatFlow(usedFlow)}
+                            </span>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              className="w-6 h-6 min-w-6"
+                              onPress={() => toggleHistory(user.id)}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                className={`w-4 h-4 transition-transform ${user.showHistory ? "rotate-180" : ""}`}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  d="M19 9l-7 7-7-7"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </Button>
+                          </div>
                         </div>
                         {user.flow !== 99999 && (
                           <Progress
@@ -1817,6 +1883,68 @@ export default function UserPage() {
                           </Button>
                         </div>
                       </div>
+                      {/* 流量历史弹窗 */}
+                      {user.showHistory && (
+                        <div className="mt-3 p-3 bg-default-50/80 dark:bg-default-100/20 rounded-lg border border-default-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-sm font-semibold text-foreground">
+                              流量历史
+                            </div>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              className="w-6 h-6 min-w-6"
+                              onPress={() => toggleHistory(user.id)}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  d="M6 18L18 6M6 6l12 12"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </Button>
+                          </div>
+                          <div className="space-y-1.5 max-h-64 overflow-y-auto text-xs">
+                            {user.quotaHistory && user.quotaHistory.length > 0 ? (
+                              user.quotaHistory.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between p-2 bg-white/70 dark:bg-black/20 rounded border border-default-100"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={`w-2 h-2 rounded-full ${item.periodType === "daily" ? "bg-blue-500" : "bg-purple-500"}`}
+                                    />
+                                    <span className="text-default-600">
+                                      {item.periodType === "daily" ? "日" : "月"}
+                                      {item.periodKey}
+                                    </span>
+                                  </div>
+                                  <span className="font-medium text-primary">
+                                    {item.usedGB} GB
+                                  </span>
+                                  <span className="text-default-500">
+                                    {formatDate(item.resetTime)}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center text-default-400 py-4">
+                                暂无历史记录
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </CardBody>
                   </Card>
                 </div>

@@ -615,3 +615,14 @@ export interface OfflineDeployPayload {
   amd64Download: string;
   arm64Download: string;
 }
+
+// 用户流量历史项
+export interface UserQuotaHistoryItem {
+  id: number;
+  periodType: "daily" | "monthly";
+  periodKey: number;  // YYYYMMDD 或 YYYYMM
+  usedBytes: number;
+  usedGB: string;
+  resetTime: number;
+  createdTime: number;
+}

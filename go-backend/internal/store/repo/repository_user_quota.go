@@ -291,6 +291,41 @@ func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Ti
 			return err
 		}
 		applyUserQuotaWindowRoll(q, now)
+		
+		nowMs := now.UnixMilli()
+		
+		// 保存历史流量记录（重置前）
+		if scope == "daily" || scope == "all" {
+			if q.DailyUsedBytes > 0 {
+				history := model.UserQuotaHistory{
+					UserID:      userID,
+					PeriodType:  "daily",
+					PeriodKey:   q.DayKey,
+					UsedBytes:   q.DailyUsedBytes,
+					ResetTime:   nowMs,
+					CreatedTime: nowMs,
+				}
+				if err := tx.Create(&history).Error; err != nil {
+					return err
+				}
+			}
+		}
+		if scope == "monthly" || scope == "all" {
+			if q.MonthlyUsedBytes > 0 {
+				history := model.UserQuotaHistory{
+					UserID:      userID,
+					PeriodType:  "monthly",
+					PeriodKey:   q.MonthKey,
+					UsedBytes:   q.MonthlyUsedBytes,
+					ResetTime:   nowMs,
+					CreatedTime: nowMs,
+				}
+				if err := tx.Create(&history).Error; err != nil {
+					return err
+				}
+			}
+		}
+		
 		switch scope {
 		case "daily":
 			q.DailyUsedBytes = 0
@@ -300,7 +335,7 @@ func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Ti
 			q.DailyUsedBytes = 0
 			q.MonthlyUsedBytes = 0
 		}
-		q.UpdatedTime = now.UnixMilli()
+		q.UpdatedTime = nowMs
 		release = &UserQuotaRelease{UserID: userID}
 		if q.DisabledByQuota == 1 && !userQuotaExceeded(cloneUserQuotaView(*q)) {
 			release.UnblockUser = true
@@ -324,6 +359,57 @@ func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Ti
 		return nil, err
 	}
 	return release, nil
+}
+
+// UserQuotaHistoryItem 用户流量历史项
+type UserQuotaHistoryItem struct {
+	ID          int64  `json:"id"`
+	PeriodType  string `json:"periodType"`  // daily/monthly
+	PeriodKey   int64  `json:"periodKey"`   // YYYYMMDD 或 YYYYMM
+	UsedBytes   int64  `json:"usedBytes"`
+	UsedGB      string `json:"usedGB"`      // 格式化后的 GB 值
+	ResetTime   int64  `json:"resetTime"`
+	CreatedTime int64  `json:"createdTime"`
+}
+
+// GetUserQuotaHistory 获取用户流量历史记录
+func (r *Repository) GetUserQuotaHistory(userID int64, limit int) ([]UserQuotaHistoryItem, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	if userID <= 0 {
+		return nil, errors.New("user id is required")
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	
+	var histories []model.UserQuotaHistory
+	err := r.db.Where("user_id = ?", userID).
+		Order("created_time DESC").
+		Limit(limit).
+		Find(&histories).Error
+	if err != nil {
+		return nil, err
+	}
+	
+	items := make([]UserQuotaHistoryItem, 0, len(histories))
+	bytesPerGB := int64(1024 * 1024 * 1024)
+	
+	for _, h := range histories {
+		usedGB := fmt.Sprintf("%.2f", float64(h.UsedBytes)/float64(bytesPerGB))
+		items = append(items, UserQuotaHistoryItem{
+			ID:          h.ID,
+			PeriodType:  h.PeriodType,
+			PeriodKey:   h.PeriodKey,
+			UsedBytes:   h.UsedBytes,
+			UsedGB:      usedGB,
+			ResetTime:   h.ResetTime,
+			CreatedTime: h.CreatedTime,
+		})
+	}
+	
+	return items, nil
 }
 
 func (r *Repository) RollUserQuotaWindows(now time.Time) ([]UserQuotaRelease, error) {

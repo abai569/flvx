@@ -26,6 +26,7 @@ import type {
   UserGroupApiItem,
   UserListQuery,
   UserPackageInfoApiData,
+  UserQuotaHistoryItem,
   UserTunnelPermissionApiItem,
   TunnelApiItem,
   UserTunnelApiItem,
@@ -276,6 +277,8 @@ export const resetUserFlow = (data: { id: number; type: number }) =>
   Network.post("/user/reset", data);
 export const resetUserQuota = (data: UserQuotaResetPayload) =>
   Network.post("/user/quota/reset", data);
+export const getUserQuotaHistory = (userId: number, limit: number = 50) =>
+  Network.post<UserQuotaHistoryItem[]>("/user/quota/history", { userId, limit });
 
 export const getUserGroups = (id: number) =>
   Network.post<number[]>("/user/groups", { id });
