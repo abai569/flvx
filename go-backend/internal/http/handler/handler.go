@@ -31,6 +31,7 @@ type Handler struct {
 	wsServer    *ws.Server
 	metrics     *metrics.IngestionService
 	healthCheck *health.Checker
+	bestExit    *bestExitManager
 
 	captchaMu     sync.Mutex
 	captchaTokens map[string]int64
@@ -101,6 +102,7 @@ func New(repo *repo.Repository, jwtSecret string) *Handler {
 		wsServer:               ws.NewServer(repo, jwtSecret),
 		metrics:                metrics.NewIngestionService(repo),
 		healthCheck:            nil,
+		bestExit:               newBestExitManager(),
 		captchaTokens:          make(map[string]int64),
 		pendingUpgradeRedeploy: make(map[int64]struct{}),
 	}
@@ -511,6 +513,7 @@ func (h *Handler) tunnelList(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	h.attachBestExitStatesOrLog(items)
 	response.WriteJSON(w, response.OK(items))
 }
 

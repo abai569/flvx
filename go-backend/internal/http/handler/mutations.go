@@ -1175,6 +1175,7 @@ func (h *Handler) tunnelGet(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	h.attachBestExitStatesOrLog(items)
 	for _, it := range items {
 		if asInt64(it["id"], 0) == id {
 			response.WriteJSON(w, response.OK(it))

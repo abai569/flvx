@@ -92,6 +92,23 @@ interface ChainTunnel {
   port?: number;
   connectIpType?: string;
 }
+interface BestExitStateItem {
+  ownerNodeId: number;
+  ownerNodeName: string;
+  ownerRole: "entry" | "chain";
+  exitNodeId?: number;
+  exitNodeName: string;
+  updatedAt?: number;
+  reason?: string;
+}
+interface BestExitState {
+  enabled: boolean;
+  summary: string;
+  status: "applied" | "waiting";
+  updatedAt?: number;
+  reason?: string;
+  items: BestExitStateItem[];
+}
 interface Tunnel {
   id: number;
   inx?: number;
@@ -110,6 +127,7 @@ interface Tunnel {
   createdTime: string;
   tunnelGroupId?: number | null;
   remark?: string;
+  bestExitState?: BestExitState | null;
 }
 interface Node {
   id: number;
@@ -269,7 +287,54 @@ const mapTunnelApiItems = (items: any[]): Tunnel[] => {
     createdTime: tunnel.createdTime || "",
     tunnelGroupId: tunnel.tunnelGroupId ?? null,
     remark: tunnel.remark || "",
+    bestExitState:
+      tunnel.bestExitState && typeof tunnel.bestExitState === "object"
+        ? {
+            ...tunnel.bestExitState,
+            items: Array.isArray(tunnel.bestExitState.items)
+              ? tunnel.bestExitState.items
+              : [],
+          }
+        : null,
   }));
+};
+
+const bestExitOwnerRoleText = (role: BestExitStateItem["ownerRole"]) => {
+  return role === "chain" ? "中转" : "入口";
+};
+
+const bestExitDetailTitle = (state?: BestExitState | null) => {
+  if (!state?.enabled || !state.items?.length) {
+    return "";
+  }
+  return state.items
+    .map((item) => {
+      const ownerName = item.ownerNodeName || `${bestExitOwnerRoleText(item.ownerRole)} ${item.ownerNodeId}`;
+      const exitName = item.exitNodeName || "等待探测";
+      return `${ownerName} -> ${exitName}`;
+    })
+    .join("\n");
+};
+
+const renderBestExitState = (state?: BestExitState | null) => {
+  if (!state?.enabled) {
+    return null;
+  }
+  const title = bestExitDetailTitle(state);
+  const isWaiting = state.status === "waiting";
+
+  return (
+    <div
+      className={`mt-1 text-[11px] leading-4 ${
+        isWaiting
+          ? "text-default-500"
+          : "text-emerald-700 dark:text-emerald-300"
+      }`}
+      title={title || undefined}
+    >
+      最优出口：{state.summary || "等待探测"}
+    </div>
+  );
 };
 
 export default function TunnelPage() {
@@ -2226,6 +2291,7 @@ export default function TunnelPage() {
                                 <span className="font-medium text-foreground">
                                   {outCount}个
                                 </span>
+                                {renderBestExitState(tunnel.bestExitState)}
                               </td>
                               <td className="py-3 px-4 text-center align-middle">
                                 <span className="font-medium text-foreground">
@@ -2472,6 +2538,9 @@ export default function TunnelPage() {
                                     </span>
                                   </div>
                                 </div>
+                              </div>
+                              <div className="text-center">
+                                {renderBestExitState(tunnel.bestExitState)}
                               </div>
                               {/* 流量配置 */}
                               <div

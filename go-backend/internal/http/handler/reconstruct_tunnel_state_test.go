@@ -66,14 +66,14 @@ func TestReconstructTunnelState_PreservesConnectIP(t *testing.T) {
 	if len(state.ChainHops) != 1 || len(state.ChainHops[0]) != 1 {
 		t.Fatalf("unexpected chain hops: %+v", state.ChainHops)
 	}
-	if got := state.ChainHops[0][0].ConnectIP; got != "10.99.9.22" {
+	if got := state.ChainHops[0][0].ConnectIPType; got != "10.99.9.22" {
 		t.Fatalf("expected middle connectIp 10.99.9.22, got %q", got)
 	}
 
 	if len(state.OutNodes) != 1 {
 		t.Fatalf("unexpected out nodes: %+v", state.OutNodes)
 	}
-	if got := state.OutNodes[0].ConnectIP; got != "10.99.9.33" {
+	if got := state.OutNodes[0].ConnectIPType; got != "10.99.9.33" {
 		t.Fatalf("expected exit connectIp 10.99.9.33, got %q", got)
 	}
 }
