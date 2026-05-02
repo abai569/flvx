@@ -62,6 +62,7 @@ import { DatePresets } from "@/shadcn-bridge/heroui/date-presets";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
+import { Chip } from "@/shadcn-bridge/heroui/chip";
 import {
   User,
   UserGroup,
