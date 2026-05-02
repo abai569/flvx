@@ -361,6 +361,16 @@ func (r *Repository) GetForwardTrafficResetLogs(forwardID int64, limit int) ([]F
 	return items, nil
 }
 
+func (r *Repository) DeleteForwardTrafficResetLog(id int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	if id <= 0 {
+		return errors.New("invalid log id")
+	}
+	return r.db.Delete(&model.ForwardTrafficResetLog{}, id).Error
+}
+
 type NodeTrafficResetLogItem struct {
 	ID            int64  `json:"id"`
 	NodeID        int64  `json:"nodeId"`
@@ -411,4 +421,14 @@ func (r *Repository) GetNodeTrafficResetLogs(nodeID int64, limit int) ([]NodeTra
 	}
 
 	return items, nil
+}
+
+func (r *Repository) DeleteNodeTrafficResetLog(id int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	if id <= 0 {
+		return errors.New("invalid log id")
+	}
+	return r.db.Delete(&model.NodeTrafficResetLog{}, id).Error
 }

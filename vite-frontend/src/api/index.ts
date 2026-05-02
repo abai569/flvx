@@ -279,6 +279,8 @@ export const resetUserQuota = (data: UserQuotaResetPayload) =>
   Network.post("/user/quota/reset", data);
 export const getUserQuotaHistory = (userId: number, limit: number = 50) =>
   Network.post<UserQuotaHistoryItem[]>("/user/quota/history", { userId, limit });
+export const deleteUserQuotaHistory = (id: number) =>
+  Network.post("/user/quota/history/delete", { id });
 
 export const getUserGroups = (id: number) =>
   Network.post<number[]>("/user/groups", { id });
@@ -346,6 +348,8 @@ export const getForwardTrafficResetLogs = (forwardId: number, limit?: number) =>
     operatorName: string;
     createdTime: number;
   }[]>("/forward/traffic-reset-logs", { forwardId, limit });
+export const deleteForwardTrafficResetLog = (id: number) =>
+  Network.post("/forward/traffic-reset-log/delete", { id });
 export const getNodeTrafficResetLogs = (nodeId: number, limit?: number) =>
   Network.post<{
     id: number;
@@ -359,6 +363,8 @@ export const getNodeTrafficResetLogs = (nodeId: number, limit?: number) =>
     outFlowBefore: number;
     createdTime: number;
   }[]>("/node/traffic-reset-logs", { nodeId, limit });
+export const deleteNodeTrafficResetLog = (id: number) =>
+  Network.post("/node/traffic-reset-log/delete", { id });
 export const batchRedeployForwards = (ids: number[]) =>
   Network.post<BatchOperationResult>("/forward/batch-redeploy", { ids });
 export const batchRedeployTunnels = (ids: number[]) =>

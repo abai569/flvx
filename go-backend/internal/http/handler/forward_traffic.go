@@ -196,3 +196,57 @@ func (h *Handler) nodeTrafficResetLogs(w http.ResponseWriter, r *http.Request) {
 		"logs":     logs,
 	}))
 }
+
+func (h *Handler) deleteNodeTrafficResetLog(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求方法错误"))
+		return
+	}
+
+	var req struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.WriteJSON(w, response.Err(-1, "无效的请求数据"))
+		return
+	}
+
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.Err(-1, "日志 ID 无效"))
+		return
+	}
+
+	if err := h.repo.DeleteNodeTrafficResetLog(req.ID); err != nil {
+		response.WriteJSON(w, response.Err(-1, "删除失败："+err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) deleteForwardTrafficResetLog(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求方法错误"))
+		return
+	}
+
+	var req struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.WriteJSON(w, response.Err(-1, "无效的请求数据"))
+		return
+	}
+
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.Err(-1, "日志 ID 无效"))
+		return
+	}
+
+	if err := h.repo.DeleteForwardTrafficResetLog(req.ID); err != nil {
+		response.WriteJSON(w, response.Err(-1, "删除失败："+err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}

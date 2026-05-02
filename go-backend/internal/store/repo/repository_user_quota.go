@@ -61,9 +61,6 @@ func userQuotaExceeded(view *model.UserQuotaView) bool {
 	if view == nil {
 		return false
 	}
-	if view.DailyLimitGB > 0 && view.DailyUsedBytes >= view.DailyLimitGB*userQuotaBytesPerGB {
-		return true
-	}
 	if view.MonthlyLimitGB > 0 && view.MonthlyUsedBytes >= view.MonthlyLimitGB*userQuotaBytesPerGB {
 		return true
 	}
@@ -378,14 +375,18 @@ func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Ti
 
 // UserQuotaHistoryItem 用户流量历史项
 type UserQuotaHistoryItem struct {
-	ID          int64  `json:"id"`
-	PeriodType  string `json:"periodType"`  // daily/monthly
-	PeriodKey   int64  `json:"periodKey"`   // YYYYMMDD 或 YYYYMM
-	UsedBytes   int64  `json:"usedBytes"`
-	UsedGB      string `json:"usedGB"`      // 格式化后的 GB 值
-	ResetTime   int64  `json:"resetTime"`
-	CreatedTime int64  `json:"createdTime"`
-	ResetReason string `json:"resetReason"`
+	ID            int64  `json:"id"`
+	PeriodType    string `json:"periodType"`   // daily/monthly
+	PeriodKey     int64  `json:"periodKey"`    // YYYYMMDD 或 YYYYMM
+	InFlowBefore  int64  `json:"inFlowBefore"` // 上行流量 (bytes)
+	OutFlowBefore int64  `json:"outFlowBefore"`// 下行流量 (bytes)
+	UsedBytes     int64  `json:"usedBytes"`
+	InFlowGB      string `json:"inFlowGB"`     // 上行流量 (GB)
+	OutFlowGB     string `json:"outFlowGB"`    // 下行流量 (GB)
+	UsedGB        string `json:"usedGB"`       // 格式化后的 GB 值
+	ResetTime     int64  `json:"resetTime"`
+	CreatedTime   int64  `json:"createdTime"`
+	ResetReason   string `json:"resetReason"`
 }
 
 // GetUserQuotaHistory 获取用户流量历史记录
@@ -413,16 +414,22 @@ func (r *Repository) GetUserQuotaHistory(userID int64, limit int) ([]UserQuotaHi
 	bytesPerGB := int64(1024 * 1024 * 1024)
 	
 	for _, h := range histories {
+		inFlowGB := fmt.Sprintf("%.2f", float64(h.InFlowBefore)/float64(bytesPerGB))
+		outFlowGB := fmt.Sprintf("%.2f", float64(h.OutFlowBefore)/float64(bytesPerGB))
 		usedGB := fmt.Sprintf("%.2f", float64(h.UsedBytes)/float64(bytesPerGB))
 		items = append(items, UserQuotaHistoryItem{
-			ID:          h.ID,
-			PeriodType:  h.PeriodType,
-			PeriodKey:   h.PeriodKey,
-			UsedBytes:   h.UsedBytes,
-			UsedGB:      usedGB,
-			ResetTime:   h.ResetTime,
-			CreatedTime: h.CreatedTime,
-			ResetReason: h.ResetReason,
+			ID:            h.ID,
+			PeriodType:    h.PeriodType,
+			PeriodKey:     h.PeriodKey,
+			InFlowBefore:  h.InFlowBefore,
+			OutFlowBefore: h.OutFlowBefore,
+			UsedBytes:     h.UsedBytes,
+			InFlowGB:      inFlowGB,
+			OutFlowGB:     outFlowGB,
+			UsedGB:        usedGB,
+			ResetTime:     h.ResetTime,
+			CreatedTime:   h.CreatedTime,
+			ResetReason:   h.ResetReason,
 		})
 	}
 	
@@ -492,4 +499,14 @@ func (r *Repository) RollUserQuotaWindows(now time.Time, resetReason string) ([]
 		return nil, err
 	}
 	return releases, nil
+}
+
+func (r *Repository) DeleteUserQuotaHistory(id int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	if id <= 0 {
+		return errors.New("invalid history id")
+	}
+	return r.db.Delete(&model.UserQuotaHistory{}, id).Error
 }

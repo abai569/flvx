@@ -622,6 +622,10 @@ export interface UserQuotaHistoryItem {
   periodType: "daily" | "monthly";
   periodKey: number;  // YYYYMMDD 或 YYYYMM
   usedBytes: number;
+  inFlowBefore: number;
+  outFlowBefore: number;
+  inFlowGB: string;
+  outFlowGB: string;
   usedGB: string;
   resetTime: number;
   createdTime: number;

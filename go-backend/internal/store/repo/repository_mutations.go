@@ -164,11 +164,28 @@ func (r *Repository) ResetUserFlowByUser(userID int64, now int64) {
 	if r == nil || r.db == nil {
 		return
 	}
-	var userFlow struct {
-		InFlow  int64
-		OutFlow int64
+
+	var user model.User
+	var quota model.UserQuota
+
+	if err := r.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		return
 	}
-	r.db.Model(&model.User{}).Select("in_flow", "out_flow").Where("id = ?", userID).First(&userFlow)
+
+	_ = r.db.Where("user_id = ?", userID).First(&quota).Error
+
+	var tunnelFlow struct {
+		TotalInFlow  int64 `gorm:"column:total_in_flow"`
+		TotalOutFlow int64 `gorm:"column:total_out_flow"`
+	}
+	r.db.Model(&model.UserTunnel{}).
+		Select("SUM(in_flow) as total_in_flow, SUM(out_flow) as total_out_flow").
+		Where("user_id = ?", userID).
+		Scan(&tunnelFlow)
+
+	inFlowBefore := tunnelFlow.TotalInFlow
+	outFlowBefore := tunnelFlow.TotalOutFlow
+	totalBytes := inFlowBefore + outFlowBefore
 
 	_ = r.db.Model(&model.User{}).
 		Where("id = ?", userID).
@@ -178,23 +195,26 @@ func (r *Repository) ResetUserFlowByUser(userID int64, now int64) {
 			"updated_time": sql.NullInt64{Int64: now, Valid: true},
 		}).Error
 
-	if userFlow.InFlow > 0 || userFlow.OutFlow > 0 {
-		var user model.User
-		if err := r.db.Select("user", "name").Where("id = ?", userID).First(&user).Error; err == nil {
-			totalBytes := userFlow.InFlow + userFlow.OutFlow
-			t := time.Unix(0, now*int64(time.Millisecond))
-			dayKey, _ := userQuotaWindowKeys(t)
-			history := &model.UserQuotaHistory{
-				UserID:      userID,
-				PeriodType:  "daily",
-				PeriodKey:   dayKey,
-				UsedBytes:   totalBytes,
-				ResetTime:   now,
-				CreatedTime: now,
-				ResetReason: "管理员手动重置",
-			}
-			r.db.Create(history)
+	_ = r.db.Model(&model.UserQuota{}).
+		Where("user_id = ?", userID).
+		Updates(map[string]interface{}{
+			"monthly_used_bytes": 0,
+			"updated_time":       now,
+		}).Error
+
+	if totalBytes > 0 {
+		history := &model.UserQuotaHistory{
+			UserID:        userID,
+			PeriodType:    "monthly",
+			PeriodKey:     quota.MonthKey,
+			InFlowBefore:  inFlowBefore,
+			OutFlowBefore: outFlowBefore,
+			UsedBytes:     totalBytes,
+			ResetTime:     now,
+			CreatedTime:   now,
+			ResetReason:   "管理员手动重置",
 		}
+		r.db.Create(history)
 	}
 
 	_ = r.db.Model(&model.UserTunnel{}).

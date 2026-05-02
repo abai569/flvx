@@ -71,6 +71,7 @@ import {
   updateConfig,
   batchResetForward,
   getForwardTrafficResetLogs,
+  deleteForwardTrafficResetLog,
 } from "@/api";
 import {
   type ForwardAddressItem,
@@ -1360,7 +1361,7 @@ export default function ForwardPage() {
   useEffect(() => {
     const currentUserId = tokenUserId ? tokenUserId.toString() : null;
     const prevUserId = localStorage.getItem('forward-last-user-id');
-    
+
     // 只有用户真正切换时才重置（不是页面刷新）
     if (prevUserId !== null && prevUserId !== currentUserId) {
       setSearchParams({
@@ -1481,6 +1482,8 @@ export default function ForwardPage() {
   const [trafficResetLogsLoading, setTrafficResetLogsLoading] = useState(false);
   const [trafficResetLogs, setTrafficResetLogs] = useState<any[]>([]);
   const [currentLogForward, setCurrentLogForward] = useState<Forward | null>(null);
+  const [deleteLogModalOpen, setDeleteLogModalOpen] = useState(false);
+  const [logToDelete, setLogToDelete] = useState<number | null>(null);
   const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
     active: false,
     label: "",
@@ -2058,43 +2061,43 @@ export default function ForwardPage() {
     },
     [applyForwardList],
   );
-    // 加载所有数据
-    const loadData = useCallback(
-      async (lod = true) => {
-        setLoading(lod);
-        try {
-          const [tunnelsRes, forwardsRes, speedLimitsRes] = await Promise.all([
-            userTunnel(),
-            getForwardList(),
-            getSpeedLimitList(),
-          ]);
+  // 加载所有数据
+  const loadData = useCallback(
+    async (lod = true) => {
+      setLoading(lod);
+      try {
+        const [tunnelsRes, forwardsRes, speedLimitsRes] = await Promise.all([
+          userTunnel(),
+          getForwardList(),
+          getSpeedLimitList(),
+        ]);
 
-          if (tunnelsRes.code === 0) {
-            setTunnels(tunnelsRes.data || []);
-            // 普通用户直接使用 userTunnel 返回的数据作为 allTunnels
-            setAllTunnels((tunnelsRes.data || []) as Tunnel[]);
-          }
-          if (forwardsRes.code === 0) {
-            await applyForwardList(mapForwardApiItems(forwardsRes.data || []));
-          }
-          if (speedLimitsRes.code === 0) {
-            setSpeedLimits(speedLimitsRes.data || []);
-          }
-          // 管理员额外加载节点列表
-          if (isAdmin) {
-            const nodesRes = await getNodeList();
-            if (nodesRes.code === 0) {
-              setNodes((nodesRes.data || []) as Node[]);
-            }
-          }
-        } catch {
-          toast.error("加载数据失败");
-        } finally {
-          setLoading(false);
+        if (tunnelsRes.code === 0) {
+          setTunnels(tunnelsRes.data || []);
+          // 普通用户直接使用 userTunnel 返回的数据作为 allTunnels
+          setAllTunnels((tunnelsRes.data || []) as Tunnel[]);
         }
-      },
-      [isAdmin, applyForwardList],
-    );
+        if (forwardsRes.code === 0) {
+          await applyForwardList(mapForwardApiItems(forwardsRes.data || []));
+        }
+        if (speedLimitsRes.code === 0) {
+          setSpeedLimits(speedLimitsRes.data || []);
+        }
+        // 管理员额外加载节点列表
+        if (isAdmin) {
+          const nodesRes = await getNodeList();
+          if (nodesRes.code === 0) {
+            setNodes((nodesRes.data || []) as Node[]);
+          }
+        }
+      } catch {
+        toast.error("加载数据失败");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isAdmin, applyForwardList],
+  );
 
   useEffect(() => {
     loadData();
@@ -2291,6 +2294,23 @@ export default function ForwardPage() {
       toast.error("网络错误，请重试");
     } finally {
       setTrafficResetLogsLoading(false);
+    }
+  };
+  // 删除流量归零日志
+  const handleDeleteLog = async () => {
+    if (!logToDelete) return;
+    try {
+      const res = await deleteForwardTrafficResetLog(logToDelete);
+      if (res.code === 0) {
+        toast.success("删除成功");
+        setTrafficResetLogs((prev) => prev.filter(log => log.id !== logToDelete));
+        setDeleteLogModalOpen(false);
+        setLogToDelete(null);
+      } else {
+        toast.error(res.msg || "删除失败");
+      }
+    } catch {
+      toast.error("删除失败");
     }
   };
   // 显示删除确认
@@ -3811,7 +3831,7 @@ export default function ForwardPage() {
       const userName = normalizeForwardUserName(f.userName);
       const userRemark = f.userRemark;
       const displayName = (userRemark && userRemark.trim()) ? userRemark.trim() : userName;
-      
+
       const existingUser = userMap.get(uId);
       if (!existingUser) {
         userMap.set(uId, { id: uId, name: displayName });
@@ -4183,34 +4203,34 @@ export default function ForwardPage() {
               >
                 下发
               </Button>
-               <Button
-                 color="success"
-                 isLoading={batchChangeTunnelLoading}
-                 size="sm"
-                 variant="flat"
-                 onPress={() => setBatchChangeTunnelModalOpen(true)}
-               >
-                 隧道
-               </Button>
-               <Button
-                 color="primary"
-                 isDisabled={selectedIds.size === 0}
-                 isLoading={batchResetTrafficLoading}
-                 size="sm"
-                 variant="flat"
-                 onPress={() => setBatchResetTrafficModalOpen(true)}
-               >
-                 归零
-               </Button>
-               <Button
-                 color="danger"
-                 isLoading={batchDeleteLoading}
-                 size="sm"
-                 variant="flat"
-                 onPress={() => setBatchDeleteModalOpen(true)}
-               >
-                 删除
-               </Button>
+              <Button
+                color="success"
+                isLoading={batchChangeTunnelLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchChangeTunnelModalOpen(true)}
+              >
+                隧道
+              </Button>
+              <Button
+                color="primary"
+                isDisabled={selectedIds.size === 0}
+                isLoading={batchResetTrafficLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchResetTrafficModalOpen(true)}
+              >
+                归零
+              </Button>
+              <Button
+                color="danger"
+                isLoading={batchDeleteLoading}
+                size="sm"
+                variant="flat"
+                onPress={() => setBatchDeleteModalOpen(true)}
+              >
+                删除
+              </Button>
               <span className="text-sm text-danger-400 shrink-0">
                 已选 {selectedIds.size} 项
               </span>
@@ -4502,27 +4522,27 @@ export default function ForwardPage() {
                         items={sortedForwards}
                       >
                         {(forward) => (
-                           <SortableCompactTableRow
-                             copyToClipboard={copyToClipboard}
-                             formatFlow={formatFlow}
-                             formatSpeed={formatSpeed}
-                             formatInAddress={formatInAddress}
-                             formatRemoteAddress={formatRemoteAddress}
-                             forward={forward}
-                             getStrategyDisplay={getStrategyDisplay}
-                             handleDelete={handleDelete}
-                             handleDiagnose={handleDiagnose}
-                             handleEdit={handleEdit}
-                             handleCopy={handleCopy}
-                             handleViewTrafficResetLogs={handleViewTrafficResetLogs}
-                             handleServiceToggle={handleServiceToggle}
-                             hasMultipleAddresses={hasMultipleAddresses}
-                             isAdmin={isAdmin}
-                             selectMode={selectMode}
-                             selectedIds={selectedIds}
-                             showAddressModal={showAddressModal}
-                             toggleSelect={toggleSelect}
-                           />
+                          <SortableCompactTableRow
+                            copyToClipboard={copyToClipboard}
+                            formatFlow={formatFlow}
+                            formatSpeed={formatSpeed}
+                            formatInAddress={formatInAddress}
+                            formatRemoteAddress={formatRemoteAddress}
+                            forward={forward}
+                            getStrategyDisplay={getStrategyDisplay}
+                            handleDelete={handleDelete}
+                            handleDiagnose={handleDiagnose}
+                            handleEdit={handleEdit}
+                            handleCopy={handleCopy}
+                            handleViewTrafficResetLogs={handleViewTrafficResetLogs}
+                            handleServiceToggle={handleServiceToggle}
+                            hasMultipleAddresses={hasMultipleAddresses}
+                            isAdmin={isAdmin}
+                            selectMode={selectMode}
+                            selectedIds={selectedIds}
+                            showAddressModal={showAddressModal}
+                            toggleSelect={toggleSelect}
+                          />
                         )}
                       </TableBody>
                     </Table>
@@ -4813,26 +4833,26 @@ export default function ForwardPage() {
                                               verticalListSortingStrategy
                                             }
                                           >
-                                             <SortableTableRow
-                                               copyToClipboard={copyToClipboard}
-                                               formatFlow={formatFlow}
-                                               formatSpeed={formatSpeed}
-                                               forward={forward}
-                                               getStrategyDisplay={
-                                                 getStrategyDisplay
-                                               }
-                                               handleDelete={handleDelete}
-                                               handleDiagnose={handleDiagnose}
-                                               handleEdit={handleEdit}
-                                               handleCopy={handleCopy}
-                                               handleViewTrafficResetLogs={handleViewTrafficResetLogs}
-                                               handleServiceToggle={
-                                                 handleServiceToggle
-                                               }
-                                               isAdmin={isAdmin}
-                                               selectedIds={selectedIds}
-                                               toggleSelect={toggleSelect}
-                                             />
+                                            <SortableTableRow
+                                              copyToClipboard={copyToClipboard}
+                                              formatFlow={formatFlow}
+                                              formatSpeed={formatSpeed}
+                                              forward={forward}
+                                              getStrategyDisplay={
+                                                getStrategyDisplay
+                                              }
+                                              handleDelete={handleDelete}
+                                              handleDiagnose={handleDiagnose}
+                                              handleEdit={handleEdit}
+                                              handleCopy={handleCopy}
+                                              handleViewTrafficResetLogs={handleViewTrafficResetLogs}
+                                              handleServiceToggle={
+                                                handleServiceToggle
+                                              }
+                                              isAdmin={isAdmin}
+                                              selectedIds={selectedIds}
+                                              toggleSelect={toggleSelect}
+                                            />
                                           </SortableContext>
                                         )}
                                       </TableBody>
@@ -6423,20 +6443,58 @@ export default function ForwardPage() {
                           <span className="text-sm font-medium text-foreground">
                             {log.operatorName}
                           </span>
-                          <span className="text-xs text-default-500">
-                            {formatDateTime(log.createdTime)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-default-500">归零前流量:</span>
-                            <span className="text-primary-600 dark:text-primary-400">
-                              ↑{formatFlow(log.inFlowBefore || 0)}
+                            <span className="text-xs text-default-500">
+                              {formatDateTime(log.createdTime)}
                             </span>
-                            <span className="text-success-600 dark:text-success-400">
-                              ↓{formatFlow(log.outFlowBefore || 0)}
-                            </span>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              className="w-6 h-6 min-w-6 text-danger hover:bg-danger/10"
+                              onPress={() => {
+                                setLogToDelete(log.id);
+                                setDeleteLogModalOpen(true);
+                              }}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  d="M6 18L18 6M6 6l12 12"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </Button>
                           </div>
+                        </div>
+                        <div className="flex flex-col gap-1 w-full">
+                          <div className="w-full">
+                            <span className="text-default-500 text-sm block mb-1">归零前流量:</span>
+                            <div className="flex items-center justify-end gap-2 flex-wrap">
+                              <span className="text-primary-600 text-sm whitespace-nowrap dark:text-primary-400">
+                                ↑{formatFlow(log.inFlowBefore || 0)}
+                              </span>
+                              <span className="text-success-600 text-sm whitespace-nowrap dark:text-success-400">
+                                ↓{formatFlow(log.outFlowBefore || 0)}
+                              </span>
+                              <span className="text-default-600 text-sm whitespace-nowrap font-medium">
+                                总量 {formatFlow((log.inFlowBefore || 0) + (log.outFlowBefore || 0))}
+                              </span>
+                            </div>
+                          </div>
+                          {log.reason && (
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-default-500 text-sm">归零原因:</span>
+                              <span className="text-red-500 text-sm">{log.reason}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -6452,6 +6510,35 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
+      
+      {/* 删除日志确认模态框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-[400px] rounded-xl",
+        }}
+        isOpen={deleteLogModalOpen}
+        placement="center"
+        onClose={() => setDeleteLogModalOpen(false)}
+      >
+        <ModalContent>
+          <ModalHeader className="text-base font-semibold">确认删除</ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-default-600">
+              确定要删除这条归零记录吗？此操作不可恢复。
+            </p>
+          </ModalBody>
+          <ModalFooter className="border-t border-default-200">
+            <Button variant="light" onPress={() => setDeleteLogModalOpen(false)}>
+              取消
+            </Button>
+            <Button color="danger" onPress={handleDeleteLog}>
+              删除
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      
       {/* 批量删除确认模态框 */}
       <Modal
         classNames={{

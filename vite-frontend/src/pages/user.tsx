@@ -83,6 +83,7 @@ import {
   batchResetUserFlow,
   updateUserOrder,
   getUserQuotaHistory,
+  deleteUserQuotaHistory,
 } from "@/api";
 import type { UserQuotaHistoryItem } from "@/api/types";
 import {
@@ -721,6 +722,37 @@ export default function UserPage() {
     onClose: onHistoryModalClose,
   } = useDisclosure();
   const [historyModalUser, setHistoryModalUser] = useState<UserWithHistory | null>(null);
+  
+  // 删除历史记录确认弹窗状态
+  const {
+    isOpen: isDeleteConfirmOpen,
+    onOpen: onDeleteConfirmOpen,
+    onClose: onDeleteConfirmClose,
+  } = useDisclosure();
+  const [historyToDelete, setHistoryToDelete] = useState<number | null>(null);
+  
+  const handleDeleteHistory = useCallback(async () => {
+    if (!historyToDelete) return;
+    try {
+      const res = await deleteUserQuotaHistory(historyToDelete);
+      if (res.code === 0) {
+        toast.success("删除成功");
+        // 从列表中移除
+        if (historyModalUser) {
+          const updatedHistory = historyModalUser.quotaHistory?.filter(
+            item => item.id !== historyToDelete
+          ) || [];
+          setHistoryModalUser({ ...historyModalUser, quotaHistory: updatedHistory });
+        }
+        onDeleteConfirmClose();
+        setHistoryToDelete(null);
+      } else {
+        toast.error(res.msg || "删除失败");
+      }
+    } catch {
+      toast.error("删除失败");
+    }
+  }, [historyToDelete, historyModalUser, onDeleteConfirmClose]);
   
   const openHistoryModal = useCallback(async (user: UserWithHistory) => {
     // 如果没有历史数据，先加载
@@ -3065,35 +3097,68 @@ export default function UserPage() {
           </ModalHeader>
           <ModalBody className="py-6">
             {historyModalUser && historyModalUser.quotaHistory && historyModalUser.quotaHistory.length > 0 ? (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-3 max-h-80 overflow-y-auto">
                 {historyModalUser.quotaHistory.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-3 bg-default-50/50 dark:bg-default-100/20 rounded-lg"
+                    className="p-3 bg-default-50/50 dark:bg-default-100/20 rounded-lg"
                   >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-2.5 h-2.5 rounded-full ${item.periodType === "daily" ? "bg-blue-500" : "bg-purple-500"}`}
-                      />
-                      <div>
-                        <div className="text-sm font-medium">
-                          {item.periodType === "daily" ? "日流量" : "月流量"}
-                        </div>
-                        <div className="text-xs text-default-500">
-                          {item.periodKey}
-                        </div>
+                    <div className="flex items-center justify-between w-full mb-2">
+                      <span className="text-sm font-medium text-default-600">
+                        {item.resetReason === "管理员手动重置" ? "admin" : "系统自动"}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-default-500">
+                          {formatDate(item.resetTime)}
+                        </span>
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          className="w-6 h-6 min-w-6 text-danger hover:bg-danger/10"
+                          onPress={() => {
+                            setHistoryToDelete(item.id);
+                            onDeleteConfirmOpen();
+                          }}
+                        >
+                          <svg
+                            aria-hidden="true"
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              d="M6 18L18 6M6 6l12 12"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </Button>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-primary">
-                        {item.usedGB} GB
+                    <div className="flex flex-col gap-1 w-full">
+                      <div className="w-full">
+                        <span className="text-default-500 text-sm block mb-1">归零前流量:</span>
+                        <div className="flex items-center justify-end gap-2 flex-wrap">
+                          <span className="text-primary-600 text-sm whitespace-nowrap dark:text-primary-400">
+                            ↑{formatFlow(item.inFlowBefore)}
+                          </span>
+                          <span className="text-success-600 text-sm whitespace-nowrap dark:text-success-400">
+                            ↓{formatFlow(item.outFlowBefore)}
+                          </span>
+                          <span className="text-default-600 text-sm whitespace-nowrap font-medium">
+                            总量 {formatFlow(item.usedBytes)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-end gap-2 text-xs text-default-500">
-                        {item.resetReason && (
-                          <span>原因：{item.resetReason}</span>
-                        )}
-                        <span>{formatDate(item.resetTime)}</span>
-                      </div>
+                      {item.resetReason && (
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-default-500 text-sm">归零原因:</span>
+                          <span className="text-red-500 text-sm">{item.resetReason}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -3106,6 +3171,34 @@ export default function UserPage() {
           </ModalBody>
           <ModalFooter className="border-t border-default-200">
             <Button onPress={onHistoryModalClose}>关闭</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      
+      {/* 删除历史记录确认弹窗 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-[400px] rounded-xl",
+        }}
+        isOpen={isDeleteConfirmOpen}
+        placement="center"
+        onClose={onDeleteConfirmClose}
+      >
+        <ModalContent>
+          <ModalHeader className="text-base font-semibold">确认删除</ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-default-600">
+              确定要删除这条流量历史记录吗？此操作不可恢复。
+            </p>
+          </ModalBody>
+          <ModalFooter className="border-t border-default-200">
+            <Button variant="light" onPress={onDeleteConfirmClose}>
+              取消
+            </Button>
+            <Button color="danger" onPress={handleDeleteHistory}>
+              删除
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
