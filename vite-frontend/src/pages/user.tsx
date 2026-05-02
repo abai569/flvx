@@ -1457,16 +1457,6 @@ export default function UserPage() {
               >
                 清空
               </Button>
-              {/* <Button
-                color="success"
-                size="sm"
-                variant="flat"
-                isDisabled={selectedUserIds.size === 0}
-                isLoading={batchOperationLoading.monitor}
-                onPress={handleBatchToggleMonitor}
-              >
-                监控
-              </Button> */}
               <Button
                 color="success"
                 isDisabled={selectedUserIds.size === 0}
@@ -2014,7 +2004,7 @@ export default function UserPage() {
                           </Button>
                           <Button
                             className="flex-1 min-h-8"
-                            color="warning"
+                            color="success"
                             size="sm"
                             variant="flat"
                             onPress={(e) => {
