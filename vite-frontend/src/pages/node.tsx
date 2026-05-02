@@ -40,6 +40,7 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  useDisclosure,
 } from "@/shadcn-bridge/heroui/modal";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
@@ -398,6 +399,14 @@ export default function NodePage() {
   const [offlineCommand, setOfflineCommand] = useState("");
   const [offlineDeployData, setOfflineDeployData] =
     useState<OfflineDeployPayload | null>(null);
+  // 归零流量相关状态
+  const {
+    isOpen: isResetTrafficModalOpen,
+    onOpen: onResetTrafficModalOpen,
+    onClose: onResetTrafficModalClose,
+  } = useDisclosure();
+  const [nodeToReset, setNodeToReset] = useState<Node | null>(null);
+  const [resetTrafficLoading, setResetTrafficLoading] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeTarget, setUpgradeTarget] = useState<"single" | "batch">(
     "single",
@@ -1045,6 +1054,32 @@ export default function NodePage() {
       toast.error("网络错误，请重试");
     } finally {
       setNodeTrafficLogsLoading(false);
+    }
+  };
+  // 归零节点流量
+  const handleResetNodeTraffic = (node: Node) => {
+    setNodeToReset(node);
+    onResetTrafficModalOpen();
+  };
+  // 确认归零流量
+  const handleConfirmResetTraffic = async () => {
+    if (!nodeToReset) return;
+    setResetTrafficLoading(true);
+    try {
+      const res = await batchResetNodeTraffic([nodeToReset.id]);
+
+      if (res.code === 0) {
+        toast.success("流量归零成功");
+        onResetTrafficModalClose();
+        // 刷新节点列表
+        await loadNodes();
+      } else {
+        toast.error(res.msg || "归零失败");
+      }
+    } catch {
+      toast.error("归零失败");
+    } finally {
+      setResetTrafficLoading(false);
     }
   };
   const openInstallSelector = (node: Node) => {
@@ -2213,6 +2248,8 @@ export default function NodePage() {
               >
                 更新
               </Button>
+            </div>
+            <div className="grid gap-2 grid-cols-3">
               <Button
                 className="min-h-8 w-full"
                 color="primary"
@@ -2221,6 +2258,15 @@ export default function NodePage() {
                 onPress={() => handleEdit(node)}
               >
                 编辑
+              </Button>
+              <Button
+                className="min-h-8 w-full"
+                color="success"
+                size="sm"
+                variant="flat"
+                onPress={() => handleResetNodeTraffic(node)}
+              >
+                归零
               </Button>
               <Button
                 className="min-h-8 w-full"
@@ -2502,10 +2548,10 @@ export default function NodePage() {
                 return (
                   <div
                     key={groupIdStr}
-                    className="overflow-hidden rounded-lg border border-divider bg-content1"
+                    className="overflow-hidden rounded-xl border border-divider/60 bg-content1/80 backdrop-blur shadow-sm hover:shadow-md transition-shadow duration-200"
                   >
                     <div
-                      className="flex items-center justify-between border-b border-divider bg-default-100 hover:bg-default-200/50 px-4 py-2.5 cursor-pointer select-none transition-colors"
+                      className="flex items-center justify-between border-b border-divider bg-default-100/50 hover:bg-default-200/30 px-4 py-2.5 cursor-pointer select-none transition-colors"
                       onClick={() => {
                         setCollapsedGroups((prev) => ({
                           ...prev,
@@ -2589,6 +2635,7 @@ export default function NodePage() {
                                   handleDismissExpiryReminder
                                 }
                                 handleEdit={handleEdit}
+                                handleResetNodeTraffic={handleResetNodeTraffic}
                                 handleViewNodeTrafficLogs={
                                   handleViewNodeTrafficLogs
                                 }
@@ -2658,6 +2705,7 @@ export default function NodePage() {
                   handleDelete={handleDelete}
                   handleDismissExpiryReminder={handleDismissExpiryReminder}
                   handleEdit={handleEdit}
+                  handleResetNodeTraffic={handleResetNodeTraffic}
                   handleViewNodeTrafficLogs={handleViewNodeTrafficLogs}
                   nodeExpiryStats={nodeExpiryStats}
                   nodeFilterMode={nodeFilterMode}
@@ -3571,7 +3619,7 @@ export default function NodePage() {
                                 ↓{formatTraffic(log.outFlowBefore || 0)}
                               </span>
                               <span className="text-default-600 text-sm whitespace-nowrap font-medium">
-                                总 {" "}
+                                总{" "}
                                 {formatTraffic(
                                   (log.inFlowBefore || 0) +
                                     (log.outFlowBefore || 0),
@@ -3598,6 +3646,52 @@ export default function NodePage() {
               <ModalFooter>
                 <Button variant="light" onPress={onClose}>
                   关闭
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+      {/* 归零流量确认弹窗 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={isResetTrafficModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onOpenChange={(open) => {
+          if (!open) {
+            setNodeToReset(null);
+          }
+          onResetTrafficModalClose();
+        }}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">
+                  归零节点流量 - {nodeToReset?.name}
+                </h2>
+              </ModalHeader>
+              <ModalBody>
+                <p className="text-sm text-default-600">
+                  确定要归零该节点的周期流量统计吗？此操作不会影响历史归零记录。
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="success"
+                  isLoading={resetTrafficLoading}
+                  onPress={handleConfirmResetTraffic}
+                >
+                  归零
                 </Button>
               </ModalFooter>
             </>

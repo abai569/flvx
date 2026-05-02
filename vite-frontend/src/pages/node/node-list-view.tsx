@@ -96,6 +96,8 @@ interface NodeListViewProps {
   handleCopyAutoInstallCommand?: (node: Node) => void;
   // 新增：点击流量图标查看流量记录
   handleViewNodeTrafficLogs?: (node: Node) => void;
+  // 新增：归零节点流量
+  handleResetNodeTraffic?: (node: Node) => void;
   nodeFilterMode?: any;
   setNodeFilterMode?: (mode: any) => void;
   nodeExpiryStats?: any;
@@ -117,6 +119,7 @@ function SortableTableRow({
   handleCopyOfflineInstallCommand,
   handleCopyAutoInstallCommand,
   handleViewNodeTrafficLogs,
+  handleResetNodeTraffic,
 }: any) {
   const [expiryPopoverOpen, setExpiryPopoverOpen] = useState(false);
   const {
@@ -576,6 +579,15 @@ function SortableTableRow({
               >
                 编辑
               </Button>
+              <Button
+                className="min-h-7 px-2"
+                color="success"
+                size="sm"
+                variant="flat"
+                onPress={() => handleResetNodeTraffic(node)}
+              >
+                归零
+              </Button>
             </>
           )}
           <Button
@@ -615,21 +627,23 @@ export function NodeListView({
   setNodeFilterMode,
   nodeExpiryStats,
   handleViewNodeTrafficLogs,
+  handleResetNodeTraffic,
 }: NodeListViewProps) {
   const isAllSelected =
     displayNodes.length > 0 &&
     displayNodes.every((node) => selectedIds.has(node.id));
 
   return (
-    <Table
-      aria-label="节点列表"
-      classNames={{
-        th: "bg-default-100 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
-        td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-        tr: "hover:bg-default-50/50 transition-colors",
-        wrapper: "p-0 shadow-none bg-transparent rounded-none",
-      }}
-    >
+    <div className="overflow-x-auto rounded-xl border border-divider bg-content1 shadow-md">
+      <Table
+        aria-label="节点列表"
+        classNames={{
+          th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider text-left align-middle",
+          td: "py-3 border-b border-divider/30 group-data-[last=true]:border-b-0 bg-white/80 backdrop-blur-sm dark:bg-content1/50",
+          tr: "hover:bg-default-50/80 dark:hover:bg-default-100/30 transition-colors",
+          wrapper: "p-0 shadow-none bg-transparent rounded-none",
+        }}
+      >
       <TableHeader>
         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[50px] text-center">
           <div className="flex items-center justify-center h-full">
@@ -784,10 +798,12 @@ export function NodeListView({
               handleCopyOfflineInstallCommand,
               handleCopyAutoInstallCommand,
               handleViewNodeTrafficLogs,
+              handleResetNodeTraffic,
             }}
           />
         ))}
       </TableBody>
     </Table>
+    </div>
   );
 }
