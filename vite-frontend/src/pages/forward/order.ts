@@ -13,6 +13,7 @@ export const buildForwardOrderKey = (userId: number | null): string => {
   if (userId === null) {
     return FORWARD_ORDER_KEY;
   }
+
   return `${FORWARD_ORDER_KEY}:u:${userId}`;
 };
 
@@ -47,6 +48,7 @@ export const buildForwardOrder = <T extends ForwardOrderItem>(
 
   // 使用用户独立的存储 key
   const orderKey = buildForwardOrderKey(currentUserId);
+
   return {
     order: loadStoredOrder(
       orderKey,

@@ -137,7 +137,11 @@ function SortableTableRow({
     : "";
   const isRemoteNode = node.isRemote === 1;
   const connectionStatusMeta = getConnectionStatusMeta(node.connectionStatus);
-  const expiryMeta = getNodeRenewalSnapshot(node.expiryTime, node.renewalCycle, 7);
+  const expiryMeta = getNodeRenewalSnapshot(
+    node.expiryTime,
+    node.renewalCycle,
+    7,
+  );
   const hasExpiryInfo = Boolean(
     node.expiryTime &&
       node.expiryTime > 0 &&
@@ -252,40 +256,78 @@ function SortableTableRow({
       <TableCell className={`whitespace-nowrap ${rowBg} align-middle`}>
         <div className="flex flex-col gap-1 min-w-[160px] py-1">
           <div className="flex justify-between items-center min-w-0 gap-3">
-            <span className="text-default-500 text-[11px] flex-shrink-0">IPv4/域名</span>
+            <span className="text-default-500 text-[11px] flex-shrink-0">
+              IPv4/域名
+            </span>
             <span
               className="font-medium text-xs cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto text-right max-w-[130px]"
-              title={node.serverIpV4?.trim() || node.serverIp?.trim() || "暂无"}
+              title={
+                node.serverIpV4?.trim() ||
+                (node.serverIp?.trim() && !node.serverIp.includes(":")
+                  ? node.serverIp.trim()
+                  : undefined) ||
+                "暂无"
+              }
               onClick={(e) => {
                 e.stopPropagation();
-                const val = node.serverIpV4?.trim() || node.serverIp?.trim();
+                const val =
+                  node.serverIpV4?.trim() ||
+                  (node.serverIp?.trim() && !node.serverIp.includes(":")
+                    ? node.serverIp.trim()
+                    : undefined);
+
                 if (val) copyToClipboard(val, "IPv4/域名");
               }}
             >
-              {node.serverIpV4?.trim() || node.serverIp?.trim() || "暂无"}
+              {node.serverIpV4?.trim() ||
+                (node.serverIp?.trim() && !node.serverIp.includes(":")
+                  ? node.serverIp.trim()
+                  : undefined) ||
+                "暂无"}
             </span>
           </div>
           <div className="flex justify-between items-center min-w-0 gap-3">
-            <span className="text-default-500 text-[11px] flex-shrink-0">IPv6/域名</span>
+            <span className="text-default-500 text-[11px] flex-shrink-0">
+              IPv6/域名
+            </span>
             <span
-              className={`font-medium text-xs cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto text-right max-w-[130px] ${!node.serverIpV6?.trim() ? "text-default-300" : ""}`}
-              title={node.serverIpV6?.trim() || "暂无"}
+              className={`font-medium text-xs cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto text-right max-w-[130px] ${!(node.serverIpV6?.trim() || (node.serverIp?.trim() && node.serverIp.includes(":") ? node.serverIp.trim() : undefined)) ? "text-default-300" : ""}`}
+              title={
+                node.serverIpV6?.trim() ||
+                (node.serverIp?.trim() && node.serverIp.includes(":")
+                  ? node.serverIp.trim()
+                  : undefined) ||
+                "暂无"
+              }
               onClick={(e) => {
                 e.stopPropagation();
-                if (node.serverIpV6?.trim()) copyToClipboard(node.serverIpV6.trim(), "IPv6/域名");
+                const v6Val =
+                  node.serverIpV6?.trim() ||
+                  (node.serverIp?.trim() && node.serverIp.includes(":")
+                    ? node.serverIp.trim()
+                    : undefined);
+
+                if (v6Val) copyToClipboard(v6Val, "IPv6/域名");
               }}
             >
-              {node.serverIpV6?.trim() || "暂无"}
+              {node.serverIpV6?.trim() ||
+                (node.serverIp?.trim() && node.serverIp.includes(":")
+                  ? node.serverIp.trim()
+                  : undefined) ||
+                "暂无"}
             </span>
           </div>
           <div className="flex justify-between items-center min-w-0 gap-3">
-            <span className="text-default-500 text-[11px] flex-shrink-0">内网IP/域名</span>
+            <span className="text-default-500 text-[11px] flex-shrink-0">
+              内网IP/域名
+            </span>
             <span
               className={`font-medium text-xs cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto text-right max-w-[130px] ${!node.intranetIp?.trim() ? "text-default-300" : ""}`}
               title={node.intranetIp?.trim() || "暂无"}
               onClick={(e) => {
                 e.stopPropagation();
-                if (node.intranetIp?.trim()) copyToClipboard(node.intranetIp.trim(), "内网IP/域名");
+                if (node.intranetIp?.trim())
+                  copyToClipboard(node.intranetIp.trim(), "内网IP/域名");
               }}
             >
               {node.intranetIp?.trim() || "暂无"}
@@ -349,20 +391,16 @@ function SortableTableRow({
           {handleViewNodeTrafficLogs && (
             <Button
               isIconOnly
+              className="w-6 h-6"
               size="sm"
               variant="light"
-              className="w-6 h-6"
               onPress={() => handleViewNodeTrafficLogs(node)}
             >
-              <svg
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                className="w-4 h-4"
-              >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                   clipRule="evenodd"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  fillRule="evenodd"
                 />
               </svg>
             </Button>
@@ -414,11 +452,11 @@ function SortableTableRow({
           <div className="relative">
             <button
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all ${expiryChipProps.className} ${expiryPopoverOpen ? "border-default-400 shadow-sm" : "border-transparent hover:border-default-300"}`}
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setExpiryPopoverOpen(!expiryPopoverOpen);
               }}
-              type="button"
             >
               <svg
                 aria-hidden="true"
@@ -434,7 +472,9 @@ function SortableTableRow({
                   strokeWidth={2}
                 />
               </svg>
-              <span className="text-xs font-medium">{expiryChipProps.label}</span>
+              <span className="text-xs font-medium">
+                {expiryChipProps.label}
+              </span>
             </button>
             {expiryPopoverOpen && (
               <div
@@ -704,6 +744,7 @@ export function NodeListView({
             variant="flat"
             onSelectionChange={(keys) => {
               const selected = Array.from(keys)[0] as string | undefined;
+
               setNodeFilterMode?.(selected || "all");
             }}
           >
@@ -726,25 +767,25 @@ export function NodeListView({
         {displayNodes.map((node) => (
           <SortableTableRow
             key={node.id}
-          {...{
-            node,
-            realtimeNodeMetrics,
-            upgradeProgress,
-            selectedIds,
-            toggleSelect,
-            copyToClipboard,
-            openUpgradeModal,
-            handleEdit,
-            handleDelete,
-            formatTraffic,
-            nodeGroups,
-            handleDismissExpiryReminder,
-            handleCopyOverseasInstallCommand,
-            handleCopyOfflineInstallCommand,
-            handleCopyAutoInstallCommand,
-            handleViewNodeTrafficLogs,
-          }}
-        />
+            {...{
+              node,
+              realtimeNodeMetrics,
+              upgradeProgress,
+              selectedIds,
+              toggleSelect,
+              copyToClipboard,
+              openUpgradeModal,
+              handleEdit,
+              handleDelete,
+              formatTraffic,
+              nodeGroups,
+              handleDismissExpiryReminder,
+              handleCopyOverseasInstallCommand,
+              handleCopyOfflineInstallCommand,
+              handleCopyAutoInstallCommand,
+              handleViewNodeTrafficLogs,
+            }}
+          />
         ))}
       </TableBody>
     </Table>

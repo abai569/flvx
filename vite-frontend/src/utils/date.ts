@@ -10,11 +10,14 @@ export interface DatePreset {
   value?: number;
 }
 
-export function timestampToCalendarDate(timestamp: number | null | undefined): CalendarDateLike | null {
+export function timestampToCalendarDate(
+  timestamp: number | null | undefined,
+): CalendarDateLike | null {
   if (!timestamp || timestamp <= 0) {
     return null;
   }
   const date = new Date(timestamp);
+
   return {
     year: date.getFullYear(),
     month: date.getMonth() + 1,
@@ -22,13 +25,17 @@ export function timestampToCalendarDate(timestamp: number | null | undefined): C
   };
 }
 
-export function calendarDateToTimestamp(date: CalendarDateLike | null | undefined, endOfDay: boolean = true): number | null {
+export function calendarDateToTimestamp(
+  date: CalendarDateLike | null | undefined,
+  endOfDay: boolean = true,
+): number | null {
   if (!date) {
     return null;
   }
   if (endOfDay) {
     return new Date(date.year, date.month - 1, date.day, 23, 59, 59).getTime();
   }
+
   return new Date(date.year, date.month - 1, date.day, 0, 0, 0).getTime();
 }
 
@@ -52,9 +59,12 @@ export function calculateDateFromPreset(preset: DatePreset): number {
   }
   if (preset.offsetDays !== undefined) {
     const now = new Date();
+
     now.setDate(now.getDate() + preset.offsetDays);
     now.setHours(23, 59, 59, 999);
+
     return now.getTime();
   }
+
   return 0;
 }

@@ -1,3 +1,5 @@
+import type { DatePreset } from "@/utils/date";
+
 import { Button } from "@/shadcn-bridge/heroui/button";
 import {
   Dropdown,
@@ -5,7 +7,6 @@ import {
   DropdownMenu,
   DropdownItem,
 } from "@/shadcn-bridge/heroui/dropdown";
-import type { DatePreset } from "@/utils/date";
 import { calculateDateFromPreset } from "@/utils/date";
 
 export interface DatePresetsProps {
@@ -41,6 +42,7 @@ export function DatePresets({
               key={preset.label}
               onPress={() => {
                 const timestamp = calculateDateFromPreset(preset);
+
                 onChange(timestamp);
               }}
             >

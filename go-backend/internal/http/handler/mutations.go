@@ -2064,14 +2064,7 @@ func (h *Handler) userTunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	id := asInt64(req["id"], 0)
 	if id <= 0 {
-		response.WriteJSON(w, response.ErrDefault("权限ID不能为空"))
-		return
-	}
-
-	speedID := asAnyToInt64Ptr(req["speedId"])
-	speedID, err := h.normalizeSpeedLimitReference(speedID)
-	if err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+		response.WriteJSON(w, response.ErrDefault("权限 ID 不能为空"))
 		return
 	}
 
@@ -2088,13 +2081,55 @@ func (h *Handler) userTunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 支持部分字段更新：未传的字段保持原值
+	flow := oldFlow
+	if v, ok := req["flow"]; ok && v != nil {
+		flow = asInt64(v, 0)
+	}
+
+	num := oldNum
+	if v, ok := req["num"]; ok && v != nil {
+		num = asInt64(v, 0)
+	}
+
+	expTime := oldExpTime
+	if v, ok := req["expTime"]; ok && v != nil {
+		expTime = asInt64(v, time.Now().Add(365*24*time.Hour).UnixMilli())
+	}
+
+	flowResetTime := oldFlowReset
+	if v, ok := req["flowResetTime"]; ok && v != nil {
+		flowResetTime = asInt64(v, 1)
+	}
+
+	// speedId 需要特殊处理
+	var speedID *int64
+	if v, ok := req["speedId"]; ok {
+		speedID = asAnyToInt64Ptr(v)
+		var normErr error
+		speedID, normErr = h.normalizeSpeedLimitReference(speedID)
+		if normErr != nil {
+			response.WriteJSON(w, response.Err(-2, normErr.Error()))
+			return
+		}
+	} else {
+		if oldSpeedID.Valid {
+			speedID = &oldSpeedID.Int64
+		}
+	}
+
+	status := oldStatus
+	if v, ok := req["status"]; ok && v != nil {
+		status = asInt(v, 1)
+	}
+
 	if err := h.repo.UpdateUserTunnel(id,
-		asInt64(req["flow"], 0),
-		asInt(req["num"], 0),
-		asInt64(req["expTime"], time.Now().Add(365*24*time.Hour).UnixMilli()),
-		asInt64(req["flowResetTime"], 1),
+		flow,
+		int(num),
+		expTime,
+		flowResetTime,
 		nullableInt(speedID),
-		asInt(req["status"], 1),
+		status,
 	); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -2111,15 +2146,129 @@ func (h *Handler) userTunnelUpdate(w http.ResponseWriter, r *http.Request) {
 			oldStatus,
 		)
 		if rollbackErr != nil {
-			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("下发失败且回滚失败: %v; 回滚错误: %v", syncErr, rollbackErr)))
+			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("下发失败且回滚失败：%v; 回滚错误：%v", syncErr, rollbackErr)))
 			return
 		}
 
-		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("下发失败，已回滚: %v", syncErr)))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("下发失败，已回滚：%v", syncErr)))
 		return
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) userTunnelBatchUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	var req map[string]interface{}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
+	// 解析参数
+	rawIDs, ok := req["ids"].([]interface{})
+	if !ok || len(rawIDs) == 0 {
+		response.WriteJSON(w, response.ErrDefault("ids 参数不能为空"))
+		return
+	}
+
+	status := asInt(req["status"], 0)
+	if status != 1 && status != 2 {
+		response.WriteJSON(w, response.ErrDefault("status 必须为 1（启用）或 2（禁用）"))
+		return
+	}
+
+	// 转换 ID 列表
+	ids := make([]int64, 0, len(rawIDs))
+	for _, rawID := range rawIDs {
+		id := asInt64(rawID, 0)
+		if id > 0 {
+			ids = append(ids, id)
+		}
+	}
+
+	if len(ids) == 0 {
+		response.WriteJSON(w, response.ErrDefault("有效的 ID 列表为空"))
+		return
+	}
+
+	// 批量更新
+	successCount := 0
+	failedCount := 0
+	var failedDetails []map[string]interface{}
+
+	for _, id := range ids {
+		userID, tunnelID, utErr := h.repo.GetUserTunnelUserAndTunnel(id)
+		if utErr != nil {
+			failedCount++
+			failedDetails = append(failedDetails, map[string]interface{}{
+				"id":    id,
+				"error": utErr.Error(),
+			})
+			continue
+		}
+
+		// 获取旧数据用于回滚
+		_, oldFlow, oldNum, oldExpTime, oldFlowReset, oldSpeedID, oldStatus, oldErr :=
+			h.repo.GetExistingUserTunnel(userID, tunnelID)
+		if oldErr != nil {
+			failedCount++
+			failedDetails = append(failedDetails, map[string]interface{}{
+				"id":    id,
+				"error": oldErr.Error(),
+			})
+			continue
+		}
+
+		// 更新状态
+		var speedIDPtr *int64
+		if oldSpeedID.Valid {
+			speedIDPtr = &oldSpeedID.Int64
+		}
+		if err := h.repo.UpdateUserTunnel(id, oldFlow, int(oldNum), oldExpTime, oldFlowReset, nullableInt(speedIDPtr), status); err != nil {
+			failedCount++
+			failedDetails = append(failedDetails, map[string]interface{}{
+				"id":    id,
+				"error": err.Error(),
+			})
+			continue
+		}
+
+		// 同步转发服务
+		if syncErr := h.syncUserTunnelForwards(userID, tunnelID); syncErr != nil {
+			// 同步失败回滚
+			_ = h.repo.UpdateUserTunnel(id, oldFlow, int(oldNum), oldExpTime, oldFlowReset, nullableInt(speedIDPtr), oldStatus)
+			failedCount++
+			failedDetails = append(failedDetails, map[string]interface{}{
+				"id":    id,
+				"error": fmt.Sprintf("同步转发失败：%v", syncErr),
+			})
+			continue
+		}
+
+		successCount++
+	}
+
+	// 返回结果
+	result := map[string]interface{}{
+		"successCount": successCount,
+		"failedCount":  failedCount,
+	}
+	if len(failedDetails) > 0 {
+		result["failedDetails"] = failedDetails
+	}
+
+	if successCount > 0 && failedCount == 0 {
+		response.WriteJSON(w, response.OK(result))
+	} else if successCount > 0 && failedCount > 0 {
+		response.WriteJSON(w, response.R{
+			Code: 0,
+			Msg:  fmt.Sprintf("部分成功：%d 成功，%d 失败", successCount, failedCount),
+			TS:   time.Now().UnixMilli(),
+			Data: result,
+		})
+	} else {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("全部失败：%d 个操作均失败", failedCount)))
+	}
 }
 
 func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {

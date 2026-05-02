@@ -197,6 +197,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/tunnel/user/batch-assign", h.userTunnelBatchAssign)
 	mux.HandleFunc("/api/v1/tunnel/user/remove", h.userTunnelRemove)
 	mux.HandleFunc("/api/v1/tunnel/user/update", h.userTunnelUpdate)
+	mux.HandleFunc("/api/v1/tunnel/user/batch-update-status", h.userTunnelBatchUpdateStatus)
 	mux.HandleFunc("/api/v1/forward/list", h.forwardList)
 	mux.HandleFunc("/api/v1/forward/create", h.forwardCreate)
 	mux.HandleFunc("/api/v1/forward/update", h.forwardUpdate)

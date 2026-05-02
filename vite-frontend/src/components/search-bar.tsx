@@ -65,9 +65,9 @@ export function SearchBar({
                 inputWrapper: "bg-default-100 border-0 shadow-none h-8 min-h-8",
               }}
               placeholder={placeholder}
+              style={{ width }} // 新增：应用宽度
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              style={{ width }} // 新增：应用宽度
             />
             <Button
               isIconOnly

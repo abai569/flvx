@@ -49,7 +49,12 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [username, setUsername] = useState("");
   const [mobileMenuVisible, setMobileMenuVisible] = useState(false);
-  const [licenseInfo, setLicenseInfo] = useState<null | { valid: boolean; configured: boolean; reason?: string; expire_time?: number }>(null);
+  const [licenseInfo, setLicenseInfo] = useState<null | {
+    valid: boolean;
+    configured: boolean;
+    reason?: string;
+    expire_time?: number;
+  }>(null);
 
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordForm, setPasswordForm] = useState<PasswordForm>({
@@ -204,6 +209,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
         }
       });
     };
+
     fetchLicense();
     const licenseInterval = setInterval(fetchLicense, 5 * 60 * 1000);
 
@@ -335,7 +341,13 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
               {licenseInfo.valid ? (
                 (() => {
                   const daysLeft = licenseInfo.expire_time
-                    ? Math.max(0, Math.floor((licenseInfo.expire_time - Date.now()) / (1000 * 60 * 60 * 24)))
+                    ? Math.max(
+                        0,
+                        Math.floor(
+                          (licenseInfo.expire_time - Date.now()) /
+                            (1000 * 60 * 60 * 24),
+                        ),
+                      )
                     : 0;
                   const isExpiringSoon = daysLeft < 5;
                   const textColorClass = isExpiringSoon
@@ -344,7 +356,8 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
 
                   return (
                     <span className={`${textColorClass} text-xs truncate`}>
-                      授权剩余 {daysLeft} 天{isExpiringSoon ? " (即将过期)" : ""}
+                      授权剩余 {daysLeft} 天
+                      {isExpiringSoon ? " (即将过期)" : ""}
                     </span>
                   );
                 })()

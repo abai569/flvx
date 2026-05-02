@@ -79,6 +79,8 @@ func shouldSkip(path string) bool {
 		return true
 	case path == "/api/v1/config/get":
 		return true
+	case path == "/api/v1/config/list":
+		return true
 	case path == "/api/v1/user/login":
 		return true
 	case path == "/api/v1/node/info":

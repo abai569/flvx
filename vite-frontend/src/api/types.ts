@@ -88,8 +88,8 @@ export interface ForwardApiItem {
   expiryTime?: number | null;
   speedLimitEnabled?: boolean;
   speedLimit?: number;
-  inSpeed?: number;      // 新增：实时上行速度 (bytes/s)
-  outSpeed?: number;     // 新增：实时下行速度 (bytes/s)
+  inSpeed?: number; // 新增：实时上行速度 (bytes/s)
+  outSpeed?: number; // 新增：实时下行速度 (bytes/s)
   [key: string]: unknown;
 }
 
@@ -620,7 +620,7 @@ export interface OfflineDeployPayload {
 export interface UserQuotaHistoryItem {
   id: number;
   periodType: "daily" | "monthly";
-  periodKey: number;  // YYYYMMDD 或 YYYYMM
+  periodKey: number; // YYYYMMDD 或 YYYYMM
   usedBytes: number;
   inFlowBefore: number;
   outFlowBefore: number;

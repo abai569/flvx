@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
-import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 
+import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Tabs, Tab } from "@/shadcn-bridge/heroui/tabs";
@@ -821,13 +821,16 @@ export default function PanelSharingPage() {
               }
             />
             <DatePicker
+              showMonthAndYearPickers
               description="留空表示永久有效"
               label="过期时间"
               permanentLabel="永久有效"
-              showMonthAndYearPickers
-              value={timestampToCalendarDate(editForm.expiryTime > 0 ? editForm.expiryTime : null)}
+              value={timestampToCalendarDate(
+                editForm.expiryTime > 0 ? editForm.expiryTime : null,
+              )}
               onChange={(date) => {
                 const timestamp = calendarDateToTimestamp(date) || 0;
+
                 setEditForm({
                   ...editForm,
                   expiryTime: timestamp,

@@ -417,6 +417,18 @@ func (r *Repository) GetNodeName(nodeID int64) (string, error) {
 	return node.Name, nil
 }
 
+func (r *Repository) GetNodeNameTx(tx *gorm.DB, nodeID int64) (string, error) {
+	if tx == nil {
+		return "", errors.New("database unavailable")
+	}
+	var node model.Node
+	err := tx.Select("name").Where("id = ?", nodeID).First(&node).Error
+	if err != nil {
+		return "", normalizeNotFoundErr(err)
+	}
+	return node.Name, nil
+}
+
 func (r *Repository) GetViteConfigValue(name string) (string, error) {
 	if r == nil || r.db == nil {
 		return "", errors.New("repository not initialized")
@@ -676,7 +688,11 @@ func (r *Repository) pickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 
 	candidates := parsePortRangeSpec(node.Port)
 	if len(candidates) == 0 {
-		return 0, errors.New("节点端口已满，无可用端口")
+		nodeName, err := r.GetNodeNameTx(tx, nodeID)
+		if err != nil || nodeName == "" {
+			nodeName = fmt.Sprintf("节点#%d", nodeID)
+		}
+		return 0, fmt.Errorf("%s节点端口已满，无可用端口", nodeName)
 	}
 
 	used := make(map[int]struct{})
@@ -719,7 +735,11 @@ func (r *Repository) pickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 	}
 
 	if len(available) == 0 {
-		return 0, errors.New("节点端口已满，无可用端口")
+		nodeName, err := r.GetNodeNameTx(tx, nodeID)
+		if err != nil || nodeName == "" {
+			nodeName = fmt.Sprintf("节点#%d", nodeID)
+		}
+		return 0, fmt.Errorf("%s节点端口已满，无可用端口", nodeName)
 	}
 	if !randomPick {
 		allocated[nodeID] = available[0]

@@ -183,11 +183,7 @@ export function DatePicker({
 
   return (
     <FieldContainer
-      description={
-        isPermanent
-          ? permanentLabel
-          : description
-      }
+      description={isPermanent ? permanentLabel : description}
       errorMessage={errorMessage}
       id={id}
       isInvalid={isInvalid}

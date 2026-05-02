@@ -209,7 +209,7 @@ export default function ConfigPage() {
   const [brandUploading, setBrandUploading] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
-  const [exportMode, setExportMode] = useState<'core' | 'full'>('core');
+  const [exportMode, setExportMode] = useState<"core" | "full">("core");
 
   // 权限检查
   useEffect(() => {
@@ -979,23 +979,26 @@ export default function ConfigPage() {
               </p>
               <div className="flex items-center gap-2 mt-2">
                 <Select
+                  classNames={{ trigger: "min-w-[150px]" }}
                   label=""
                   selectedKeys={[exportMode]}
                   size="sm"
                   variant="bordered"
                   onSelectionChange={(keys) => {
                     const key = Array.from(keys)[0] as string;
+
                     if (key === "core" || key === "full") {
                       setExportMode(key);
                     }
                   }}
-                  classNames={{ trigger: "min-w-[150px]" }}
                 >
                   <SelectItem key="core">快速导出（核心数据）</SelectItem>
                   <SelectItem key="full">完整导出（所有数据）</SelectItem>
                 </Select>
                 <span className="text-xs text-gray-500">
-                  {exportMode === 'core' ? '仅用户/节点/隧道/规则' : '包含所有表和配置'}
+                  {exportMode === "core"
+                    ? "仅用户/节点/隧道/规则"
+                    : "包含所有表和配置"}
                 </span>
               </div>
             </div>

@@ -14,7 +14,6 @@ import { PageEmptyState, PageLoadingState } from "@/components/page-state";
 import { AnnouncementBanner } from "@/pages/dashboard/components/announcement-banner";
 import { FlowChartCard } from "@/pages/dashboard/components/flow-chart-card";
 import { MetricCard } from "@/pages/dashboard/components/metric-card";
-
 import {
   formatNodeRenewalTime,
   getNodeRenewalCycleLabel,

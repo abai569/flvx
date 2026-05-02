@@ -95,6 +95,13 @@ export const getCachedConfig = async (key: string): Promise<string | null> => {
     return cachedValue;
   }
 
+  // 检查是否已登录，未登录则不请求 API（避免退出登录后调用）
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    return null;
+  }
+
   const response = await getConfigByName(key);
 
   if (
@@ -155,7 +162,19 @@ export const getCachedConfigs = async (): Promise<Record<string, string>> => {
     return publicConfigMap;
   };
 
-  // 从API获取最新配置
+  // 检查是否已登录，未登录则返回缓存数据
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    if (hasCachedData) {
+      return cachedConfigs;
+    }
+
+    // 未登录且无缓存，尝试公开 API（应该不需要 token）
+    return await fetchPublicConfigs();
+  }
+
+  // 从 API 获取所有配置
   try {
     const response = await getConfigs();
 
@@ -176,7 +195,7 @@ export const getCachedConfigs = async (): Promise<Record<string, string>> => {
 
     return await fetchPublicConfigs();
   } catch {
-    // API失败时返回缓存的数据
+    // API 失败时返回缓存的数据
     if (hasCachedData) {
       return cachedConfigs;
     }

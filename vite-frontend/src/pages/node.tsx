@@ -86,9 +86,7 @@ import {
 import { compareVersions } from "@/utils/version-update";
 import { PageLoadingState } from "@/components/page-state";
 import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
-import {
-  getConnectionStatusMeta,
-} from "@/pages/node/display";
+import { getConnectionStatusMeta } from "@/pages/node/display";
 import {
   getNodeRenewalSnapshot,
   formatNodeRenewalTime,
@@ -262,10 +260,10 @@ const SortableItem = ({
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Transform.toString({
-        ...transform,
-        x: Math.round(transform.x),
-        y: Math.round(transform.y),
-      })
+          ...transform,
+          x: Math.round(transform.x),
+          y: Math.round(transform.y),
+        })
       : undefined,
     transition: isDragging ? undefined : transition || undefined,
     opacity: isDragging ? 0.5 : 1,
@@ -473,16 +471,15 @@ export default function NodePage() {
     [],
   );
   const handleDeleteLog = useCallback(async () => {
-    if (!logToDelete || !currentLogNode) return;
+    if (!logToDelete) return;
     try {
       const res = await deleteNodeTrafficResetLog(logToDelete);
+
       if (res.code === 0) {
         toast.success("删除成功");
-        // 重新获取最新列表
-        const refreshRes = await getNodeTrafficResetLogs(currentLogNode.id, 30);
-        if (refreshRes.code === 0) {
-          setNodeTrafficLogs(refreshRes.data || []);
-        }
+        setNodeTrafficLogs((prev) =>
+          prev.filter((log) => log.id !== logToDelete),
+        );
         setDeleteLogModalOpen(false);
         setLogToDelete(null);
       } else {
@@ -491,7 +488,7 @@ export default function NodePage() {
     } catch {
       toast.error("删除失败");
     }
-  }, [logToDelete, currentLogNode]);
+  }, [logToDelete]);
 
   const handleNodeOffline = useCallback((nodeId: number) => {
     setNodeList((prev) =>
@@ -727,7 +724,7 @@ export default function NodePage() {
             });
           }
         }
-      } catch { }
+      } catch {}
     } else if (type === "metric") {
       clearOfflineTimer(nodeId);
       const metric =
@@ -740,27 +737,27 @@ export default function NodePage() {
             ...prev[nodeId],
             uploadTraffic: Number(
               metric.netOutBytes ??
-              metric.bytes_transmitted ??
-              prev[nodeId]?.uploadTraffic ??
-              0,
+                metric.bytes_transmitted ??
+                prev[nodeId]?.uploadTraffic ??
+                0,
             ),
             downloadTraffic: Number(
               metric.netInBytes ??
-              metric.bytes_received ??
-              prev[nodeId]?.downloadTraffic ??
-              0,
+                metric.bytes_received ??
+                prev[nodeId]?.downloadTraffic ??
+                0,
             ),
             // 周期流量（新字段）
             periodTraffic:
               metric.period_bytes_received !== undefined ||
-                metric.period_bytes_transmitted !== undefined
+              metric.period_bytes_transmitted !== undefined
                 ? {
-                  rx: Number(metric.period_bytes_received ?? 0),
-                  tx: Number(metric.period_bytes_transmitted ?? 0),
-                  since: metric.baseline_recorded_at || 0,
-                  nextReset: metric.next_reset_at || 0,
-                  cycle: metric.renewal_cycle || "",
-                }
+                    rx: Number(metric.period_bytes_received ?? 0),
+                    tx: Number(metric.period_bytes_transmitted ?? 0),
+                    since: metric.baseline_recorded_at || 0,
+                    nextReset: metric.next_reset_at || 0,
+                    cycle: metric.renewal_cycle || "",
+                  }
                 : prev[nodeId]?.periodTraffic,
           },
         };
@@ -830,6 +827,20 @@ export default function NodePage() {
       return { valid: false, error: "请输入端口" };
     }
     const trimmed = portStr.trim();
+
+    // 1. 拦截易错的范围连接符（波浪号、下划线等）
+    if (
+      trimmed.includes("~") ||
+      trimmed.includes("～") ||
+      trimmed.includes("—") ||
+      trimmed.includes("_")
+    ) {
+      return {
+        valid: false,
+        error: "端口范围请使用短横线 '-' 连接，例如 10000-65535",
+      };
+    }
+
     const parts = trimmed
       .split(",")
       .map((p) => p.trim())
@@ -845,12 +856,15 @@ export default function NodePage() {
         if (range.length !== 2) {
           return { valid: false, error: `端口范围格式错误: ${part}` };
         }
-        const start = parseInt(range[0]);
-        const end = parseInt(range[1]);
 
-        if (isNaN(start) || isNaN(end)) {
-          return { valid: false, error: `端口必须是数字: ${part}` };
+        // 2. 严格检查是否全为数字，防止含有其他非法字符
+        if (!/^\d+$/.test(range[0]) || !/^\d+$/.test(range[1])) {
+          return { valid: false, error: `端口范围必须是纯数字: ${part}` };
         }
+
+        const start = parseInt(range[0], 10);
+        const end = parseInt(range[1], 10);
+
         if (start < 1 || start > 65535 || end < 1 || end > 65535) {
           return {
             valid: false,
@@ -861,11 +875,13 @@ export default function NodePage() {
           return { valid: false, error: `起始端口必须小于结束端口: ${part}` };
         }
       } else {
-        const port = parseInt(part);
-
-        if (isNaN(port)) {
-          return { valid: false, error: `端口必须是数字: ${part}` };
+        // 3. 修复 parseInt("10501~10515") = 10501 的致命 bug，强制要求纯数字
+        if (!/^\d+$/.test(part)) {
+          return { valid: false, error: `端口格式有误，必须是纯数字: ${part}` };
         }
+
+        const port = parseInt(part, 10);
+
         if (port < 1 || port > 65535) {
           return { valid: false, error: `端口必须在 1-65535 之间: ${part}` };
         }
@@ -1357,8 +1373,10 @@ export default function NodePage() {
       // 计算选中节点的总流量
       let totalInFlow = 0;
       let totalOutFlow = 0;
+
       selectedLocalIds.forEach((nodeId) => {
         const metrics = realtimeNodeMetrics[nodeId];
+
         if (metrics) {
           totalInFlow += metrics.uploadTraffic || 0;
           totalOutFlow += metrics.downloadTraffic || 0;
@@ -1420,26 +1438,26 @@ export default function NodePage() {
             prev.map((n) =>
               n.id === form.id
                 ? ({
-                  ...n,
-                  name: form.name,
-                  remark: form.remark.trim(),
-                  expiryTime: form.expiryTime,
-                  renewalCycle: form.renewalCycle,
-                  groupId: form.groupId,
-                  intranetIp: form.intranetIp?.trim(),
-                  serverIpV4: form.serverIpV4,
-                  serverIpV6: form.serverIpV6,
-                  port: form.port,
-                  tcpListenAddr: form.tcpListenAddr,
-                  udpListenAddr: form.udpListenAddr,
-                  interfaceName: form.interfaceName,
-                  http: form.http,
-                  tls: form.tls,
-                  socks: form.socks,
-                  expiryReminderDismissed: n.expiryReminderDismissed ?? 0,
-                  expiryReminderDismissedUntil:
-                    n.expiryReminderDismissedUntil ?? null,
-                } as Node)
+                    ...n,
+                    name: form.name,
+                    remark: form.remark.trim(),
+                    expiryTime: form.expiryTime,
+                    renewalCycle: form.renewalCycle,
+                    groupId: form.groupId,
+                    intranetIp: form.intranetIp?.trim(),
+                    serverIpV4: form.serverIpV4,
+                    serverIpV6: form.serverIpV6,
+                    port: form.port,
+                    tcpListenAddr: form.tcpListenAddr,
+                    udpListenAddr: form.udpListenAddr,
+                    interfaceName: form.interfaceName,
+                    http: form.http,
+                    tls: form.tls,
+                    socks: form.socks,
+                    expiryReminderDismissed: n.expiryReminderDismissed ?? 0,
+                    expiryReminderDismissedUntil:
+                      n.expiryReminderDismissedUntil ?? null,
+                  } as Node)
                 : n,
             ),
           );
@@ -1661,12 +1679,12 @@ export default function NodePage() {
     const groupFiltered =
       filterGroupId !== null
         ? keywordFiltered.filter((node) => {
-          if (filterGroupId === -1) {
-            return !node.groupId || node.groupId === 0;
-          }
+            if (filterGroupId === -1) {
+              return !node.groupId || node.groupId === 0;
+            }
 
-          return node.groupId === filterGroupId;
-        })
+            return node.groupId === filterGroupId;
+          })
         : keywordFiltered;
 
     if (nodeFilterMode === "all") {
@@ -1744,11 +1762,11 @@ export default function NodePage() {
     const hasRemark = Boolean(node.remark?.trim());
     const hasExpiryInfo = Boolean(
       node.expiryTime &&
-      node.expiryTime > 0 &&
-      node.renewalCycle &&
-      (node.expiryReminderDismissed !== 1 ||
-        (node.expiryReminderDismissedUntil &&
-          node.expiryReminderDismissedUntil * 1000 < Date.now())),
+        node.expiryTime > 0 &&
+        node.renewalCycle &&
+        (node.expiryReminderDismissed !== 1 ||
+          (node.expiryReminderDismissedUntil &&
+            node.expiryReminderDismissedUntil * 1000 < Date.now())),
     );
     const hasInfoTrigger = hasRemark || hasExpiryInfo;
     const infoCount = Number(hasExpiryInfo) + Number(hasRemark);
@@ -1757,8 +1775,9 @@ export default function NodePage() {
     return (
       <Card
         key={node.id}
-        className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName
-          }`}
+        className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${
+          node.expiryReminderDismissed ? "" : expiryMeta.accentClassName
+        }`}
         data-node-card="true"
       >
         <CardHeader className="pb-3 md:pb-3">
@@ -1817,10 +1836,11 @@ export default function NodePage() {
                   <div className="relative">
                     <button
                       aria-label={`查看节点信息，共 ${infoCount} 项`}
-                      className={`relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none ${infoPopoverOpenId === node.id
+                      className={`relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none ${
+                        infoPopoverOpenId === node.id
                           ? "border-default-300 text-foreground"
                           : ""
-                        }`}
+                      }`}
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1855,13 +1875,15 @@ export default function NodePage() {
                       )}
                     </button>
                     <div
-                      className={`absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur transition-all duration-150 ${infoPopoverOpenId === node.id
+                      className={`absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 shadow-xl backdrop-blur transition-all duration-150 ${
+                        infoPopoverOpenId === node.id
                           ? "visible opacity-100 pointer-events-auto"
                           : "invisible opacity-0 pointer-events-none"
-                        } ${infoPlacement === "bottom"
+                      } ${
+                        infoPlacement === "bottom"
                           ? "right-0 top-[calc(100%+0.75rem)] translate-y-1"
                           : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1"
-                        }`}
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         e.nativeEvent.stopImmediatePropagation();
@@ -1904,10 +1926,11 @@ export default function NodePage() {
             </div>
             <div className="flex items-center gap-2">
               <span
-                className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success"
+                className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                  connectionStatusMeta.color === "success"
                     ? "bg-emerald-500"
                     : "bg-rose-500"
-                  }`}
+                }`}
                 title={connectionStatusMeta.text}
               />
               {/* 这里加上 title 属性 */}
@@ -1931,40 +1954,78 @@ export default function NodePage() {
             )}
             <div className="space-y-1.5 border-b border-divider/50 pb-2 mb-2">
               <div className="flex justify-between items-center min-w-0">
-                <span className="text-default-500 text-xs flex-shrink-0 mr-2">IPv4/域名</span>
+                <span className="text-default-500 text-xs flex-shrink-0 mr-2">
+                  IPv4/域名
+                </span>
                 <span
                   className="font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto"
-                  title={node.serverIpV4?.trim() || node.serverIp?.trim() || "暂无"}
+                  title={
+                    node.serverIpV4?.trim() ||
+                    (node.serverIp?.trim() && !node.serverIp.includes(":")
+                      ? node.serverIp.trim()
+                      : undefined) ||
+                    "暂无"
+                  }
                   onClick={(e) => {
                     e.stopPropagation();
-                    const val = node.serverIpV4?.trim() || node.serverIp?.trim();
+                    const val =
+                      node.serverIpV4?.trim() ||
+                      (node.serverIp?.trim() && !node.serverIp.includes(":")
+                        ? node.serverIp.trim()
+                        : undefined);
+
                     if (val) copyToClipboard(val, "IPv4/域名");
                   }}
                 >
-                  {node.serverIpV4?.trim() || node.serverIp?.trim() || "暂无"}
+                  {node.serverIpV4?.trim() ||
+                    (node.serverIp?.trim() && !node.serverIp.includes(":")
+                      ? node.serverIp.trim()
+                      : undefined) ||
+                    "暂无"}
                 </span>
               </div>
               <div className="flex justify-between items-center min-w-0">
-                <span className="text-default-500 text-xs flex-shrink-0 mr-2">IPv6/域名</span>
+                <span className="text-default-500 text-xs flex-shrink-0 mr-2">
+                  IPv6/域名
+                </span>
                 <span
-                  className={`font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto ${!node.serverIpV6?.trim() ? "text-default-300" : ""}`}
-                  title={node.serverIpV6?.trim() || "暂无"}
+                  className={`font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto ${!(node.serverIpV6?.trim() || (node.serverIp?.trim() && node.serverIp.includes(":") ? node.serverIp.trim() : undefined)) ? "text-default-300" : ""}`}
+                  title={
+                    node.serverIpV6?.trim() ||
+                    (node.serverIp?.trim() && node.serverIp.includes(":")
+                      ? node.serverIp.trim()
+                      : undefined) ||
+                    "暂无"
+                  }
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (node.serverIpV6?.trim()) copyToClipboard(node.serverIpV6.trim(), "IPv6 地址");
+                    const v6Val =
+                      node.serverIpV6?.trim() ||
+                      (node.serverIp?.trim() && node.serverIp.includes(":")
+                        ? node.serverIp.trim()
+                        : undefined);
+
+                    if (v6Val) copyToClipboard(v6Val, "IPv6 地址");
                   }}
                 >
-                  {node.serverIpV6?.trim() || "暂无"}
+                  {node.serverIpV6?.trim() ||
+                    (node.serverIp?.trim() && node.serverIp.includes(":")
+                      ? node.serverIp.trim()
+                      : undefined) ||
+                    "暂无"}
                 </span>
               </div>
               <div className="flex justify-between items-center min-w-0">
-                <span className="text-default-500 text-xs flex-shrink-0 mr-2">内网IP/域名</span>
+                <span className="text-default-500 text-xs flex-shrink-0 mr-2">
+                  内网IP/域名
+                </span>
                 <span
                   className={`font-medium text-sm cursor-pointer hover:bg-default-200/50 rounded px-1 transition-colors truncate shrink min-w-0 ml-auto ${!node.intranetIp?.trim() ? "text-default-300" : ""}`}
                   title={node.intranetIp?.trim() || "暂无"}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (node.intranetIp?.trim()) copyToClipboard(node.intranetIp.trim(), "内网 IP");
+                    if (node.intranetIp?.trim())
+                      copyToClipboard(node.intranetIp.trim(), "内网 IP");
                   }}
                 >
                   {node.intranetIp?.trim() || "暂无"}
@@ -1994,11 +2055,11 @@ export default function NodePage() {
               <span className="text-default-600">周期流量</span>
               <span className="font-medium text-sm text-danger-600 dark:text-danger-400">
                 {node.connectionStatus === "online" &&
-                  realtimeNodeMetrics[node.id]
+                realtimeNodeMetrics[node.id]
                   ? formatTraffic(
-                    (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0) +
-                    (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0),
-                  )
+                      (realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0) +
+                        (realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0),
+                    )
                   : "-"}
               </span>
             </div>
@@ -2009,38 +2070,55 @@ export default function NodePage() {
                     <div className="flex items-center gap-2">
                       <span>↑ 上行</span>
                       <span className="font-medium text-success-600 dark:text-success-400">
-                        {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0)}
+                        {formatTraffic(
+                          realtimeNodeMetrics[node.id]?.periodTraffic?.rx ?? 0,
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span>↓ 下行</span>
                       <span className="font-medium text-primary-600 dark:text-primary-400">
-                        {formatTraffic(realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0)}
+                        {formatTraffic(
+                          realtimeNodeMetrics[node.id]?.periodTraffic?.tx ?? 0,
+                        )}
                       </span>
                     </div>
                   </div>
                   {(() => {
                     const pt = realtimeNodeMetrics[node.id]?.periodTraffic;
+
                     if (!pt) return null;
 
                     // 智能解析后端时间
                     const parseBackendTime = (ts: any) => {
                       if (!ts) return 0;
                       let num = Number(ts);
+
                       if (isNaN(num)) return 0;
                       if (Math.abs(num) < 100000000000) num *= 1000;
-                      return num > 0 && new Date(num).getFullYear() > 1970 ? num : 0;
+
+                      return num > 0 && new Date(num).getFullYear() > 1970
+                        ? num
+                        : 0;
                     };
 
                     const backendSince = parseBackendTime(pt.since);
                     const backendNext = parseBackendTime(pt.nextReset);
-                    const displayNext = backendNext > 0 ? backendNext : expiryMeta?.nextDueTime;
+                    const displayNext =
+                      backendNext > 0 ? backendNext : expiryMeta?.nextDueTime;
 
                     // 核心修改：精准干掉时分秒，只保留年月日 (YYYY/M/D)
                     const formatDateOnly = (ts: any) => {
                       if (!ts) return "-";
                       const d = new Date(ts);
-                      return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate();
+
+                      return (
+                        d.getFullYear() +
+                        "/" +
+                        (d.getMonth() + 1) +
+                        "/" +
+                        d.getDate()
+                      );
                     };
 
                     if (!backendSince && !displayNext) return null;
@@ -2050,15 +2128,23 @@ export default function NodePage() {
                         {backendSince > 0 ? (
                           <div className="flex items-center gap-1.5">
                             <span>周期始于</span>
-                            <span className="font-medium text-foreground">{formatDateOnly(backendSince)}</span>
+                            <span className="font-medium text-foreground">
+                              {formatDateOnly(backendSince)}
+                            </span>
                           </div>
-                        ) : <div />}
+                        ) : (
+                          <div />
+                        )}
                         {displayNext && displayNext > 0 ? (
                           <div className="flex items-center gap-1.5">
                             <span>下次重置</span>
-                            <span className="font-medium text-primary">{formatDateOnly(displayNext)}</span>
+                            <span className="font-medium text-primary">
+                              {formatDateOnly(displayNext)}
+                            </span>
                           </div>
-                        ) : <div />}
+                        ) : (
+                          <div />
+                        )}
                       </div>
                     );
                   })()}
@@ -2172,18 +2258,22 @@ export default function NodePage() {
                   <span className="font-medium text-default-600 flex-shrink-0 mr-1.5">
                     到期提醒：
                   </span>
-                  <span className="truncate text-default-700" title={formatNodeRenewalTime(expiryMeta.nextDueTime)}>
+                  <span
+                    className="truncate text-default-700"
+                    title={formatNodeRenewalTime(expiryMeta.nextDueTime)}
+                  >
                     {formatNodeRenewalTime(expiryMeta.nextDueTime)}
                   </span>
                   <span
-                    className={`flex-shrink-0 ml-1.5 text-[10px] h-4.5 px-1.5 rounded font-medium ${expiryMeta.tone === "danger"
+                    className={`flex-shrink-0 ml-1.5 text-[10px] h-4.5 px-1.5 rounded font-medium ${
+                      expiryMeta.tone === "danger"
                         ? "bg-danger-500/10 text-danger-600 dark:text-danger-400"
                         : expiryMeta.tone === "warning"
                           ? "bg-warning-500/10 text-warning-600 dark:text-warning-400"
                           : expiryMeta.tone === "success"
                             ? "bg-success-500/10 text-success-600 dark:text-success-400"
                             : "bg-default-500/10 text-default-500"
-                      }`}
+                    }`}
                   >
                     {expiryMeta.label}
                   </span>
@@ -2222,7 +2312,6 @@ export default function NodePage() {
           <div className="flex h-8 items-center gap-2 whitespace-nowrap shrink-0">
             {selectMode ? (
               <>
-
                 <Button
                   color="primary"
                   size="sm"
@@ -2321,19 +2410,19 @@ export default function NodePage() {
                 {(nodeFilterMode !== "all" ||
                   filterGroupId !== null ||
                   localSearchKeyword.trim()) && (
-                    <Button
-                      color="warning"
-                      size="sm"
-                      variant="flat"
-                      onPress={() => {
-                        resetNodeFilterMode();
-                        setFilterGroupId(null);
-                        setLocalSearchKeyword("");
-                      }}
-                    >
-                      重置
-                    </Button>
-                  )}
+                  <Button
+                    color="warning"
+                    size="sm"
+                    variant="flat"
+                    onPress={() => {
+                      resetNodeFilterMode();
+                      setFilterGroupId(null);
+                      setLocalSearchKeyword("");
+                    }}
+                  >
+                    重置
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -2496,9 +2585,13 @@ export default function NodePage() {
                                   handleCopyOverseasInstallCommand
                                 }
                                 handleDelete={handleDelete}
-                                handleDismissExpiryReminder={handleDismissExpiryReminder}
+                                handleDismissExpiryReminder={
+                                  handleDismissExpiryReminder
+                                }
                                 handleEdit={handleEdit}
-                                handleViewNodeTrafficLogs={handleViewNodeTrafficLogs}
+                                handleViewNodeTrafficLogs={
+                                  handleViewNodeTrafficLogs
+                                }
                                 nodeExpiryStats={nodeExpiryStats}
                                 nodeFilterMode={nodeFilterMode}
                                 nodeGroups={nodeGroups}
@@ -2697,15 +2790,18 @@ export default function NodePage() {
                   </SelectItem>
                 </Select>
                 <DatePicker
+                  showMonthAndYearPickers
                   description="系统会自动按周期同日推算下次续费时间"
                   errorMessage={errors.expiryTime}
                   isInvalid={!!errors.expiryTime}
                   label="续费基准时间"
                   permanentLabel="系统会自动按周期同日推算下次续费时间"
-                  showMonthAndYearPickers
-                  value={timestampToCalendarDate(form.expiryTime > 0 ? form.expiryTime : null)}
+                  value={timestampToCalendarDate(
+                    form.expiryTime > 0 ? form.expiryTime : null,
+                  )}
                   onChange={(date) => {
                     const timestamp = calendarDateToTimestamp(date, false) || 0;
+
                     setForm((prev) => ({
                       ...prev,
                       expiryTime: timestamp,
@@ -2874,8 +2970,9 @@ export default function NodePage() {
                         />
                       )}
                       <div
-                        className={`grid grid-cols-1 sm:grid-cols-3 gap-3 bg-default-50 dark:bg-default-100 p-3 rounded-md border border-default-200 dark:border-default-100/30 ${protocolDisabled ? "opacity-70" : ""
-                          }`}
+                        className={`grid grid-cols-1 sm:grid-cols-3 gap-3 bg-default-50 dark:bg-default-100 p-3 rounded-md border border-default-200 dark:border-default-100/30 ${
+                          protocolDisabled ? "opacity-70" : ""
+                        }`}
                       >
                         <div className="px-3 py-3 rounded-lg bg-white dark:bg-default-50 border border-default-200 dark:border-default-100/30 hover:border-primary-200 transition-colors">
                           <div className="flex items-center gap-2 mb-2">
@@ -3351,9 +3448,7 @@ export default function NodePage() {
               <ModalBody>
                 <p>
                   确定要重置以下{" "}
-                  <strong>
-                    {Array.from(selectedIds).length}
-                  </strong>{" "}
+                  <strong>{Array.from(selectedIds).length}</strong>{" "}
                   个节点的流量统计吗？
                 </p>
                 <p className="text-small text-default-500 mt-2">
@@ -3438,9 +3533,9 @@ export default function NodePage() {
                             </span>
                             <Button
                               isIconOnly
+                              className="w-6 h-6 min-w-6 text-danger hover:bg-danger/10"
                               size="sm"
                               variant="light"
-                              className="w-6 h-6 min-w-6 text-danger hover:bg-danger/10"
                               onPress={() => {
                                 setLogToDelete(log.id);
                                 setDeleteLogModalOpen(true);
@@ -3465,7 +3560,9 @@ export default function NodePage() {
                         </div>
                         <div className="flex flex-col gap-1 w-full">
                           <div className="w-full">
-                            <span className="text-default-500 text-sm block mb-1">归零前流量:</span>
+                            <span className="text-default-500 text-sm block mb-1">
+                              归零前流量:
+                            </span>
                             <div className="flex items-center justify-end gap-2 flex-wrap">
                               <span className="text-primary-600 text-sm whitespace-nowrap dark:text-primary-400">
                                 ↑{formatTraffic(log.inFlowBefore || 0)}
@@ -3474,14 +3571,22 @@ export default function NodePage() {
                                 ↓{formatTraffic(log.outFlowBefore || 0)}
                               </span>
                               <span className="text-default-600 text-sm whitespace-nowrap font-medium">
-                                总量 {formatTraffic((log.inFlowBefore || 0) + (log.outFlowBefore || 0))}
+                                总量{" "}
+                                {formatTraffic(
+                                  (log.inFlowBefore || 0) +
+                                    (log.outFlowBefore || 0),
+                                )}
                               </span>
                             </div>
                           </div>
                           {log.reason && (
                             <div className="flex items-center justify-between w-full">
-                              <span className="text-default-500 text-sm">归零原因:</span>
-                              <span className="text-red-500 text-sm">{log.reason}</span>
+                              <span className="text-default-500 text-sm">
+                                归零原因:
+                              </span>
+                              <span className="text-red-500 text-sm">
+                                {log.reason}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -3499,7 +3604,7 @@ export default function NodePage() {
           )}
         </ModalContent>
       </Modal>
-      
+
       {/* 删除日志确认模态框 */}
       <Modal
         backdrop="blur"
@@ -3511,14 +3616,19 @@ export default function NodePage() {
         onClose={() => setDeleteLogModalOpen(false)}
       >
         <ModalContent>
-          <ModalHeader className="text-base font-semibold">确认删除</ModalHeader>
+          <ModalHeader className="text-base font-semibold">
+            确认删除
+          </ModalHeader>
           <ModalBody className="py-4">
             <p className="text-sm text-default-600">
               确定要删除这条归零记录吗？此操作不可恢复。
             </p>
           </ModalBody>
           <ModalFooter className="border-t border-default-200">
-            <Button variant="light" onPress={() => setDeleteLogModalOpen(false)}>
+            <Button
+              variant="light"
+              onPress={() => setDeleteLogModalOpen(false)}
+            >
               取消
             </Button>
             <Button color="danger" onPress={handleDeleteLog}>
@@ -3527,7 +3637,7 @@ export default function NodePage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-      
+
       {/* 批量删除确认模态框 */}
       <Modal
         backdrop="blur"

@@ -56,7 +56,7 @@ export default function LimitPage() {
     "limit-search-keyword",
     "",
   );
-  const activeFilterCount = (searchKeyword.trim() ? 1 : 0);
+  const activeFilterCount = searchKeyword.trim() ? 1 : 0;
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   // 视图模式状态
   const [viewMode, setViewMode] = useState<"card" | "list">(() => {

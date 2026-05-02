@@ -224,6 +224,10 @@ export const removeUserTunnel = (params: UserTunnelRemovePayload) =>
   Network.post("/tunnel/user/remove", params);
 export const updateUserTunnel = (data: UserTunnelAssignPayload) =>
   Network.post("/tunnel/user/update", data);
+export const batchUpdateUserTunnelStatus = (data: {
+  ids: number[];
+  status: number;
+}) => Network.post("/tunnel/user/batch-update-status", data);
 export const userTunnel = () =>
   Network.post<UserTunnelApiItem[]>("/tunnel/user/tunnel");
 
@@ -278,7 +282,10 @@ export const resetUserFlow = (data: { id: number; type: number }) =>
 export const resetUserQuota = (data: UserQuotaResetPayload) =>
   Network.post("/user/quota/reset", data);
 export const getUserQuotaHistory = (userId: number, limit: number = 50) =>
-  Network.post<UserQuotaHistoryItem[]>("/user/quota/history", { userId, limit });
+  Network.post<UserQuotaHistoryItem[]>("/user/quota/history", {
+    userId,
+    limit,
+  });
 export const deleteUserQuotaHistory = (id: number) =>
   Network.post("/user/quota/history/delete", { id });
 
@@ -335,34 +342,38 @@ export const batchResetForward = (forwardIds: number[]) =>
     forwardIds,
   });
 export const getForwardTrafficResetLogs = (forwardId: number, limit?: number) =>
-  Network.post<{
-    id: number;
-    forwardId: number;
-    forwardName: string;
-    userId: number;
-    userName: string;
-    resetTime: number;
-    inFlowBefore: number;
-    outFlowBefore: number;
-    operatorId: number;
-    operatorName: string;
-    createdTime: number;
-  }[]>("/forward/traffic-reset-logs", { forwardId, limit });
+  Network.post<
+    {
+      id: number;
+      forwardId: number;
+      forwardName: string;
+      userId: number;
+      userName: string;
+      resetTime: number;
+      inFlowBefore: number;
+      outFlowBefore: number;
+      operatorId: number;
+      operatorName: string;
+      createdTime: number;
+    }[]
+  >("/forward/traffic-reset-logs", { forwardId, limit });
 export const deleteForwardTrafficResetLog = (id: number) =>
   Network.post("/forward/traffic-reset-log/delete", { id });
 export const getNodeTrafficResetLogs = (nodeId: number, limit?: number) =>
-  Network.post<{
-    id: number;
-    nodeId: number;
-    nodeName: string;
-    resetTime: number;
-    operatorId: number;
-    operatorName: string;
-    reason: string;
-    inFlowBefore: number;
-    outFlowBefore: number;
-    createdTime: number;
-  }[]>("/node/traffic-reset-logs", { nodeId, limit });
+  Network.post<
+    {
+      id: number;
+      nodeId: number;
+      nodeName: string;
+      resetTime: number;
+      operatorId: number;
+      operatorName: string;
+      reason: string;
+      inFlowBefore: number;
+      outFlowBefore: number;
+      createdTime: number;
+    }[]
+  >("/node/traffic-reset-logs", { nodeId, limit });
 export const deleteNodeTrafficResetLog = (id: number) =>
   Network.post("/node/traffic-reset-log/delete", { id });
 export const batchRedeployForwards = (ids: number[]) =>
@@ -464,9 +475,12 @@ export interface BackupTypes {
   configs?: boolean;
 }
 
-export const exportBackup = async (types: string[] = [], mode: 'core' | 'full' = 'full') => {
+export const exportBackup = async (
+  types: string[] = [],
+  mode: "core" | "full" = "full",
+) => {
   const token = window.localStorage.getItem("token");
-  
+
   try {
     const response = await axios.post(
       "backup/export",
@@ -489,7 +503,10 @@ export const exportBackup = async (types: string[] = [], mode: 'core' | 'full' =
     const link = document.createElement("a");
 
     link.href = url;
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
+    const timestamp = new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:-]/g, "");
 
     link.setAttribute("download", `backup_${timestamp}_${mode}.json`);
     document.body.appendChild(link);
@@ -500,9 +517,11 @@ export const exportBackup = async (types: string[] = [], mode: 'core' | 'full' =
     // 如果是错误响应，尝试读取错误信息
     if (error.response?.data) {
       const reader = new FileReader();
+
       reader.onload = () => {
         try {
           const errorData = JSON.parse(reader.result as string);
+
           throw new Error(errorData.msg || "导出失败");
         } catch {
           throw new Error("导出失败，请检查后端日志");
@@ -535,8 +554,7 @@ export interface LicenseInfo {
   configured: boolean;
 }
 
-export const getLicenseInfo = () =>
-  Network.post<LicenseInfo>("/license/info");
+export const getLicenseInfo = () => Network.post<LicenseInfo>("/license/info");
 
 export const getNodeMetrics = (
   nodeId: number,

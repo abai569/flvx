@@ -54,7 +54,12 @@ export const getNodeRenewalSnapshot = (
   warningDays = 7,
 ): NodeRenewalSnapshot => {
   const normalizedCycle =
-    cycle === "month" || cycle === "quarter" || cycle === "halfYear" || cycle === "year" ? cycle : "";
+    cycle === "month" ||
+    cycle === "quarter" ||
+    cycle === "halfYear" ||
+    cycle === "year"
+      ? cycle
+      : "";
 
   if (!anchorTime || anchorTime <= 0 || !normalizedCycle) {
     return {

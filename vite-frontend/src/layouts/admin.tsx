@@ -216,6 +216,7 @@ export default function AdminLayout({
         }
       });
     };
+
     fetchLicense();
     const licenseInterval = setInterval(fetchLicense, 5 * 60 * 1000); // 每 5 分钟刷新一次
 
@@ -516,7 +517,7 @@ export default function AdminLayout({
               versionClassName="text-xs text-gray-400 dark:text-gray-500"
             />
           </div>
-          
+
           {/* 桌面端折叠按钮 */}
           {!isMobile && (
             <Button
@@ -576,14 +577,15 @@ export default function AdminLayout({
               viewBox="0 0 24 24"
             >
               <path
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
             <span>
-              服务受限：{licenseInfo.reason || "授权无效"}，请立即联系管理员续费。
+              服务受限：{licenseInfo.reason || "授权无效"}
+              ，请立即联系管理员续费。
             </span>
           </div>
         )}
@@ -623,16 +625,25 @@ export default function AdminLayout({
                 {licenseInfo.valid ? (
                   (() => {
                     const daysLeft = licenseInfo.expire_time
-                      ? Math.max(0, Math.floor((licenseInfo.expire_time - Date.now()) / (1000 * 60 * 60 * 24)))
+                      ? Math.max(
+                          0,
+                          Math.floor(
+                            (licenseInfo.expire_time - Date.now()) /
+                              (1000 * 60 * 60 * 24),
+                          ),
+                        )
                       : 0;
                     const isExpiringSoon = daysLeft < 5;
-                    const textColorClass = isExpiringSoon 
-                      ? "text-red-500 font-bold dark:text-red-400" 
+                    const textColorClass = isExpiringSoon
+                      ? "text-red-500 font-bold dark:text-red-400"
                       : "text-green-600 dark:text-green-400";
 
                     return (
-                      <span className={`${textColorClass} text-sm md:text-base truncate`}>
-                        授权剩余 {daysLeft} 天{isExpiringSoon ? " (即将过期)" : ""}
+                      <span
+                        className={`${textColorClass} text-sm md:text-base truncate`}
+                      >
+                        授权剩余 {daysLeft} 天
+                        {isExpiringSoon ? " (即将过期)" : ""}
                       </span>
                     );
                   })()

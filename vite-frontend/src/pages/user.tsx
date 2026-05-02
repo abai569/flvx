@@ -1,6 +1,13 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import type { UserQuotaHistoryItem } from "@/api/types";
+
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import toast from "react-hot-toast";
-import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 import {
   DndContext,
   KeyboardSensor,
@@ -18,7 +25,9 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Play, StopCircle } from "lucide-react";
 
+import { timestampToCalendarDate, calendarDateToTimestamp } from "@/utils/date";
 import { SearchBar } from "@/components/search-bar";
 import {
   AnimatedPage,
@@ -84,14 +93,9 @@ import {
   updateUserOrder,
   getUserQuotaHistory,
   deleteUserQuotaHistory,
+  batchUpdateUserTunnelStatus,
 } from "@/api";
-import type { UserQuotaHistoryItem } from "@/api/types";
-import {
-  EditIcon,
-  DeleteIcon,
-  EyeIcon,
-  EyeOffIcon,
-} from "@/components/icons";
+import { EditIcon, DeleteIcon, EyeIcon, EyeOffIcon } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { removeItemsById, replaceItemById } from "@/utils/list-state";
@@ -130,12 +134,12 @@ const getExpireStatus = (expTime: number) => {
     return { color: "warning" as const, text: `${diffDays}天后过期` };
   }
 
-  return { color: "success" as const, text: "正常" };
+  return { color: "success" as const, text: "启用" };
 };
 // 获取用户状态（根据status字段）
 const getUserStatus = (user: User) => {
   if (user.status === 1) {
-    return { color: "success" as const, text: "正常" };
+    return { color: "success" as const, text: "启用" };
   } else {
     return { color: "danger" as const, text: "禁用" };
   }
@@ -210,7 +214,7 @@ export default function UserPage() {
     "user-search-keyword",
     "",
   );
-  const activeFilterCount = (searchKeyword.trim() ? 1 : 0);
+  const activeFilterCount = searchKeyword.trim() ? 1 : 0;
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [pagination, setPagination] = useState<PaginationType>({
     current: 1,
@@ -383,6 +387,11 @@ export default function UserPage() {
   >(new Set());
   const [batchDeleteTunnelLoading, setBatchDeleteTunnelLoading] =
     useState(false);
+  // 批量更新状态相关状态
+  const [batchUpdateStatusLoading, setBatchUpdateStatusLoading] = useState({
+    enable: false,
+    disable: false,
+  });
   // 归零流量确认相关状态
   const {
     isOpen: isResetFlowModalOpen,
@@ -482,38 +491,47 @@ export default function UserPage() {
     setSelectedUserIds(new Set());
   }, []);
   // 全选/取消全选
-  const handleSelectAll = useCallback((isSelected: boolean) => {
-    if (isSelected) {
-      const newSelected = new Set(users.map((u) => u.id));
-      setSelectedUserIds(newSelected);
-      if (newSelected.size > 0 && !batchMode) {
-        setBatchMode(true);
-      }
-    } else {
-      setSelectedUserIds(new Set());
-      if (batchMode) {
-        setBatchMode(false);
-      }
-    }
-  }, [users, batchMode]);
-  // 单个选择/取消选择
-  const toggleUserSelection = useCallback((userId: number) => {
-    setSelectedUserIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(userId)) {
-        next.delete(userId);
+  const handleSelectAll = useCallback(
+    (isSelected: boolean) => {
+      if (isSelected) {
+        const newSelected = new Set(users.map((u) => u.id));
+
+        setSelectedUserIds(newSelected);
+        if (newSelected.size > 0 && !batchMode) {
+          setBatchMode(true);
+        }
       } else {
-        next.add(userId);
+        setSelectedUserIds(new Set());
+        if (batchMode) {
+          setBatchMode(false);
+        }
       }
-      if (next.size > 0 && !batchMode) {
-        setBatchMode(true);
-      }
-      if (next.size === 0 && batchMode) {
-        setBatchMode(false);
-      }
-      return next;
-    });
-  }, [batchMode]);
+    },
+    [users, batchMode],
+  );
+  // 单个选择/取消选择
+  const toggleUserSelection = useCallback(
+    (userId: number) => {
+      setSelectedUserIds((prev) => {
+        const next = new Set(prev);
+
+        if (next.has(userId)) {
+          next.delete(userId);
+        } else {
+          next.add(userId);
+        }
+        if (next.size > 0 && !batchMode) {
+          setBatchMode(true);
+        }
+        if (next.size === 0 && batchMode) {
+          setBatchMode(false);
+        }
+
+        return next;
+      });
+    },
+    [batchMode],
+  );
   // 数据加载函数
   const loadUsers = useCallback(
     async (keywordOverride?: string, showLoading = true) => {
@@ -544,6 +562,7 @@ export default function UserPage() {
     },
     [pagination.current, pagination.size],
   );
+
   // 初始化 sortableUserIds
   useEffect(() => {
     if (users.length > 0) {
@@ -554,8 +573,12 @@ export default function UserPage() {
         const remainingIds = users
           .map((u) => u.id)
           .filter((id) => !userOrder.includes(id));
+
         // 新用户（未排序的）在前，已排序的用户在后
-        setSortableUserIds([...remainingIds, ...userOrder.filter(id => orderedIds.includes(id))]);
+        setSortableUserIds([
+          ...remainingIds,
+          ...userOrder.filter((id) => orderedIds.includes(id)),
+        ]);
       } else {
         setSortableUserIds(users.map((u) => u.id));
       }
@@ -568,6 +591,7 @@ export default function UserPage() {
       return users;
     }
     const userMap = new Map(users.map((u) => [u.id, u]));
+
     return sortableUserIds
       .map((id) => userMap.get(id))
       .filter((u): u is User => u !== undefined);
@@ -614,7 +638,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
-    } catch { }
+    } catch {}
   }, []);
   const loadSpeedLimits = useCallback(async () => {
     try {
@@ -623,15 +647,15 @@ export default function UserPage() {
       if (response.code === 0) {
         const speedLimitList = Array.isArray(response.data)
           ? response.data.map((item) => ({
-            ...item,
-            uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
-            downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
-          }))
+              ...item,
+              uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
+              downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
+            }))
           : [];
 
         setSpeedLimits(speedLimitList);
       }
-    } catch { }
+    } catch {}
   }, []);
   const loadUserGroups = useCallback(async () => {
     try {
@@ -640,7 +664,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
-    } catch { }
+    } catch {}
   }, []);
   const loadUserTunnels = useCallback(async (userId: number) => {
     setTunnelListLoading(true);
@@ -721,8 +745,9 @@ export default function UserPage() {
     onOpen: onHistoryModalOpen,
     onClose: onHistoryModalClose,
   } = useDisclosure();
-  const [historyModalUser, setHistoryModalUser] = useState<UserWithHistory | null>(null);
-  
+  const [historyModalUser, setHistoryModalUser] =
+    useState<UserWithHistory | null>(null);
+
   // 删除历史记录确认弹窗状态
   const {
     isOpen: isDeleteConfirmOpen,
@@ -730,21 +755,31 @@ export default function UserPage() {
     onClose: onDeleteConfirmClose,
   } = useDisclosure();
   const [historyToDelete, setHistoryToDelete] = useState<number | null>(null);
-  
+
   const handleDeleteHistory = useCallback(async () => {
     if (!historyToDelete || !historyModalUser) return;
     try {
       const res = await deleteUserQuotaHistory(historyToDelete);
+
       if (res.code === 0) {
         toast.success("删除成功");
         // 重新获取最新列表
         const refreshRes = await getUserQuotaHistory(historyModalUser.id, 50);
+
         if (refreshRes.code === 0) {
           const updatedHistory = refreshRes.data || [];
-          setUsers(prev => prev.map(u => 
-            u.id === historyModalUser.id ? { ...u, quotaHistory: updatedHistory } : u
-          ));
-          setHistoryModalUser({ ...historyModalUser, quotaHistory: updatedHistory });
+
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === historyModalUser.id
+                ? { ...u, quotaHistory: updatedHistory }
+                : u,
+            ),
+          );
+          setHistoryModalUser({
+            ...historyModalUser,
+            quotaHistory: updatedHistory,
+          });
         }
         onDeleteConfirmClose();
         setHistoryToDelete(null);
@@ -755,27 +790,33 @@ export default function UserPage() {
       toast.error("删除失败");
     }
   }, [historyToDelete, historyModalUser, onDeleteConfirmClose]);
-  
-  const openHistoryModal = useCallback(async (user: UserWithHistory) => {
-    // 如果没有历史数据，先加载
-    if (!user.quotaHistory || user.quotaHistory.length === 0) {
-      try {
-        const res = await getUserQuotaHistory(user.id, 50);
-        if (res.code === 0) {
-          setUsers(prev => prev.map(u => 
-            u.id === user.id ? { ...u, quotaHistory: res.data } : u
-          ));
-          setHistoryModalUser({ ...user, quotaHistory: res.data });
-          onHistoryModalOpen();
+
+  const openHistoryModal = useCallback(
+    async (user: UserWithHistory) => {
+      // 如果没有历史数据，先加载
+      if (!user.quotaHistory || user.quotaHistory.length === 0) {
+        try {
+          const res = await getUserQuotaHistory(user.id, 50);
+
+          if (res.code === 0) {
+            setUsers((prev) =>
+              prev.map((u) =>
+                u.id === user.id ? { ...u, quotaHistory: res.data } : u,
+              ),
+            );
+            setHistoryModalUser({ ...user, quotaHistory: res.data });
+            onHistoryModalOpen();
+          }
+        } catch (error) {
+          toast.error("加载流量历史失败");
         }
-      } catch (error) {
-        toast.error('加载流量历史失败');
+      } else {
+        setHistoryModalUser(user);
+        onHistoryModalOpen();
       }
-    } else {
-      setHistoryModalUser(user);
-      onHistoryModalOpen();
-    }
-  }, [onHistoryModalOpen]);
+    },
+    [onHistoryModalOpen],
+  );
 
   const handleEdit = async (user: User) => {
     setIsEdit(true);
@@ -787,7 +828,7 @@ export default function UserPage() {
       if (groupRes.code === 0) {
         currentGroupIds = groupRes.data || [];
       }
-    } catch { }
+    } catch {}
     setUserForm({
       id: user.id,
       name: user.name || "",
@@ -985,10 +1026,10 @@ export default function UserPage() {
             speedLimitName:
               normalizeSpeedId(editTunnelForm.speedId) !== null
                 ? speedLimits.find(
-                  (speedLimit) =>
-                    speedLimit.id ===
-                    normalizeSpeedId(editTunnelForm.speedId),
-                )?.name
+                    (speedLimit) =>
+                      speedLimit.id ===
+                      normalizeSpeedId(editTunnelForm.speedId),
+                  )?.name
                 : undefined,
           });
 
@@ -1077,6 +1118,51 @@ export default function UserPage() {
       setBatchDeleteTunnelLoading(false);
     }
   };
+  // 批量更新状态
+  const handleBatchUpdateStatus = async (status: number) => {
+    if (selectedUserTunnelIds.size === 0) return;
+
+    setBatchUpdateStatusLoading(
+      status === 1
+        ? { enable: true, disable: false }
+        : { enable: false, disable: true },
+    );
+
+    try {
+      const ids = Array.from(selectedUserTunnelIds);
+      const response = await batchUpdateUserTunnelStatus({ ids, status });
+
+      if (response.code === 0) {
+        const { successCount, failedCount } = response.data as {
+          successCount: number;
+          failedCount: number;
+        };
+
+        if (successCount > 0) {
+          toast.success(
+            `成功${status === 1 ? "启用" : "禁用"} ${successCount} 个隧道`,
+          );
+          // 更新本地状态
+          setUserTunnels((prev) =>
+            prev.map((t) =>
+              selectedUserTunnelIds.has(t.id) ? { ...t, status } : t,
+            ),
+          );
+        }
+        if (failedCount > 0) {
+          toast.error(`${failedCount} 个隧道操作失败`);
+        }
+
+        setSelectedUserTunnelIds(new Set());
+      } else {
+        toast.error(response.msg || "操作失败");
+      }
+    } catch (error) {
+      toast.error("批量操作发生异常");
+    } finally {
+      setBatchUpdateStatusLoading({ enable: false, disable: false });
+    }
+  };
   // 归零流量相关函数
   const handleResetFlow = (user: User) => {
     setUserToReset(user);
@@ -1118,6 +1204,31 @@ export default function UserPage() {
     setTunnelToReset(userTunnel);
     onResetTunnelFlowModalOpen();
   };
+  // 单个隧道状态切换
+  const handleSingleToggleStatus = async (
+    userTunnel: UserTunnel,
+    status: number,
+  ) => {
+    try {
+      const response = await updateUserTunnel({
+        id: userTunnel.id,
+        status: status,
+      });
+
+      if (response.code === 0) {
+        toast.success(
+          `已${status === 1 ? "启用" : "禁用"}隧道 "${userTunnel.tunnelName}"`,
+        );
+        setUserTunnels((prev) =>
+          prev.map((t) => (t.id === userTunnel.id ? { ...t, status } : t)),
+        );
+      } else {
+        toast.error(response.msg || "操作失败");
+      }
+    } catch (error) {
+      toast.error("操作失败");
+    }
+  };
   const handleConfirmResetTunnelFlow = async () => {
     if (!tunnelToReset) return;
     setResetTunnelFlowLoading(true);
@@ -1155,9 +1266,11 @@ export default function UserPage() {
     setBatchOperationLoading((prev) => ({ ...prev, reset: true }));
     try {
       const response = await batchResetUserFlow(Array.from(selectedUserIds));
+
       if (response.code === 0) {
         const successCount =
           (response.data as any)?.successCount || selectedUserIds.size;
+
         toast.success(`成功归零 ${successCount} 个用户流量`);
         await loadUsers(undefined, false);
         setSelectedUserIds(new Set());
@@ -1173,6 +1286,7 @@ export default function UserPage() {
 
   const handleBatchDelete = () => {
     const usersToDelete = users.filter((u) => selectedUserIds.has(u.id));
+
     setBatchDeleteUserList(usersToDelete);
     onBatchDeleteModalOpen();
   };
@@ -1181,6 +1295,7 @@ export default function UserPage() {
     setBatchOperationLoading((prev) => ({ ...prev, delete: true }));
     try {
       const response = await batchDeleteUsers(Array.from(selectedUserIds));
+
       if (response.code === 0) {
         const successCount =
           (response.data as any)?.successCount || selectedUserIds.size;
@@ -1259,13 +1374,14 @@ export default function UserPage() {
     return (
       <TableRow
         ref={setNodeRef}
-        style={style}
-        className={`cursor-default transition-colors ${selectedUserIds.has(user.id)
+        className={`cursor-default transition-colors ${
+          selectedUserIds.has(user.id)
             ? "bg-primary-50 dark:bg-primary-900/30"
             : selectedUserId === user.id
               ? "bg-primary-50 dark:bg-primary-900/30"
               : "hover:bg-default-50/50"
-          }`}
+        }`}
+        style={style}
         onClick={() => {
           if (!batchMode) {
             setSelectedUserId(user.id);
@@ -1275,6 +1391,7 @@ export default function UserPage() {
         {React.Children.map(children, (child) => {
           if (React.isValidElement(child) && child.type === TableCell) {
             const childAny = child as React.ReactElement<any>;
+
             // 第二个 TableCell 是拖拽列，添加 listeners
             if (childAny.props.children?.props?.title === "拖拽排序") {
               return React.cloneElement(child, {
@@ -1287,6 +1404,7 @@ export default function UserPage() {
               });
             }
           }
+
           return child;
         })}
       </TableRow>
@@ -1322,7 +1440,6 @@ export default function UserPage() {
         <div className="flex items-center gap-2">
           {batchMode ? (
             <>
-
               <Button
                 color="primary"
                 size="sm"
@@ -1351,20 +1468,20 @@ export default function UserPage() {
               </Button> */}
               <Button
                 color="warning"
-                size="sm"
-                variant="flat"
                 isDisabled={selectedUserIds.size === 0}
                 isLoading={batchOperationLoading.reset}
+                size="sm"
+                variant="flat"
                 onPress={handleBatchResetFlow}
               >
                 归零
               </Button>
               <Button
                 color="danger"
-                size="sm"
-                variant="flat"
                 isDisabled={selectedUserIds.size === 0}
                 isLoading={batchOperationLoading.delete}
+                size="sm"
+                variant="flat"
                 onPress={handleBatchDelete}
               >
                 删除
@@ -1386,7 +1503,12 @@ export default function UserPage() {
               >
                 {viewMode === "card" ? "卡片" : "列表"}
               </Button>
-              <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
+              <Button
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={handleAdd}
+              >
                 新增
               </Button>
               {activeFilterCount > 0 && (
@@ -1436,7 +1558,8 @@ export default function UserPage() {
                   <TableColumn className="whitespace-nowrap flex-shrink-0 w-[60px] text-left">
                     <Checkbox
                       isSelected={
-                        users.length > 0 && selectedUserIds.size === users.length
+                        users.length > 0 &&
+                        selectedUserIds.size === users.length
                       }
                       onValueChange={(checked) => handleSelectAll(checked)}
                     />
@@ -1463,7 +1586,7 @@ export default function UserPage() {
                     规则数
                   </TableColumn>
                   <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                  归零日期
+                    归零日期
                   </TableColumn>
                   <TableColumn className="whitespace-nowrap flex-shrink-0 w-[120px] text-left">
                     到期时间
@@ -1497,8 +1620,8 @@ export default function UserPage() {
                         >
                           <div
                             className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors inline-flex"
-                            title="拖拽排序"
                             style={{ touchAction: "none" }}
+                            title="拖拽排序"
                           >
                             <svg
                               aria-hidden="true"
@@ -1529,10 +1652,11 @@ export default function UserPage() {
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <div
-                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${monitorPermissionUserIds.has(user.id)
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              monitorPermissionUserIds.has(user.id)
                                 ? "bg-success-500/10 text-success-600 dark:text-success-400"
                                 : "bg-default-500/10 text-default-500"
-                              }`}
+                            }`}
                           >
                             {monitorPermissionUserIds.has(user.id) ? (
                               <>
@@ -1563,10 +1687,12 @@ export default function UserPage() {
                             </span>
                             <Button
                               isIconOnly
+                              className="w-6 h-6 min-w-6"
                               size="sm"
                               variant="light"
-                              className="w-6 h-6 min-w-6"
-                              onPress={() => openHistoryModal(user as UserWithHistory)}
+                              onPress={() =>
+                                openHistoryModal(user as UserWithHistory)
+                              }
                             >
                               <svg
                                 aria-hidden="true"
@@ -1589,14 +1715,15 @@ export default function UserPage() {
                               aria-label="已用流量比例"
                               className="w-24 mt-1"
                               color={
-                                usedFlow / (user.flow * 1024 * 1024 * 1024) > 0.8
+                                usedFlow / (user.flow * 1024 * 1024 * 1024) >
+                                0.8
                                   ? "danger"
                                   : "primary"
                               }
                               size="sm"
                               value={Math.min(
                                 (usedFlow / (user.flow * 1024 * 1024 * 1024)) *
-                                100,
+                                  100,
                                 100,
                               )}
                             />
@@ -1628,7 +1755,9 @@ export default function UserPage() {
                               </div>
                             )
                           ) : (
-                            <span className="text-sm text-default-600">永久</span>
+                            <span className="text-sm text-default-600">
+                              永久
+                            </span>
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
@@ -1705,18 +1834,19 @@ export default function UserPage() {
             const flowPercent =
               user.flow > 0
                 ? Math.min(
-                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
-                  100,
-                )
+                    (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
+                    100,
+                  )
                 : 0;
 
             return (
               <StaggerItem key={user.id}>
                 <div
-                  className={`shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full rounded-xl cursor-default ${selectedUserIds.has(user.id)
+                  className={`shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full rounded-xl cursor-default ${
+                    selectedUserIds.has(user.id)
                       ? "bg-primary-50 dark:bg-primary-900/30 border-primary-300 dark:border-primary-700"
                       : ""
-                    }`}
+                  }`}
                   onClick={() => toggleUserSelection(user.id)}
                 >
                   <Card className="shadow-none border-0">
@@ -1770,9 +1900,9 @@ export default function UserPage() {
                             </span>
                             <Button
                               isIconOnly
+                              className="w-6 h-6 min-w-6"
                               size="sm"
                               variant="light"
-                              className="w-6 h-6 min-w-6"
                               onPress={() => openHistoryModal(user)}
                             >
                               <svg
@@ -1837,16 +1967,19 @@ export default function UserPage() {
                           ) : (
                             <div className="flex justify-between text-sm">
                               <span className="text-default-600">过期时间</span>
-                              <span className="text-sm text-default-600">永久</span>
+                              <span className="text-sm text-default-600">
+                                永久
+                              </span>
                             </div>
                           )}
                           <div className="flex justify-between text-sm">
                             <span className="text-default-600">监控权限</span>
                             <div
-                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${monitorPermissionUserIds.has(user.id)
+                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                monitorPermissionUserIds.has(user.id)
                                   ? "bg-success-500/10 text-success-600 dark:text-success-400"
                                   : "bg-default-500/10 text-default-500"
-                                }`}
+                              }`}
                             >
                               {monitorPermissionUserIds.has(user.id) ? (
                                 <>
@@ -2073,15 +2206,24 @@ export default function UserPage() {
                 showMonthAndYearPickers
                 description="留空表示永不过期"
                 label="到期时间"
-                value={timestampToCalendarDate(userForm.expTime?.getTime() || null)}
+                value={timestampToCalendarDate(
+                  userForm.expTime?.getTime() || null,
+                )}
                 onChange={(date) => {
                   const jsDate = calendarDateToTimestamp(date) || null;
-                  setUserForm((prev) => ({ ...prev, expTime: jsDate ? new Date(jsDate) : null }));
+
+                  setUserForm((prev) => ({
+                    ...prev,
+                    expTime: jsDate ? new Date(jsDate) : null,
+                  }));
                 }}
               >
                 <DatePresets
                   onChange={(timestamp) => {
-                    setUserForm((prev) => ({ ...prev, expTime: timestamp ? new Date(timestamp) : null }));
+                    setUserForm((prev) => ({
+                      ...prev,
+                      expTime: timestamp ? new Date(timestamp) : null,
+                    }));
                   }}
                 />
               </DatePicker>
@@ -2104,7 +2246,7 @@ export default function UserPage() {
                 setUserForm((prev) => ({ ...prev, status: Number(value) }))
               }
             >
-              <Radio value="1">正常</Radio>
+              <Radio value="1">启用</Radio>
               <Radio value="0">禁用</Radio>
             </RadioGroup>
           </ModalBody>
@@ -2145,10 +2287,11 @@ export default function UserPage() {
                   {/* 👇 核心修复 2：分配按钮必须和选择框放在同一行！用 flex-1 min-w-0 压制选择框宽度 */}
                   <div className="flex flex-row items-center gap-2 sm:gap-3 w-full">
                     <div
-                      className={`group flex items-center px-3 sm:px-4 h-10 rounded-xl border-2 transition-all cursor-pointer shadow-sm overflow-hidden flex-1 min-w-0 ${isTunnelListExpanded
+                      className={`group flex items-center px-3 sm:px-4 h-10 rounded-xl border-2 transition-all cursor-pointer shadow-sm overflow-hidden flex-1 min-w-0 ${
+                        isTunnelListExpanded
                           ? "border-primary bg-primary-50/20 ring-4 ring-primary/10"
                           : "border-default-200 bg-default-50 hover:border-primary-300"
-                        }`}
+                      }`}
                       onClick={() =>
                         setIsTunnelListExpanded(!isTunnelListExpanded)
                       }
@@ -2158,12 +2301,12 @@ export default function UserPage() {
                       >
                         {batchTunnelSelections.size > 0
                           ? `已选 ${batchTunnelSelections.size} 项：` +
-                          Array.from(batchTunnelSelections.keys())
-                            .map(
-                              (id) => tunnels.find((t) => t.id === id)?.name,
-                            )
-                            .filter(Boolean)
-                            .join("、")
+                            Array.from(batchTunnelSelections.keys())
+                              .map(
+                                (id) => tunnels.find((t) => t.id === id)?.name,
+                              )
+                              .filter(Boolean)
+                              .join("、")
                           : "请选择隧道（勾选后配置）"}
                       </span>
                       <svg
@@ -2211,9 +2354,9 @@ export default function UserPage() {
                                   tunnels.filter((t) => !isTunnelAssigned(t.id))
                                     .length > 0 &&
                                   batchTunnelSelections.size ===
-                                  tunnels.filter(
-                                    (t) => !isTunnelAssigned(t.id),
-                                  ).length
+                                    tunnels.filter(
+                                      (t) => !isTunnelAssigned(t.id),
+                                    ).length
                                 }
                                 size="sm"
                                 onValueChange={(isSelected) => {
@@ -2354,20 +2497,47 @@ export default function UserPage() {
               {/* 已有权限部分 */}
               <div className="space-y-3 w-full">
                 <div className="flex flex-row items-center justify-between gap-2 mt-4">
-                  <h3 className="text-base font-semibold text-foreground whitespace-nowrap">
-                    已有权限
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-foreground whitespace-nowrap">
+                      已有权限
+                    </h3>
+                    {selectedUserTunnelIds.size > 0 && (
+                      <Chip color="primary" size="sm" variant="flat">
+                        已选 {selectedUserTunnelIds.size} 个
+                      </Chip>
+                    )}
+                  </div>
                   {selectedUserTunnelIds.size > 0 && (
-                    <Button
-                      className="h-8 text-xs sm:text-sm px-2 sm:px-3"
-                      color="danger"
-                      size="sm"
-                      startContent={<DeleteIcon className="w-3.5 h-3.5" />}
-                      variant="flat"
-                      onPress={onBatchDeleteTunnelModalOpen}
-                    >
-                      删除已选 ({selectedUserTunnelIds.size})
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        className="h-8 text-xs sm:text-sm px-2 sm:px-3"
+                        color="success"
+                        isLoading={batchUpdateStatusLoading.enable}
+                        size="sm"
+                        onPress={() => handleBatchUpdateStatus(1)}
+                      >
+                        启用
+                      </Button>
+                      <Button
+                        className="h-8 text-xs sm:text-sm px-2 sm:px-3"
+                        color="warning"
+                        isLoading={batchUpdateStatusLoading.disable}
+                        size="sm"
+                        onPress={() => handleBatchUpdateStatus(2)}
+                      >
+                        禁用
+                      </Button>
+                      <Button
+                        className="h-8 text-xs sm:text-sm px-2 sm:px-3"
+                        color="danger"
+                        size="sm"
+                        startContent={<DeleteIcon className="w-3.5 h-3.5" />}
+                        variant="flat"
+                        onPress={onBatchDeleteTunnelModalOpen}
+                      >
+                        删除
+                      </Button>
+                    </div>
                   )}
                 </div>
                 {/* 👇 核心修复 3：表格的外部父容器必须死死锁住 w-full min-w-0 */}
@@ -2462,9 +2632,9 @@ export default function UserPage() {
                               <span className="text-xs sm:text-sm text-default-600 bg-default-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded">
                                 {userTunnel.speedLimitName
                                   ? userTunnel.speedLimitName.replace(
-                                    /^限速\s*/,
-                                    "",
-                                  )
+                                      /^限速\s*/,
+                                      "",
+                                    )
                                   : "不限速"}
                               </span>
                             </TableCell>
@@ -2472,11 +2642,40 @@ export default function UserPage() {
                               <div
                                 className={`inline-flex items-center justify-center px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded text-xs sm:text-xs font-medium ${userTunnel.status === 1 ? "bg-success-500/10 text-success-600" : "bg-danger-500/10 text-danger-600"}`}
                               >
-                                {userTunnel.status === 1 ? "正常" : "禁用"}
+                                {userTunnel.status === 1 ? "启用" : "禁用"}
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1 sm:gap-2">
+                                {/* 启用/禁用按钮 */}
+                                {userTunnel.status === 1 ? (
+                                  <Button
+                                    isIconOnly
+                                    className="bg-warning-50 text-warning-600 hover:bg-warning-100 min-w-7 w-7 h-7 sm:min-w-8 sm:w-8 sm:h-8"
+                                    size="sm"
+                                    title="禁用"
+                                    variant="flat"
+                                    onPress={() =>
+                                      handleSingleToggleStatus(userTunnel, 2)
+                                    }
+                                  >
+                                    <StopCircle className="w-3.5 h-3.5" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    isIconOnly
+                                    className="bg-success-50 text-success-600 hover:bg-success-100 min-w-7 w-7 h-7 sm:min-w-8 sm:w-8 sm:h-8"
+                                    size="sm"
+                                    title="启用"
+                                    variant="flat"
+                                    onPress={() =>
+                                      handleSingleToggleStatus(userTunnel, 1)
+                                    }
+                                  >
+                                    <Play className="w-3.5 h-3.5" />
+                                  </Button>
+                                )}
+                                {/* 编辑按钮 */}
                                 <Button
                                   isIconOnly
                                   className="bg-blue-50 text-blue-600 hover:bg-blue-100 min-w-7 w-7 h-7 sm:min-w-8 sm:w-8 sm:h-8"
@@ -2486,6 +2685,7 @@ export default function UserPage() {
                                 >
                                   <EditIcon className="w-3.5 h-3.5" />
                                 </Button>
+                                {/* 同步按钮 */}
                                 <Button
                                   isIconOnly
                                   className="bg-orange-50 text-orange-600 hover:bg-orange-100 min-w-7 w-7 h-7 sm:min-w-8 sm:w-8 sm:h-8"
@@ -2507,6 +2707,7 @@ export default function UserPage() {
                                     />
                                   </svg>
                                 </Button>
+                                {/* 删除按钮 */}
                                 <Button
                                   isIconOnly
                                   className="bg-danger-50 text-danger-600 hover:bg-danger-100 min-w-7 w-7 h-7 sm:min-w-8 sm:w-8 sm:h-8"
@@ -2562,7 +2763,7 @@ export default function UserPage() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {monitorPermissionLoading ||
-                  monitorPermissionMutatingUserId === monitorModalUser?.id ? (
+                monitorPermissionMutatingUserId === monitorModalUser?.id ? (
                   <Spinner size="sm" />
                 ) : null}
                 <Switch
@@ -2625,9 +2826,9 @@ export default function UserPage() {
                     setEditTunnelForm((prev) =>
                       prev
                         ? {
-                          ...prev,
-                          speedId: selectedKey ? Number(selectedKey) : null,
-                        }
+                            ...prev,
+                            speedId: selectedKey ? Number(selectedKey) : null,
+                          }
                         : null,
                     );
                   }}
@@ -2651,7 +2852,7 @@ export default function UserPage() {
                     )
                   }
                 >
-                  <Radio value="1">正常</Radio>
+                  <Radio value="1">启用</Radio>
                   <Radio value="0">禁用</Radio>
                 </RadioGroup>
               </>
@@ -3012,7 +3213,8 @@ export default function UserPage() {
           </ModalHeader>
           <ModalBody>
             <p className="text-sm text-default-600 mb-3">
-              确认要删除以下 {batchDeleteUserList.length} 个用户吗？此操作不可恢复。
+              确认要删除以下 {batchDeleteUserList.length}{" "}
+              个用户吗？此操作不可恢复。
             </p>
             <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
               {batchDeleteUserList.map((user) => (
@@ -3029,12 +3231,13 @@ export default function UserPage() {
                     </span>
                   </div>
                   <div
-                    className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${user.status === 1
+                    className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium ${
+                      user.status === 1
                         ? "bg-success-500/10 text-success-600 dark:text-success-400"
                         : "bg-danger-500/10 text-danger-600 dark:text-danger-400"
-                      }`}
+                    }`}
                   >
-                    {user.status === 1 ? "正常" : "禁用"}
+                    {user.status === 1 ? "启用" : "禁用"}
                   </div>
                 </div>
               ))}
@@ -3073,12 +3276,14 @@ export default function UserPage() {
       >
         <ModalContent>
           <ModalHeader className="flex items-center justify-between">
-            <span className="text-base font-semibold">流量历史 - {historyModalUser?.name || historyModalUser?.user}</span>
+            <span className="text-base font-semibold">
+              流量历史 - {historyModalUser?.name || historyModalUser?.user}
+            </span>
             <Button
               isIconOnly
+              className="w-8 h-8 min-w-8"
               size="sm"
               variant="light"
-              className="w-8 h-8 min-w-8"
               onPress={onHistoryModalClose}
             >
               <svg
@@ -3098,7 +3303,9 @@ export default function UserPage() {
             </Button>
           </ModalHeader>
           <ModalBody className="py-6">
-            {historyModalUser && historyModalUser.quotaHistory && historyModalUser.quotaHistory.length > 0 ? (
+            {historyModalUser &&
+            historyModalUser.quotaHistory &&
+            historyModalUser.quotaHistory.length > 0 ? (
               <div className="space-y-3 max-h-80 overflow-y-auto">
                 {historyModalUser.quotaHistory.map((item) => (
                   <div
@@ -3107,7 +3314,9 @@ export default function UserPage() {
                   >
                     <div className="flex items-center justify-between w-full mb-2">
                       <span className="text-sm font-medium text-default-600">
-                        {item.resetReason === "管理员手动重置" ? "admin" : "系统自动"}
+                        {item.resetReason === "管理员手动重置"
+                          ? "admin"
+                          : "系统自动"}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-default-500">
@@ -3115,9 +3324,9 @@ export default function UserPage() {
                         </span>
                         <Button
                           isIconOnly
+                          className="w-6 h-6 min-w-6 text-danger hover:bg-danger/10"
                           size="sm"
                           variant="light"
-                          className="w-6 h-6 min-w-6 text-danger hover:bg-danger/10"
                           onPress={() => {
                             setHistoryToDelete(item.id);
                             onDeleteConfirmOpen();
@@ -3142,7 +3351,9 @@ export default function UserPage() {
                     </div>
                     <div className="flex flex-col gap-1 w-full">
                       <div className="w-full">
-                        <span className="text-default-500 text-sm block mb-1">归零前流量:</span>
+                        <span className="text-default-500 text-sm block mb-1">
+                          归零前流量:
+                        </span>
                         <div className="flex items-center justify-end gap-2 flex-wrap">
                           <span className="text-primary-600 text-sm whitespace-nowrap dark:text-primary-400">
                             ↑{formatFlow(item.inFlowBefore)}
@@ -3157,8 +3368,12 @@ export default function UserPage() {
                       </div>
                       {item.resetReason && (
                         <div className="flex items-center justify-between w-full">
-                          <span className="text-default-500 text-sm">归零原因:</span>
-                          <span className="text-red-500 text-sm">{item.resetReason}</span>
+                          <span className="text-default-500 text-sm">
+                            归零原因:
+                          </span>
+                          <span className="text-red-500 text-sm">
+                            {item.resetReason}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -3176,7 +3391,7 @@ export default function UserPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-      
+
       {/* 删除历史记录确认弹窗 */}
       <Modal
         backdrop="blur"
@@ -3188,7 +3403,9 @@ export default function UserPage() {
         onClose={onDeleteConfirmClose}
       >
         <ModalContent>
-          <ModalHeader className="text-base font-semibold">确认删除</ModalHeader>
+          <ModalHeader className="text-base font-semibold">
+            确认删除
+          </ModalHeader>
           <ModalBody className="py-4">
             <p className="text-sm text-default-600">
               确定要删除这条流量历史记录吗？此操作不可恢复。
