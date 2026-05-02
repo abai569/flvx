@@ -732,16 +732,18 @@ export default function UserPage() {
   const [historyToDelete, setHistoryToDelete] = useState<number | null>(null);
   
   const handleDeleteHistory = useCallback(async () => {
-    if (!historyToDelete) return;
+    if (!historyToDelete || !historyModalUser) return;
     try {
       const res = await deleteUserQuotaHistory(historyToDelete);
       if (res.code === 0) {
         toast.success("删除成功");
-        // 从列表中移除
-        if (historyModalUser) {
-          const updatedHistory = historyModalUser.quotaHistory?.filter(
-            item => item.id !== historyToDelete
-          ) || [];
+        // 重新获取最新列表
+        const refreshRes = await getUserQuotaHistory(historyModalUser.id, 50);
+        if (refreshRes.code === 0) {
+          const updatedHistory = refreshRes.data || [];
+          setUsers(prev => prev.map(u => 
+            u.id === historyModalUser.id ? { ...u, quotaHistory: updatedHistory } : u
+          ));
           setHistoryModalUser({ ...historyModalUser, quotaHistory: updatedHistory });
         }
         onDeleteConfirmClose();

@@ -473,12 +473,16 @@ export default function NodePage() {
     [],
   );
   const handleDeleteLog = useCallback(async () => {
-    if (!logToDelete) return;
+    if (!logToDelete || !currentLogNode) return;
     try {
       const res = await deleteNodeTrafficResetLog(logToDelete);
       if (res.code === 0) {
         toast.success("删除成功");
-        setNodeTrafficLogs((prev) => prev.filter(log => log.id !== logToDelete));
+        // 重新获取最新列表
+        const refreshRes = await getNodeTrafficResetLogs(currentLogNode.id, 30);
+        if (refreshRes.code === 0) {
+          setNodeTrafficLogs(refreshRes.data || []);
+        }
         setDeleteLogModalOpen(false);
         setLogToDelete(null);
       } else {
@@ -487,7 +491,7 @@ export default function NodePage() {
     } catch {
       toast.error("删除失败");
     }
-  }, [logToDelete]);
+  }, [logToDelete, currentLogNode]);
 
   const handleNodeOffline = useCallback((nodeId: number) => {
     setNodeList((prev) =>

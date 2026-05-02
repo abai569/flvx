@@ -2298,12 +2298,16 @@ export default function ForwardPage() {
   };
   // 删除流量归零日志
   const handleDeleteLog = async () => {
-    if (!logToDelete) return;
+    if (!logToDelete || !currentLogForward) return;
     try {
       const res = await deleteForwardTrafficResetLog(logToDelete);
       if (res.code === 0) {
         toast.success("删除成功");
-        setTrafficResetLogs((prev) => prev.filter(log => log.id !== logToDelete));
+        // 重新获取最新列表
+        const refreshRes = await getForwardTrafficResetLogs(currentLogForward.id, 30);
+        if (refreshRes.code === 0) {
+          setTrafficResetLogs(refreshRes.data || []);
+        }
         setDeleteLogModalOpen(false);
         setLogToDelete(null);
       } else {
