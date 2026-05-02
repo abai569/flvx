@@ -2012,11 +2012,28 @@ export default function NodePage() {
                     if (val) copyToClipboard(val, "IPv4/域名");
                   }}
                 >
-                  {node.serverIpV4?.trim() ||
-                    (node.serverIp?.trim() && !node.serverIp.includes(":")
-                      ? node.serverIp.trim()
-                      : undefined) ||
-                    "暂无"}
+                  {(() => {
+                    const val =
+                      node.serverIpV4?.trim() ||
+                      (node.serverIp?.trim() && !node.serverIp.includes(":")
+                        ? node.serverIp.trim()
+                        : undefined);
+                    if (!val) return "暂无";
+                    // 域名显示前两段
+                    if (val.includes(".")) {
+                      const parts = val.split(".");
+                      if (parts.length >= 2) {
+                        return `${parts[0]}.${parts[1]}.*`;
+                      }
+                      return parts[0].length > 12 ? parts[0].slice(0, 12) + "..." : parts[0];
+                    }
+                    // IP 地址只显示前两段
+                    const ipParts = val.split(".");
+                    if (ipParts.length === 4) {
+                      return `${ipParts[0]}.${ipParts[1]}.*.*`;
+                    }
+                    return val.length > 15 ? val.slice(0, 15) + "..." : val;
+                  })()}
                 </span>
               </div>
               <div className="flex justify-between items-center min-w-0">
@@ -2043,11 +2060,28 @@ export default function NodePage() {
                     if (v6Val) copyToClipboard(v6Val, "IPv6 地址");
                   }}
                 >
-                  {node.serverIpV6?.trim() ||
-                    (node.serverIp?.trim() && node.serverIp.includes(":")
-                      ? node.serverIp.trim()
-                      : undefined) ||
-                    "暂无"}
+                  {(() => {
+                    const v6Val =
+                      node.serverIpV6?.trim() ||
+                      (node.serverIp?.trim() && node.serverIp.includes(":")
+                        ? node.serverIp.trim()
+                        : undefined);
+                    if (!v6Val) return "暂无";
+                    // IPv6 地址只显示前缀
+                    if (v6Val.includes(":")) {
+                      const parts = v6Val.split(":");
+                      return parts.slice(0, 3).join(":") + "::";
+                    }
+                    // 域名显示前两段
+                    if (v6Val.includes(".")) {
+                      const parts = v6Val.split(".");
+                      if (parts.length >= 2) {
+                        return `${parts[0]}.${parts[1]}.*`;
+                      }
+                      return parts[0].length > 12 ? parts[0].slice(0, 12) + "..." : parts[0];
+                    }
+                    return v6Val.length > 15 ? v6Val.slice(0, 15) + "..." : v6Val;
+                  })()}
                 </span>
               </div>
               <div className="flex justify-between items-center min-w-0">
@@ -2063,7 +2097,24 @@ export default function NodePage() {
                       copyToClipboard(node.intranetIp.trim(), "内网 IP");
                   }}
                 >
-                  {node.intranetIp?.trim() || "暂无"}
+                  {(() => {
+                    const intranetVal = node.intranetIp?.trim();
+                    if (!intranetVal) return "暂无";
+                    // 域名显示前两段
+                    if (intranetVal.includes(".")) {
+                      const parts = intranetVal.split(".");
+                      if (parts.length >= 2) {
+                        return `${parts[0]}.${parts[1]}.*`;
+                      }
+                      return parts[0].length > 12 ? parts[0].slice(0, 12) + "..." : parts[0];
+                    }
+                    // 内网 IP 只显示前两段
+                    const ipParts = intranetVal.split(".");
+                    if (ipParts.length === 4) {
+                      return `${ipParts[0]}.${ipParts[1]}.*.*`;
+                    }
+                    return intranetVal.length > 15 ? intranetVal.slice(0, 15) + "..." : intranetVal;
+                  })()}
                 </span>
               </div>
             </div>
@@ -2385,7 +2436,7 @@ export default function NodePage() {
                   更新
                 </Button>
                 <Button
-                  color="primary"
+                  color="success"
                   isDisabled={selectedIds.size === 0}
                   size="sm"
                   variant="flat"

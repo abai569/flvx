@@ -4122,12 +4122,12 @@ export default function ForwardPage() {
               </div>
             </div>
           </div>
-          {/* 到期时间横条 - 方案 C */}
+          {/* 有效期横条 - 方案 C */}
           <div
             className={`flex items-center justify-between px-2 py-1.5 rounded-md mt-2 ${forward.expiryTime && forward.expiryTime > 0 && isExpirySoon(forward.expiryTime) ? "bg-danger-500/10 dark:bg-danger-900/20" : "bg-default-100/50 dark:bg-default-50/10"}`}
           >
             <span className="text-xs text-default-500 font-medium">
-              到期时间
+              有效期
             </span>
             <span
               className={`text-xs font-bold ${forward.expiryTime && forward.expiryTime > 0 && isExpirySoon(forward.expiryTime) ? "text-danger-600 dark:text-danger-400" : "text-foreground"}`}
@@ -4574,7 +4574,7 @@ export default function ForwardPage() {
                           连接数
                         </TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                          到期时间
+                          有效期
                         </TableColumn>
                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
                           状态
@@ -4880,7 +4880,7 @@ export default function ForwardPage() {
                                           连接数
                                         </TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
-                                          到期时间
+                                          有效期
                                         </TableColumn>
                                         <TableColumn className="whitespace-nowrap flex-shrink-0 w-[100px] text-left">
                                           状态
@@ -5383,7 +5383,7 @@ export default function ForwardPage() {
                             }
                           />
 
-                          {/* 到期时间 */}
+                          {/* 有效期 */}
                           <ExpiryTimeField
                             value={form.expiryTime}
                             onChange={(val) =>
@@ -6980,7 +6980,7 @@ function ExpiryTimeField({
       <DatePicker
         showMonthAndYearPickers
         description="留空表示永不过期"
-        label="到期时间"
+        label="有效期"
         value={timestampToCalendarDate(value)}
         onChange={(date) => {
           onChange(calendarDateToTimestamp(date));

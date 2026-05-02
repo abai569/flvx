@@ -1468,7 +1468,7 @@ export default function UserPage() {
                 监控
               </Button> */}
               <Button
-                color="warning"
+                color="success"
                 isDisabled={selectedUserIds.size === 0}
                 isLoading={batchOperationLoading.reset}
                 size="sm"
@@ -1514,7 +1514,7 @@ export default function UserPage() {
               </Button>
               {activeFilterCount > 0 && (
                 <Button
-                  color="warning"
+                  color="success"
                   size="sm"
                   variant="flat"
                   onPress={() => setSearchKeyword("")}
@@ -1798,7 +1798,7 @@ export default function UserPage() {
                             </Button>
                             <Button
                               className="min-h-7 px-2"
-                              color="warning"
+                              color="success"
                               size="sm"
                               variant="flat"
                               onPress={() => handleResetFlow(user)}
