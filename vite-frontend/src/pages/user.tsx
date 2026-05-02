@@ -2532,7 +2532,6 @@ export default function UserPage() {
                         className="h-8 text-xs sm:text-sm px-2 sm:px-3"
                         color="danger"
                         size="sm"
-                        startContent={<DeleteIcon className="w-3.5 h-3.5" />}
                         variant="flat"
                         onPress={onBatchDeleteTunnelModalOpen}
                       >
@@ -3363,7 +3362,7 @@ export default function UserPage() {
                             ↓{formatFlow(item.outFlowBefore)}
                           </span>
                           <span className="text-default-600 text-sm whitespace-nowrap font-medium">
-                            总量 {formatFlow(item.usedBytes)}
+                            总 {formatFlow(item.usedBytes)}
                           </span>
                         </div>
                       </div>

@@ -3571,7 +3571,7 @@ export default function NodePage() {
                                 ↓{formatTraffic(log.outFlowBefore || 0)}
                               </span>
                               <span className="text-default-600 text-sm whitespace-nowrap font-medium">
-                                总量{" "}
+                                总 {" "}
                                 {formatTraffic(
                                   (log.inFlowBefore || 0) +
                                     (log.outFlowBefore || 0),

@@ -294,7 +294,7 @@ func preparePostgresLegacySchema(db *gorm.DB) error {
 		if err := db.Exec(
 			fmt.Sprintf(`ALTER TABLE %q RENAME CONSTRAINT %q TO %q`, r.table, r.oldName, r.newName),
 		).Error; err != nil {
-			return fmt.Errorf("rename constraint %s.%s� to: %w", r.table, r.oldName, r.newName, err)
+			return fmt.Errorf("rename constraint %s.%s to: %w", r.table, r.oldName, err)
 		}
 	}
 	return nil
