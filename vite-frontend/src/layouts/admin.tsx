@@ -223,6 +223,7 @@ export default function AdminLayout({
     // Monitor permission is not strictly role-based; non-admin users may be
     // granted access explicitly. Fetch a lightweight capability flag so we can
     // avoid a confusing 403 navigation.
+    let cancelled = false;
     if (adminFlag) {
       setMonitorAllowed(true);
       setMonitorAccessReason(null);
@@ -232,8 +233,6 @@ export default function AdminLayout({
         clearInterval(licenseInterval);
       };
     }
-
-    let cancelled = false;
 
     (async () => {
       try {
