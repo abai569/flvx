@@ -39,7 +39,7 @@ func NewIngestionService(repo *repo.Repository) *IngestionService {
 		repo:          repo,
 		nodeBuffer:    make([]*model.NodeMetric, 0, 500),
 		flushInterval: 30 * time.Second,
-		retentionDays: 7,
+		retentionDays: 1,
 	}
 }
 
