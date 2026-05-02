@@ -839,8 +839,12 @@ export default function NodePage() {
 
     // 1. 拦截易错的范围连接符（波浪号、下划线等）
     if (
+      trimmed.includes("#") ||
       trimmed.includes("~") ||
-      trimmed.includes("～") ||
+      trimmed.includes("&") ||
+      trimmed.includes("+") ||
+      trimmed.includes("*") ||
+      trimmed.includes("^") ||
       trimmed.includes("—") ||
       trimmed.includes("_")
     ) {
@@ -863,12 +867,12 @@ export default function NodePage() {
         const range = part.split("-").map((p) => p.trim());
 
         if (range.length !== 2) {
-          return { valid: false, error: `端口范围格式错误: ${part}` };
+          return { valid: false, error: `端口范围格式错误` };
         }
 
         // 2. 严格检查是否全为数字，防止含有其他非法字符
         if (!/^\d+$/.test(range[0]) || !/^\d+$/.test(range[1])) {
-          return { valid: false, error: `端口范围必须是纯数字: ${part}` };
+          return { valid: false, error: `端口范围必须是纯数字` };
         }
 
         const start = parseInt(range[0], 10);
@@ -877,22 +881,22 @@ export default function NodePage() {
         if (start < 1 || start > 65535 || end < 1 || end > 65535) {
           return {
             valid: false,
-            error: `端口范围必须在 1-65535 之间: ${part}`,
+            error: `端口范围必须在 1-65535 之间`,
           };
         }
         if (start >= end) {
-          return { valid: false, error: `起始端口必须小于结束端口: ${part}` };
+          return { valid: false, error: `起始端口必须小于结束端口` };
         }
       } else {
         // 3. 修复 parseInt("10501~10515") = 10501 的致命 bug，强制要求纯数字
         if (!/^\d+$/.test(part)) {
-          return { valid: false, error: `端口格式有误，必须是纯数字: ${part}` };
+          return { valid: false, error: `端口格式有误，必须是纯数字` };
         }
 
         const port = parseInt(part, 10);
 
         if (port < 1 || port > 65535) {
-          return { valid: false, error: `端口必须在 1-65535 之间: ${part}` };
+          return { valid: false, error: `端口必须在 1-65535 之间` };
         }
       }
     }
