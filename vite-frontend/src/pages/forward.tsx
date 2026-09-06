@@ -6545,7 +6545,11 @@ export default function ForwardPage() {
                               input: "!min-h-[20px]",
                             }}
                             label="入口地址"
-                            placeholder="选择节点后自动获取"
+                            placeholder={
+                              manualTunnelType === 1
+                                ? "选择节点后手动输入"
+                                : "选择节点后自动获取"
+                            }
                             rows={1}
                             value={manualInIp}
                             variant="bordered"
