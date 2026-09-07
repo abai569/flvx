@@ -1073,6 +1073,16 @@ func (h *Handler) nodeList(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	// 根据 WebSocket 连接状态动态修正节点在线状态
+	if h.wsServer != nil {
+		for _, item := range items {
+			if nodeID, ok := item["id"].(int64); ok {
+				if h.wsServer.IsNodeConnected(nodeID) {
+					item["status"] = 1
+				}
+			}
+		}
+	}
 	h.syncRemoteNodeStatuses(items)
 
 	if userID, roleID, err := userRoleFromRequest(r); err == nil && roleID != 0 {

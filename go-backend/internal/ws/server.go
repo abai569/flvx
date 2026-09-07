@@ -212,6 +212,22 @@ func (s *Server) SetNodeMetricHook(fn func(nodeID int64, info SystemInfo)) {
 	s.mu.Unlock()
 }
 
+// IsNodeConnected 检查节点是否有活跃的 WebSocket 连接
+func (s *Server) IsNodeConnected(nodeID int64) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	instances, ok := s.nodes[nodeID]
+	if !ok || len(instances) == 0 {
+		return false
+	}
+	for _, ns := range instances {
+		if ns.conn != nil && ns.conn.conn != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // GetServiceConnections 获取指定节点上所有服务的连接数
 func (s *Server) GetServiceConnections(nodeID int64) map[string]int {
 	s.mu.RLock()
